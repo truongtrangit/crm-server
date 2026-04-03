@@ -7,11 +7,27 @@ const CUSTOMER_TYPES = [
   "Regular",
   "Premium",
 ];
-const STAFF_ROLES = ["Nhân viên", "Trưởng phòng", "Giám đốc", "Admin"];
+const USER_ROLE_VALUES = Object.freeze({
+  OWNER: "OWNER",
+  ADMIN: "ADMIN",
+  MANAGER: "MANAGER",
+  STAFF: "STAFF",
+});
+
+const USER_ROLES = [
+  { value: USER_ROLE_VALUES.OWNER, label: "Owner" },
+  { value: USER_ROLE_VALUES.ADMIN, label: "Admin" },
+  { value: USER_ROLE_VALUES.MANAGER, label: "Manager (Trưởng phòng)" },
+  { value: USER_ROLE_VALUES.STAFF, label: "Staff (Nhân viên)" },
+];
+
+const DEFAULT_USER_ROLE = USER_ROLE_VALUES.STAFF;
 
 module.exports = {
   PLATFORMS,
   CUSTOMER_GROUPS,
   CUSTOMER_TYPES,
-  STAFF_ROLES,
+  DEFAULT_USER_ROLE,
+  USER_ROLES,
+  USER_ROLE_VALUES,
 };

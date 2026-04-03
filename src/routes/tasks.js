@@ -2,12 +2,18 @@ const express = require("express");
 const Task = require("../models/Task");
 const { generateTaskId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
+const { sendError, sendSuccess } = require("../utils/http");
+const {
+  buildPaginatedResponse,
+  resolvePagination,
+} = require("../utils/pagination");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   const { search = "", platform, assignee, status } = req.query;
   const searchRegex = buildSearchRegex(search);
+  const { page, limit, skip } = resolvePagination(req.query || {});
   const query = {};
 
   if (searchRegex) {
@@ -32,8 +38,17 @@ router.get("/", async (req, res) => {
     query.status = status;
   }
 
-  const tasks = await Task.find(query).sort({ createdAt: -1 });
-  res.json(tasks);
+  const [tasks, totalItems] = await Promise.all([
+    Task.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Task.countDocuments(query),
+  ]);
+
+  return sendSuccess(
+    res,
+    200,
+    "Get task list success",
+    buildPaginatedResponse(tasks, totalItems, page, limit),
+  );
 });
 
 router.post("/", async (req, res) => {
@@ -41,9 +56,9 @@ router.post("/", async (req, res) => {
   const action = payload.action || payload.name;
 
   if (!action || !payload.customer?.name) {
-    return res
-      .status(400)
-      .json({ message: "action/name and customer.name are required" });
+    return sendError(res, 400, "action/name and customer.name are required", {
+      code: "VALIDATION_ERROR",
+    });
   }
 
   const task = await Task.create({
@@ -64,14 +79,16 @@ router.post("/", async (req, res) => {
     status: payload.status || "Đang thực hiện",
   });
 
-  return res.status(201).json(task);
+  return sendSuccess(res, 201, "Create task success", task);
 });
 
 router.put("/:id", async (req, res) => {
   const task = await Task.findOne({ id: req.params.id });
 
   if (!task) {
-    return res.status(404).json({ message: "Task not found" });
+    return sendError(res, 404, "Task not found", {
+      code: "TASK_NOT_FOUND",
+    });
   }
 
   Object.assign(task, {
@@ -92,17 +109,19 @@ router.put("/:id", async (req, res) => {
   });
 
   await task.save();
-  return res.json(task);
+  return sendSuccess(res, 200, "Update task success", task);
 });
 
 router.delete("/:id", async (req, res) => {
   const deleted = await Task.findOneAndDelete({ id: req.params.id });
 
   if (!deleted) {
-    return res.status(404).json({ message: "Task not found" });
+    return sendError(res, 404, "Task not found", {
+      code: "TASK_NOT_FOUND",
+    });
   }
 
-  return res.status(204).send();
+  return sendSuccess(res, 200, "Delete task success", null);
 });
 
 module.exports = router;

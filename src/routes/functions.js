@@ -1,19 +1,36 @@
 const express = require("express");
 const StaffFunction = require("../models/StaffFunction");
 const { generateSequentialId } = require("../utils/id");
+const { sendError, sendSuccess } = require("../utils/http");
+const {
+  buildPaginatedResponse,
+  resolvePagination,
+} = require("../utils/pagination");
 
 const router = express.Router();
 
-router.get("/", async (_req, res) => {
-  const items = await StaffFunction.find().sort({ createdAt: 1, id: 1 });
-  res.json(items);
+router.get("/", async (req, res) => {
+  const { page, limit, skip } = resolvePagination(req.query || {});
+  const [items, totalItems] = await Promise.all([
+    StaffFunction.find().sort({ createdAt: 1, id: 1 }).skip(skip).limit(limit),
+    StaffFunction.countDocuments(),
+  ]);
+
+  return sendSuccess(
+    res,
+    200,
+    "Get functions success",
+    buildPaginatedResponse(items, totalItems, page, limit),
+  );
 });
 
 router.post("/", async (req, res) => {
   const { title, desc = "", type = "tech" } = req.body || {};
 
   if (!title) {
-    return res.status(400).json({ message: "title is required" });
+    return sendError(res, 400, "title is required", {
+      code: "VALIDATION_ERROR",
+    });
   }
 
   const item = await StaffFunction.create({
@@ -23,7 +40,7 @@ router.post("/", async (req, res) => {
     type,
   });
 
-  return res.status(201).json(item);
+  return sendSuccess(res, 201, "Create function success", item);
 });
 
 module.exports = router;

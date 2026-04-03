@@ -1,10 +1,12 @@
 const express = require("express");
 const Organization = require("../models/Organization");
+const { paginateArray } = require("../utils/pagination");
+const { sendSuccess } = require("../utils/http");
 const {
   PLATFORMS,
   CUSTOMER_GROUPS,
   CUSTOMER_TYPES,
-  STAFF_ROLES,
+  USER_ROLES,
 } = require("../constants/appData");
 
 const router = express.Router();
@@ -21,28 +23,44 @@ async function getDerivedMetadata() {
     platforms: PLATFORMS,
     customerGroups: groups.length > 0 ? groups : CUSTOMER_GROUPS,
     customerTypes: CUSTOMER_TYPES,
-    staffRoles: STAFF_ROLES,
+    staffRoles: USER_ROLES,
+    userRoles: USER_ROLES,
     departments: departments.map((item) => item.parent),
   };
 }
 
 router.get("/", async (_req, res) => {
   const metadata = await getDerivedMetadata();
-  res.json(metadata);
+  return sendSuccess(res, 200, "Get metadata success", metadata);
 });
 
-router.get("/roles", async (_req, res) => {
-  res.json(STAFF_ROLES);
+router.get("/roles", async (req, res) => {
+  return sendSuccess(
+    res,
+    200,
+    "Get roles success",
+    paginateArray(USER_ROLES, req.query || {}),
+  );
 });
 
-router.get("/departments", async (_req, res) => {
+router.get("/departments", async (req, res) => {
   const metadata = await getDerivedMetadata();
-  res.json(metadata.departments);
+  return sendSuccess(
+    res,
+    200,
+    "Get departments success",
+    paginateArray(metadata.departments, req.query || {}),
+  );
 });
 
-router.get("/customer-groups", async (_req, res) => {
+router.get("/customer-groups", async (req, res) => {
   const metadata = await getDerivedMetadata();
-  res.json(metadata.customerGroups);
+  return sendSuccess(
+    res,
+    200,
+    "Get customer groups success",
+    paginateArray(metadata.customerGroups, req.query || {}),
+  );
 });
 
 module.exports = router;

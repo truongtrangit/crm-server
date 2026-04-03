@@ -1,9 +1,9 @@
-const http = require('http');
-const mongoose = require('mongoose');
-const app = require('./app');
-const env = require('./config/env');
-const { connectDatabase } = require('./config/database');
-const { seedDatabase } = require('./services/seedDatabase');
+const http = require("http");
+const mongoose = require("mongoose");
+const app = require("./app");
+const env = require("./config/env");
+const { connectDatabase } = require("./config/database");
+const { seedDatabase } = require("./services/seedDatabase");
 
 async function bootstrap() {
   await connectDatabase();
@@ -23,11 +23,11 @@ async function bootstrap() {
     });
   };
 
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 bootstrap().catch((error) => {
-  console.error('Failed to start CRM server', error);
+  console.error("Failed to start CRM server", error);
   process.exit(1);
 });

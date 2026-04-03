@@ -2,12 +2,18 @@ const express = require("express");
 const Customer = require("../models/Customer");
 const { generateSequentialId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
+const { sendError, sendSuccess } = require("../utils/http");
+const {
+  buildPaginatedResponse,
+  resolvePagination,
+} = require("../utils/pagination");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   const { search = "", type, group, platform } = req.query;
   const searchRegex = buildSearchRegex(search);
+  const { page, limit, skip } = resolvePagination(req.query || {});
   const query = {};
 
   if (searchRegex) {
@@ -30,25 +36,38 @@ router.get("/", async (req, res) => {
     query.platforms = platform;
   }
 
-  const customers = await Customer.find(query).sort({ createdAt: -1 });
-  res.json(customers);
+  const [customers, totalItems] = await Promise.all([
+    Customer.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Customer.countDocuments(query),
+  ]);
+
+  return sendSuccess(
+    res,
+    200,
+    "Get customer list success",
+    buildPaginatedResponse(customers, totalItems, page, limit),
+  );
 });
 
 router.get("/:id", async (req, res) => {
   const customer = await Customer.findOne({ id: req.params.id });
 
   if (!customer) {
-    return res.status(404).json({ message: "Customer not found" });
+    return sendError(res, 404, "Customer not found", {
+      code: "CUSTOMER_NOT_FOUND",
+    });
   }
 
-  return res.json(customer);
+  return sendSuccess(res, 200, "Get customer detail success", customer);
 });
 
 router.post("/", async (req, res) => {
   const payload = req.body || {};
 
   if (!payload.name || !payload.email) {
-    return res.status(400).json({ message: "name and email are required" });
+    return sendError(res, 400, "name and email are required", {
+      code: "VALIDATION_ERROR",
+    });
   }
 
   const customer = await Customer.create({
@@ -71,14 +90,16 @@ router.post("/", async (req, res) => {
     tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
   });
 
-  return res.status(201).json(customer);
+  return sendSuccess(res, 201, "Create customer success", customer);
 });
 
 router.put("/:id", async (req, res) => {
   const existing = await Customer.findOne({ id: req.params.id });
 
   if (!existing) {
-    return res.status(404).json({ message: "Customer not found" });
+    return sendError(res, 404, "Customer not found", {
+      code: "CUSTOMER_NOT_FOUND",
+    });
   }
 
   Object.assign(existing, {
@@ -98,17 +119,19 @@ router.put("/:id", async (req, res) => {
   });
 
   await existing.save();
-  return res.json(existing);
+  return sendSuccess(res, 200, "Update customer success", existing);
 });
 
 router.delete("/:id", async (req, res) => {
   const deleted = await Customer.findOneAndDelete({ id: req.params.id });
 
   if (!deleted) {
-    return res.status(404).json({ message: "Customer not found" });
+    return sendError(res, 404, "Customer not found", {
+      code: "CUSTOMER_NOT_FOUND",
+    });
   }
 
-  return res.status(204).send();
+  return sendSuccess(res, 200, "Delete customer success", null);
 });
 
 module.exports = router;
