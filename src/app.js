@@ -5,7 +5,7 @@ const { authenticateRequest } = require("./middleware/auth");
 const { createHttpError, sendError, sendSuccess } = require("./utils/http");
 const authRouter = require("./routes/auth");
 const customersRouter = require("./routes/customers");
-const staffRouter = require("./routes/staff");
+const usersRouter = require("./routes/users");
 const leadsRouter = require("./routes/leads");
 const tasksRouter = require("./routes/tasks");
 const organizationRouter = require("./routes/organization");
@@ -64,7 +64,7 @@ app.get("/api", (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/customers", authenticateRequest, customersRouter);
-app.use("/api/staff", staffRouter);
+app.use("/api/users", usersRouter);
 app.use("/api/leads", authenticateRequest, leadsRouter);
 app.use("/api/tasks", authenticateRequest, tasksRouter);
 app.use("/api/organization", authenticateRequest, organizationRouter);
