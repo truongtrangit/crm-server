@@ -14,6 +14,10 @@ function getRefreshTokenTtlMs() {
   return env.refreshTokenTtlDays * 24 * 60 * 60 * 1000;
 }
 
+function getPasswordResetTokenTtlMs() {
+  return env.passwordResetTokenTtlMinutes * 60 * 1000;
+}
+
 function hashToken(token = "") {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -43,6 +47,17 @@ async function verifyPassword(password, passwordHash = "") {
 
 function createOpaqueToken() {
   return crypto.randomBytes(48).toString("base64url");
+}
+
+function createPasswordResetToken() {
+  const token = createOpaqueToken();
+  const expiresAt = new Date(Date.now() + getPasswordResetTokenTtlMs());
+
+  return {
+    token,
+    tokenHash: hashToken(token),
+    expiresAt,
+  };
 }
 
 function getClientIp(req) {
@@ -191,6 +206,7 @@ module.exports = {
   SESSION_ID_COOKIE,
   buildAuthResponse,
   clearRefreshCookies,
+  createPasswordResetToken,
   createSessionTokens,
   getRefreshContext,
   hashPassword,

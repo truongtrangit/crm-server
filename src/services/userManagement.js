@@ -71,6 +71,7 @@ function serializeUser(user) {
     typeof user.toObject === "function" ? user.toObject() : { ...user };
 
   delete item.passwordHash;
+  delete item.passwordReset;
   delete item.sessions;
 
   return {

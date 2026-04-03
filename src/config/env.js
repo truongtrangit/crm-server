@@ -19,6 +19,8 @@ const env = {
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
   accessTokenTtlMinutes: Number(process.env.ACCESS_TOKEN_TTL_MINUTES) || 15,
   refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS) || 30,
+  passwordResetTokenTtlMinutes:
+    Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES) || 30,
   // migratedUserDefaultPassword:
   //   process.env.MIGRATED_USER_DEFAULT_PASSWORD || "ChangeMe@123",
   // cleanLegacyStaffCollection: readBooleanEnv(

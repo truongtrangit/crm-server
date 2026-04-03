@@ -19,6 +19,18 @@ const sessionSchema = new mongoose.Schema(
   },
 );
 
+const passwordResetSchema = new mongoose.Schema(
+  {
+    tokenHash: { type: String, default: null },
+    expiresAt: { type: Date, default: null },
+    requestedAt: { type: Date, default: null },
+  },
+  {
+    _id: false,
+    id: false,
+  },
+);
+
 const userSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -45,6 +57,7 @@ const userSchema = new mongoose.Schema(
     managerId: { type: String, default: null },
     createdBy: { type: String, default: null },
     lastLoginAt: { type: Date, default: null },
+    passwordReset: { type: passwordResetSchema, default: () => ({}) },
     sessions: { type: [sessionSchema], default: [] },
   },
   {

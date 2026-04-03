@@ -100,6 +100,13 @@ Server hỗ trợ 3 cách truyền refresh token:
    - `x-session-id`
    - `x-refresh-token`
 
+### 2.3. Password reset token
+
+- `POST /auth/forgot-password` tạo reset token cho flow quên mật khẩu
+- Ở bản demo hiện tại, do chưa tích hợp email service, API trả thẳng `resetToken` trong response để FE/manual test dễ kiểm thử
+- `POST /auth/reset-password` dùng `email` + `resetToken` + `newPassword` để đặt lại mật khẩu
+- Sau khi reset password hoặc change password, tất cả session cũ đều bị invalidate và user cần login lại
+
 ## 3. Role & phân quyền
 
 Các role hiện tại:
@@ -412,7 +419,100 @@ Error:
 - `401 { "statusCode": 401, "code": "INVALID_SESSION", "message": "Invalid session" }`
 - `401 { "statusCode": 401, "code": "INVALID_REFRESH_TOKEN", "message": "Refresh token is invalid or expired" }`
 
-### 6.3. POST /auth/logout
+### 6.3. POST /auth/forgot-password
+
+Auth: No
+
+Status codes:
+
+- `200` tạo yêu cầu quên mật khẩu thành công
+- `400` thiếu `email`
+- `500` lỗi server
+
+Body:
+
+```json
+{
+  "email": "owner@crm.vn"
+}
+```
+
+Validation:
+
+- `email` bắt buộc
+
+Ghi chú:
+
+- Bản demo hiện tại trả trực tiếp `resetToken` trong response vì chưa có email service
+- FE production sau này có thể đổi sang flow gửi mail nhưng vẫn giữ cùng logic token phía backend
+
+Response 200:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Forgot password request success",
+  "data": {
+    "email": "owner@crm.vn",
+    "resetToken": "...",
+    "resetTokenExpiresAt": "2026-04-03T03:42:25.890Z"
+  }
+}
+```
+
+Error:
+
+- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "email is required" }`
+
+### 6.4. POST /auth/reset-password
+
+Auth: No
+
+Status codes:
+
+- `200` reset mật khẩu thành công
+- `400` thiếu field hoặc reset token không hợp lệ/hết hạn
+- `500` lỗi server
+
+Body:
+
+```json
+{
+  "email": "owner@crm.vn",
+  "resetToken": "...",
+  "newPassword": "Owner@1234"
+}
+```
+
+Validation:
+
+- `email` bắt buộc
+- `resetToken` bắt buộc
+- `newPassword` bắt buộc, tối thiểu 8 ký tự
+- `newPassword` phải khác mật khẩu hiện tại
+
+Rule:
+
+- Reset token chỉ dùng được tới trước `resetTokenExpiresAt`
+- Reset thành công sẽ invalidate toàn bộ session cũ của user
+
+Response 200:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Reset password success",
+  "data": null
+}
+```
+
+Error:
+
+- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "email, resetToken and newPassword are required" }`
+- `400 { "statusCode": 400, "code": "INVALID_RESET_TOKEN", "message": "resetToken is invalid or expired" }`
+- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "password must be at least 8 characters" }`
+
+### 6.5. POST /auth/logout
 
 Auth:
 
@@ -445,7 +545,7 @@ Response:
 }
 ```
 
-### 6.4. GET /auth/me
+### 6.6. GET /auth/me
 
 Auth: Bearer token
 
@@ -483,7 +583,55 @@ Response 200:
 }
 ```
 
-### 6.5. POST /auth/register
+### 6.7. POST /auth/change-password
+
+Auth: Bearer token
+
+Status codes:
+
+- `200` đổi mật khẩu thành công
+- `400` thiếu field hoặc `newPassword` không hợp lệ
+- `401` `currentPassword` sai hoặc thiếu token
+- `500` lỗi server
+
+Body:
+
+```json
+{
+  "currentPassword": "Owner@1234",
+  "newPassword": "Owner@123"
+}
+```
+
+Validation:
+
+- `currentPassword` bắt buộc
+- `newPassword` bắt buộc, tối thiểu 8 ký tự
+- `newPassword` phải khác `currentPassword`
+
+Rule:
+
+- Change password thành công sẽ invalidate toàn bộ session cũ, gồm cả session hiện tại
+- Sau khi đổi mật khẩu xong, client phải login lại
+
+Response 200:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Change password success",
+  "data": null
+}
+```
+
+Error:
+
+- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "currentPassword and newPassword are required" }`
+- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "password must be at least 8 characters" }`
+- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "newPassword must be different from current password" }`
+- `401 { "statusCode": 401, "code": "INVALID_CURRENT_PASSWORD", "message": "Current password is incorrect" }`
+
+### 6.8. POST /auth/register
 
 Ý nghĩa nghiệp vụ: tạo user/staff mới.
 
@@ -1795,6 +1943,8 @@ Response 201: `{ statusCode, message: "Create function success", data: Function 
 4. Khi access token hết hạn, call `POST /auth/refresh`
 5. Update lại `accessToken`
 6. Khi logout, call `POST /auth/logout`
+7. Nếu quên mật khẩu ở môi trường demo/manual test, call `POST /auth/forgot-password` rồi `POST /auth/reset-password`
+8. Nếu user chủ động đổi mật khẩu khi đang đăng nhập, call `POST /auth/change-password`, sau đó login lại
 
 ### 15.2. Mobile flow
 
@@ -1814,6 +1964,13 @@ Response 201: `{ statusCode, message: "Create function success", data: Function 
 
 4. Khi logout, call `POST /auth/logout` với bearer token hoặc cặp `sessionId` + `refreshToken`
 
+Nếu cần quên mật khẩu trên mobile:
+
+1. Call `POST /auth/forgot-password` với `email`
+2. Lấy `resetToken` từ response demo
+3. Call `POST /auth/reset-password` với `email`, `resetToken`, `newPassword`
+4. Login lại bằng mật khẩu mới
+
 ### 15.3. Chưa có trong API hiện tại
 
 Các phần sau hiện chưa được implement:
@@ -1822,7 +1979,6 @@ Các phần sau hiện chưa được implement:
 - Batch APIs
 - Upload file/avatar riêng
 - Force reset password
-- Forgot password / change password endpoint
 - OpenAPI / Swagger JSON
 
 Nếu cần, có thể generate tiếp 1 bản Swagger/OpenAPI 3.0 từ tài liệu này.
