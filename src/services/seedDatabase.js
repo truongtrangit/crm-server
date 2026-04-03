@@ -6,10 +6,6 @@ const StaffFunction = require("../models/StaffFunction");
 const Task = require("../models/Task");
 const seedData = require("../constants/seedData");
 const { hashPassword } = require("../utils/auth");
-const {
-  backfillStaffManagers,
-  migrateLegacyStaffs,
-} = require("./legacyStaffMigration");
 
 async function seedCollection(Model, items, label) {
   const count = await Model.countDocuments();
@@ -62,14 +58,12 @@ async function seedUsers() {
 }
 
 async function seedDatabase() {
-  await migrateLegacyStaffs();
   await seedCollection(
     Organization,
     seedData.organizations,
     "organization items",
   );
   await seedUsers();
-  await backfillStaffManagers();
   await seedCollection(Customer, seedData.customers, "customers");
   await seedCollection(Lead, seedData.leads, "leads");
   await seedCollection(Task, seedData.tasks, "tasks");
