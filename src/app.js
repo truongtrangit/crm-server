@@ -11,6 +11,7 @@ const tasksRouter = require("./routes/tasks");
 const organizationRouter = require("./routes/organization");
 const metadataRouter = require("./routes/metadata");
 const functionsRouter = require("./routes/functions");
+const rbacRouter = require("./routes/rbac");
 
 const app = express();
 const allowedOrigins = env.clientUrl
@@ -70,6 +71,7 @@ app.use("/api/tasks", authenticateRequest, tasksRouter);
 app.use("/api/organization", authenticateRequest, organizationRouter);
 app.use("/api/metadata", authenticateRequest, metadataRouter);
 app.use("/api/functions", authenticateRequest, functionsRouter);
+app.use("/api/rbac", rbacRouter);
 
 app.use((req, res) => {
   return sendError(

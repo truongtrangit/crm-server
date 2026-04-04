@@ -1,4 +1,6 @@
 const User = require("../models/User");
+const Organization = require("../models/Organization");
+const Role = require("../models/Role");
 const { generateSequentialId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
@@ -8,15 +10,29 @@ const {
   resolvePagination,
 } = require("../utils/pagination");
 const {
-  DEFAULT_USER_ROLE,
-  USER_ROLE_VALUES,
-  canAccessStaffApi,
-  canCreateRole,
-  canManageUser,
-  getUserRoleLabel,
   isWithinManagerScope,
   normalizeUserRole,
 } = require("../utils/userRoles");
+const {
+  hasPermission,
+  hasAnyPermission,
+  getUserRoleName,
+  getUserRoleWithPermissions,
+} = require("../utils/rbac");
+const { PERMISSIONS } = require("../constants/rbac");
+const { DEFAULT_PASSWORD_STRENGTH } = require("../constants/appData");
+const env = require("../config/env");
+const {
+  buildOrganizationDirectory,
+  resolveDepartmentReference,
+  resolveGroupReference,
+} = require("../utils/organization");
+
+const DEFAULT_ROLE_NAME = "STAFF";
+const OWNER_ROLE_NAME = "OWNER";
+const ADMIN_ROLE_NAME = "ADMIN";
+const MANAGER_ROLE_NAME = "MANAGER";
+const STAFF_ROLE_NAME = "STAFF";
 
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -27,36 +43,227 @@ function normalizeStringList(value) {
     return [];
   }
 
-  return value.map((item) => normalizeString(item)).filter(Boolean);
+  return [
+    ...new Set(value.map((item) => normalizeString(item)).filter(Boolean)),
+  ];
 }
 
 function ensurePasswordStrength(password) {
-  if (typeof password !== "string" || password.length < 8) {
-    throw createHttpError(400, "password must be at least 8 characters");
+  if (
+    typeof password !== "string" ||
+    password.length < DEFAULT_PASSWORD_STRENGTH
+  ) {
+    throw createHttpError(
+      400,
+      `password must be at least ${DEFAULT_PASSWORD_STRENGTH} characters`,
+    );
   }
 }
 
 function ensureDepartmentByRole(role, department) {
   if (
-    [USER_ROLE_VALUES.MANAGER, USER_ROLE_VALUES.STAFF].includes(role) &&
+    [MANAGER_ROLE_NAME, STAFF_ROLE_NAME].includes(role) &&
     department.length === 0
   ) {
     throw createHttpError(400, "department must contain at least one item");
   }
 }
 
-async function ensureManagerExists(managerId, department, group) {
+async function validateOrganizationAssignments(payload = {}) {
+  const normalizedDepartments = normalizeStringList(payload.departments);
+  const normalizedGroups = normalizeStringList(payload.groups);
+  const normalizedDepartmentAliases = normalizeStringList(
+    payload.departmentAliases,
+  );
+  const normalizedGroupAliases = normalizeStringList(payload.groupAliases);
+  const normalizedDepartmentIds = normalizeStringList(payload.departmentIds);
+  const normalizedGroupIds = normalizeStringList(payload.groupIds);
+
+  if (normalizedDepartments.length === 0 && normalizedGroups.length === 0) {
+    if (
+      normalizedDepartmentAliases.length === 0 &&
+      normalizedGroupAliases.length === 0 &&
+      normalizedDepartmentIds.length === 0 &&
+      normalizedGroupIds.length === 0
+    ) {
+      return {
+        departments: normalizedDepartments,
+        groups: normalizedGroups,
+        departmentAliases: [],
+        groupAliases: [],
+      };
+    }
+  }
+
+  const organizations = await Organization.find(
+    {},
+    { id: 1, alias: 1, parent: 1, children: 1 },
+  )
+    .sort({ createdAt: 1, id: 1 })
+    .lean();
+  const directory = buildOrganizationDirectory(organizations);
+  const resolvedDepartments = [];
+  const resolvedGroups = [];
+  const departmentReferences = [
+    ...normalizedDepartments,
+    ...normalizedDepartmentAliases,
+    ...normalizedDepartmentIds,
+  ];
+  const groupReferences = [
+    ...normalizedGroups,
+    ...normalizedGroupAliases,
+    ...normalizedGroupIds,
+  ];
+
+  for (const reference of departmentReferences) {
+    const department = resolveDepartmentReference(directory, reference);
+
+    if (!department) {
+      throw createHttpError(400, `department is invalid: ${reference}`);
+    }
+
+    resolvedDepartments.push(department);
+  }
+
+  for (const reference of groupReferences) {
+    const group = resolveGroupReference(directory, reference);
+
+    if (!group) {
+      throw createHttpError(400, `group is invalid: ${reference}`);
+    }
+
+    resolvedGroups.push(group);
+  }
+
+  const departmentAliasSet = new Set(
+    resolvedDepartments.map((item) => item.alias),
+  );
+  const missingDepartments = resolvedGroups
+    .map((item) => item.departmentAlias)
+    .filter((item) => !departmentAliasSet.has(item));
+
+  if (missingDepartments.length > 0) {
+    throw createHttpError(
+      400,
+      `department must include group parent department: ${[
+        ...new Set(
+          missingDepartments.map(
+            (alias) => directory.departmentByAlias.get(alias)?.name || alias,
+          ),
+        ),
+      ].join(", ")}`,
+    );
+  }
+
+  return {
+    departments: [...new Set(resolvedDepartments.map((item) => item.name))],
+    groups: [...new Set(resolvedGroups.map((item) => item.name))],
+    departmentAliases: [
+      ...new Set(resolvedDepartments.map((item) => item.alias)),
+    ],
+    groupAliases: [...new Set(resolvedGroups.map((item) => item.alias))],
+  };
+}
+
+function formatRoleLabel(roleName) {
+  return String(roleName || "")
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
+    .join(" ");
+}
+
+async function resolveRoleDocument(rawValue, fallbackRoleName = null) {
+  const directValue = normalizeString(rawValue);
+  const fallbackValue = normalizeString(fallbackRoleName);
+  const normalizedValue = normalizeUserRole(directValue, null);
+  const normalizedFallback = normalizeUserRole(fallbackValue, null);
+  const candidates = [
+    directValue ? { id: directValue.toLowerCase() } : null,
+    directValue ? { name: directValue.toUpperCase() } : null,
+    normalizedValue ? { id: normalizedValue.toLowerCase() } : null,
+    normalizedValue ? { name: normalizedValue } : null,
+    fallbackValue ? { id: fallbackValue.toLowerCase() } : null,
+    fallbackValue ? { name: fallbackValue.toUpperCase() } : null,
+    normalizedFallback ? { id: normalizedFallback.toLowerCase() } : null,
+    normalizedFallback ? { name: normalizedFallback } : null,
+  ].filter(Boolean);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return Role.findOne({ $or: candidates });
+}
+
+function canAssignRole(actorRole, targetRole) {
+  if (!actorRole || !targetRole) {
+    return false;
+  }
+
+  if (actorRole.name === OWNER_ROLE_NAME) {
+    return true;
+  }
+
+  if (targetRole.name === OWNER_ROLE_NAME) {
+    return false;
+  }
+
+  return (actorRole.level || 0) > (targetRole.level || 0);
+}
+
+function canManageUserByRole(actor, actorRole, targetUser, targetRole) {
+  if (!actor || !actorRole || !targetUser || !targetRole) {
+    return false;
+  }
+
+  if (actor.id === targetUser.id) {
+    return false;
+  }
+
+  if (actorRole.name === OWNER_ROLE_NAME) {
+    return targetRole.name !== OWNER_ROLE_NAME;
+  }
+
+  if ((actorRole.level || 0) <= (targetRole.level || 0)) {
+    return false;
+  }
+
+  if (actorRole.name === MANAGER_ROLE_NAME) {
+    return targetUser.managerId === actor.id;
+  }
+
+  return true;
+}
+
+async function ensureManagerExists(
+  managerId,
+  department,
+  group,
+  departmentAliases = [],
+  groupAliases = [],
+) {
   if (!managerId) {
     return null;
   }
 
   const manager = await User.findOne({ id: managerId }).lean();
 
-  if (!manager || manager.role !== USER_ROLE_VALUES.MANAGER) {
+  const managerRoleName = await getUserRoleName(manager);
+
+  if (!manager || managerRoleName !== MANAGER_ROLE_NAME) {
     throw createHttpError(400, "managerId must reference a manager user");
   }
 
-  if (!isWithinManagerScope(manager, { department, group })) {
+  if (
+    !isWithinManagerScope(manager, {
+      department,
+      group,
+      departmentAliases,
+      groupAliases,
+    })
+  ) {
     throw createHttpError(
       400,
       "department/group must belong to the assigned manager scope",
@@ -76,12 +283,22 @@ function serializeUser(user) {
 
   return {
     ...item,
-    roleLabel: getUserRoleLabel(item.role),
+    roleLabel: formatRoleLabel(item.role),
+    departmentAliases: item.departmentAliases || [],
+    groupAliases: item.groupAliases || [],
   };
 }
 
-function buildUserListQuery(actor, filters = {}) {
-  if (!canAccessStaffApi(actor.role)) {
+async function buildUserListQuery(actor, filters = {}) {
+  if (
+    !(await hasAnyPermission(actor, [
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.USERS_MANAGE,
+      PERMISSIONS.USERS_CREATE,
+      PERMISSIONS.USERS_UPDATE,
+      PERMISSIONS.USERS_DELETE,
+    ]))
+  ) {
     throw createHttpError(
       403,
       "You do not have permission to access staff APIs",
@@ -101,20 +318,44 @@ function buildUserListQuery(actor, filters = {}) {
   }
 
   if (department) {
-    query.department = normalizeString(department);
+    const organizations = await Organization.find(
+      {},
+      { id: 1, alias: 1, parent: 1, children: 1 },
+    ).lean();
+    const directory = buildOrganizationDirectory(organizations);
+    const resolvedDepartment = resolveDepartmentReference(
+      directory,
+      normalizeString(department),
+    );
+
+    if (!resolvedDepartment) {
+      throw createHttpError(400, "department is invalid");
+    }
+
+    query.$and = [
+      ...(query.$and || []),
+      {
+        $or: [
+          { department: resolvedDepartment.name },
+          { departmentAliases: resolvedDepartment.alias },
+        ],
+      },
+    ];
   }
 
   if (role) {
-    const normalizedRole = normalizeUserRole(role);
+    const resolvedRole = await resolveRoleDocument(role);
 
-    if (!normalizedRole) {
+    if (!resolvedRole) {
       throw createHttpError(400, "role is invalid");
     }
 
-    query.role = normalizedRole;
+    query.roleId = resolvedRole.id;
   }
 
-  if (actor.role === USER_ROLE_VALUES.MANAGER) {
+  const actorRoleName = await getUserRoleName(actor);
+
+  if (actorRoleName === MANAGER_ROLE_NAME) {
     query.managerId = actor.id;
   } else if (managerId) {
     query.managerId = normalizeString(managerId);
@@ -124,7 +365,7 @@ function buildUserListQuery(actor, filters = {}) {
 }
 
 async function listUsers(actor, filters) {
-  const query = buildUserListQuery(actor, filters);
+  const query = await buildUserListQuery(actor, filters);
   const { page, limit, skip } = resolvePagination(filters);
   const [users, totalItems] = await Promise.all([
     User.find(query).sort({ createdAt: -1, id: 1 }).skip(skip).limit(limit),
@@ -140,39 +381,85 @@ async function listUsers(actor, filters) {
 }
 
 async function createUserAccount(actor, payload = {}) {
-  if (!canAccessStaffApi(actor.role)) {
+  if (
+    !(await hasAnyPermission(actor, [
+      PERMISSIONS.USERS_CREATE,
+      PERMISSIONS.USERS_MANAGE,
+      PERMISSIONS.ROLES_MANAGE,
+    ]))
+  ) {
     throw createHttpError(403, "You do not have permission to create users");
   }
 
   const name = normalizeString(payload.name);
   const email = normalizeString(payload.email).toLowerCase();
-  const password = typeof payload.password === "string" ? payload.password : "";
-  const role = normalizeUserRole(payload.role, DEFAULT_USER_ROLE);
-  const department = normalizeStringList(payload.department);
-  const group = normalizeStringList(payload.group);
+  const password =
+    typeof payload.password === "string"
+      ? payload.password
+      : env.defaultUserPassword;
+  const targetRole = await resolveRoleDocument(
+    payload.roleId ?? payload.role,
+    DEFAULT_ROLE_NAME,
+  );
+  const organizationAssignments = await validateOrganizationAssignments({
+    departments: payload.department,
+    groups: payload.group,
+    departmentAliases: payload.departmentAliases,
+    groupAliases: payload.groupAliases,
+    departmentIds: payload.departmentIds,
+    groupIds: payload.groupIds,
+  });
+  const department = organizationAssignments.departments;
+  const group = organizationAssignments.groups;
+  const actorRole = await getUserRoleWithPermissions(actor);
+  const actorRoleName = actorRole?.name || null;
 
   if (!name || !email) {
     throw createHttpError(400, "name and email are required");
   }
 
+  // If email already exists, return error to prevent creating multiple accounts with same email
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw createHttpError(400, "Email already exists");
+  }
+
   ensurePasswordStrength(password);
 
-  if (!role) {
+  if (!targetRole) {
     throw createHttpError(400, "role is invalid");
   }
 
-  if (!canCreateRole(actor.role, role)) {
+  const canManageRoles = await hasPermission(actor, PERMISSIONS.ROLES_MANAGE);
+  const canManageUsers = await hasPermission(actor, PERMISSIONS.USERS_MANAGE);
+
+  if (!canManageRoles && !canManageUsers) {
+    if (
+      !(await hasPermission(actor, PERMISSIONS.USERS_CREATE)) ||
+      targetRole.name !== STAFF_ROLE_NAME
+    ) {
+      throw createHttpError(
+        403,
+        "You do not have permission to assign this role",
+      );
+    }
+  } else if (!canAssignRole(actorRole, targetRole)) {
     throw createHttpError(
       403,
       "You do not have permission to assign this role",
     );
   }
 
-  ensureDepartmentByRole(role, department);
+  ensureDepartmentByRole(targetRole.name, department);
 
   if (
-    actor.role === USER_ROLE_VALUES.MANAGER &&
-    !isWithinManagerScope(actor, { department, group })
+    actorRoleName === MANAGER_ROLE_NAME &&
+    !isWithinManagerScope(actor, {
+      department,
+      group,
+      departmentAliases: organizationAssignments.departmentAliases,
+      groupAliases: organizationAssignments.groupAliases,
+    })
   ) {
     throw createHttpError(
       403,
@@ -182,13 +469,19 @@ async function createUserAccount(actor, payload = {}) {
 
   let managerId = normalizeString(payload.managerId) || null;
 
-  if (role !== USER_ROLE_VALUES.STAFF) {
+  if (targetRole.name !== STAFF_ROLE_NAME) {
     managerId = null;
-  } else if (actor.role === USER_ROLE_VALUES.MANAGER) {
+  } else if (actorRoleName === MANAGER_ROLE_NAME) {
     managerId = actor.id;
   }
 
-  await ensureManagerExists(managerId, department, group);
+  await ensureManagerExists(
+    managerId,
+    department,
+    group,
+    organizationAssignments.departmentAliases,
+    organizationAssignments.groupAliases,
+  );
 
   const user = await User.create({
     id: await generateSequentialId(User, "USER"),
@@ -199,9 +492,12 @@ async function createUserAccount(actor, payload = {}) {
       normalizeString(payload.avatar) ||
       `https://i.pravatar.cc/150?u=${encodeURIComponent(email)}`,
     department,
+    departmentAliases: organizationAssignments.departmentAliases,
     group,
+    groupAliases: organizationAssignments.groupAliases,
     phone: normalizeString(payload.phone),
-    role,
+    role: targetRole.name,
+    roleId: targetRole.id,
     managerId,
     createdBy: actor.id,
   });
@@ -210,7 +506,15 @@ async function createUserAccount(actor, payload = {}) {
 }
 
 async function getUserForStaffApi(actor, userId) {
-  if (!canAccessStaffApi(actor.role)) {
+  if (
+    !(await hasAnyPermission(actor, [
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.USERS_MANAGE,
+      PERMISSIONS.USERS_CREATE,
+      PERMISSIONS.USERS_UPDATE,
+      PERMISSIONS.USERS_DELETE,
+    ]))
+  ) {
     throw createHttpError(
       403,
       "You do not have permission to access staff APIs",
@@ -223,7 +527,8 @@ async function getUserForStaffApi(actor, userId) {
     throw createHttpError(404, "User not found");
   }
 
-  if (actor.role === USER_ROLE_VALUES.MANAGER && user.managerId !== actor.id) {
+  const actorRoleName2 = await getUserRoleName(actor);
+  if (actorRoleName2 === MANAGER_ROLE_NAME && user.managerId !== actor.id) {
     throw createHttpError(404, "User not found");
   }
 
@@ -231,7 +536,13 @@ async function getUserForStaffApi(actor, userId) {
 }
 
 async function updateUserAccount(actor, targetUser, payload = {}) {
-  if (!canManageUser(actor, targetUser)) {
+  const actorRole = await getUserRoleWithPermissions(actor);
+  const targetCurrentRole = await getUserRoleWithPermissions(targetUser);
+
+  if (
+    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
+    !canManageUserByRole(actor, actorRole, targetUser, targetCurrentRole)
+  ) {
     throw createHttpError(
       403,
       "You do not have permission to update this user",
@@ -239,49 +550,68 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   }
 
   const nextRole =
-    payload.role !== undefined
-      ? normalizeUserRole(payload.role)
-      : targetUser.role;
+    payload.role !== undefined || payload.roleId !== undefined
+      ? await resolveRoleDocument(payload.roleId ?? payload.role)
+      : targetCurrentRole;
 
   if (!nextRole) {
     throw createHttpError(400, "role is invalid");
   }
 
   if (
-    actor.role === USER_ROLE_VALUES.ADMIN &&
-    nextRole === USER_ROLE_VALUES.ADMIN
+    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
+    nextRole.name !== STAFF_ROLE_NAME
   ) {
-    throw createHttpError(403, "Admin cannot assign admin role");
+    throw createHttpError(
+      403,
+      "You do not have permission to assign this role",
+    );
   }
 
   if (
-    actor.role === USER_ROLE_VALUES.MANAGER &&
-    nextRole !== USER_ROLE_VALUES.STAFF
+    (await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
+    !canAssignRole(actorRole, nextRole)
   ) {
-    throw createHttpError(403, "Manager can only manage staff role");
-  }
-
-  if (
-    actor.role !== USER_ROLE_VALUES.OWNER &&
-    nextRole === USER_ROLE_VALUES.OWNER
-  ) {
-    throw createHttpError(403, "Only owner can assign owner role");
+    throw createHttpError(
+      403,
+      "You do not have permission to assign this role",
+    );
   }
 
   const department =
     payload.department !== undefined
       ? normalizeStringList(payload.department)
       : targetUser.department;
+  const departmentAliases =
+    payload.departmentAliases !== undefined
+      ? normalizeStringList(payload.departmentAliases)
+      : targetUser.departmentAliases;
   const group =
     payload.group !== undefined
       ? normalizeStringList(payload.group)
       : targetUser.group;
+  const groupAliases =
+    payload.groupAliases !== undefined
+      ? normalizeStringList(payload.groupAliases)
+      : targetUser.groupAliases;
+  const organizationAssignments = await validateOrganizationAssignments({
+    departments: department,
+    groups: group,
+    departmentAliases,
+    groupAliases,
+    departmentIds: payload.departmentIds,
+    groupIds: payload.groupIds,
+  });
 
-  ensureDepartmentByRole(nextRole, department);
+  ensureDepartmentByRole(nextRole.name, organizationAssignments.departments);
 
+  const actorRoleName4 = await getUserRoleName(actor);
   if (
-    actor.role === USER_ROLE_VALUES.MANAGER &&
-    !isWithinManagerScope(actor, { department, group })
+    actorRoleName4 === MANAGER_ROLE_NAME &&
+    !isWithinManagerScope(actor, {
+      department: organizationAssignments.departments,
+      group: organizationAssignments.groups,
+    })
   ) {
     throw createHttpError(
       403,
@@ -306,21 +636,30 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     payload.avatar !== undefined
       ? normalizeString(payload.avatar)
       : targetUser.avatar;
-  targetUser.department = department;
-  targetUser.group = group;
+  targetUser.department = organizationAssignments.departments;
+  targetUser.departmentAliases = organizationAssignments.departmentAliases;
+  targetUser.group = organizationAssignments.groups;
+  targetUser.groupAliases = organizationAssignments.groupAliases;
   targetUser.phone =
     payload.phone !== undefined
       ? normalizeString(payload.phone)
       : targetUser.phone;
-  targetUser.role = nextRole;
+  targetUser.role = nextRole.name;
+  targetUser.roleId = nextRole.id;
 
-  if (nextRole !== USER_ROLE_VALUES.STAFF) {
+  if (nextRole.name !== STAFF_ROLE_NAME) {
     targetUser.managerId = null;
-  } else if (actor.role === USER_ROLE_VALUES.MANAGER) {
+  } else if ((await getUserRoleName(actor)) === MANAGER_ROLE_NAME) {
     targetUser.managerId = actor.id;
   } else if (payload.managerId !== undefined) {
     const managerId = normalizeString(payload.managerId) || null;
-    await ensureManagerExists(managerId, department, group);
+    await ensureManagerExists(
+      managerId,
+      organizationAssignments.departments,
+      organizationAssignments.groups,
+      organizationAssignments.departmentAliases,
+      organizationAssignments.groupAliases,
+    );
     targetUser.managerId = managerId;
   }
 
@@ -329,7 +668,13 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
 }
 
 async function deleteUserAccount(actor, targetUser) {
-  if (!canManageUser(actor, targetUser, "delete")) {
+  const actorRole = await getUserRoleWithPermissions(actor);
+  const targetRole = await getUserRoleWithPermissions(targetUser);
+
+  if (
+    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
+    !canManageUserByRole(actor, actorRole, targetUser, targetRole)
+  ) {
     throw createHttpError(
       403,
       "You do not have permission to delete this user",

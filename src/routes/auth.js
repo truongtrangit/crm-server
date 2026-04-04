@@ -1,7 +1,9 @@
 const express = require("express");
 const User = require("../models/User");
-const { authenticateRequest, authorizeRoles } = require("../middleware/auth");
-const { USER_ROLE_VALUES } = require("../constants/appData");
+const {
+  authenticateRequest,
+  requirePermission,
+} = require("../middleware/auth");
 const { sendError, sendSuccess } = require("../utils/http");
 const {
   buildAuthResponse,
@@ -20,6 +22,8 @@ const {
   createUserAccount,
   serializeUser,
 } = require("../services/userManagement");
+const { PERMISSIONS } = require("../constants/rbac");
+const { DEFAULT_PASSWORD_STRENGTH } = require("../constants/appData");
 
 const router = express.Router();
 
@@ -28,8 +32,11 @@ function normalizeEmail(value) {
 }
 
 function ensureStrongPassword(password) {
-  if (typeof password !== "string" || password.length < 8) {
-    return "password must be at least 8 characters";
+  if (
+    typeof password !== "string" ||
+    password.length < DEFAULT_PASSWORD_STRENGTH
+  ) {
+    return `password must be at least ${DEFAULT_PASSWORD_STRENGTH} characters`;
   }
 
   return null;
@@ -325,11 +332,7 @@ router.post("/change-password", authenticateRequest, async (req, res) => {
 router.post(
   "/register",
   authenticateRequest,
-  authorizeRoles(
-    USER_ROLE_VALUES.OWNER,
-    USER_ROLE_VALUES.ADMIN,
-    USER_ROLE_VALUES.MANAGER,
-  ),
+  requirePermission(PERMISSIONS.USERS_CREATE),
   async (req, res) => {
     const user = await createUserAccount(req.user, req.body || {});
     return sendSuccess(res, 201, "Register user success", user);

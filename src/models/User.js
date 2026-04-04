@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { DEFAULT_USER_ROLE, USER_ROLE_VALUES } = require("../constants/appData");
 
 const sessionSchema = new mongoose.Schema(
   {
@@ -45,15 +44,18 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     avatar: { type: String, default: "" },
     department: { type: [String], default: [] },
+    departmentAliases: { type: [String], default: [] },
     group: { type: [String], default: [] },
+    groupAliases: { type: [String], default: [] },
     phone: { type: String, default: "" },
     role: {
       type: String,
       required: true,
       trim: true,
-      enum: Object.values(USER_ROLE_VALUES),
-      default: DEFAULT_USER_ROLE,
+      default: "STAFF",
     },
+    roleId: { type: String, default: null }, // Reference to Role model for RBAC
+    permissions: { type: [String], default: [] }, // Additional custom permissions
     managerId: { type: String, default: null },
     createdBy: { type: String, default: null },
     lastLoginAt: { type: Date, default: null },

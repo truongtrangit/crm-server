@@ -139,6 +139,100 @@ Label hiển thị từ API metadata:
 - `MANAGER`: chỉ quản lý `STAFF` có `managerId` là chính mình.
 - `STAFF`: bị chặn với staff API, trả `403 { "message": "Forbidden" }`.
 
+## 3.3. Metadata cho form nhân viên
+
+Hiện đã có metadata để FE render form chọn phòng ban và nhóm hoạt động:
+
+- `GET /metadata`
+- `GET /metadata/departments`
+- `GET /metadata/department-groups`
+- `GET /metadata/activity-groups`
+
+### `GET /metadata`
+
+Response `data` có thêm các field:
+
+- `departments`: danh sách tên phòng ban
+- `departmentOptions`: danh sách phòng ban kèm danh sách nhóm thuộc phòng ban đó
+- `departmentGroups`: alias của `departmentOptions` để FE dễ dùng
+- `activityGroups`: danh sách nhóm hoạt động dạng phẳng, có kèm `departmentId` và `departmentName`
+
+Ví dụ:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Get metadata success",
+  "data": {
+    "departments": ["Phòng Sale", "Phòng Kỹ Thuật"],
+    "departmentGroups": [
+      {
+        "id": "2",
+        "value": "Phòng Sale",
+        "label": "Phòng Sale",
+        "name": "Phòng Sale",
+        "groups": [
+          {
+            "value": "Nhóm Sale Hà Nội",
+            "label": "Nhóm Sale Hà Nội",
+            "name": "Nhóm Sale Hà Nội",
+            "description": "Telesale & chốt đơn khu vực miền Bắc",
+            "departmentId": "2",
+            "departmentName": "Phòng Sale"
+          }
+        ]
+      }
+    ],
+    "activityGroups": [
+      {
+        "value": "Nhóm Sale Hà Nội",
+        "label": "Nhóm Sale Hà Nội",
+        "name": "Nhóm Sale Hà Nội",
+        "description": "Telesale & chốt đơn khu vực miền Bắc",
+        "departmentId": "2",
+        "departmentName": "Phòng Sale"
+      }
+    ]
+  }
+}
+```
+
+### Rule validate khi tạo/cập nhật nhân viên
+
+- `department` là mảng
+- `group` là mảng
+- `departmentAliases`, `groupAliases` là mảng stable reference, nên ưu tiên dùng cho FE mới
+- `departmentIds`, `groupIds` cũng được hỗ trợ
+- Một nhân viên có thể thuộc nhiều phòng ban và nhiều nhóm
+- Nếu chọn nhóm nào thì payload bắt buộc phải chứa phòng ban cha của nhóm đó trong `department`
+
+Khuyến nghị contract mới:
+
+- FE hiển thị theo `label` / `name`
+- FE submit theo `alias` hoặc `_id`
+- Backend vẫn trả thêm tên tiếng Việt để tương thích màn hình cũ
+
+Ví dụ hợp lệ:
+
+```json
+{
+  "departmentAliases": ["phong-sale", "phong-ky-thuat"],
+  "groupAliases": [
+    "phong-sale__nhom-sale-ha-noi",
+    "phong-ky-thuat__nhom-backend"
+  ]
+}
+```
+
+Ví dụ không hợp lệ vì thiếu phòng ban cha của nhóm:
+
+```json
+{
+  "department": ["Phòng Sale"],
+  "group": ["Nhóm Backend"]
+}
+```
+
 ## 4. Common error responses
 
 ## 4.1. HTTP status code conventions

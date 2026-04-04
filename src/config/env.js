@@ -2,16 +2,6 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
-function readBooleanEnv(value, fallback) {
-  if (value === undefined) {
-    return fallback;
-  }
-
-  return ["true", "1", "yes", "on"].includes(
-    String(value).trim().toLowerCase(),
-  );
-}
-
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 4000,
@@ -21,12 +11,7 @@ const env = {
   refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS) || 30,
   passwordResetTokenTtlMinutes:
     Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES) || 30,
-  // migratedUserDefaultPassword:
-  //   process.env.MIGRATED_USER_DEFAULT_PASSWORD || "ChangeMe@123",
-  // cleanLegacyStaffCollection: readBooleanEnv(
-  //   process.env.CLEAN_LEGACY_STAFF_COLLECTION,
-  //   true,
-  // ),
+  defaultUserPassword: process.env.DEFAULT_USER_PASSWORD || "crm123456",
 };
 
 module.exports = env;
