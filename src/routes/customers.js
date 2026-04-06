@@ -1,5 +1,6 @@
 const express = require("express");
 const Customer = require("../models/Customer");
+const User = require("../models/User");
 const { generateSequentialId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { sendError, sendSuccess } = require("../utils/http");
@@ -9,6 +10,10 @@ const {
 } = require("../utils/pagination");
 const { requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../constants/rbac");
+const {
+  ASSIGNMENT_ROLES,
+  ASSIGNMENT_ROLE_VALUES,
+} = require("../constants/assignmentRoles");
 
 const router = express.Router();
 
@@ -56,6 +61,20 @@ router.get(
       "Get customer list success",
       buildPaginatedResponse(customers, totalItems, page, limit),
     );
+  },
+);
+
+/**
+ * GET /api/customers/meta/assignment-roles
+ * Get available assignment roles — must be before /:id to avoid conflict
+ */
+router.get(
+  "/meta/assignment-roles",
+  requirePermission(PERMISSIONS.CUSTOMERS_READ),
+  async (_req, res) => {
+    return sendSuccess(res, 200, "Get assignment roles success", {
+      items: ASSIGNMENT_ROLES,
+    });
   },
 );
 
@@ -177,4 +196,162 @@ router.delete(
   },
 );
 
+/**
+ * POST /api/customers/:id/assignees
+ * Assign a staff member to a customer
+ * Body: { userId: string, role: string }
+ * Authorization:
+ *   - OWNER/ADMIN: can assign anyone
+ *   - MANAGER: can assign self + staff under them (managerId match)
+ *   - STAFF: can only assign self
+ */
+router.post(
+  "/:id/assignees",
+  requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  async (req, res) => {
+    const { userId, role } = req.body || {};
+
+    if (!userId || !role) {
+      return sendError(res, 400, "userId and role are required", {
+        code: "VALIDATION_ERROR",
+      });
+    }
+
+    // Validate role
+    if (!ASSIGNMENT_ROLE_VALUES.includes(role)) {
+      return sendError(res, 400, `Invalid assignment role: ${role}. Valid roles: ${ASSIGNMENT_ROLE_VALUES.join(", ")}`, {
+        code: "INVALID_ASSIGNMENT_ROLE",
+      });
+    }
+
+    // Find the customer
+    const customer = await Customer.findOne({ id: req.params.id });
+    if (!customer) {
+      return sendError(res, 404, "Customer not found", {
+        code: "CUSTOMER_NOT_FOUND",
+      });
+    }
+
+    // Find the target user to assign
+    const targetUser = await User.findOne({ id: userId });
+    if (!targetUser) {
+      return sendError(res, 404, "User not found", {
+        code: "USER_NOT_FOUND",
+      });
+    }
+
+    // Authorization check
+    const currentUser = req.user;
+    const currentRole = currentUser.role.toUpperCase();
+
+    if (currentRole === "MANAGER") {
+      // Manager can assign self or staff under them
+      const isSelf = currentUser.id === userId;
+      const isSubordinate = targetUser.managerId === currentUser.id;
+      if (!isSelf && !isSubordinate) {
+        return sendError(res, 403, "Manager chỉ có thể gán cho chính mình hoặc nhân viên dưới quyền", {
+          code: "FORBIDDEN",
+        });
+      }
+    } else if (currentRole === "STAFF") {
+      // Staff can only assign self
+      if (currentUser.id !== userId) {
+        return sendError(res, 403, "Staff chỉ có thể gán cho chính mình", {
+          code: "FORBIDDEN",
+        });
+      }
+    }
+    // OWNER and ADMIN can assign anyone — no extra check needed
+
+    // Check for duplicate assignment (same user + same role)
+    const isDuplicate = customer.assignees.some(
+      (a) => a.userId === userId && a.role === role,
+    );
+    if (isDuplicate) {
+      return sendError(res, 409, "Nhân viên này đã được gán với vai trò này", {
+        code: "DUPLICATE_ASSIGNMENT",
+      });
+    }
+
+    // Add the assignment
+    customer.assignees.push({
+      userId: targetUser.id,
+      userName: targetUser.name,
+      userAvatar: targetUser.avatar || "",
+      role,
+      assignedAt: new Date(),
+      assignedBy: currentUser.id,
+    });
+
+    await customer.save();
+    return sendSuccess(res, 200, "Assign staff success", customer);
+  },
+);
+
+/**
+ * DELETE /api/customers/:id/assignees/:userId
+ * Remove a staff assignment from a customer
+ * Query: ?role=sale (to specify which assignment to remove)
+ * Authorization: Same rules as assign
+ */
+router.delete(
+  "/:id/assignees/:userId",
+  requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  async (req, res) => {
+    const { userId } = req.params;
+    const { role } = req.query;
+
+    if (!role) {
+      return sendError(res, 400, "role query param is required", {
+        code: "VALIDATION_ERROR",
+      });
+    }
+
+    const customer = await Customer.findOne({ id: req.params.id });
+    if (!customer) {
+      return sendError(res, 404, "Customer not found", {
+        code: "CUSTOMER_NOT_FOUND",
+      });
+    }
+
+    // Authorization check
+    const currentUser = req.user;
+    const currentRole = currentUser.role.toUpperCase();
+
+    if (currentRole === "MANAGER") {
+      const targetUser = await User.findOne({ id: userId });
+      const isSelf = currentUser.id === userId;
+      const isSubordinate = targetUser && targetUser.managerId === currentUser.id;
+      if (!isSelf && !isSubordinate) {
+        return sendError(res, 403, "Manager chỉ có thể gỡ gán cho chính mình hoặc nhân viên dưới quyền", {
+          code: "FORBIDDEN",
+        });
+      }
+    } else if (currentRole === "STAFF") {
+      if (currentUser.id !== userId) {
+        return sendError(res, 403, "Staff chỉ có thể gỡ gán cho chính mình", {
+          code: "FORBIDDEN",
+        });
+      }
+    }
+
+    const before = customer.assignees.length;
+    customer.assignees = customer.assignees.filter(
+      (a) => !(a.userId === userId && a.role === role),
+    );
+
+    if (customer.assignees.length === before) {
+      return sendError(res, 404, "Assignment not found", {
+        code: "ASSIGNMENT_NOT_FOUND",
+      });
+    }
+
+    await customer.save();
+    return sendSuccess(res, 200, "Unassign staff success", customer);
+  },
+);
+
+
+
 module.exports = router;
+

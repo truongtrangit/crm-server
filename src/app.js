@@ -39,6 +39,7 @@ app.use(
     credentials: true,
   }),
 );
+
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
@@ -64,13 +65,15 @@ app.get("/api", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-app.use("/api/customers", authenticateRequest, customersRouter);
+
+app.use(authenticateRequest);
+app.use("/api/customers", customersRouter);
 app.use("/api/users", usersRouter);
-app.use("/api/leads", authenticateRequest, leadsRouter);
-app.use("/api/tasks", authenticateRequest, tasksRouter);
-app.use("/api/organization", authenticateRequest, organizationRouter);
-app.use("/api/metadata", authenticateRequest, metadataRouter);
-app.use("/api/functions", authenticateRequest, functionsRouter);
+app.use("/api/leads", leadsRouter);
+app.use("/api/tasks", tasksRouter);
+app.use("/api/organization", organizationRouter);
+app.use("/api/metadata", metadataRouter);
+app.use("/api/functions", functionsRouter);
 app.use("/api/rbac", rbacRouter);
 
 app.use((req, res) => {

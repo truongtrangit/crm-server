@@ -51,16 +51,20 @@ function isWithinManagerScope(manager, payload) {
     : Array.isArray(manager.department)
       ? manager.department
       : [];
-  const managerGroups = Array.isArray(manager.groupAliases)
-    ? manager.groupAliases
-    : Array.isArray(manager.group)
-      ? manager.group
-      : [];
 
   const isDepartmentAllowed = departments.every((item) =>
     managerDepartments.includes(item),
   );
-  const isGroupAllowed = groups.every((item) => managerGroups.includes(item));
+
+  // Groups are scoped by department (alias format: "dept-alias__group-name").
+  // If all target departments are within the manager's departments,
+  // then groups within those departments are implicitly allowed.
+  const isGroupAllowed = groups.every((groupAlias) =>
+    managerDepartments.some(
+      (deptAlias) =>
+        groupAlias === deptAlias || groupAlias.startsWith(deptAlias + "__"),
+    ),
+  );
 
   return isDepartmentAllowed && isGroupAllowed;
 }

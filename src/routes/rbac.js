@@ -10,9 +10,6 @@ const { sendSuccess, sendError } = require("../utils/http");
 
 const router = express.Router();
 
-// All routes require authentication
-router.use(authenticateRequest);
-
 // ==================== PERMISSIONS ROUTES ====================
 
 /**

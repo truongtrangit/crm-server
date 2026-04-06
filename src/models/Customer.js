@@ -1,5 +1,17 @@
 const mongoose = require("mongoose");
 
+const assigneeSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true },
+    userName: { type: String, default: "" },
+    userAvatar: { type: String, default: "" },
+    role: { type: String, required: true, trim: true },
+    assignedAt: { type: Date, default: Date.now },
+    assignedBy: { type: String, default: null },
+  },
+  { _id: false, id: false },
+);
+
 const customerSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -14,6 +26,7 @@ const customerSchema = new mongoose.Schema(
     registeredAt: { type: String, default: "" },
     lastLoginAt: { type: String, default: "" },
     tags: { type: [String], default: [] },
+    assignees: { type: [assigneeSchema], default: [] },
   },
   {
     timestamps: true,

@@ -15,8 +15,6 @@ const { sendSuccess } = require("../utils/http");
 
 const router = express.Router();
 
-router.use(authenticateRequest);
-
 /**
  * GET /api/users
  * List all users - requires users read permission

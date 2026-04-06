@@ -231,7 +231,20 @@ function canManageUserByRole(actor, actorRole, targetUser, targetRole) {
   }
 
   if (actorRole.name === MANAGER_ROLE_NAME) {
-    return targetUser.managerId === actor.id;
+    const managerDeptAliases = Array.isArray(actor.departmentAliases)
+      ? actor.departmentAliases
+      : Array.isArray(actor.department)
+        ? actor.department
+        : [];
+    const targetDeptAliases = Array.isArray(targetUser.departmentAliases)
+      ? targetUser.departmentAliases
+      : Array.isArray(targetUser.department)
+        ? targetUser.department
+        : [];
+
+    return targetDeptAliases.some((alias) =>
+      managerDeptAliases.includes(alias),
+    );
   }
 
   return true;
@@ -356,7 +369,26 @@ async function buildUserListQuery(actor, filters = {}) {
   const actorRoleName = await getUserRoleName(actor);
 
   if (actorRoleName === MANAGER_ROLE_NAME) {
-    query.managerId = actor.id;
+    const managerDeptAliases = Array.isArray(actor.departmentAliases)
+      ? actor.departmentAliases
+      : Array.isArray(actor.department)
+        ? actor.department
+        : [];
+
+    if (managerDeptAliases.length > 0) {
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { departmentAliases: { $in: managerDeptAliases } },
+            { department: { $in: managerDeptAliases } },
+          ],
+        },
+      ];
+    } else {
+      // Manager has no departments assigned — return nothing
+      query._id = null;
+    }
   } else if (managerId) {
     query.managerId = normalizeString(managerId);
   }
@@ -528,8 +560,24 @@ async function getUserForStaffApi(actor, userId) {
   }
 
   const actorRoleName2 = await getUserRoleName(actor);
-  if (actorRoleName2 === MANAGER_ROLE_NAME && user.managerId !== actor.id) {
-    throw createHttpError(404, "User not found");
+  if (actorRoleName2 === MANAGER_ROLE_NAME) {
+    const managerDeptAliases = Array.isArray(actor.departmentAliases)
+      ? actor.departmentAliases
+      : Array.isArray(actor.department)
+        ? actor.department
+        : [];
+    const userDeptAliases = Array.isArray(user.departmentAliases)
+      ? user.departmentAliases
+      : Array.isArray(user.department)
+        ? user.department
+        : [];
+    const hasOverlap = userDeptAliases.some((alias) =>
+      managerDeptAliases.includes(alias),
+    );
+
+    if (!hasOverlap) {
+      throw createHttpError(404, "User not found");
+    }
   }
 
   return user;
@@ -541,7 +589,10 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
 
   if (
     !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    !canManageUserByRole(actor, actorRole, targetUser, targetCurrentRole)
+    !(
+      (await hasPermission(actor, PERMISSIONS.USERS_UPDATE)) &&
+      canManageUserByRole(actor, actorRole, targetUser, targetCurrentRole)
+    )
   ) {
     throw createHttpError(
       403,
@@ -578,29 +629,40 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
-  const department =
-    payload.department !== undefined
-      ? normalizeStringList(payload.department)
-      : targetUser.department;
-  const departmentAliases =
-    payload.departmentAliases !== undefined
-      ? normalizeStringList(payload.departmentAliases)
-      : targetUser.departmentAliases;
-  const group =
-    payload.group !== undefined
-      ? normalizeStringList(payload.group)
-      : targetUser.group;
-  const groupAliases =
-    payload.groupAliases !== undefined
-      ? normalizeStringList(payload.groupAliases)
-      : targetUser.groupAliases;
+  // Treat department-related fields as a package: if any one is provided,
+  // don't fall back to targetUser for the others (to avoid re-adding removed items).
+  const hasDeptPayload =
+    payload.department !== undefined ||
+    payload.departmentAliases !== undefined ||
+    payload.departmentIds !== undefined;
+  const department = hasDeptPayload
+    ? normalizeStringList(payload.department)
+    : targetUser.department;
+  const departmentAliases = hasDeptPayload
+    ? normalizeStringList(payload.departmentAliases)
+    : targetUser.departmentAliases;
+
+  // Same for group-related fields.
+  const hasGroupPayload =
+    payload.group !== undefined ||
+    payload.groupAliases !== undefined ||
+    payload.groupIds !== undefined;
+  const group = hasGroupPayload
+    ? normalizeStringList(payload.group)
+    : targetUser.group;
+  const groupAliases = hasGroupPayload
+    ? normalizeStringList(payload.groupAliases)
+    : targetUser.groupAliases;
+
   const organizationAssignments = await validateOrganizationAssignments({
     departments: department,
     groups: group,
     departmentAliases,
     groupAliases,
-    departmentIds: payload.departmentIds,
-    groupIds: payload.groupIds,
+    departmentIds: hasDeptPayload
+      ? normalizeStringList(payload.departmentIds)
+      : [],
+    groupIds: hasGroupPayload ? normalizeStringList(payload.groupIds) : [],
   });
 
   ensureDepartmentByRole(nextRole.name, organizationAssignments.departments);
@@ -611,6 +673,8 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     !isWithinManagerScope(actor, {
       department: organizationAssignments.departments,
       group: organizationAssignments.groups,
+      departmentAliases: organizationAssignments.departmentAliases,
+      groupAliases: organizationAssignments.groupAliases,
     })
   ) {
     throw createHttpError(
