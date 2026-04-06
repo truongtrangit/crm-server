@@ -586,6 +586,15 @@ async function getUserForStaffApi(actor, userId) {
 async function updateUserAccount(actor, targetUser, payload = {}) {
   const actorRole = await getUserRoleWithPermissions(actor);
   const targetCurrentRole = await getUserRoleWithPermissions(targetUser);
+  const actorRoleName = actorRole?.name || null;
+  const targetRoleName = targetCurrentRole?.name || null;
+
+  if (targetRoleName === OWNER_ROLE_NAME && actorRoleName !== OWNER_ROLE_NAME) {
+    throw createHttpError(
+      403,
+      "You do not have permission to update this user",
+    );
+  }
 
   if (
     !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
@@ -731,9 +740,151 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   return serializeUser(targetUser);
 }
 
+async function updateOwnProfile(actor, payload = {}) {
+  const actorRoleName = await getUserRoleName(actor);
+  const safePayload = { ...payload };
+  delete safePayload.role;
+  delete safePayload.roleId;
+  delete safePayload.managerId;
+
+  if (safePayload.password !== undefined) {
+    ensurePasswordStrength(safePayload.password);
+    actor.passwordHash = await hashPassword(safePayload.password);
+  }
+
+  actor.name =
+    safePayload.name !== undefined
+      ? normalizeString(safePayload.name) || actor.name
+      : actor.name;
+  actor.email =
+    safePayload.email !== undefined
+      ? normalizeString(safePayload.email).toLowerCase() || actor.email
+      : actor.email;
+  actor.avatar =
+    safePayload.avatar !== undefined
+      ? normalizeString(safePayload.avatar)
+      : actor.avatar;
+  actor.phone =
+    safePayload.phone !== undefined
+      ? normalizeString(safePayload.phone)
+      : actor.phone;
+
+  if ([OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+    const hasDeptPayload =
+      safePayload.department !== undefined ||
+      safePayload.departmentAliases !== undefined ||
+      safePayload.departmentIds !== undefined;
+    const hasGroupPayload =
+      safePayload.group !== undefined ||
+      safePayload.groupAliases !== undefined ||
+      safePayload.groupIds !== undefined;
+
+    if (hasDeptPayload || hasGroupPayload) {
+      const organizationAssignments = await validateOrganizationAssignments({
+        departments:
+          safePayload.department !== undefined
+            ? normalizeStringList(safePayload.department)
+            : actor.department,
+        groups:
+          safePayload.group !== undefined
+            ? normalizeStringList(safePayload.group)
+            : actor.group,
+        departmentAliases:
+          safePayload.departmentAliases !== undefined
+            ? normalizeStringList(safePayload.departmentAliases)
+            : actor.departmentAliases,
+        groupAliases:
+          safePayload.groupAliases !== undefined
+            ? normalizeStringList(safePayload.groupAliases)
+            : actor.groupAliases,
+        departmentIds:
+          safePayload.departmentIds !== undefined
+            ? normalizeStringList(safePayload.departmentIds)
+            : [],
+        groupIds:
+          safePayload.groupIds !== undefined
+            ? normalizeStringList(safePayload.groupIds)
+            : [],
+      });
+
+      actor.department = organizationAssignments.departments;
+      actor.departmentAliases = organizationAssignments.departmentAliases;
+      actor.group = organizationAssignments.groups;
+      actor.groupAliases = organizationAssignments.groupAliases;
+    }
+  } else if (actorRoleName === MANAGER_ROLE_NAME) {
+    const requestedDepartment = normalizeStringList(safePayload.department);
+    const requestedGroup = normalizeStringList(safePayload.group);
+    const hasDeptPayload =
+      safePayload.department !== undefined ||
+      safePayload.departmentAliases !== undefined ||
+      safePayload.departmentIds !== undefined;
+    const hasGroupPayload =
+      safePayload.group !== undefined ||
+      safePayload.groupAliases !== undefined ||
+      safePayload.groupIds !== undefined;
+
+    if (hasDeptPayload || hasGroupPayload) {
+      const requestedAssignments = await validateOrganizationAssignments({
+        departments: requestedDepartment.length
+          ? requestedDepartment
+          : actor.department,
+        groups: requestedGroup.length ? requestedGroup : actor.group,
+        departmentAliases:
+          safePayload.departmentAliases !== undefined
+            ? normalizeStringList(safePayload.departmentAliases)
+            : actor.departmentAliases,
+        groupAliases:
+          safePayload.groupAliases !== undefined
+            ? normalizeStringList(safePayload.groupAliases)
+            : actor.groupAliases,
+        departmentIds:
+          safePayload.departmentIds !== undefined
+            ? normalizeStringList(safePayload.departmentIds)
+            : [],
+        groupIds:
+          safePayload.groupIds !== undefined
+            ? normalizeStringList(safePayload.groupIds)
+            : [],
+      });
+
+      if (
+        !isWithinManagerScope(actor, {
+          department: requestedAssignments.departments,
+          group: requestedAssignments.groups,
+          departmentAliases: requestedAssignments.departmentAliases,
+          groupAliases: requestedAssignments.groupAliases,
+        })
+      ) {
+        throw createHttpError(
+          403,
+          "Manager can only update profile within assigned department/group scope",
+        );
+      }
+
+      actor.department = requestedAssignments.departments;
+      actor.departmentAliases = requestedAssignments.departmentAliases;
+      actor.group = requestedAssignments.groups;
+      actor.groupAliases = requestedAssignments.groupAliases;
+    }
+  }
+
+  await actor.save();
+  return serializeUser(actor);
+}
+
 async function deleteUserAccount(actor, targetUser) {
   const actorRole = await getUserRoleWithPermissions(actor);
   const targetRole = await getUserRoleWithPermissions(targetUser);
+  const actorRoleName = actorRole?.name || null;
+  const targetRoleName = targetRole?.name || null;
+
+  if (targetRoleName === OWNER_ROLE_NAME && actorRoleName !== OWNER_ROLE_NAME) {
+    throw createHttpError(
+      403,
+      "You do not have permission to delete this user",
+    );
+  }
 
   if (
     !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
@@ -760,4 +911,5 @@ module.exports = {
   listUsers,
   serializeUser,
   updateUserAccount,
+  updateOwnProfile,
 };

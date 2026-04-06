@@ -182,15 +182,37 @@ router.put(
  */
 router.delete(
   "/:id",
-  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  requirePermission(
+    [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_READ],
+    "any",
+  ),
   async (req, res) => {
-    const deleted = await Customer.findOneAndDelete({ id: req.params.id });
+    const customer = await Customer.findOne({ id: req.params.id });
 
-    if (!deleted) {
+    if (!customer) {
       return sendError(res, 404, "Customer not found", {
         code: "CUSTOMER_NOT_FOUND",
       });
     }
+
+    const currentUserId = req.user?.id;
+    const assignees = Array.isArray(customer.assignees) ? customer.assignees : [];
+    const hasAssigneeOtherThanCurrentUser = assignees.some(
+      (assignee) => assignee.userId !== currentUserId,
+    );
+
+    if (hasAssigneeOtherThanCurrentUser) {
+      return sendError(
+        res,
+        403,
+        "Cannot delete customer while assigned to other users",
+        {
+          code: "CUSTOMER_HAS_OTHER_ASSIGNEES",
+        },
+      );
+    }
+
+    await customer.deleteOne();
 
     return sendSuccess(res, 200, "Delete customer success", null);
   },
@@ -207,7 +229,10 @@ router.delete(
  */
 router.post(
   "/:id/assignees",
-  requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  requirePermission(
+    [PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_READ],
+    "any",
+  ),
   async (req, res) => {
     const { userId, role } = req.body || {};
 
@@ -296,7 +321,10 @@ router.post(
  */
 router.delete(
   "/:id/assignees/:userId",
-  requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  requirePermission(
+    [PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_READ],
+    "any",
+  ),
   async (req, res) => {
     const { userId } = req.params;
     const { role } = req.query;

@@ -21,6 +21,7 @@ const {
 const {
   createUserAccount,
   serializeUser,
+  updateOwnProfile,
 } = require("../services/userManagement");
 const { PERMISSIONS } = require("../constants/rbac");
 const { DEFAULT_PASSWORD_STRENGTH } = require("../constants/appData");
@@ -279,6 +280,13 @@ router.post("/logout", async (req, res) => {
 router.get("/me", authenticateRequest, async (req, res) => {
   return sendSuccess(res, 200, "Get current user success", {
     user: serializeUser(req.user),
+  });
+});
+
+router.put("/me", authenticateRequest, async (req, res) => {
+  const user = await updateOwnProfile(req.user, req.body || {});
+  return sendSuccess(res, 200, "Update current user success", {
+    user,
   });
 });
 
