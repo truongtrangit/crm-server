@@ -8,56 +8,63 @@ const {
   resolvePagination,
 } = require("../utils/pagination");
 const { requirePermission } = require("../middleware/auth");
+const validate = require("../middleware/validate");
 const { PERMISSIONS } = require("../constants/rbac");
+const {
+  createLeadSchema,
+  updateLeadSchema,
+  updateLeadStatusSchema,
+  listLeadsQuerySchema,
+} = require("../validations/leads");
 
 const router = express.Router();
 
-router.get("/", requirePermission(PERMISSIONS.LEADS_READ), async (req, res) => {
-  const { search = "", status, assignee } = req.query;
-  const searchRegex = buildSearchRegex(search);
-  const { page, limit, skip } = resolvePagination(req.query || {});
-  const query = {};
+router.get(
+  "/",
+  requirePermission(PERMISSIONS.LEADS_READ),
+  validate(listLeadsQuerySchema, "query"),
+  async (req, res) => {
+    const { search = "", status, assignee } = req.query;
+    const searchRegex = buildSearchRegex(search);
+    const { page, limit, skip } = resolvePagination(req.query || {});
+    const query = {};
 
-  if (searchRegex) {
-    query.$or = [
-      { name: searchRegex },
-      { id: searchRegex },
-      { tags: searchRegex },
-    ];
-  }
+    if (searchRegex) {
+      query.$or = [
+        { name: searchRegex },
+        { id: searchRegex },
+        { tags: searchRegex },
+      ];
+    }
 
-  if (status) {
-    query.status = status;
-  }
+    if (status) {
+      query.status = status;
+    }
 
-  if (assignee) {
-    query["assignee.name"] = assignee;
-  }
+    if (assignee) {
+      query["assignee.name"] = assignee;
+    }
 
-  const [leads, totalItems] = await Promise.all([
-    Lead.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-    Lead.countDocuments(query),
-  ]);
+    const [leads, totalItems] = await Promise.all([
+      Lead.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Lead.countDocuments(query),
+    ]);
 
-  return sendSuccess(
-    res,
-    200,
-    "Get lead list success",
-    buildPaginatedResponse(leads, totalItems, page, limit),
-  );
-});
+    return sendSuccess(
+      res,
+      200,
+      "Get lead list success",
+      buildPaginatedResponse(leads, totalItems, page, limit),
+    );
+  },
+);
 
 router.post(
   "/",
   requirePermission(PERMISSIONS.LEADS_CREATE),
+  validate(createLeadSchema),
   async (req, res) => {
     const payload = req.body || {};
-
-    if (!payload.name) {
-      return sendError(res, 400, "name is required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     const lead = await Lead.create({
       id: await generateSequentialId(Lead, "LEAD"),
@@ -84,6 +91,7 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.LEADS_UPDATE),
+  validate(updateLeadSchema),
   async (req, res) => {
     const lead = await Lead.findOne({ id: req.params.id });
 
@@ -116,18 +124,13 @@ router.put(
 router.patch(
   "/:id/status",
   requirePermission(PERMISSIONS.LEADS_UPDATE),
+  validate(updateLeadStatusSchema),
   async (req, res) => {
     const lead = await Lead.findOne({ id: req.params.id });
 
     if (!lead) {
       return sendError(res, 404, "Lead not found", {
         code: "LEAD_NOT_FOUND",
-      });
-    }
-
-    if (!req.body.status) {
-      return sendError(res, 400, "status is required", {
-        code: "VALIDATION_ERROR",
       });
     }
 

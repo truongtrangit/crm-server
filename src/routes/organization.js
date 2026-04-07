@@ -6,11 +6,16 @@ const {
   resolvePagination,
 } = require("../utils/pagination");
 const { requirePermission } = require("../middleware/auth");
+const validate = require("../middleware/validate");
 const { PERMISSIONS } = require("../constants/rbac");
 const {
   buildDepartmentAlias,
   buildGroupAlias,
 } = require("../utils/organization");
+const {
+  createDepartmentSchema,
+  createGroupSchema,
+} = require("../validations/organization");
 
 const router = express.Router();
 
@@ -36,15 +41,10 @@ router.get(
 router.post(
   "/departments",
   requirePermission(PERMISSIONS.ORGANIZATION_UPDATE),
+  validate(createDepartmentSchema),
   async (req, res) => {
     const { name, alias: rawAlias } = req.body || {};
     const alias = rawAlias || buildDepartmentAlias(name);
-
-    if (!name) {
-      return sendError(res, 400, "name is required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     if (!alias) {
       return sendError(res, 400, "alias is invalid", {
@@ -77,6 +77,7 @@ router.post(
 router.post(
   "/groups",
   requirePermission(PERMISSIONS.ORGANIZATION_UPDATE),
+  validate(createGroupSchema),
   async (req, res) => {
     const {
       name,
@@ -85,12 +86,6 @@ router.post(
       parentAlias,
       alias: rawAlias,
     } = req.body || {};
-
-    if (!name || (!parentId && !parentAlias)) {
-      return sendError(res, 400, "name and parentId/parentAlias are required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     const department = await Organization.findOne({
       $or: [{ id: parentId }, { alias: parentAlias }],

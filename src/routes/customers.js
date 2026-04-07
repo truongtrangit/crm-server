@@ -9,11 +9,19 @@ const {
   resolvePagination,
 } = require("../utils/pagination");
 const { requirePermission } = require("../middleware/auth");
+const validate = require("../middleware/validate");
 const { PERMISSIONS } = require("../constants/rbac");
 const {
   ASSIGNMENT_ROLES,
   ASSIGNMENT_ROLE_VALUES,
 } = require("../constants/assignmentRoles");
+const {
+  createCustomerSchema,
+  updateCustomerSchema,
+  assignCustomerSchema,
+  unassignCustomerQuerySchema,
+  listCustomersQuerySchema,
+} = require("../validations/customers");
 
 const router = express.Router();
 
@@ -24,6 +32,7 @@ const router = express.Router();
 router.get(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
+  validate(listCustomersQuerySchema, "query"),
   async (req, res) => {
     const { search = "", type, group, platform } = req.query;
     const searchRegex = buildSearchRegex(search);
@@ -105,14 +114,9 @@ router.get(
 router.post(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_CREATE),
+  validate(createCustomerSchema),
   async (req, res) => {
     const payload = req.body || {};
-
-    if (!payload.name || !payload.email) {
-      return sendError(res, 400, "name and email are required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     const customer = await Customer.create({
       id: await generateSequentialId(Customer, "CUST"),
@@ -146,6 +150,7 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  validate(updateCustomerSchema),
   async (req, res) => {
     const existing = await Customer.findOne({ id: req.params.id });
 
@@ -233,14 +238,9 @@ router.post(
     [PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_READ],
     "any",
   ),
+  validate(assignCustomerSchema),
   async (req, res) => {
     const { userId, role } = req.body || {};
-
-    if (!userId || !role) {
-      return sendError(res, 400, "userId and role are required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     // Validate role
     if (!ASSIGNMENT_ROLE_VALUES.includes(role)) {
@@ -325,15 +325,10 @@ router.delete(
     [PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_READ],
     "any",
   ),
+  validate(unassignCustomerQuerySchema, "query"),
   async (req, res) => {
     const { userId } = req.params;
     const { role } = req.query;
-
-    if (!role) {
-      return sendError(res, 400, "role query param is required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     const customer = await Customer.findOne({ id: req.params.id });
     if (!customer) {
@@ -382,4 +377,3 @@ router.delete(
 
 
 module.exports = router;
-

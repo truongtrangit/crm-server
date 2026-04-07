@@ -2,7 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const env = require("./config/env");
 const { authenticateRequest } = require("./middleware/auth");
+const requestLogger = require("./middleware/requestLogger");
 const { createHttpError, sendError, sendSuccess } = require("./utils/http");
+const logger = require("./utils/logger");
 const authRouter = require("./routes/auth");
 const customersRouter = require("./routes/customers");
 const usersRouter = require("./routes/users");
@@ -41,6 +43,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(requestLogger);
 
 app.get("/health", (_req, res) => {
   return sendSuccess(res, 200, "Health check success", {
@@ -88,7 +91,12 @@ app.use((req, res) => {
 });
 
 app.use((error, _req, res, _next) => {
-  console.error(error);
+  logger.error("Unhandled error", {
+    message: error.message,
+    code: error.code,
+    status: error.status,
+    stack: error.stack,
+  });
 
   if (error?.code === 11000) {
     return sendError(res, 409, "Duplicate value detected", {

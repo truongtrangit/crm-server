@@ -1,13 +1,15 @@
 const express = require("express");
 const StaffFunction = require("../models/StaffFunction");
 const { generateSequentialId } = require("../utils/id");
-const { sendError, sendSuccess } = require("../utils/http");
+const { sendSuccess } = require("../utils/http");
 const {
   buildPaginatedResponse,
   resolvePagination,
 } = require("../utils/pagination");
 const { requirePermission } = require("../middleware/auth");
+const validate = require("../middleware/validate");
 const { PERMISSIONS } = require("../constants/rbac");
+const { createFunctionSchema } = require("../validations/functions");
 
 const router = express.Router();
 
@@ -36,14 +38,9 @@ router.get(
 router.post(
   "/",
   requirePermission(PERMISSIONS.FUNCTIONS_CREATE),
+  validate(createFunctionSchema),
   async (req, res) => {
     const { title, desc = "", type = "tech" } = req.body || {};
-
-    if (!title) {
-      return sendError(res, 400, "title is required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     const item = await StaffFunction.create({
       id: await generateSequentialId(StaffFunction, "FUNC"),

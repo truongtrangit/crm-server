@@ -8,63 +8,69 @@ const {
   resolvePagination,
 } = require("../utils/pagination");
 const { requirePermission } = require("../middleware/auth");
+const validate = require("../middleware/validate");
 const { PERMISSIONS } = require("../constants/rbac");
+const {
+  createTaskSchema,
+  updateTaskSchema,
+  listTasksQuerySchema,
+} = require("../validations/tasks");
 
 const router = express.Router();
 
-router.get("/", requirePermission(PERMISSIONS.TASKS_READ), async (req, res) => {
-  const { search = "", platform, assignee, status } = req.query;
-  const searchRegex = buildSearchRegex(search);
-  const { page, limit, skip } = resolvePagination(req.query || {});
-  const query = {};
+router.get(
+  "/",
+  requirePermission(PERMISSIONS.TASKS_READ),
+  validate(listTasksQuerySchema, "query"),
+  async (req, res) => {
+    const { search = "", platform, assignee, status } = req.query;
+    const searchRegex = buildSearchRegex(search);
+    const { page, limit, skip } = resolvePagination(req.query || {});
+    const query = {};
 
-  if (searchRegex) {
-    query.$or = [
-      { action: searchRegex },
-      { id: searchRegex },
-      { "customer.name": searchRegex },
-      { "customer.email": searchRegex },
-      { "customer.phone": searchRegex },
-    ];
-  }
+    if (searchRegex) {
+      query.$or = [
+        { action: searchRegex },
+        { id: searchRegex },
+        { "customer.name": searchRegex },
+        { "customer.email": searchRegex },
+        { "customer.phone": searchRegex },
+      ];
+    }
 
-  if (platform) {
-    query.platform = platform;
-  }
+    if (platform) {
+      query.platform = platform;
+    }
 
-  if (assignee) {
-    query["assignee.name"] = assignee;
-  }
+    if (assignee) {
+      query["assignee.name"] = assignee;
+    }
 
-  if (status) {
-    query.status = status;
-  }
+    if (status) {
+      query.status = status;
+    }
 
-  const [tasks, totalItems] = await Promise.all([
-    Task.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-    Task.countDocuments(query),
-  ]);
+    const [tasks, totalItems] = await Promise.all([
+      Task.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Task.countDocuments(query),
+    ]);
 
-  return sendSuccess(
-    res,
-    200,
-    "Get task list success",
-    buildPaginatedResponse(tasks, totalItems, page, limit),
-  );
-});
+    return sendSuccess(
+      res,
+      200,
+      "Get task list success",
+      buildPaginatedResponse(tasks, totalItems, page, limit),
+    );
+  },
+);
 
 router.post(
   "/",
   requirePermission(PERMISSIONS.TASKS_CREATE),
+  validate(createTaskSchema),
   async (req, res) => {
     const payload = req.body || {};
     const action = payload.action || payload.name;
-
-    if (!action || !payload.customer?.name) {
-      return sendError(res, 400, "action/name and customer.name are required", {
-        code: "VALIDATION_ERROR",
-      });
-    }
 
     const task = await Task.create({
       id: await generateTaskId(Task),
@@ -91,6 +97,7 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  validate(updateTaskSchema),
   async (req, res) => {
     const task = await Task.findOne({ id: req.params.id });
 

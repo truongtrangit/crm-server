@@ -4,7 +4,9 @@ const {
   authenticateRequest,
   requirePermission,
 } = require("../middleware/auth");
+const validate = require("../middleware/validate");
 const { sendError, sendSuccess } = require("../utils/http");
+const logger = require("../utils/logger");
 const {
   buildAuthResponse,
   clearRefreshCookies,
@@ -24,23 +26,19 @@ const {
   updateOwnProfile,
 } = require("../services/userManagement");
 const { PERMISSIONS } = require("../constants/rbac");
-const { DEFAULT_PASSWORD_STRENGTH } = require("../constants/appData");
+const {
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  changePasswordSchema,
+  updateProfileSchema,
+  registerSchema,
+} = require("../validations/auth");
 
 const router = express.Router();
 
 function normalizeEmail(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function ensureStrongPassword(password) {
-  if (
-    typeof password !== "string" ||
-    password.length < DEFAULT_PASSWORD_STRENGTH
-  ) {
-    return `password must be at least ${DEFAULT_PASSWORD_STRENGTH} characters`;
-  }
-
-  return null;
 }
 
 function clearSensitiveUserState(user) {
@@ -52,7 +50,7 @@ function clearSensitiveUserState(user) {
   };
 }
 
-router.post("/login", async (req, res) => {
+router.post("/login", validate(loginSchema), async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const password =
     typeof req.body?.password === "string" ? req.body.password : "";
@@ -66,6 +64,7 @@ router.post("/login", async (req, res) => {
   const user = await User.findOne({ email });
 
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    logger.warn("Login failed: invalid credentials", { email });
     return sendError(res, 401, "Invalid email or password", {
       code: "INVALID_CREDENTIALS",
     });
@@ -79,6 +78,8 @@ router.post("/login", async (req, res) => {
   user.sessions.push(tokens.session);
   user.lastLoginAt = new Date();
   await user.save();
+
+  logger.info("Login success", { userId: user.id, email });
 
   setRefreshCookies(res, tokens);
   return sendSuccess(
@@ -126,6 +127,7 @@ router.post("/refresh", async (req, res) => {
     await user.save();
     clearRefreshCookies(res);
 
+    logger.warn("Refresh token invalid or expired", { userId: user.id, sessionId });
     return sendError(res, 401, "Refresh token is invalid or expired", {
       code: "INVALID_REFRESH_TOKEN",
     });
@@ -143,7 +145,7 @@ router.post("/refresh", async (req, res) => {
   );
 });
 
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res) => {
   const email = normalizeEmail(req.body?.email);
 
   if (!email) {
@@ -162,6 +164,9 @@ router.post("/forgot-password", async (req, res) => {
       requestedAt: new Date(),
     };
     await user.save();
+    logger.info("Password reset requested", { userId: user.id, email });
+  } else {
+    logger.warn("Password reset requested for non-existent email", { email });
   }
 
   return sendSuccess(res, 200, "Forgot password request success", {
@@ -171,7 +176,7 @@ router.post("/forgot-password", async (req, res) => {
   });
 });
 
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password", validate(resetPasswordSchema), async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const resetToken =
     typeof req.body?.resetToken === "string" ? req.body.resetToken.trim() : "";
@@ -189,14 +194,6 @@ router.post("/reset-password", async (req, res) => {
     );
   }
 
-  const passwordError = ensureStrongPassword(newPassword);
-
-  if (passwordError) {
-    return sendError(res, 400, passwordError, {
-      code: "VALIDATION_ERROR",
-    });
-  }
-
   const user = await User.findOne({ email });
   const passwordReset = user?.passwordReset || {};
 
@@ -207,6 +204,7 @@ router.post("/reset-password", async (req, res) => {
     !passwordReset.expiresAt ||
     new Date(passwordReset.expiresAt).getTime() <= Date.now()
   ) {
+    logger.warn("Password reset failed: invalid or expired token", { email });
     return sendError(res, 400, "resetToken is invalid or expired", {
       code: "INVALID_RESET_TOKEN",
     });
@@ -228,6 +226,7 @@ router.post("/reset-password", async (req, res) => {
   await user.save();
   clearRefreshCookies(res);
 
+  logger.info("Password reset success", { userId: user.id, email });
   return sendSuccess(res, 200, "Reset password success", null);
 });
 
@@ -271,6 +270,7 @@ router.post("/logout", async (req, res) => {
       (item) => item.sessionId !== sessionId,
     );
     await user.save();
+    logger.info("Logout success", { userId: user.id, sessionId });
   }
 
   clearRefreshCookies(res);
@@ -283,14 +283,14 @@ router.get("/me", authenticateRequest, async (req, res) => {
   });
 });
 
-router.put("/me", authenticateRequest, async (req, res) => {
+router.put("/me", authenticateRequest, validate(updateProfileSchema), async (req, res) => {
   const user = await updateOwnProfile(req.user, req.body || {});
   return sendSuccess(res, 200, "Update current user success", {
     user,
   });
 });
 
-router.post("/change-password", authenticateRequest, async (req, res) => {
+router.post("/change-password", authenticateRequest, validate(changePasswordSchema), async (req, res) => {
   const currentPassword =
     typeof req.body?.currentPassword === "string"
       ? req.body.currentPassword
@@ -304,15 +304,8 @@ router.post("/change-password", authenticateRequest, async (req, res) => {
     });
   }
 
-  const passwordError = ensureStrongPassword(newPassword);
-
-  if (passwordError) {
-    return sendError(res, 400, passwordError, {
-      code: "VALIDATION_ERROR",
-    });
-  }
-
   if (!(await verifyPassword(currentPassword, req.user.passwordHash))) {
+    logger.warn("Change password failed: incorrect current password", { userId: req.user.id });
     return sendError(res, 401, "Current password is incorrect", {
       code: "INVALID_CURRENT_PASSWORD",
     });
@@ -334,6 +327,7 @@ router.post("/change-password", authenticateRequest, async (req, res) => {
   await req.user.save();
   clearRefreshCookies(res);
 
+  logger.info("Change password success", { userId: req.user.id });
   return sendSuccess(res, 200, "Change password success", null);
 });
 
@@ -341,8 +335,10 @@ router.post(
   "/register",
   authenticateRequest,
   requirePermission(PERMISSIONS.USERS_CREATE),
+  validate(registerSchema),
   async (req, res) => {
     const user = await createUserAccount(req.user, req.body || {});
+    logger.info("Register user success", { userId: user.id, createdBy: req.user.id });
     return sendSuccess(res, 201, "Register user success", user);
   },
 );
