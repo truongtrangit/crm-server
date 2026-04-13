@@ -313,7 +313,7 @@ class EventService {
     event.customer.role = existingCustomer.role || event.customer.role;
     event.customer.email = existingCustomer.email || event.customer.email;
     event.customer.phone = existingCustomer.phone || event.customer.phone;
-    event.customer.source = existingCustomer.source || "CRM";
+    event.customer.source = event.customer.source || existingCustomer.source || "CRM";
     event.customer.address = existingCustomer.address || event.customer.address;
     
     await event.save();
