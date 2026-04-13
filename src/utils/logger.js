@@ -10,7 +10,8 @@ const devFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({ format: "HH:mm:ss" }),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
+    const { service, ...restMeta } = meta;
+    const metaStr = Object.keys(restMeta).length ? ` \n${JSON.stringify(restMeta, null, 2)}` : "";
     return `${timestamp} ${level}: ${message}${metaStr}`;
   }),
 );

@@ -48,9 +48,16 @@ function requestLogger(req, res, next) {
       meta.body = sanitized;
     }
 
+    const isProduction = process.env.NODE_ENV === "production";
     const logLevel = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
 
-    logger[logLevel](`${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`, meta);
+    if (isProduction) {
+      logger[logLevel](`${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`, meta);
+    } else {
+      let ext = "";
+      if (meta.userId) ext += ` [User:${meta.userId}]`;
+      logger[logLevel](`${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms${ext}`);
+    }
 
     originalEnd.apply(res, args);
   };

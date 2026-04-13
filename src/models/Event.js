@@ -32,6 +32,7 @@ const eventSchema = new mongoose.Schema(
       ],
       required: true,
     },
+    customerId: { type: String, ref: "Customer", default: null },
     customer: {
       name: { type: String, required: true, trim: true },
       avatar: { type: String, default: "" },
@@ -45,6 +46,7 @@ const eventSchema = new mongoose.Schema(
       id: { type: String, default: "" },
       tags: [{ type: String }],
     },
+    assigneeId: { type: String, ref: "User", default: null },
     assignee: {
       name: { type: String, default: "" },
       avatar: { type: String, default: "" },

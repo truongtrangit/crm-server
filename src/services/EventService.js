@@ -1,4 +1,6 @@
 const Event = require("../models/Event");
+const Customer = require("../models/Customer");
+const User = require("../models/User");
 const { generateSequentialId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
@@ -79,24 +81,68 @@ class EventService {
   }
 
   async createEvent(payload, currentUser) {
+    let customerId = null;
+    let assigneeId = null;
+
+    // Build the mapped customer subdocument
+    const payloadCust = payload.customer || {};
+    const mappedCustomer = {
+      name: payloadCust.name || "Unknown",
+      avatar: payloadCust.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(payloadCust.email || payloadCust.name || "unknown")}`,
+      role: payloadCust.role || "",
+      email: payloadCust.email || "",
+      phone: payloadCust.phone || "",
+      source: payloadCust.source || "",
+      address: payloadCust.address || "",
+    };
+
+    // 1. Try to map Customer by email or phone
+    const custSearch = {};
+    if (mappedCustomer.email) custSearch.email = mappedCustomer.email;
+    else if (mappedCustomer.phone) custSearch.phone = mappedCustomer.phone;
+    
+    if (Object.keys(custSearch).length > 0) {
+      const existingCustomer = await Customer.findOne({ $or: [ { email: mappedCustomer.email }, { phone: mappedCustomer.phone } ].filter(c => Object.values(c)[0]) });
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        mappedCustomer.name = existingCustomer.name || mappedCustomer.name;
+        mappedCustomer.avatar = existingCustomer.avatar || mappedCustomer.avatar;
+      }
+    }
+
+    // Build the mapped assignee subdocument
+    const payloadAssignee = payload.assignee || {};
+    const mappedAssignee = {
+      name: payloadAssignee.name || "",
+      avatar: payloadAssignee.avatar || "",
+      role: payloadAssignee.role || "",
+    };
+
+    // 2. Try to map Staff by email or name
+    if (payloadAssignee.email || payloadAssignee.name) {
+      const staffQuery = [];
+      if (payloadAssignee.email) staffQuery.push({ email: payloadAssignee.email });
+      if (payloadAssignee.name) staffQuery.push({ name: payloadAssignee.name });
+      
+      const existingStaff = await User.findOne({ $or: staffQuery });
+      if (existingStaff) {
+        assigneeId = existingStaff.id;
+        mappedAssignee.name = existingStaff.name;
+        mappedAssignee.avatar = existingStaff.avatar || mappedAssignee.avatar;
+        mappedAssignee.role = existingStaff.role || mappedAssignee.role;
+      }
+    }
+
     const event = await Event.create({
       id: await generateSequentialId(Event, "EVT", 3),
-      name: payload.name,
+      name: payload.name || "Sự kiện mới",
       sub: payload.sub || "",
       group: payload.group,
-      customer: {
-        name: payload.customer.name,
-        avatar:
-          payload.customer.avatar ||
-          `https://i.pravatar.cc/150?u=${encodeURIComponent(payload.customer.email || payload.customer.name)}`,
-        role: payload.customer.role || "",
-        email: payload.customer.email || "",
-        phone: payload.customer.phone || "",
-        source: payload.customer.source || "",
-        address: payload.customer.address || "",
-      },
+      customerId,
+      customer: mappedCustomer,
+      assigneeId,
+      assignee: mappedAssignee,
       biz: payload.biz || { id: "", tags: [] },
-      assignee: payload.assignee || { name: "", avatar: "", role: "" },
       stage: payload.stage || "",
       tags: payload.tags || [],
       plan: payload.plan || {
@@ -115,7 +161,7 @@ class EventService {
           time: new Date().toLocaleString("vi-VN"),
           content: null,
           duration: null,
-          createdBy: currentUser?.name || "",
+          createdBy: currentUser?.name || "System",
         },
       ],
     });
@@ -146,6 +192,21 @@ class EventService {
         source: body.customer.source ?? event.customer.source,
         address: body.customer.address ?? event.customer.address,
       };
+
+      const custSearch = {};
+      if (event.customer.email) custSearch.email = event.customer.email;
+      else if (event.customer.phone) custSearch.phone = event.customer.phone;
+      
+      if (Object.keys(custSearch).length > 0) {
+        const existingCustomer = await Customer.findOne({ $or: [ { email: event.customer.email }, { phone: event.customer.phone } ].filter(c => Object.values(c)[0]) });
+        if (existingCustomer) {
+          event.customerId = existingCustomer.id;
+          event.customer.name = existingCustomer.name || event.customer.name;
+          event.customer.avatar = existingCustomer.avatar || event.customer.avatar;
+        } else {
+          event.customerId = null;
+        }
+      }
     }
 
     if (body.biz) {
@@ -161,6 +222,22 @@ class EventService {
         avatar: body.assignee.avatar ?? event.assignee.avatar,
         role: body.assignee.role ?? event.assignee.role,
       };
+
+      if (event.assignee.name || body.assignee.email) {
+        const staffQuery = [];
+        if (body.assignee.email) staffQuery.push({ email: body.assignee.email });
+        if (event.assignee.name) staffQuery.push({ name: event.assignee.name });
+        
+        const existingStaff = await User.findOne({ $or: staffQuery });
+        if (existingStaff) {
+          event.assigneeId = existingStaff.id;
+          event.assignee.name = existingStaff.name;
+          event.assignee.avatar = existingStaff.avatar || event.assignee.avatar;
+          event.assignee.role = existingStaff.role || event.assignee.role;
+        } else {
+          event.assigneeId = null;
+        }
+      }
     }
 
     if (body.plan) {
