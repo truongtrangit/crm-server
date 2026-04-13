@@ -15,6 +15,7 @@ const organizationRouter = require("./routes/organization");
 const metadataRouter = require("./routes/metadata");
 const functionsRouter = require("./routes/functions");
 const rbacRouter = require("./routes/rbac");
+const actionConfigRouter = require("./routes/actionConfig");
 
 const app = express();
 const allowedOrigins = env.clientUrl
@@ -65,6 +66,7 @@ app.get("/api", (_req, res) => {
       "organization",
       "metadata",
       "functions",
+      "action-config",
     ],
   });
 });
@@ -81,6 +83,7 @@ app.use("/api/organization", organizationRouter);
 app.use("/api/metadata", metadataRouter);
 app.use("/api/functions", functionsRouter);
 app.use("/api/rbac", rbacRouter);
+app.use("/api/action-config", actionConfigRouter);
 
 app.use((req, res) => {
   return sendError(

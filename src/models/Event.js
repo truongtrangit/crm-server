@@ -53,6 +53,7 @@ const eventSchema = new mongoose.Schema(
       role: { type: String, default: "" },
     },
     stage: { type: String, default: "" },
+    source: { type: String, default: "CRM" },
     tags: [{ type: String }],
     plan: {
       name: { type: String, default: "TRIAL" },

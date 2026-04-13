@@ -41,10 +41,14 @@ const createEventSchema = Joi.object({
   }).optional(),
   assignee: Joi.object({
     name: Joi.string().allow("").optional(),
+    email: Joi.string().allow("").optional(),
     avatar: Joi.string().allow("").optional(),
     role: Joi.string().allow("").optional(),
   }).optional(),
+  customerId: Joi.string().allow("").optional(),
+  assigneeId: Joi.string().allow("").optional(),
   stage: Joi.string().allow("").optional(),
+  source: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   plan: Joi.object({
     name: Joi.string().allow("").optional(),
@@ -96,10 +100,14 @@ const updateEventSchema = Joi.object({
   }).optional(),
   assignee: Joi.object({
     name: Joi.string().allow("").optional(),
+    email: Joi.string().allow("").optional(),
     avatar: Joi.string().allow("").optional(),
     role: Joi.string().allow("").optional(),
   }).optional(),
+  customerId: Joi.string().allow("").optional(),
+  assigneeId: Joi.string().allow("").optional(),
   stage: Joi.string().allow("").optional(),
+  source: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   plan: Joi.object({
     name: Joi.string().allow("").optional(),

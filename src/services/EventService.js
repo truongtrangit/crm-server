@@ -144,6 +144,7 @@ class EventService {
       assignee: mappedAssignee,
       biz: payload.biz || { id: "", tags: [] },
       stage: payload.stage || "",
+      source: payload.source || "CRM",
       tags: payload.tags || [],
       plan: payload.plan || {
         name: "TRIAL",
@@ -180,6 +181,7 @@ class EventService {
     if (body.sub !== undefined) event.sub = body.sub;
     if (body.group !== undefined) event.group = body.group;
     if (body.stage !== undefined) event.stage = body.stage;
+    if (body.source !== undefined) event.source = body.source;
     if (body.tags !== undefined) event.tags = body.tags;
 
     if (body.customer) {
@@ -282,6 +284,40 @@ class EventService {
     if (!deleted) {
       throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
     }
+  }
+
+  async syncCustomer(id) {
+    const event = await Event.findOne({ id });
+    if (!event) {
+      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+    }
+
+    const { email, phone } = event.customer;
+    if (!email && !phone) {
+      throw createHttpError(400, "Sự kiện này không có email hoặc số điện thoại để đồng bộ");
+    }
+
+    const orConditions = [];
+    if (email) orConditions.push({ email });
+    if (phone) orConditions.push({ phone });
+
+    const existingCustomer = await Customer.findOne({ $or: orConditions });
+
+    if (!existingCustomer) {
+      throw createHttpError(404, "Không tìm thấy khách hàng nào trong hệ thống khớp với thông tin này");
+    }
+
+    event.customerId = existingCustomer.id;
+    event.customer.name = existingCustomer.name || event.customer.name;
+    event.customer.avatar = existingCustomer.avatar || event.customer.avatar;
+    event.customer.role = existingCustomer.role || event.customer.role;
+    event.customer.email = existingCustomer.email || event.customer.email;
+    event.customer.phone = existingCustomer.phone || event.customer.phone;
+    event.customer.source = existingCustomer.source || "CRM";
+    event.customer.address = existingCustomer.address || event.customer.address;
+    
+    await event.save();
+    return event;
   }
 }
 

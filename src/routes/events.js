@@ -59,4 +59,10 @@ router.delete(
   asyncHandler(EventController.deleteEvent)
 );
 
+router.post(
+  "/:id/sync-customer",
+  requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  asyncHandler(EventController.syncCustomer)
+);
+
 module.exports = router;

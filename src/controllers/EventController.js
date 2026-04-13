@@ -42,6 +42,11 @@ class EventController {
     await EventService.deleteEvent(req.params.id);
     return sendSuccess(res, 200, "Delete event success", null);
   }
+
+  async syncCustomer(req, res) {
+    const event = await EventService.syncCustomer(req.params.id);
+    return sendSuccess(res, 200, "Sync customer success", event);
+  }
 }
 
 module.exports = new EventController();
