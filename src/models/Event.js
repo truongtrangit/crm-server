@@ -1,0 +1,85 @@
+const mongoose = require("mongoose");
+
+const timelineEntrySchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["phone", "email", "event", "note"],
+      default: "event",
+    },
+    title: { type: String, required: true, trim: true },
+    time: { type: String, default: "" },
+    content: { type: String, default: null },
+    duration: { type: String, default: null },
+    createdBy: { type: String, default: "" },
+  },
+  { _id: true, timestamps: true },
+);
+
+const eventSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    name: { type: String, required: true, trim: true },
+    sub: { type: String, default: "" },
+    group: {
+      type: String,
+      enum: [
+        "user_moi",
+        "biz_moi",
+        "can_nang_cap",
+        "sap_het_han",
+        "chuyen_khoan",
+      ],
+      required: true,
+    },
+    customer: {
+      name: { type: String, required: true, trim: true },
+      avatar: { type: String, default: "" },
+      role: { type: String, default: "" },
+      email: { type: String, default: "" },
+      phone: { type: String, default: "" },
+      source: { type: String, default: "" },
+      address: { type: String, default: "" },
+    },
+    biz: {
+      id: { type: String, default: "" },
+      tags: [{ type: String }],
+    },
+    assignee: {
+      name: { type: String, default: "" },
+      avatar: { type: String, default: "" },
+      role: { type: String, default: "" },
+    },
+    stage: { type: String, default: "" },
+    tags: [{ type: String }],
+    plan: {
+      name: { type: String, default: "TRIAL" },
+      cycle: { type: String, default: "Thanh toán theo tháng" },
+      price: { type: String, default: "0 đ" },
+      daysLeft: { type: Number, default: 30 },
+      expiryDate: { type: String, default: "" },
+    },
+    services: [
+      {
+        name: { type: String, required: true },
+        active: { type: Boolean, default: true },
+      },
+    ],
+    quotas: [
+      {
+        name: { type: String, required: true },
+        used: { type: Number, default: 0 },
+        total: { type: mongoose.Schema.Types.Mixed, default: 10 },
+        color: { type: String, default: "blue" },
+      },
+    ],
+    timeline: [timelineEntrySchema],
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+    id: false,
+  },
+);
+
+module.exports = mongoose.model("Event", eventSchema);

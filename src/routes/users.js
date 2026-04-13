@@ -1,18 +1,9 @@
 const express = require("express");
-const {
-  createUserAccount,
-  deleteUserAccount,
-  getUserForStaffApi,
-  listUsers,
-  updateUserAccount,
-} = require("../services/userManagement");
-const {
-  authenticateRequest,
-  requirePermission,
-} = require("../middleware/auth");
+const { requirePermission } = require("../middleware/auth");
 const validate = require("../middleware/validate");
 const { PERMISSIONS } = require("../constants/rbac");
-const { sendSuccess } = require("../utils/http");
+const asyncHandler = require("../utils/asyncHandler");
+const UserController = require("../controllers/UserController");
 const {
   createUserSchema,
   updateUserSchema,
@@ -21,62 +12,31 @@ const {
 
 const router = express.Router();
 
-/**
- * GET /api/users
- * List all users - requires users read permission
- */
 router.get(
   "/",
   requirePermission(PERMISSIONS.USERS_READ),
   validate(listUsersQuerySchema, "query"),
-  async (req, res) => {
-    const staff = await listUsers(req.user, req.query || {});
-    return sendSuccess(res, 200, "Get staff list success", staff);
-  },
+  asyncHandler(UserController.listUsers),
 );
 
-/**
- * POST /api/users
- * Create new user - requires users create permission
- */
 router.post(
   "/",
   requirePermission(PERMISSIONS.USERS_CREATE),
   validate(createUserSchema),
-  async (req, res) => {
-    const staff = await createUserAccount(req.user, req.body || {});
-    return sendSuccess(res, 201, "Create staff success", staff);
-  },
+  asyncHandler(UserController.createUser),
 );
 
-/**
- * PUT /api/users/:id
- * Update user - requires users update permission
- */
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.USERS_UPDATE),
   validate(updateUserSchema),
-  async (req, res) => {
-    const user = await getUserForStaffApi(req.user, req.params.id);
-    const staff = await updateUserAccount(req.user, user, req.body || {});
-    return sendSuccess(res, 200, "Update staff success", staff);
-  },
+  asyncHandler(UserController.updateUser),
 );
 
-/**
- * DELETE /api/users/:id
- * Delete user - requires users delete permission
- */
 router.delete(
   "/:id",
   requirePermission(PERMISSIONS.USERS_DELETE),
-  async (req, res) => {
-    const user = await getUserForStaffApi(req.user, req.params.id);
-    await deleteUserAccount(req.user, user);
-
-    return sendSuccess(res, 200, "Delete staff success", null);
-  },
+  asyncHandler(UserController.deleteUser),
 );
 
 module.exports = router;

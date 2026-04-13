@@ -24,7 +24,7 @@ const {
   createUserAccount,
   serializeUser,
   updateOwnProfile,
-} = require("../services/userManagement");
+} = require("../services/UserService");
 const { PERMISSIONS } = require("../constants/rbac");
 const {
   loginSchema,

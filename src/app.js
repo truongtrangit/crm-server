@@ -10,6 +10,7 @@ const customersRouter = require("./routes/customers");
 const usersRouter = require("./routes/users");
 const leadsRouter = require("./routes/leads");
 const tasksRouter = require("./routes/tasks");
+const eventsRouter = require("./routes/events");
 const organizationRouter = require("./routes/organization");
 const metadataRouter = require("./routes/metadata");
 const functionsRouter = require("./routes/functions");
@@ -60,6 +61,7 @@ app.get("/api", (_req, res) => {
       "auth",
       "leads",
       "tasks",
+      "events",
       "organization",
       "metadata",
       "functions",
@@ -74,6 +76,7 @@ app.use("/api/customers", customersRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/leads", leadsRouter);
 app.use("/api/tasks", tasksRouter);
+app.use("/api/events", eventsRouter);
 app.use("/api/organization", organizationRouter);
 app.use("/api/metadata", metadataRouter);
 app.use("/api/functions", functionsRouter);

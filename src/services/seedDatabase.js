@@ -1,5 +1,6 @@
 const Customer = require("../models/Customer");
 const Lead = require("../models/Lead");
+const Event = require("../models/Event");
 const Organization = require("../models/Organization");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
@@ -153,6 +154,7 @@ async function seedDatabase() {
   await seedCollection(Customer, seedData.customers, "customers");
   await seedCollection(Lead, seedData.leads, "leads");
   await seedCollection(Task, seedData.tasks, "tasks");
+  await seedCollection(Event, seedData.events, "events");
   await seedCollection(
     StaffFunction,
     seedData.staffFunctions,
