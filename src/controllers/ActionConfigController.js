@@ -91,6 +91,32 @@ class ActionConfigController {
     await ActionConfigService.deleteActionChain(req.params.id);
     return sendSuccess(res, 200, "Delete action chain success", null);
   }
+
+  // ─── Action Rules ───
+  async listActionRules(req, res) {
+    const { items, totalItems, page, limit } = await ActionConfigService.listActionRules(req.query);
+    return sendSuccess(res, 200, "Get action rules success", buildPaginatedResponse(items, totalItems, page, limit));
+  }
+
+  async getActionRule(req, res) {
+    const item = await ActionConfigService.getActionRule(req.params.id);
+    return sendSuccess(res, 200, "Get action rule detail success", item);
+  }
+
+  async createActionRule(req, res) {
+    const item = await ActionConfigService.createActionRule(req.body);
+    return sendSuccess(res, 201, "Create action rule success", item);
+  }
+
+  async updateActionRule(req, res) {
+    const item = await ActionConfigService.updateActionRule(req.params.id, req.body);
+    return sendSuccess(res, 200, "Update action rule success", item);
+  }
+
+  async deleteActionRule(req, res) {
+    await ActionConfigService.deleteActionRule(req.params.id);
+    return sendSuccess(res, 200, "Delete action rule success", null);
+  }
 }
 
 module.exports = new ActionConfigController();

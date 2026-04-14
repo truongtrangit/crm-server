@@ -4,6 +4,7 @@ const createDepartmentSchema = Joi.object({
   name: Joi.string().trim().required().messages({
     "any.required": "name is required",
   }),
+  desc: Joi.string().allow("").optional(),
   alias: Joi.string().trim().allow("").optional(),
 });
 

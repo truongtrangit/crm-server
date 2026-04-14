@@ -23,15 +23,11 @@ const createReasonSchema = Joi.object({
   name: Joi.string().trim().required().messages({
     "any.required": "name is required",
   }),
-  resultId: Joi.string().required().messages({
-    "any.required": "resultId is required",
-  }),
   description: Joi.string().allow("").optional(),
 });
 
 const updateReasonSchema = Joi.object({
   name: Joi.string().trim().optional(),
-  resultId: Joi.string().optional(),
   description: Joi.string().allow("").optional(),
 }).min(1);
 
@@ -41,72 +37,105 @@ const createActionSchema = Joi.object({
     "any.required": "name is required",
   }),
   type: Joi.string()
-    .valid("call", "email", "meeting", "task", "sms", "other")
+    .valid("call", "send_block_automation", "review", "manual_order", "email", "sms", "meeting", "other")
     .optional()
     .default("call"),
-  resultIds: Joi.array().items(Joi.string()).optional().default([]),
+  reasonIds: Joi.array().items(Joi.string()).optional().default([]),
   description: Joi.string().allow("").optional(),
 });
 
 const updateActionSchema = Joi.object({
   name: Joi.string().trim().optional(),
   type: Joi.string()
-    .valid("call", "email", "meeting", "task", "sms", "other")
+    .valid("call", "send_block_automation", "review", "manual_order", "email", "sms", "meeting", "other")
     .optional(),
-  resultIds: Joi.array().items(Joi.string()).optional(),
+  reasonIds: Joi.array().items(Joi.string()).optional(),
   description: Joi.string().allow("").optional(),
 }).min(1);
 
 // ─── Action Chain ───
-const branchSchema = Joi.object({
-  resultId: Joi.string().required(),
-  nextStep: Joi.string().valid("action", "close").default("close"),
-  nextActionId: Joi.string().allow(null).optional().default(null),
-  closeStatus: Joi.string()
-    .valid("success", "failure")
-    .allow(null)
-    .optional()
-    .default(null),
-  delay: Joi.string()
-    .valid("immediate", "1h", "4h", "1d", "3d", "7d")
-    .optional()
-    .default("immediate"),
-});
-
-const stepSchema = Joi.object({
+const chainStepSchema = Joi.object({
   order: Joi.number().integer().min(1).required(),
   actionId: Joi.string().required(),
-  branches: Joi.array().items(branchSchema).optional().default([]),
+  subActions: Joi.array().items(Joi.string()).optional().default([]),
 });
 
 const createActionChainSchema = Joi.object({
   name: Joi.string().trim().required().messages({
     "any.required": "name is required",
   }),
-  active: Joi.boolean().optional().default(true),
+  description: Joi.string().allow("").optional(),
   delay: Joi.string()
     .valid("immediate", "1h", "4h", "1d", "3d", "7d")
     .optional()
     .default("immediate"),
-  description: Joi.string().allow("").optional(),
-  steps: Joi.array().items(stepSchema).optional().default([]),
+  steps: Joi.array().items(chainStepSchema).optional().default([]),
 });
 
 const updateActionChainSchema = Joi.object({
   name: Joi.string().trim().optional(),
-  active: Joi.boolean().optional(),
+  description: Joi.string().allow("").optional(),
   delay: Joi.string()
     .valid("immediate", "1h", "4h", "1d", "3d", "7d")
     .optional(),
+  steps: Joi.array().items(chainStepSchema).optional(),
+}).min(1);
+
+// ─── Action Rule ───
+const branchSchema = Joi.object({
+  resultId: Joi.string().required(),
+  nextStepType: Joi.string()
+    .valid("next_in_chain", "specific_action", "close")
+    .default("close"),
+  nextActionId: Joi.string().allow(null, "").optional().default(null),
+  closeStatus: Joi.string()
+    .valid("success", "failure")
+    .allow(null)
+    .optional()
+    .default(null),
+  delayUnit: Joi.string()
+    .valid("immediate", "hour", "day", "week")
+    .optional()
+    .default("immediate"),
+  delayValue: Joi.number().integer().min(0).optional().default(0),
+});
+
+const ruleStepSchema = Joi.object({
+  order: Joi.number().integer().min(1).required(),
+  actionId: Joi.string().required(),
+  branches: Joi.array().items(branchSchema).optional().default([]),
+});
+
+const createActionRuleSchema = Joi.object({
+  name: Joi.string().trim().required().messages({
+    "any.required": "name is required",
+  }),
   description: Joi.string().allow("").optional(),
-  steps: Joi.array().items(stepSchema).optional(),
+  active: Joi.boolean().optional().default(true),
+  chainId: Joi.string().allow(null, "").optional().default(null),
+  delay: Joi.string()
+    .valid("immediate", "1h", "4h", "1d", "3d", "7d")
+    .optional()
+    .default("immediate"),
+  steps: Joi.array().items(ruleStepSchema).optional().default([]),
+});
+
+const updateActionRuleSchema = Joi.object({
+  name: Joi.string().trim().optional(),
+  description: Joi.string().allow("").optional(),
+  active: Joi.boolean().optional(),
+  chainId: Joi.string().allow(null, "").optional(),
+  delay: Joi.string()
+    .valid("immediate", "1h", "4h", "1d", "3d", "7d")
+    .optional(),
+  steps: Joi.array().items(ruleStepSchema).optional(),
 }).min(1);
 
 // ─── List Query ───
 const listQuerySchema = Joi.object({
   search: Joi.string().allow("").optional(),
   page: Joi.number().integer().min(1).optional(),
-  limit: Joi.number().integer().min(1).max(100).optional(),
+  limit: Joi.number().integer().min(1).max(200).optional(),
 });
 
 module.exports = {
@@ -118,5 +147,7 @@ module.exports = {
   updateActionSchema,
   createActionChainSchema,
   updateActionChainSchema,
+  createActionRuleSchema,
+  updateActionRuleSchema,
   listQuerySchema,
 };

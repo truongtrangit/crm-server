@@ -2,7 +2,7 @@ const { createHttpError } = require("./http");
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 200;
 
 function parsePositiveInteger(value, fallback) {
   if (value === undefined || value === null || value === "") {

@@ -6,10 +6,10 @@ const actionSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     type: {
       type: String,
-      enum: ["call", "email", "meeting", "task", "sms", "other"],
+      enum: ["call", "send_block_automation", "review", "manual_order", "email", "sms", "meeting", "other"],
       default: "call",
     },
-    resultIds: [{ type: String, ref: "Result" }],
+    reasonIds: [{ type: String, ref: "Reason", default: [] }],
     description: { type: String, default: "" },
   },
   {

@@ -13,6 +13,8 @@ const {
   updateActionSchema,
   createActionChainSchema,
   updateActionChainSchema,
+  createActionRuleSchema,
+  updateActionRuleSchema,
   listQuerySchema,
 } = require("../validations/actions");
 
@@ -134,6 +136,39 @@ router.delete(
   "/chains/:id",
   requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
   asyncHandler(ctrl.deleteActionChain),
+);
+
+// ─── Action Rules ───
+router.get(
+  "/rules",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
+  validate(listQuerySchema, "query"),
+  asyncHandler(ctrl.listActionRules),
+);
+
+router.get(
+  "/rules/:id",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
+  asyncHandler(ctrl.getActionRule),
+);
+router.post(
+  "/rules",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),
+  validate(createActionRuleSchema),
+  asyncHandler(ctrl.createActionRule),
+);
+
+router.put(
+  "/rules/:id",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
+  validate(updateActionRuleSchema),
+  asyncHandler(ctrl.updateActionRule),
+);
+
+router.delete(
+  "/rules/:id",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
+  asyncHandler(ctrl.deleteActionRule),
 );
 
 module.exports = router;
