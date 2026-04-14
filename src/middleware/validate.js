@@ -16,8 +16,8 @@ function validate(schema, source = "body") {
     const data = req[source];
     const { error, value } = schema.validate(data, {
       abortEarly: false,
-      stripUnknown: false,
-      allowUnknown: source === "query",
+      stripUnknown: source !== "body",   // chỉ strip cho query/params, không strip body
+      allowUnknown: source !== "body",   // body phải đúng schema, query thì linh động
     });
 
     if (error) {
