@@ -197,19 +197,23 @@ async function resolveRoleDocument(rawValue, fallbackRoleName = null) {
   return Role.findOne({ $or: candidates });
 }
 
+/**
+ * Check if actorRole is allowed to assign targetRole to a user.
+ * Rules:
+ *  - OWNER can assign any role EXCEPT OWNER (only 1 owner philosophy; prevent OWNER duplication).
+ *  - Other roles can only assign roles with strictly lower level than themselves.
+ */
 function canAssignRole(actorRole, targetRole) {
   if (!actorRole || !targetRole) {
     return false;
   }
 
-  if (actorRole.name === OWNER_ROLE_NAME) {
-    return true;
-  }
-
+  // Nobody can assign the OWNER role to others
   if (targetRole.name === OWNER_ROLE_NAME) {
     return false;
   }
 
+  // Actor must have strictly higher level than the role they want to assign
   return (actorRole.level || 0) > (targetRole.level || 0);
 }
 
@@ -462,20 +466,22 @@ async function createUserAccount(actor, payload = {}) {
     throw createHttpError(400, "role is invalid");
   }
 
-  const canManageRoles = await hasPermission(actor, PERMISSIONS.ROLES_MANAGE);
-  const canManageUsers = await hasPermission(actor, PERMISSIONS.USERS_MANAGE);
+  // Unified role assignment check:
+  // - Nobody can create a user with the OWNER role.
+  // - The actor must be able to assign the target role (strictly higher level).
+  // canAssignRole is the single source of truth for whether the assignment is valid.
+  if (!canAssignRole(actorRole, targetRole)) {
+    throw createHttpError(
+      403,
+      "You do not have permission to assign this role",
+    );
+  }
 
-  if (!canManageRoles && !canManageUsers) {
-    if (
-      !(await hasPermission(actor, PERMISSIONS.USERS_CREATE)) ||
-      targetRole.name !== STAFF_ROLE_NAME
-    ) {
-      throw createHttpError(
-        403,
-        "You do not have permission to assign this role",
-      );
-    }
-  } else if (!canAssignRole(actorRole, targetRole)) {
+  // Additional check for actors that only have USERS_CREATE (not USERS_MANAGE):
+  // They can ONLY create STAFF-level users.
+  const hasManageUsers = await hasPermission(actor, PERMISSIONS.USERS_MANAGE);
+  const hasManageRoles = await hasPermission(actor, PERMISSIONS.ROLES_MANAGE);
+  if (!hasManageUsers && !hasManageRoles && targetRole.name !== STAFF_ROLE_NAME) {
     throw createHttpError(
       403,
       "You do not have permission to assign this role",
@@ -589,6 +595,16 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   const actorRoleName = actorRole?.name || null;
   const targetRoleName = targetCurrentRole?.name || null;
 
+  // ── Guard 1: Nobody can update their own role via this endpoint ────────────
+  // Use updateOwnProfile for self-edits; role changes via self are forbidden.
+  if (actor.id === targetUser.id) {
+    throw createHttpError(
+      403,
+      "You cannot update your own account through this endpoint",
+    );
+  }
+
+  // ── Guard 2: Only OWNER can manage other OWNER accounts ──────────────────
   if (targetRoleName === OWNER_ROLE_NAME && actorRoleName !== OWNER_ROLE_NAME) {
     throw createHttpError(
       403,
@@ -596,6 +612,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
+  // ── Guard 3: Actor must have manage permission OR update + scope check ────
   if (
     !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
     !(
@@ -609,6 +626,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
+  // ── Determine next role ───────────────────────────────────────────────────
   const nextRole =
     payload.role !== undefined || payload.roleId !== undefined
       ? await resolveRoleDocument(payload.roleId ?? payload.role)
@@ -618,20 +636,13 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     throw createHttpError(400, "role is invalid");
   }
 
-  if (
-    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    nextRole.name !== STAFF_ROLE_NAME
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to assign this role",
-    );
-  }
+  // ── Guard 4: Validate the actor is allowed to assign the requested role ───
+  // Only enforce this when role is explicitly being changed.
+  // canAssignRole blocks OWNER assignment and requires strictly higher level.
+  const isRoleBeingChanged =
+    payload.role !== undefined || payload.roleId !== undefined;
 
-  if (
-    (await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    !canAssignRole(actorRole, nextRole)
-  ) {
+  if (isRoleBeingChanged && !canAssignRole(actorRole, nextRole)) {
     throw createHttpError(
       403,
       "You do not have permission to assign this role",
@@ -879,6 +890,12 @@ async function deleteUserAccount(actor, targetUser) {
   const actorRoleName = actorRole?.name || null;
   const targetRoleName = targetRole?.name || null;
 
+  // ── Guard 1: Cannot delete own account ───────────────────────────────────
+  if (targetUser.id === actor.id) {
+    throw createHttpError(400, "You cannot delete your own account");
+  }
+
+  // ── Guard 2: Only OWNER can delete other OWNER accounts ──────────────────
   if (targetRoleName === OWNER_ROLE_NAME && actorRoleName !== OWNER_ROLE_NAME) {
     throw createHttpError(
       403,
@@ -886,6 +903,18 @@ async function deleteUserAccount(actor, targetUser) {
     );
   }
 
+  // ── Guard 3: Protect the last OWNER in the system ────────────────────────
+  if (targetRoleName === OWNER_ROLE_NAME) {
+    const ownerCount = await User.countDocuments({ role: OWNER_ROLE_NAME });
+    if (ownerCount <= 1) {
+      throw createHttpError(
+        403,
+        "Cannot delete the last owner of the organization",
+      );
+    }
+  }
+
+  // ── Guard 4: Actor must have manage permission OR scope-based manage ──────
   if (
     !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
     !canManageUserByRole(actor, actorRole, targetUser, targetRole)
@@ -894,10 +923,6 @@ async function deleteUserAccount(actor, targetUser) {
       403,
       "You do not have permission to delete this user",
     );
-  }
-
-  if (targetUser.id === actor.id) {
-    throw createHttpError(400, "You cannot delete your own account");
   }
 
   await targetUser.deleteOne();
