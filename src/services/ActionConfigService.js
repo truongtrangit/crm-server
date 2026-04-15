@@ -2,7 +2,6 @@ const Result = require("../models/Result");
 const Reason = require("../models/Reason");
 const Action = require("../models/Action");
 const ActionChain = require("../models/ActionChain");
-const ActionRule = require("../models/ActionRule");
 const { generateSequentialId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
@@ -159,47 +158,19 @@ class ActionConfigService {
     if (!deleted) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
   }
 
-  // ─── ActionRule CRUD ───
-
-  async listActionRules(queryParams) {
-    const { search = "" } = queryParams;
-    const searchRegex = buildSearchRegex(search);
-    const { page, limit, skip } = resolvePagination(queryParams);
-    const query = {};
-
-    if (searchRegex) {
-      query.$or = [{ name: searchRegex }, { id: searchRegex }];
-    }
-
-    const [items, totalItems] = await Promise.all([
-      ActionRule.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      ActionRule.countDocuments(query),
-    ]);
-
-    return { items, totalItems, page, limit };
-  }
-
-  async getActionRule(id) {
-    const item = await ActionRule.findOne({ id }).lean();
-    if (!item) throw createHttpError(404, "ActionRule not found", { code: "RULE_NOT_FOUND" });
-    return item;
-  }
-
-  async createActionRule(body) {
-    const id = await generateSequentialId(ActionRule, "ARL");
-    return ActionRule.create({ ...body, id });
-  }
-
-  async updateActionRule(id, body) {
-    const item = await ActionRule.findOneAndUpdate({ id }, body, { new: true });
-    if (!item) throw createHttpError(404, "ActionRule not found", { code: "RULE_NOT_FOUND" });
-    return item;
-  }
-
-  async deleteActionRule(id) {
-    const deleted = await ActionRule.findOneAndDelete({ id });
-    if (!deleted) throw createHttpError(404, "ActionRule not found", { code: "RULE_NOT_FOUND" });
+  /**
+   * Save rule configuration for a chain:
+   * Updates steps (with branches) in-place.
+   * Preserves name, description, delay.
+   */
+  async saveChainRule(id, { steps }) {
+    const chain = await ActionChain.findOne({ id });
+    if (!chain) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
+    chain.steps = steps;
+    await chain.save();
+    return chain;
   }
 }
 
 module.exports = new ActionConfigService();
+

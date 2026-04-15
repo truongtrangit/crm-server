@@ -13,162 +13,43 @@ const {
   updateActionSchema,
   createActionChainSchema,
   updateActionChainSchema,
-  createActionRuleSchema,
-  updateActionRuleSchema,
+  saveChainRuleSchema,
   listQuerySchema,
 } = require("../validations/actions");
 
 const router = express.Router();
 
 // ─── Results ───
-router.get(
-  "/results",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  validate(listQuerySchema, "query"),
-  asyncHandler(ctrl.listResults),
-);
-
-router.post(
-  "/results",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),
-  validate(createResultSchema),
-  asyncHandler(ctrl.createResult),
-);
-
-router.put(
-  "/results/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
-  validate(updateResultSchema),
-  asyncHandler(ctrl.updateResult),
-);
-
-router.delete(
-  "/results/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
-  asyncHandler(ctrl.deleteResult),
-);
+router.get("/results",  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),   validate(listQuerySchema, "query"), asyncHandler(ctrl.listResults));
+router.post("/results", requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),  validate(createResultSchema),        asyncHandler(ctrl.createResult));
+router.put("/results/:id",    requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE), validate(updateResultSchema), asyncHandler(ctrl.updateResult));
+router.delete("/results/:id", requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),                               asyncHandler(ctrl.deleteResult));
 
 // ─── Reasons ───
-router.get(
-  "/reasons",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  validate(listQuerySchema, "query"),
-  asyncHandler(ctrl.listReasons),
-);
-
-router.post(
-  "/reasons",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),
-  validate(createReasonSchema),
-  asyncHandler(ctrl.createReason),
-);
-
-router.put(
-  "/reasons/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
-  validate(updateReasonSchema),
-  asyncHandler(ctrl.updateReason),
-);
-
-router.delete(
-  "/reasons/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
-  asyncHandler(ctrl.deleteReason),
-);
+router.get("/reasons",  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),   validate(listQuerySchema, "query"), asyncHandler(ctrl.listReasons));
+router.post("/reasons", requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),  validate(createReasonSchema),        asyncHandler(ctrl.createReason));
+router.put("/reasons/:id",    requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE), validate(updateReasonSchema), asyncHandler(ctrl.updateReason));
+router.delete("/reasons/:id", requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),                               asyncHandler(ctrl.deleteReason));
 
 // ─── Actions ───
-router.get(
-  "/actions",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  validate(listQuerySchema, "query"),
-  asyncHandler(ctrl.listActions),
-);
-
-router.post(
-  "/actions",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),
-  validate(createActionSchema),
-  asyncHandler(ctrl.createAction),
-);
-
-router.put(
-  "/actions/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
-  validate(updateActionSchema),
-  asyncHandler(ctrl.updateAction),
-);
-
-router.delete(
-  "/actions/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
-  asyncHandler(ctrl.deleteAction),
-);
+router.get("/actions",  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),   validate(listQuerySchema, "query"), asyncHandler(ctrl.listActions));
+router.post("/actions", requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),  validate(createActionSchema),        asyncHandler(ctrl.createAction));
+router.put("/actions/:id",    requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE), validate(updateActionSchema), asyncHandler(ctrl.updateAction));
+router.delete("/actions/:id", requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),                               asyncHandler(ctrl.deleteAction));
 
 // ─── Action Chains ───
-router.get(
-  "/chains",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  validate(listQuerySchema, "query"),
-  asyncHandler(ctrl.listActionChains),
-);
+router.get("/chains",     requirePermission(PERMISSIONS.ACTIONS_CFG_READ),   validate(listQuerySchema, "query"), asyncHandler(ctrl.listActionChains));
+router.get("/chains/:id", requirePermission(PERMISSIONS.ACTIONS_CFG_READ),                                      asyncHandler(ctrl.getActionChain));
+router.post("/chains",    requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),  validate(createActionChainSchema), asyncHandler(ctrl.createActionChain));
+router.put("/chains/:id", requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),  validate(updateActionChainSchema), asyncHandler(ctrl.updateActionChain));
+router.delete("/chains/:id", requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),                                  asyncHandler(ctrl.deleteActionChain));
 
-router.get(
-  "/chains/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  asyncHandler(ctrl.getActionChain),
-);
-
-router.post(
-  "/chains",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),
-  validate(createActionChainSchema),
-  asyncHandler(ctrl.createActionChain),
-);
-
+// ─── Chain Rule Configuration ─── (PUT /chains/:id/rule)
 router.put(
-  "/chains/:id",
+  "/chains/:id/rule",
   requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
-  validate(updateActionChainSchema),
-  asyncHandler(ctrl.updateActionChain),
-);
-
-router.delete(
-  "/chains/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
-  asyncHandler(ctrl.deleteActionChain),
-);
-
-// ─── Action Rules ───
-router.get(
-  "/rules",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  validate(listQuerySchema, "query"),
-  asyncHandler(ctrl.listActionRules),
-);
-
-router.get(
-  "/rules/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
-  asyncHandler(ctrl.getActionRule),
-);
-router.post(
-  "/rules",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_CREATE),
-  validate(createActionRuleSchema),
-  asyncHandler(ctrl.createActionRule),
-);
-
-router.put(
-  "/rules/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
-  validate(updateActionRuleSchema),
-  asyncHandler(ctrl.updateActionRule),
-);
-
-router.delete(
-  "/rules/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_DELETE),
-  asyncHandler(ctrl.deleteActionRule),
+  validate(saveChainRuleSchema),
+  asyncHandler(ctrl.saveChainRule)
 );
 
 module.exports = router;

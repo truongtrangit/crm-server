@@ -58,31 +58,52 @@ const ALL_RESULT_TYPES = Object.values(RESULT_TYPE_VALUES);
 
 // ─── Chain Delays ───
 const CHAIN_DELAY_VALUES = Object.freeze({
-  IMMEDIATE: "immediate",
-  ONE_HOUR:  "1h",
+  IMMEDIATE:  "immediate",
+  ONE_HOUR:   "1h",
   FOUR_HOURS: "4h",
-  ONE_DAY:   "1d",
+  ONE_DAY:    "1d",
   THREE_DAYS: "3d",
   SEVEN_DAYS: "7d",
 });
 
 const ALL_CHAIN_DELAYS = Object.values(CHAIN_DELAY_VALUES);
 
-// ─── Rule / Branch ───
+// ─── Branch / Next Step Types ───
+/**
+ * Các loại bước tiếp theo trong nhánh kết quả:
+ *  next_in_chain          → Hành động tiếp theo trong chuỗi (chọn action cụ thể trong chain)
+ *  close_task             → Đóng tác vụ (rồi chọn thành công / thất bại)
+ *  close_chain            → Đóng chuỗi HĐ
+ *  close_chain_clone_task → Đóng chuỗi HĐ và tạo bản sao Tác vụ
+ *  create_order           → Tạo đơn hàng
+ *  call_block_automation  → Gọi Block Automation
+ *  add_from_other_chain   → Thêm HĐ từ chuỗi khác
+ *  close_task_success     → Đóng tác vụ (thành công) — shorthand
+ *  close_task_failure     → Đóng tác vụ (thất bại) — shorthand
+ */
 const NEXT_STEP_TYPE_VALUES = Object.freeze({
-  NEXT_IN_CHAIN:   "next_in_chain",
-  SPECIFIC_ACTION: "specific_action",
-  CLOSE:           "close",
+  NEXT_IN_CHAIN:          "next_in_chain",
+  CLOSE_TASK:             "close_task",
+  CLOSE_CHAIN:            "close_chain",
+  CLOSE_CHAIN_CLONE_TASK: "close_chain_clone_task",
+  CREATE_ORDER:           "create_order",
+  CALL_BLOCK_AUTOMATION:  "call_block_automation",
+  ADD_FROM_OTHER_CHAIN:   "add_from_other_chain",
 });
 
 const ALL_NEXT_STEP_TYPES = Object.values(NEXT_STEP_TYPE_VALUES);
 
-const CLOSE_STATUS_VALUES = Object.freeze({
+/** Outcome khi đóng tác vụ */
+const CLOSE_OUTCOME_VALUES = Object.freeze({
   SUCCESS: "success",
   FAILURE: "failure",
 });
 
-const ALL_CLOSE_STATUSES = Object.values(CLOSE_STATUS_VALUES);
+const ALL_CLOSE_OUTCOMES = Object.values(CLOSE_OUTCOME_VALUES);
+
+// Legacy aliases (kept for backward compat)
+const CLOSE_STATUS_VALUES   = CLOSE_OUTCOME_VALUES;
+const ALL_CLOSE_STATUSES    = ALL_CLOSE_OUTCOMES;
 
 const BRANCH_DELAY_UNIT_VALUES = Object.freeze({
   IMMEDIATE: "immediate",
@@ -107,9 +128,12 @@ module.exports = {
   // Chain delays
   CHAIN_DELAY_VALUES,
   ALL_CHAIN_DELAYS,
-  // Rule / Branch
+  // Next step / Branch
   NEXT_STEP_TYPE_VALUES,
   ALL_NEXT_STEP_TYPES,
+  CLOSE_OUTCOME_VALUES,
+  ALL_CLOSE_OUTCOMES,
+  // Legacy
   CLOSE_STATUS_VALUES,
   ALL_CLOSE_STATUSES,
   BRANCH_DELAY_UNIT_VALUES,

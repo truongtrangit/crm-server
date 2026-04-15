@@ -30,11 +30,10 @@ const actionSchema = new mongoose.Schema(
 );
 
 // Tự động suy ra category từ type nếu chưa có
-actionSchema.pre("save", function (next) {
+actionSchema.pre("save", async function () {
   if (!this.category && this.type) {
     this.category = ACTION_TYPE_CATEGORY_MAP[this.type] || ACTION_CATEGORY_VALUES.PRIMARY;
   }
-  next();
 });
 
 module.exports = mongoose.model("Action", actionSchema);

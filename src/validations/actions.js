@@ -5,7 +5,7 @@ const {
   ALL_RESULT_TYPES,
   ALL_CHAIN_DELAYS,
   ALL_NEXT_STEP_TYPES,
-  ALL_CLOSE_STATUSES,
+  ALL_CLOSE_OUTCOMES,
   ALL_BRANCH_DELAY_UNITS,
 } = require("../constants/actionConfig");
 
@@ -65,10 +65,20 @@ const updateActionSchema = Joi.object({
 }).min(1);
 
 // ─── Action Chain ───
+const branchSchema = Joi.object({
+  resultId:     Joi.string().required(),
+  order:        Joi.number().integer().min(0).optional().default(0),
+  nextStepType: Joi.string().valid(...ALL_NEXT_STEP_TYPES).optional().default("close_task"),
+  nextActionId: Joi.string().allow(null, "").optional().default(null),
+  closeOutcome: Joi.string().valid(...ALL_CLOSE_OUTCOMES).allow(null).optional().default(null),
+  delayUnit:    Joi.string().valid(...ALL_BRANCH_DELAY_UNITS).allow(null).optional().default(null),
+  delayValue:   Joi.number().integer().min(1).allow(null).optional().default(null),
+});
+
 const chainStepSchema = Joi.object({
-  order: Joi.number().integer().min(1).required(),
+  order:    Joi.number().integer().min(1).required(),
   actionId: Joi.string().required(),
-  subActions: Joi.array().items(Joi.string()).optional().default([]),
+  branches: Joi.array().items(branchSchema).optional().default([]),
 });
 
 const createActionChainSchema = Joi.object({
@@ -76,73 +86,31 @@ const createActionChainSchema = Joi.object({
     "any.required": "name is required",
   }),
   description: Joi.string().allow("").optional(),
-  delay: Joi.string()
-    .valid(...ALL_CHAIN_DELAYS)
-    .optional()
-    .default("immediate"),
-  steps: Joi.array().items(chainStepSchema).optional().default([]),
+  delay:  Joi.string().valid(...ALL_CHAIN_DELAYS).optional().default("immediate"),
+  active: Joi.boolean().optional().default(true),
+  steps:  Joi.array().items(chainStepSchema).optional().default([]),
 });
 
 const updateActionChainSchema = Joi.object({
-  name: Joi.string().trim().optional(),
+  name:        Joi.string().trim().optional(),
   description: Joi.string().allow("").optional(),
-  delay: Joi.string().valid(...ALL_CHAIN_DELAYS).optional(),
-  steps: Joi.array().items(chainStepSchema).optional(),
+  delay:       Joi.string().valid(...ALL_CHAIN_DELAYS).optional(),
+  active:      Joi.boolean().optional(),
+  steps:       Joi.array().items(chainStepSchema).optional(),
 }).min(1);
 
-// ─── Action Rule ───
-const branchSchema = Joi.object({
-  resultId: Joi.string().required(),
-  nextStepType: Joi.string()
-    .valid(...ALL_NEXT_STEP_TYPES)
-    .default("close"),
-  nextActionId: Joi.string().allow(null, "").optional().default(null),
-  closeStatus: Joi.string()
-    .valid(...ALL_CLOSE_STATUSES)
-    .allow(null)
-    .optional()
-    .default(null),
-  delayUnit: Joi.string()
-    .valid(...ALL_BRANCH_DELAY_UNITS)
-    .optional()
-    .default("immediate"),
-  delayValue: Joi.number().integer().min(0).optional().default(0),
+// Dedicated endpoint: save full chain rule config (steps + branches)
+const saveChainRuleSchema = Joi.object({
+  steps: Joi.array().items(chainStepSchema).required(),
 });
 
-const ruleStepSchema = Joi.object({
-  order: Joi.number().integer().min(1).required(),
-  actionId: Joi.string().required(),
-  branches: Joi.array().items(branchSchema).optional().default([]),
-});
-
-const createActionRuleSchema = Joi.object({
-  name: Joi.string().trim().required().messages({
-    "any.required": "name is required",
-  }),
-  description: Joi.string().allow("").optional(),
-  active: Joi.boolean().optional().default(true),
-  chainId: Joi.string().allow(null, "").optional().default(null),
-  delay: Joi.string()
-    .valid(...ALL_CHAIN_DELAYS)
-    .optional()
-    .default("immediate"),
-  steps: Joi.array().items(ruleStepSchema).optional().default([]),
-});
-
-const updateActionRuleSchema = Joi.object({
-  name: Joi.string().trim().optional(),
-  description: Joi.string().allow("").optional(),
-  active: Joi.boolean().optional(),
-  chainId: Joi.string().allow(null, "").optional(),
-  delay: Joi.string().valid(...ALL_CHAIN_DELAYS).optional(),
-  steps: Joi.array().items(ruleStepSchema).optional(),
-}).min(1);
+// (ActionRule schemas removed — rule configuration is now embedded in ActionChain.steps.branches)
 
 // ─── List Query ───
 const listQuerySchema = Joi.object({
   search: Joi.string().allow("").optional(),
-  page: Joi.number().integer().min(1).optional(),
-  limit: Joi.number().integer().min(1).max(200).optional(),
+  page:   Joi.number().integer().min(1).optional(),
+  limit:  Joi.number().integer().min(1).max(200).optional(),
 });
 
 module.exports = {
@@ -154,7 +122,6 @@ module.exports = {
   updateActionSchema,
   createActionChainSchema,
   updateActionChainSchema,
-  createActionRuleSchema,
-  updateActionRuleSchema,
+  saveChainRuleSchema,
   listQuerySchema,
 };
