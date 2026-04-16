@@ -1,2078 +1,1802 @@
-# CRM Server API Documentation
+# CRM Server — Full API Reference
 
-Tài liệu này mô tả contract API hiện tại để team FE tích hợp web/mobile.
+**Base URL:** `http://localhost:4000`  
+**Authentication:** Bearer token via `Authorization: Bearer <accessToken>` header (all protected routes).  
+**Content-Type:** `application/json`
 
-## 1. Tổng quan
+---
 
-- Base URL local: `http://localhost:4000/api`
-- Format body: `application/json`
-- Auth chính: Bearer access token
-- Các API get list hỗ trợ phân trang bằng `page` và `limit`
-- Auth refresh cho web và mobile:
-  - Web: dùng cookie httpOnly tự set từ server
-  - Mobile: dùng `sessionId` + `refreshToken` trong body hoặc header
-- Hầu hết business API yêu cầu đăng nhập
+## Table of Contents
 
-## 1.1. Pagination convention
+1. [General Conventions](#1-general-conventions)
+2. [Authentication — `/api/auth`](#2-authentication)
+3. [Users (Staff) — `/api/users`](#3-users-staff)
+4. [Customers — `/api/customers`](#4-customers)
+5. [Leads — `/api/leads`](#5-leads)
+6. [Tasks — `/api/tasks`](#6-tasks)
+7. [Events — `/api/events`](#7-events)
+8. [Organization — `/api/organization`](#8-organization)
+9. [Metadata — `/api/metadata`](#9-metadata)
+10. [Functions — `/api/functions`](#10-functions)
+11. [RBAC (Roles & Permissions) — `/api/rbac`](#11-rbac)
+12. [Action Config — `/api/action-config`](#12-action-config)
+13. [System Routes](#13-system-routes)
+14. [Enum Reference](#14-enum-reference)
+15. [Error Codes](#15-error-codes)
 
-Query params chung cho list API:
+---
 
-- `page`: số trang, bắt đầu từ `1`, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
+## 1. General Conventions
 
-Nếu `page` hoặc `limit` không phải số nguyên dương, API trả về:
+### Response Envelope
 
-```json
-{
-  "statusCode": 400,
-  "code": "INVALID_PAGINATION",
-  "message": "page and limit must be positive integers"
-}
-```
-
-Response chuẩn của list API:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Get list success",
-  "data": {
-    "items": [],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 0,
-      "totalPages": 0,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
-  }
-}
-```
-
-## 1.2. Success response convention
-
-Tất cả success response hiện được chuẩn hóa theo format:
+All responses share a common envelope shape:
 
 ```json
 {
-  "statusCode": 200,
-  "message": "Get customer detail success",
-  "data": {}
+  "success": true,
+  "message": "Human-readable message",
+  "data": { ... }
 }
 ```
 
-Ghi chú khi đọc tài liệu bên dưới:
+### Paginated Response Shape
 
-- Nếu tài liệu ghi `Response 200: Customer` thì payload thực tế là:
-  - `statusCode: 200`
-  - `message: ...success`
-  - `data: Customer`
-- Nếu tài liệu ghi `Response 200: Customer[]` hoặc list response thì danh sách nằm trong `data`
-- Các API delete/logout không còn trả `204`, mà trả `200` với `data: null`
+```json
+{
+  "items": [...],
+  "totalItems": 42,
+  "page": 1,
+  "limit": 20,
+  "totalPages": 3
+}
+```
+
+### Common Query Parameters (paginated lists)
+
+| Param   | Type    | Default | Description         |
+|---------|---------|---------|---------------------|
+| `page`  | integer | 1       | Page number (≥ 1)   |
+| `limit` | integer | 20      | Items per page (max 100 or 200 for action-config) |
+
+### Authentication
+
+- Access tokens (JWT) expire after 15 minutes by default.
+- Use `POST /api/auth/refresh` to get a new access token using the refresh token (sent as `httpOnly` cookie or request body).
+- Public routes (no token needed): `/api/auth/login`, `/api/auth/refresh`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/logout`, `/health`, `/api`.
+
+---
 
 ## 2. Authentication
 
-### 2.1. Access token
+**Base path:** `/api/auth`
 
-Gửi header:
+### 2.1 Login
 
-- `Authorization: Bearer <accessToken>`
+```
+POST /api/auth/login
+```
 
-Nếu thiếu token:
-
-- `401 { "message": "Authentication required" }`
-
-Nếu token sai/hết hạn:
-
-- `401 { "message": "Invalid or expired access token" }`
-- hoặc `401 { "message": "Access token has expired" }`
-
-### 2.2. Refresh token
-
-Server hỗ trợ 3 cách truyền refresh token:
-
-1. Cookie cho web
-2. Body JSON:
-   - `sessionId`
-   - `refreshToken`
-3. Header:
-   - `x-session-id`
-   - `x-refresh-token`
-
-### 2.3. Password reset token
-
-- `POST /auth/forgot-password` tạo reset token cho flow quên mật khẩu
-- Ở bản demo hiện tại, do chưa tích hợp email service, API trả thẳng `resetToken` trong response để FE/manual test dễ kiểm thử
-- `POST /auth/reset-password` dùng `email` + `resetToken` + `newPassword` để đặt lại mật khẩu
-- Sau khi reset password hoặc change password, tất cả session cũ đều bị invalidate và user cần login lại
-
-## 3. Role & phân quyền
-
-Các role hiện tại:
-
-- `OWNER`
-- `ADMIN`
-- `MANAGER`
-- `STAFF`
-
-Label hiển thị từ API metadata:
-
-- `Owner`
-- `Admin`
-- `Manager (Trưởng phòng)`
-- `Staff (Nhân viên)`
-
-### 3.1. Quyền staff API
-
-| Role    | GET /staff               | POST /staff                 | PUT /staff/:id             | DELETE /staff/:id          | POST /auth/register         |
-| ------- | ------------------------ | --------------------------- | -------------------------- | -------------------------- | --------------------------- |
-| OWNER   | Yes                      | Yes                         | Yes                        | Yes                        | Yes                         |
-| ADMIN   | Yes                      | Yes                         | Yes                        | Yes                        | Yes                         |
-| MANAGER | Chỉ nhân viên dưới quyền | Chỉ tạo `STAFF` trong scope | Chỉ sửa `STAFF` dưới quyền | Chỉ xóa `STAFF` dưới quyền | Chỉ tạo `STAFF` trong scope |
-| STAFF   | No                       | No                          | No                         | No                         | No                          |
-
-### 3.2. Rule chi tiết
-
-- `OWNER`: toàn quyền, trừ user role `OWNER` khác không thể bị quản lý/xóa qua logic hiện tại.
-- `ADMIN`: quản lý được `MANAGER` và `STAFF`.
-- `MANAGER`: chỉ quản lý `STAFF` có `managerId` là chính mình.
-- `STAFF`: bị chặn với staff API, trả `403 { "message": "Forbidden" }`.
-
-## 3.3. Metadata cho form nhân viên
-
-Hiện đã có metadata để FE render form chọn phòng ban và nhóm hoạt động:
-
-- `GET /metadata`
-- `GET /metadata/departments`
-- `GET /metadata/department-groups`
-- `GET /metadata/activity-groups`
-
-### `GET /metadata`
-
-Response `data` có thêm các field:
-
-- `departments`: danh sách tên phòng ban
-- `departmentOptions`: danh sách phòng ban kèm danh sách nhóm thuộc phòng ban đó
-- `departmentGroups`: alias của `departmentOptions` để FE dễ dùng
-- `activityGroups`: danh sách nhóm hoạt động dạng phẳng, có kèm `departmentId` và `departmentName`
-
-Ví dụ:
-
+**Body:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Get metadata success",
-  "data": {
-    "departments": ["Phòng Sale", "Phòng Kỹ Thuật"],
-    "departmentGroups": [
-      {
-        "id": "2",
-        "value": "Phòng Sale",
-        "label": "Phòng Sale",
-        "name": "Phòng Sale",
-        "groups": [
-          {
-            "value": "Nhóm Sale Hà Nội",
-            "label": "Nhóm Sale Hà Nội",
-            "name": "Nhóm Sale Hà Nội",
-            "description": "Telesale & chốt đơn khu vực miền Bắc",
-            "departmentId": "2",
-            "departmentName": "Phòng Sale"
-          }
-        ]
-      }
-    ],
-    "activityGroups": [
-      {
-        "value": "Nhóm Sale Hà Nội",
-        "label": "Nhóm Sale Hà Nội",
-        "name": "Nhóm Sale Hà Nội",
-        "description": "Telesale & chốt đơn khu vực miền Bắc",
-        "departmentId": "2",
-        "departmentName": "Phòng Sale"
-      }
-    ]
-  }
+  "email": "admin@example.com",
+  "password": "password123"
 }
 ```
 
-### Rule validate khi tạo/cập nhật nhân viên
-
-- `department` là mảng
-- `group` là mảng
-- `departmentAliases`, `groupAliases` là mảng stable reference, nên ưu tiên dùng cho FE mới
-- `departmentIds`, `groupIds` cũng được hỗ trợ
-- Một nhân viên có thể thuộc nhiều phòng ban và nhiều nhóm
-- Nếu chọn nhóm nào thì payload bắt buộc phải chứa phòng ban cha của nhóm đó trong `department`
-
-Khuyến nghị contract mới:
-
-- FE hiển thị theo `label` / `name`
-- FE submit theo `alias` hoặc `_id`
-- Backend vẫn trả thêm tên tiếng Việt để tương thích màn hình cũ
-
-Ví dụ hợp lệ:
-
+**Response `200`:**
 ```json
 {
-  "departmentAliases": ["phong-sale", "phong-ky-thuat"],
-  "groupAliases": [
-    "phong-sale__nhom-sale-ha-noi",
-    "phong-ky-thuat__nhom-backend"
-  ]
-}
-```
-
-Ví dụ không hợp lệ vì thiếu phòng ban cha của nhóm:
-
-```json
-{
-  "department": ["Phòng Sale"],
-  "group": ["Nhóm Backend"]
-}
-```
-
-## 4. Common error responses
-
-## 4.1. HTTP status code conventions
-
-Các mã response phổ biến đang dùng trong API này:
-
-| Status | Ý nghĩa               | Khi nào dùng                                                                   |
-| ------ | --------------------- | ------------------------------------------------------------------------------ |
-| `200`  | OK                    | Lấy dữ liệu thành công, update thành công, login/refresh/logout/xóa thành công |
-| `201`  | Created               | Tạo mới thành công                                                             |
-| `400`  | Bad Request           | Thiếu field bắt buộc, sai format payload, validation fail                      |
-| `401`  | Unauthorized          | Chưa đăng nhập, token sai, token hết hạn                                       |
-| `403`  | Forbidden             | Đã đăng nhập nhưng không đủ quyền                                              |
-| `404`  | Not Found             | Không tìm thấy resource theo `id` hoặc route không tồn tại                     |
-| `409`  | Conflict              | Dữ liệu bị trùng, thường là unique field như `email`, `id`                     |
-| `500`  | Internal Server Error | Lỗi ngoài ý muốn ở server                                                      |
-
-## 4.2. Error body format
-
-Từ bản API hiện tại, các response lỗi có format chuẩn:
-
-```json
-{
-  "statusCode": 400,
-  "code": "VALIDATION_ERROR",
-  "message": "name is required"
-}
-```
-
-Có thể có thêm `details` khi cần, ví dụ lỗi duplicate:
-
-```json
-{
-  "statusCode": 409,
-  "code": "DUPLICATE_VALUE",
-  "message": "Duplicate value detected",
-  "details": {
-    "email": "admin@crm.vn"
-  }
-}
-```
-
-### 400 Bad Request
-
-Ví dụ:
-
-```json
-{
-  "statusCode": 400,
-  "code": "VALIDATION_ERROR",
-  "message": "name is required"
-}
-```
-
-### 401 Unauthorized
-
-```json
-{
-  "statusCode": 401,
-  "code": "AUTHENTICATION_REQUIRED",
-  "message": "Authentication required"
-}
-```
-
-### 403 Forbidden
-
-```json
-{
-  "statusCode": 403,
-  "code": "FORBIDDEN",
-  "message": "Forbidden"
-}
-```
-
-Hoặc message theo business rule, ví dụ:
-
-```json
-{
-  "statusCode": 403,
-  "code": "FORBIDDEN",
-  "message": "You do not have permission to assign this role"
-}
-```
-
-### 404 Not Found
-
-```json
-{
-  "statusCode": 404,
-  "code": "CUSTOMER_NOT_FOUND",
-  "message": "Customer not found"
-}
-```
-
-### 409 Conflict
-
-```json
-{
-  "statusCode": 409,
-  "code": "DUPLICATE_VALUE",
-  "message": "Duplicate value detected",
-  "details": {
-    "email": "admin@crm.vn"
-  }
-}
-```
-
-### 500 Internal Server Error
-
-```json
-{
-  "statusCode": 500,
-  "code": "INTERNAL_SERVER_ERROR",
-  "message": "Internal server error"
-}
-```
-
----
-
-## 5. Health & API info
-
-### GET /health
-
-Auth: No
-
-Status codes:
-
-- `200` health check thành công
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Health check success",
-  "data": {
-    "status": "ok",
-    "service": "crm-server"
-  }
-}
-```
-
-### GET /
-
-Thực tế là `GET /api`
-
-Auth: No
-
-Status codes:
-
-- `200` lấy thông tin tổng quan API thành công
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "CRM server API is running",
-  "data": {
-    "resources": [
-      "customers",
-      "staff",
-      "auth",
-      "leads",
-      "tasks",
-      "organization",
-      "metadata",
-      "functions"
-    ]
-  }
-}
-```
-
----
-
-## 6. Auth API
-
-Base path: `/auth`
-
-### 6.1. POST /auth/login
-
-Auth: No
-
-Status codes:
-
-- `200` login thành công
-- `400` thiếu `email` hoặc `password`
-- `401` sai tài khoản hoặc mật khẩu
-- `500` lỗi server
-
-Body:
-
-```json
-{
-  "email": "owner@crm.vn",
-  "password": "Owner@123"
-}
-```
-
-Validation:
-
-- `email` bắt buộc
-- `password` bắt buộc
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
+  "success": true,
   "message": "Login success",
   "data": {
+    "accessToken": "<jwt>",
     "user": {
-      "_id": "69ce7fcfbb315d25863910ae",
-      "id": "USER001",
-      "name": "Chủ hệ thống CRM",
-      "email": "owner@crm.vn",
-      "avatar": "https://i.pravatar.cc/100?img=33",
+      "id": "USER-001",
+      "name": "Admin User",
+      "email": "admin@example.com",
+      "role": "ADMIN",
+      "avatar": "",
+      "phone": "",
       "department": [],
-      "group": [],
-      "phone": "0901 000 001",
-      "role": "OWNER",
-      "managerId": null,
-      "createdBy": null,
-      "lastLoginAt": "2026-04-02T14:40:44.201Z",
-      "createdAt": "2026-04-02T14:40:15.294Z",
-      "updatedAt": "2026-04-02T14:40:44.201Z",
-      "roleLabel": "Owner"
-    },
-    "sessionId": "f99352cf-4451-41a7-a7c4-3f377e042e6a",
-    "accessToken": "...",
-    "refreshToken": "...",
-    "accessTokenExpiresAt": "2026-04-02T14:55:44.200Z",
-    "refreshTokenExpiresAt": "2026-05-02T14:40:44.200Z"
+      "group": []
+    }
   }
 }
 ```
 
-Error:
+> Sets `httpOnly` cookies: `refreshToken`, `sessionId`.
 
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "email and password are required" }`
-- `401 { "statusCode": 401, "code": "INVALID_CREDENTIALS", "message": "Invalid email or password" }`
+**Errors:** `400 VALIDATION_ERROR`, `401 INVALID_CREDENTIALS`
 
-### 6.2. POST /auth/refresh
+---
 
-Auth: No bearer required
+### 2.2 Refresh Token
 
-Status codes:
+```
+POST /api/auth/refresh
+```
 
-- `200` refresh token thành công
-- `400` thiếu `sessionId` hoặc `refreshToken`
-- `401` session/refresh token không hợp lệ hoặc đã hết hạn
-- `500` lỗi server
+> Reads `refreshToken` and `sessionId` from cookies (or request body).
 
-Body option:
-
+**Response `200`:**
 ```json
 {
-  "sessionId": "f99352cf-4451-41a7-a7c4-3f377e042e6a",
-  "refreshToken": "..."
+  "success": true,
+  "message": "Refresh token success",
+  "data": {
+    "accessToken": "<new-jwt>",
+    "user": { ... }
+  }
 }
 ```
 
-Header option:
+**Errors:** `400 VALIDATION_ERROR`, `401 INVALID_SESSION`, `401 INVALID_REFRESH_TOKEN`
 
-- `x-session-id: <sessionId>`
-- `x-refresh-token: <refreshToken>`
+---
 
-Cookie option:
+### 2.3 Forgot Password
 
-- `crm_session_id`
-- `crm_refresh_token`
+```
+POST /api/auth/forgot-password
+```
 
-Response 200: giống `POST /auth/login`, nhưng `message` là `Refresh token success`
-
-Error:
-
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "sessionId and refreshToken are required" }`
-- `401 { "statusCode": 401, "code": "INVALID_SESSION", "message": "Invalid session" }`
-- `401 { "statusCode": 401, "code": "INVALID_REFRESH_TOKEN", "message": "Refresh token is invalid or expired" }`
-
-### 6.3. POST /auth/forgot-password
-
-Auth: No
-
-Status codes:
-
-- `200` tạo yêu cầu quên mật khẩu thành công
-- `400` thiếu `email`
-- `500` lỗi server
-
-Body:
-
+**Body:**
 ```json
 {
-  "email": "owner@crm.vn"
+  "email": "user@example.com"
 }
 ```
 
-Validation:
-
-- `email` bắt buộc
-
-Ghi chú:
-
-- Bản demo hiện tại trả trực tiếp `resetToken` trong response vì chưa có email service
-- FE production sau này có thể đổi sang flow gửi mail nhưng vẫn giữ cùng logic token phía backend
-
-Response 200:
-
+**Response `200`:**
 ```json
 {
-  "statusCode": 200,
+  "success": true,
   "message": "Forgot password request success",
   "data": {
-    "email": "owner@crm.vn",
-    "resetToken": "...",
-    "resetTokenExpiresAt": "2026-04-03T03:42:25.890Z"
+    "email": "user@example.com",
+    "resetToken": "<plain-token>",
+    "resetTokenExpiresAt": "2026-04-16T14:00:00Z"
   }
 }
 ```
 
-Error:
+> Always returns 200 to avoid user-enumeration attacks (even if email doesn't exist).
 
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "email is required" }`
+---
 
-### 6.4. POST /auth/reset-password
+### 2.4 Reset Password
 
-Auth: No
+```
+POST /api/auth/reset-password
+```
 
-Status codes:
-
-- `200` reset mật khẩu thành công
-- `400` thiếu field hoặc reset token không hợp lệ/hết hạn
-- `500` lỗi server
-
-Body:
-
+**Body:**
 ```json
 {
-  "email": "owner@crm.vn",
-  "resetToken": "...",
-  "newPassword": "Owner@1234"
+  "email": "user@example.com",
+  "resetToken": "<token-from-forgot-password>",
+  "newPassword": "newSecure123"
 }
 ```
 
-Validation:
+**Response `200`:** `{ "success": true, "message": "Reset password success", "data": null }`
 
-- `email` bắt buộc
-- `resetToken` bắt buộc
-- `newPassword` bắt buộc, tối thiểu 8 ký tự
-- `newPassword` phải khác mật khẩu hiện tại
+**Errors:** `400 VALIDATION_ERROR`, `400 INVALID_RESET_TOKEN`
 
-Rule:
+---
 
-- Reset token chỉ dùng được tới trước `resetTokenExpiresAt`
-- Reset thành công sẽ invalidate toàn bộ session cũ của user
+### 2.5 Logout
 
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Reset password success",
-  "data": null
-}
+```
+POST /api/auth/logout
 ```
 
-Error:
+> Reads access token from `Authorization` header or cookies. Clears session and cookies.
 
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "email, resetToken and newPassword are required" }`
-- `400 { "statusCode": 400, "code": "INVALID_RESET_TOKEN", "message": "resetToken is invalid or expired" }`
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "password must be at least 8 characters" }`
+**Response `200`:** `{ "success": true, "message": "Logout success", "data": null }`
 
-### 6.5. POST /auth/logout
+---
 
-Auth:
+### 2.6 Get Current User *(requires auth)*
 
-- Có thể logout bằng access token
-- Hoặc bằng `sessionId` + `refreshToken`
-
-Status codes:
-
-- `200` logout thành công
-- `500` lỗi server
-
-Body option:
-
-```json
-{
-  "sessionId": "...",
-  "refreshToken": "..."
-}
+```
+GET /api/auth/me
+Authorization: Bearer <accessToken>
 ```
 
-Response:
-
-- `200` với body:
-
+**Response `200`:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Logout success",
-  "data": null
-}
-```
-
-### 6.6. GET /auth/me
-
-Auth: Bearer token
-
-Status codes:
-
-- `200` lấy thông tin user hiện tại thành công
-- `401` thiếu token hoặc token không hợp lệ/hết hạn
-- `500` lỗi server
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
+  "success": true,
   "message": "Get current user success",
   "data": {
     "user": {
-      "_id": "69ce7fcfbb315d25863910ae",
-      "id": "USER001",
-      "name": "Chủ hệ thống CRM",
-      "email": "owner@crm.vn",
-      "avatar": "https://i.pravatar.cc/100?img=33",
-      "department": [],
-      "group": [],
-      "phone": "0901 000 001",
-      "role": "OWNER",
+      "id": "USER-001",
+      "name": "Admin",
+      "email": "admin@example.com",
+      "role": "ADMIN",
+      "roleId": "role-admin",
+      "avatar": "",
+      "phone": "",
+      "department": ["Engineering"],
+      "departmentAliases": ["engineering"],
+      "group": ["Backend"],
+      "groupAliases": ["engineering-backend"],
       "managerId": null,
-      "createdBy": null,
-      "lastLoginAt": "2026-04-02T14:40:44.201Z",
-      "createdAt": "2026-04-02T14:40:15.294Z",
-      "updatedAt": "2026-04-02T14:40:44.201Z",
-      "roleLabel": "Owner"
+      "permissions": [],
+      "lastLoginAt": "2026-04-16T13:00:00Z"
     }
-  }
-}
-```
-
-### 6.7. POST /auth/change-password
-
-Auth: Bearer token
-
-Status codes:
-
-- `200` đổi mật khẩu thành công
-- `400` thiếu field hoặc `newPassword` không hợp lệ
-- `401` `currentPassword` sai hoặc thiếu token
-- `500` lỗi server
-
-Body:
-
-```json
-{
-  "currentPassword": "Owner@1234",
-  "newPassword": "Owner@123"
-}
-```
-
-Validation:
-
-- `currentPassword` bắt buộc
-- `newPassword` bắt buộc, tối thiểu 8 ký tự
-- `newPassword` phải khác `currentPassword`
-
-Rule:
-
-- Change password thành công sẽ invalidate toàn bộ session cũ, gồm cả session hiện tại
-- Sau khi đổi mật khẩu xong, client phải login lại
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Change password success",
-  "data": null
-}
-```
-
-Error:
-
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "currentPassword and newPassword are required" }`
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "password must be at least 8 characters" }`
-- `400 { "statusCode": 400, "code": "VALIDATION_ERROR", "message": "newPassword must be different from current password" }`
-- `401 { "statusCode": 401, "code": "INVALID_CURRENT_PASSWORD", "message": "Current password is incorrect" }`
-
-### 6.8. POST /auth/register
-
-Ý nghĩa nghiệp vụ: tạo user/staff mới.
-
-Auth: Bearer token
-
-Status codes:
-
-- `201` tạo user thành công
-- `400` payload không hợp lệ
-- `401` chưa đăng nhập
-- `403` không đủ quyền tạo user hoặc assign role
-- `409` trùng `email` hoặc `id`
-- `500` lỗi server
-
-Role:
-
-- `OWNER`, `ADMIN`, `MANAGER`
-
-Body:
-
-```json
-{
-  "name": "Nhân viên mới",
-  "email": "new.staff@crm.vn",
-  "password": "Staff@123",
-  "avatar": "https://...",
-  "department": ["Phòng Sale"],
-  "group": ["Nhóm Sale Hà Nội"],
-  "phone": "0909 111 222",
-  "role": "STAFF",
-  "managerId": "USER003"
-}
-```
-
-Field rules:
-
-- `name`: bắt buộc
-- `email`: bắt buộc
-- `password`: bắt buộc, tối thiểu 8 ký tự
-- `role`: optional, default `STAFF`
-- `department`: bắt buộc nếu role là `MANAGER` hoặc `STAFF`
-- `group`: optional array string
-- `managerId`:
-  - chỉ dùng cho `STAFF`
-  - nếu actor là `MANAGER` thì server tự gán `managerId = actor.id`
-- `avatar`: optional, nếu thiếu server tự generate
-
-Permission rules:
-
-- `OWNER` tạo được `ADMIN`, `MANAGER`, `STAFF`
-- `ADMIN` tạo được `MANAGER`, `STAFF`
-- `MANAGER` chỉ tạo được `STAFF` trong scope `department/group` của mình
-
-Response 201:
-
-```json
-{
-  "statusCode": 201,
-  "message": "Register user success",
-  "data": {
-    "id": "USER006",
-    "name": "Nhân viên mới",
-    "email": "new.staff@crm.vn",
-    "avatar": "https://i.pravatar.cc/150?u=new.staff%40crm.vn",
-    "department": ["Phòng Sale"],
-    "group": ["Nhóm Sale Hà Nội"],
-    "phone": "",
-    "role": "STAFF",
-    "managerId": "USER003",
-    "createdBy": "USER003",
-    "lastLoginAt": null,
-    "_id": "69ce8031bb315d25863910ce",
-    "createdAt": "2026-04-02T14:41:53.925Z",
-    "updatedAt": "2026-04-02T14:41:53.925Z",
-    "roleLabel": "Staff (Nhân viên)"
   }
 }
 ```
 
 ---
 
-## 7. Staff API
+### 2.7 Update My Profile *(requires auth)*
 
-Base path: `/staff`
+```
+PUT /api/auth/me
+Authorization: Bearer <accessToken>
+```
 
-Lưu ý:
-
-- API tên là `staff` để FE dễ hiểu theo nghiệp vụ.
-- Dữ liệu thực tế backend lưu ở model `User`.
-
-### 7.1. User response shape
-
+**Body** (at least one field required):
 ```json
 {
-  "_id": "69ce7fcfbb315d25863910b1",
-  "id": "USER004",
-  "name": "Vũ Thu Phương",
-  "email": "staff1@crm.vn",
-  "avatar": "https://i.pravatar.cc/100?img=25",
-  "department": ["Phòng Sale"],
-  "group": ["Nhóm Sale Hà Nội"],
-  "phone": "0901 000 004",
-  "role": "STAFF",
-  "managerId": "USER003",
-  "createdBy": null,
-  "lastLoginAt": null,
-  "createdAt": "2026-04-02T14:40:15.294Z",
-  "updatedAt": "2026-04-02T14:40:15.294Z",
-  "roleLabel": "Staff (Nhân viên)"
+  "name": "New Name",
+  "email": "new@example.com",
+  "avatar": "https://example.com/avatar.jpg",
+  "phone": "0901234567",
+  "department": ["Sales"],
+  "departmentAliases": ["sales"],
+  "group": ["Group A"],
+  "groupAliases": ["sales-group-a"]
 }
 ```
 
-### 7.2. GET /staff
+**Response `200`:** `{ "success": true, "message": "Update current user success", "data": { "user": { ... } } }`
 
-Auth: Bearer token
+**Errors:** `400 VALIDATION_ERROR`
 
-Status codes:
+---
 
-- `200` lấy danh sách staff thành công
-- `400` query không hợp lệ, ví dụ `role` sai
-- `401` chưa đăng nhập
-- `403` không đủ quyền
-- `500` lỗi server
+### 2.8 Change Password *(requires auth)*
 
-Role:
+```
+POST /api/auth/change-password
+Authorization: Bearer <accessToken>
+```
 
-- `OWNER`, `ADMIN`, `MANAGER`
-
-Query params:
-
-- `search`: search theo `name`, `email`, `phone`
-- `department`: filter theo department
-- `role`: filter theo role (`OWNER`, `ADMIN`, `MANAGER`, `STAFF`) hoặc alias tiếng Việt/Anh
-- `managerId`: chỉ hiệu lực với `OWNER`/`ADMIN`
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Rule:
-
-- `MANAGER` luôn chỉ nhìn thấy staff có `managerId = currentUser.id`
-
-Response 200:
-
+**Body:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Get staff list success",
+  "currentPassword": "oldSecure123",
+  "newPassword": "newSecure456"
+}
+```
+
+**Response `200`:** `{ "success": true, "message": "Change password success", "data": null }`
+
+**Errors:** `400 VALIDATION_ERROR`, `401 INVALID_CURRENT_PASSWORD`
+
+---
+
+### 2.9 Register New User *(requires auth + `users_create` permission)*
+
+```
+POST /api/auth/register
+Authorization: Bearer <accessToken>
+```
+
+**Body:**
+```json
+{
+  "name": "New Staff",
+  "email": "staff@example.com",
+  "password": "crm123456",
+  "role": "STAFF",
+  "roleId": "role-staff",
+  "avatar": "",
+  "phone": "0901234567",
+  "department": ["Sales"],
+  "departmentAliases": ["sales"],
+  "managerId": "USER-001"
+}
+```
+
+**Response `201`:** Returns the newly created user object.
+
+**Errors:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `409 DUPLICATE_VALUE`
+
+---
+
+## 3. Users (Staff)
+
+**Base path:** `/api/users`  
+**All routes require authentication.**
+
+### 3.1 List Users
+
+```
+GET /api/users
+Authorization: Bearer <accessToken>
+Permission: users_read
+```
+
+**Query Parameters:**
+
+| Param        | Type   | Description                  |
+|--------------|--------|------------------------------|
+| `search`     | string | Name, email, or ID           |
+| `department` | string | Filter by department name    |
+| `role`       | string | Filter by role (STAFF, etc.) |
+| `managerId`  | string | Filter by manager ID         |
+| `page`       | int    | Page number                  |
+| `limit`      | int    | Items per page (max 100)     |
+
+**Response `200`:** Paginated list of user objects.
+
+---
+
+### 3.2 Create User
+
+```
+POST /api/users
+Authorization: Bearer <accessToken>
+Permission: users_create
+```
+
+**Body:**
+```json
+{
+  "name": "New Staff",
+  "email": "staff@example.com",
+  "password": "crm123456",
+  "role": "STAFF",
+  "roleId": "role-staff",
+  "avatar": "",
+  "phone": "0901234567",
+  "department": ["Sales"],
+  "departmentAliases": ["sales"],
+  "group": ["Group A"],
+  "groupAliases": ["sales-group-a"],
+  "managerId": "USER-001"
+}
+```
+
+**Response `201`:** Created user object.
+
+**Errors:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `409 DUPLICATE_VALUE`
+
+---
+
+### 3.3 Update User
+
+```
+PUT /api/users/:id
+Authorization: Bearer <accessToken>
+Permission: users_update
+```
+
+**Body** (at least one field required):
+```json
+{
+  "name": "Updated Name",
+  "email": "updated@example.com",
+  "role": "MANAGER",
+  "roleId": "role-manager",
+  "phone": "0901234567",
+  "department": ["Engineering"],
+  "group": ["Backend"]
+}
+```
+
+**Response `200`:** Updated user object.
+
+**Errors:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `404 USER_NOT_FOUND`
+
+---
+
+### 3.4 Delete User
+
+```
+DELETE /api/users/:id
+Authorization: Bearer <accessToken>
+Permission: users_delete
+```
+
+**Response `200`:** `{ "success": true, "message": "Delete staff success", "data": null }`
+
+**Errors:** `403 FORBIDDEN`, `404 USER_NOT_FOUND`
+
+---
+
+## 4. Customers
+
+**Base path:** `/api/customers`  
+**All routes require authentication.**
+
+### 4.1 List Customers
+
+```
+GET /api/customers
+Authorization: Bearer <accessToken>
+Permission: customers_read
+```
+
+**Query Parameters:**
+
+| Param      | Type   | Description                  |
+|------------|--------|------------------------------|
+| `search`   | string | Name, email, ID, or phone    |
+| `type`     | string | Filter by customer type      |
+| `group`    | string | Filter by group              |
+| `platform` | string | Filter by platform           |
+| `page`     | int    | Page number                  |
+| `limit`    | int    | Items per page (max 100)     |
+
+**Response `200`:** Paginated customer list.
+
+---
+
+### 4.2 Get Assignment Roles
+
+```
+GET /api/customers/meta/assignment-roles
+Authorization: Bearer <accessToken>
+Permission: customers_read
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Get assignment roles success",
   "data": {
     "items": [
-      {
-        "_id": "69ce7fcfbb315d25863910b1",
-        "id": "USER004",
-        "name": "Vũ Thu Phương",
-        "email": "staff1@crm.vn",
-        "avatar": "https://i.pravatar.cc/100?img=25",
-        "department": ["Phòng Sale"],
-        "group": ["Nhóm Sale Hà Nội"],
-        "phone": "0901 000 004",
-        "role": "STAFF",
-        "managerId": "USER003",
-        "createdBy": null,
-        "lastLoginAt": null,
-        "createdAt": "2026-04-02T14:40:15.294Z",
-        "updatedAt": "2026-04-02T14:40:15.294Z",
-        "roleLabel": "Staff (Nhân viên)"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 2,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
+      { "value": "sale", "label": "Sale" },
+      { "value": "marketing", "label": "Marketing" },
+      { "value": "tuvan", "label": "Tư vấn" },
+      { "value": "kythuat", "label": "Kỹ thuật" },
+      { "value": "cskh", "label": "CSKH" }
+    ]
   }
-}
-```
-
-### 7.3. POST /staff
-
-Tương đương `POST /auth/register`.
-
-Auth: Bearer token
-
-Role: `OWNER`, `ADMIN`, `MANAGER`
-
-Status codes:
-
-- `201` tạo staff thành công
-- `400` payload không hợp lệ
-- `401` chưa đăng nhập
-- `403` không đủ quyền
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Body: giống `POST /auth/register`
-
-Response 201: `{ statusCode, message: "Create staff success", data: User }`
-
-### 7.4. PUT /staff/:id
-
-Auth: Bearer token
-
-Status codes:
-
-- `200` cập nhật staff thành công
-- `400` payload không hợp lệ
-- `401` chưa đăng nhập
-- `403` không đủ quyền update
-- `404` không tìm thấy user trong scope
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Role: `OWNER`, `ADMIN`, `MANAGER`
-
-Path params:
-
-- `id`: `USERxxx` hoặc legacy migrated id nếu tồn tại
-
-Body: partial update
-
-```json
-{
-  "name": "Tên mới",
-  "email": "updated@crm.vn",
-  "password": "NewPass@123",
-  "avatar": "https://...",
-  "department": ["Phòng Sale"],
-  "group": ["Nhóm Sale Hà Nội"],
-  "phone": "0909 999 999",
-  "role": "STAFF",
-  "managerId": "USER003"
-}
-```
-
-Rule:
-
-- `password` nếu truyền phải >= 8 ký tự
-- `ADMIN` không assign được `ADMIN`
-- `OWNER` mới assign được `OWNER`
-- `MANAGER` chỉ sửa được `STAFF` dưới quyền và role phải vẫn là `STAFF`
-
-Response 200: `{ statusCode, message: "Update staff success", data: User }`
-
-### 7.5. DELETE /staff/:id
-
-Auth: Bearer token
-
-Status codes:
-
-- `200` xóa staff thành công
-- `400` request không hợp lệ, ví dụ tự xóa chính mình
-- `401` chưa đăng nhập
-- `403` không đủ quyền xóa
-- `404` không tìm thấy user trong scope
-- `500` lỗi server
-
-Role: `OWNER`, `ADMIN`, `MANAGER`
-
-Path params:
-
-- `id`: user id
-
-Rule:
-
-- Không được xóa chính mình
-- `MANAGER` chỉ xóa `STAFF` dưới quyền
-- `ADMIN` không xóa được `ADMIN` hay `OWNER`
-- `OWNER` xóa được `ADMIN`
-
-Response:
-
-- `200` với body:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Delete staff success",
-  "data": null
 }
 ```
 
 ---
 
-## 8. Customer API
+### 4.3 Get Customer by ID
 
-Base path: `/customers`
-
-Auth: Bearer token
-
-### 8.1. Customer response shape
-
-```json
-{
-  "_id": "...",
-  "id": "CUST001",
-  "name": "Phạm Tường Vy",
-  "avatar": "https://i.pravatar.cc/100?img=15",
-  "type": "VIP Customer",
-  "email": "vy.pham@example.com",
-  "phone": "0912 345 678",
-  "biz": ["Torano", "Biluxury"],
-  "platforms": ["SmaxAi", "Botvn"],
-  "group": "Nhóm Sale Hà Nội",
-  "registeredAt": "10/10/2022",
-  "lastLoginAt": "30/03/2026",
-  "tags": ["#KHTiemNang"],
-  "createdAt": "...",
-  "updatedAt": "..."
-}
+```
+GET /api/customers/:id
+Authorization: Bearer <accessToken>
+Permission: customers_read
 ```
 
-### 8.2. GET /customers
+**Response `200`:** Customer detail object.
 
-Status codes:
+**Errors:** `404 CUSTOMER_NOT_FOUND`
 
-- `200` lấy danh sách customer thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
+---
 
-Query params:
+### 4.4 Create Customer
 
-- `search`: search theo `name`, `email`, `phone`
-- `type`: filter theo `type`, nếu `All` thì bỏ qua filter
-- `group`: filter theo `group`
-- `platform`: filter theo phần tử trong `platforms`
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Get customer list success",
-  "data": {
-    "items": [
-      {
-        "_id": "...",
-        "id": "CUST001",
-        "name": "Phạm Tường Vy",
-        "avatar": "https://i.pravatar.cc/100?img=15",
-        "type": "VIP Customer",
-        "email": "vy.pham@example.com",
-        "phone": "0912 345 678",
-        "biz": ["Torano", "Biluxury"],
-        "platforms": ["SmaxAi", "Botvn"],
-        "group": "Nhóm Sale Hà Nội",
-        "registeredAt": "10/10/2022",
-        "lastLoginAt": "30/03/2026",
-        "tags": ["#KHTiemNang"],
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 25,
-      "totalPages": 3,
-      "hasNextPage": true,
-      "hasPreviousPage": false
-    }
-  }
-}
+```
+POST /api/customers
+Authorization: Bearer <accessToken>
+Permission: customers_create
 ```
 
-### 8.3. GET /customers/:id
-
-Status codes:
-
-- `200` lấy customer thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy customer
-- `500` lỗi server
-
-Path params:
-
-- `id`: customer id, ví dụ `CUST001`
-
-Response 200: `{ statusCode, message: "Get customer detail success", data: Customer }`
-
-Error:
-
-- `404 { "statusCode": 404, "code": "CUSTOMER_NOT_FOUND", "message": "Customer not found" }`
-
-### 8.4. POST /customers
-
-Status codes:
-
-- `201` tạo customer thành công
-- `400` thiếu field bắt buộc
-- `401` chưa đăng nhập
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Body:
-
+**Body:**
 ```json
 {
-  "name": "Khách hàng A",
-  "avatar": "https://...",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "avatar": "https://example.com/avatar.jpg",
   "type": "Standard Customer",
-  "email": "customer@example.com",
-  "phone": "0909 111 222",
-  "biz": ["Biz A", "Biz B"],
+  "phone": "0901234567",
+  "biz": ["BIZ-001"],
   "platforms": ["SmaxAi"],
-  "group": "Nhóm Sale Hà Nội",
-  "registeredAt": "02/04/2026",
-  "lastLoginAt": "02/04/2026",
-  "tags": ["#NewUser"]
+  "group": "Mới",
+  "registeredAt": "2026-01-01",
+  "lastLoginAt": "2026-04-01",
+  "tags": ["VIP", "Priority"]
 }
 ```
 
-Validation:
+**Response `201`:** Created customer object.
 
-- `name` bắt buộc
-- `email` bắt buộc
-
-Default:
-
-- `id`: auto `CUSTxxx`
-- `avatar`: auto generate nếu thiếu
-- `type`: `Standard Customer`
-- `biz`: `[]`
-- `platforms`: `[]`
-- `group`: `""`
-- `registeredAt`: ngày hiện tại format `vi-VN`
-- `lastLoginAt`: ngày hiện tại format `vi-VN`
-- `tags`: `[]`
-
-Response 201: `{ statusCode, message: "Create customer success", data: Customer }`
-
-### 8.5. PUT /customers/:id
-
-Status codes:
-
-- `200` cập nhật customer thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy customer
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Body: partial update toàn bộ field customer
-
-Response 200: `{ statusCode, message: "Update customer success", data: Customer }`
-
-### 8.6. DELETE /customers/:id
-
-Status codes:
-
-- `200` xóa customer thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy customer
-- `500` lỗi server
-
-Response:
-
-- `200` với body:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Delete customer success",
-  "data": null
-}
-```
+**Errors:** `400 VALIDATION_ERROR`, `409 DUPLICATE_VALUE`
 
 ---
 
-## 9. Lead API
+### 4.5 Update Customer
 
-Base path: `/leads`
+```
+PUT /api/customers/:id
+Authorization: Bearer <accessToken>
+Permission: customers_update
+```
 
-Auth: Bearer token
-
-### 9.1. Lead response shape
-
+**Body** (at least one field required):
 ```json
 {
-  "_id": "...",
-  "id": "LEAD001",
-  "name": "Nguyễn Văn Minh",
-  "avatar": "https://i.pravatar.cc/100?img=1",
-  "timeAgo": "10 phút trước",
-  "tags": ["Trial", "Vitamin"],
-  "assignee": {
-    "name": "Lê Văn A",
-    "avatar": "https://i.pravatar.cc/100?img=10"
-  },
-  "status": "Biz tạo mới",
-  "actionNeeded": "Còn 2h",
-  "actionType": "green",
-  "email": "",
-  "phone": "",
-  "source": "",
-  "address": "",
-  "createdAt": "...",
-  "updatedAt": "..."
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "type": "VIP Customer",
+  "tags": ["VIP"]
 }
 ```
 
-### 9.2. GET /leads
+**Response `200`:** Updated customer object.
 
-Status codes:
+**Errors:** `400 VALIDATION_ERROR`, `404 CUSTOMER_NOT_FOUND`
 
-- `200` lấy danh sách lead thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
+---
 
-Query params:
+### 4.6 Delete Customer
 
-- `search`: search theo `name`, `id`, `tags`
-- `status`: filter exact match
-- `assignee`: filter theo `assignee.name`
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
+```
+DELETE /api/customers/:id
+Authorization: Bearer <accessToken>
+Permission: customers_delete OR customers_read
+```
 
-Response 200:
+**Response `200`:** `{ "success": true, "message": "Delete customer success", "data": null }`
 
+**Errors:** `403 FORBIDDEN`, `404 CUSTOMER_NOT_FOUND`
+
+---
+
+### 4.7 Assign Staff to Customer
+
+```
+POST /api/customers/:id/assignees
+Authorization: Bearer <accessToken>
+Permission: customers_update OR customers_read
+```
+
+**Body:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Get lead list success",
-  "data": {
-    "items": [
-      {
-        "_id": "...",
-        "id": "LEAD001",
-        "name": "Nguyễn Văn Minh",
-        "avatar": "https://i.pravatar.cc/100?img=1",
-        "timeAgo": "10 phút trước",
-        "tags": ["Trial", "Vitamin"],
-        "assignee": {
-          "name": "Lê Văn A",
-          "avatar": "https://i.pravatar.cc/100?img=10"
-        },
-        "status": "Biz tạo mới",
-        "actionNeeded": "",
-        "actionType": "",
-        "email": "",
-        "phone": "",
-        "source": "",
-        "address": "",
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 6,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
-  }
+  "userId": "USER-002",
+  "role": "sale"
 }
 ```
 
-### 9.3. POST /leads
+> `role` must be one of: `sale`, `marketing`, `tuvan`, `kythuat`, `cskh`
 
-Status codes:
+**Response `200`:** Updated customer object with new assignee.
 
-- `201` tạo lead thành công
-- `400` thiếu `name`
-- `401` chưa đăng nhập
-- `409` trùng dữ liệu unique
-- `500` lỗi server
+**Errors:** `400 VALIDATION_ERROR`, `404 CUSTOMER_NOT_FOUND`, `404 USER_NOT_FOUND`
 
-Body:
+---
 
+### 4.8 Remove Staff Assignment
+
+```
+DELETE /api/customers/:id/assignees/:userId?role=sale
+Authorization: Bearer <accessToken>
+Permission: customers_update OR customers_read
+```
+
+**Query Parameters:**
+
+| Param  | Type   | Required | Description                                         |
+|--------|--------|----------|-----------------------------------------------------|
+| `role` | string | ✅        | Assignment role (`sale`, `marketing`, `tuvan`, etc.) |
+
+**Response `200`:** Updated customer object.
+
+**Errors:** `400 VALIDATION_ERROR`, `404 CUSTOMER_NOT_FOUND`
+
+---
+
+## 5. Leads
+
+**Base path:** `/api/leads`  
+**All routes require authentication.**
+
+### 5.1 List Leads
+
+```
+GET /api/leads
+Authorization: Bearer <accessToken>
+Permission: leads_read
+```
+
+**Query Parameters:**
+
+| Param      | Type   | Description             |
+|------------|--------|-------------------------|
+| `search`   | string | Name, ID, or tags       |
+| `status`   | string | Filter by status        |
+| `assignee` | string | Filter by assignee name |
+| `page`     | int    | Page number             |
+| `limit`    | int    | Items per page (max 100)|
+
+**Response `200`:** Paginated lead list.
+
+---
+
+### 5.2 Create Lead
+
+```
+POST /api/leads
+Authorization: Bearer <accessToken>
+Permission: leads_create
+```
+
+**Body:**
 ```json
 {
-  "name": "Lead mới",
-  "avatar": "https://...",
+  "name": "Potential Client",
+  "avatar": "",
   "timeAgo": "Vừa xong",
-  "tags": ["HOT"],
+  "tags": ["B2B", "Enterprise"],
   "assignee": {
-    "name": "Lê Văn A",
-    "avatar": "https://..."
+    "name": "Nguyen Van A",
+    "avatar": ""
   },
   "status": "Biz tạo mới",
-  "actionNeeded": "Còn 2h",
-  "actionType": "green",
-  "email": "lead@example.com",
-  "phone": "0909 111 222",
-  "source": "Facebook",
-  "address": "Hà Nội"
+  "actionNeeded": "Gọi điện tư vấn",
+  "actionType": "orange",
+  "email": "lead@company.com",
+  "phone": "0901234567",
+  "source": "Facebook Ads",
+  "address": "Hanoi, Vietnam"
 }
 ```
 
-Validation:
+> `actionType`: `"green"` | `"orange"` | `"blue"` | `""`
 
-- `name` bắt buộc
-
-Default:
-
-- `id`: auto `LEADxxx`
-- `avatar`: auto generate từ `name`
-- `timeAgo`: `Vừa xong`
-- `tags`: `[]`
-- `assignee`: `{ name: "", avatar: "" }`
-- `status`: `Biz tạo mới`
-- `actionNeeded`: `""`
-- `actionType`: `""`
-- `email`, `phone`, `source`, `address`: `""`
-
-Response 201: `{ statusCode, message: "Create lead success", data: Lead }`
-
-### 9.4. PUT /leads/:id
-
-Status codes:
-
-- `200` cập nhật lead thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy lead
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Body: partial update toàn bộ field lead
-
-Response 200: `{ statusCode, message: "Update lead success", data: Lead }`
-
-### 9.5. PATCH /leads/:id/status
-
-Status codes:
-
-- `200` cập nhật status lead thành công
-- `400` thiếu `status`
-- `401` chưa đăng nhập
-- `404` không tìm thấy lead
-- `500` lỗi server
-
-Body:
-
-```json
-{
-  "status": "Biz đã kết nối channel"
-}
-```
-
-Validation:
-
-- `status` bắt buộc
-
-Response 200: `{ statusCode, message: "Update lead status success", data: Lead }`
-
-### 9.6. DELETE /leads/:id
-
-Status codes:
-
-- `200` xóa lead thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy lead
-- `500` lỗi server
-
-Response:
-
-- `200` với body:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Delete lead success",
-  "data": null
-}
-```
+**Response `201`:** Created lead object.
 
 ---
 
-## 10. Task API
+### 5.3 Update Lead
 
-Base path: `/tasks`
+```
+PUT /api/leads/:id
+Authorization: Bearer <accessToken>
+Permission: leads_update
+```
 
-Auth: Bearer token
+**Body** (at least one field required): Same fields as create.
 
-### 10.1. Task response shape
+**Response `200`:** Updated lead object.
 
+**Errors:** `400 VALIDATION_ERROR`, `404 LEAD_NOT_FOUND`
+
+---
+
+### 5.4 Update Lead Status
+
+```
+PATCH /api/leads/:id/status
+Authorization: Bearer <accessToken>
+Permission: leads_update
+```
+
+**Body:**
 ```json
 {
-  "_id": "...",
-  "id": "#09382",
-  "action": "Nhắc gia hạn gói cước",
-  "time": "15 phút nữa",
-  "timeType": "soon",
-  "customer": {
-    "name": "Phạm Tường Vy",
-    "avatar": "https://i.pravatar.cc/100?img=15",
-    "email": "vy.pham@example.com",
-    "phone": "0912 345 678"
-  },
-  "platform": "SmaxAi",
-  "assignee": {
-    "name": "Hải Anh",
-    "avatar": "https://i.pravatar.cc/100?img=11"
-  },
-  "status": "Đang thực hiện",
-  "createdAt": "...",
-  "updatedAt": "..."
+  "status": "Đang tư vấn"
 }
 ```
 
-### 10.2. GET /tasks
+**Response `200`:** Updated lead object.
 
-Status codes:
+**Errors:** `400 VALIDATION_ERROR`, `404 LEAD_NOT_FOUND`
 
-- `200` lấy danh sách task thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
+---
 
-Query params:
+### 5.5 Delete Lead
 
-- `search`: search theo `action`, `id`, `customer.name`, `customer.email`, `customer.phone`
-- `platform`: filter exact match
-- `assignee`: filter theo `assignee.name`
-- `status`: filter exact match
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Get task list success",
-  "data": {
-    "items": [
-      {
-        "_id": "...",
-        "id": "#09382",
-        "action": "Nhắc gia hạn gói cước",
-        "time": "15 phút nữa",
-        "timeType": "soon",
-        "customer": {
-          "name": "Phạm Tường Vy",
-          "avatar": "https://i.pravatar.cc/100?img=15",
-          "email": "vy.pham@example.com",
-          "phone": "0912 345 678"
-        },
-        "platform": "SmaxAi",
-        "assignee": {
-          "name": "Hải Anh",
-          "avatar": "https://i.pravatar.cc/100?img=11"
-        },
-        "status": "Đang thực hiện",
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 3,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
-  }
-}
+```
+DELETE /api/leads/:id
+Authorization: Bearer <accessToken>
+Permission: leads_delete
 ```
 
-### 10.3. POST /tasks
+**Response `200`:** `{ "success": true, "message": "Delete lead success", "data": null }`
 
-Status codes:
+**Errors:** `404 LEAD_NOT_FOUND`
 
-- `201` tạo task thành công
-- `400` thiếu `action`/`name` hoặc `customer.name`
-- `401` chưa đăng nhập
-- `409` trùng dữ liệu unique
-- `500` lỗi server
+---
 
-Body:
+## 6. Tasks
 
+**Base path:** `/api/tasks`  
+**All routes require authentication.**
+
+### 6.1 List Tasks
+
+```
+GET /api/tasks
+Authorization: Bearer <accessToken>
+Permission: tasks_read
+```
+
+**Query Parameters:**
+
+| Param      | Type   | Description                  |
+|------------|--------|------------------------------|
+| `search`   | string | Action, ID, customer name/email/phone |
+| `platform` | string | Filter by platform           |
+| `assignee` | string | Filter by assignee name      |
+| `status`   | string | Filter by status             |
+| `page`     | int    | Page number                  |
+| `limit`    | int    | Items per page (max 100)     |
+
+**Response `200`:** Paginated task list.
+
+---
+
+### 6.2 Create Task
+
+```
+POST /api/tasks
+Authorization: Bearer <accessToken>
+Permission: tasks_create
+```
+
+**Body:**
 ```json
 {
-  "action": "Gọi điện tư vấn",
-  "time": "15 phút nữa",
-  "timeType": "soon",
+  "action": "Gọi điện tư vấn khách hàng",
+  "time": "10:00 16/04/2026",
+  "timeType": "future",
   "customer": {
-    "name": "Nguyễn Văn An",
-    "avatar": "https://...",
-    "email": "an.nguyen@example.com",
-    "phone": "0988 765 432"
+    "name": "John Doe",
+    "avatar": "",
+    "email": "john@example.com",
+    "phone": "0901234567"
   },
   "platform": "SmaxAi",
   "assignee": {
-    "name": "Hải Anh",
-    "avatar": "https://..."
+    "name": "Nguyen Van A",
+    "avatar": ""
   },
   "status": "Đang thực hiện"
 }
 ```
 
-Hoặc có thể dùng `name` thay cho `action`.
+> Either `action` or `name` must be provided.  
+> `timeType`: `"soon"` | `"late"` | `"future"`  
+> `platform`: `"SmaxAi"` | `"Botvn"` | `"Appvn"`
 
-Validation:
+**Response `201`:** Created task object.
 
-- `action` hoặc `name` bắt buộc
-- `customer.name` bắt buộc
+---
 
-Default:
+### 6.3 Update Task
 
-- `id`: auto dạng `#00001`
-- `time`: `Sắp tới`
-- `timeType`: `future`
-- `platform`: `SmaxAi`
-- `assignee`: `{ name: "", avatar: "" }`
-- `status`: `Đang thực hiện`
-
-Response 201: `{ statusCode, message: "Create task success", data: Task }`
-
-### 10.4. PUT /tasks/:id
-
-Status codes:
-
-- `200` cập nhật task thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy task
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Body: partial update
-
-```json
-{
-  "action": "Cập nhật action",
-  "time": "1 giờ nữa",
-  "timeType": "future",
-  "customer": {
-    "name": "Khách hàng mới",
-    "avatar": "https://...",
-    "email": "new@example.com",
-    "phone": "0909 111 222"
-  },
-  "platform": "Botvn",
-  "assignee": {
-    "name": "Hải Anh",
-    "avatar": "https://..."
-  },
-  "status": "Hoàn thành"
-}
+```
+PUT /api/tasks/:id
+Authorization: Bearer <accessToken>
+Permission: tasks_update
 ```
 
-Response 200: `{ statusCode, message: "Update task success", data: Task }`
+**Body** (at least one field required): Same fields as create.
 
-### 10.5. DELETE /tasks/:id
+**Response `200`:** Updated task object.
 
-Status codes:
+**Errors:** `400 VALIDATION_ERROR`, `404 TASK_NOT_FOUND`
 
-- `200` xóa task thành công
-- `401` chưa đăng nhập
-- `404` không tìm thấy task
-- `500` lỗi server
+---
 
-Response:
+### 6.4 Delete Task
 
-- `200` với body:
+```
+DELETE /api/tasks/:id
+Authorization: Bearer <accessToken>
+Permission: tasks_delete
+```
 
+**Response `200`:** `{ "success": true, "message": "Delete task success", "data": null }`
+
+**Errors:** `404 TASK_NOT_FOUND`
+
+---
+
+## 7. Events
+
+**Base path:** `/api/events`  
+**All routes require authentication.**
+
+### 7.1 List Events
+
+```
+GET /api/events
+Authorization: Bearer <accessToken>
+Permission: events_read
+```
+
+**Query Parameters:**
+
+| Param      | Type   | Description                                                |
+|------------|--------|------------------------------------------------------------|
+| `search`   | string | Name or customer info                                      |
+| `group`    | string | `user_moi` \| `biz_moi` \| `can_nang_cap` \| `sap_het_han` \| `chuyen_khoan` |
+| `stage`    | string | Filter by stage                                            |
+| `assignee` | string | Filter by assignee name                                    |
+| `page`     | int    | Page number                                                |
+| `limit`    | int    | Items per page (max 100)                                   |
+
+**Response `200`:** Paginated event list.
+
+---
+
+### 7.2 Get Event Stats
+
+```
+GET /api/events/stats
+Authorization: Bearer <accessToken>
+Permission: events_read
+```
+
+**Response `200`:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Delete task success",
-  "data": null
+  "success": true,
+  "message": "Get event stats success",
+  "data": {
+    "total": 120,
+    "byGroup": {
+      "user_moi": 30,
+      "biz_moi": 25,
+      "can_nang_cap": 20,
+      "sap_het_han": 15,
+      "chuyen_khoan": 30
+    }
+  }
 }
 ```
 
 ---
 
-## 11. Organization API
+### 7.3 Get Event by ID
 
-Base path: `/organization`
+```
+GET /api/events/:id
+Authorization: Bearer <accessToken>
+Permission: events_read
+```
 
-Auth: Bearer token
+**Response `200`:** Full event object including `timeline`.
 
-### 11.1. Organization response shape
+**Errors:** `404 EVENT_NOT_FOUND`
 
+---
+
+### 7.4 Create Event
+
+```
+POST /api/events
+Authorization: Bearer <accessToken>
+Permission: events_create
+```
+
+**Body:**
 ```json
 {
-  "_id": "...",
-  "id": "1",
-  "parent": "Phòng Marketing",
-  "children": [
-    {
-      "name": "Nhóm Facebook Ads",
-      "desc": "Chạy quảng cáo đa nền tảng"
-    }
+  "name": "SmaxAi Enterprise",
+  "sub": "Gói doanh nghiệp",
+  "group": "biz_moi",
+  "customer": {
+    "name": "Nguyen Van A",
+    "avatar": "",
+    "role": "CEO",
+    "email": "ceo@company.com",
+    "phone": "0901234567",
+    "source": "Referral",
+    "address": "Hanoi"
+  },
+  "biz": {
+    "id": "BIZ-001",
+    "tags": ["enterprise", "priority"]
+  },
+  "assignee": {
+    "name": "Sale Staff A",
+    "avatar": "",
+    "role": "sale"
+  },
+  "customerId": "CUST-001",
+  "assigneeId": "USER-002",
+  "stage": "Đang tư vấn",
+  "source": "CRM",
+  "tags": ["hot", "Q2"],
+  "plan": {
+    "name": "PRO",
+    "cycle": "Thanh toán theo năm",
+    "price": "5,000,000 đ",
+    "daysLeft": 365,
+    "expiryDate": "2027-04-16"
+  },
+  "services": [
+    { "name": "SMS Marketing", "active": true },
+    { "name": "Email Automation", "active": false }
   ],
-  "createdAt": "...",
-  "updatedAt": "..."
+  "quotas": [
+    { "name": "Tin nhắn", "used": 500, "total": 1000, "color": "blue" },
+    { "name": "Email", "used": 100, "total": "unlimited", "color": "green" }
+  ]
 }
 ```
 
-### 11.2. GET /organization
+> `group`: `"user_moi"` | `"biz_moi"` | `"can_nang_cap"` | `"sap_het_han"` | `"chuyen_khoan"`
 
-Status codes:
+**Response `201`:** Created event object.
 
-- `200` lấy organization thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
+---
 
-Query params:
+### 7.5 Update Event
 
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
+```
+PUT /api/events/:id
+Authorization: Bearer <accessToken>
+Permission: events_update
+```
 
-Response 200:
+**Body** (at least one field required): Same fields as create, all optional.
 
+**Response `200`:** Updated event object.
+
+**Errors:** `400 VALIDATION_ERROR`, `404 EVENT_NOT_FOUND`
+
+---
+
+### 7.6 Add Timeline Entry
+
+```
+POST /api/events/:id/timeline
+Authorization: Bearer <accessToken>
+Permission: events_update
+```
+
+**Body:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Get organization list success",
-  "data": {
-    "items": [
-      {
-        "_id": "...",
-        "id": "1",
-        "parent": "Phòng Marketing",
-        "children": [
-          {
-            "name": "Nhóm Facebook Ads",
-            "desc": "Chạy quảng cáo đa nền tảng"
-          }
-        ],
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 4,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
-  }
+  "type": "phone",
+  "title": "Cuộc gọi tư vấn lần 2",
+  "time": "14:00 16/04/2026",
+  "content": "Khách đang cân nhắc...",
+  "duration": "15 phút"
 }
 ```
 
-### 11.3. POST /organization/departments
+> `type`: `"phone"` | `"email"` | `"event"` | `"note"`
 
-Status codes:
+**Response `201`:** Updated event object with new timeline entry.
 
-- `201` tạo department thành công
-- `400` thiếu `name`
-- `401` chưa đăng nhập
-- `409` trùng dữ liệu unique
-- `500` lỗi server
+**Errors:** `400 VALIDATION_ERROR`, `404 EVENT_NOT_FOUND`
 
-Body:
+---
 
+### 7.7 Delete Event
+
+```
+DELETE /api/events/:id
+Authorization: Bearer <accessToken>
+Permission: events_delete
+```
+
+**Response `200`:** `{ "success": true, "message": "Delete event success", "data": null }`
+
+**Errors:** `404 EVENT_NOT_FOUND`
+
+---
+
+### 7.8 Sync Event Customer
+
+```
+POST /api/events/:id/sync-customer
+Authorization: Bearer <accessToken>
+Permission: events_update
+```
+
+> Syncs the event's embedded customer data from the linked `customerId`.
+
+**Response `200`:** Updated event object.
+
+**Errors:** `404 EVENT_NOT_FOUND`, `404 CUSTOMER_NOT_FOUND`
+
+---
+
+## 8. Organization
+
+**Base path:** `/api/organization`  
+**All routes require authentication.**
+
+### 8.1 List Organization (Departments & Groups)
+
+```
+GET /api/organization
+Authorization: Bearer <accessToken>
+Permission: organization_read
+```
+
+**Response `200`:** Paginated list of organization items.
+
+**Example item:**
 ```json
 {
-  "name": "Phòng Vận Hành",
-  "desc": "Mô tả nếu cần"
+  "id": "1",
+  "alias": "sales",
+  "parent": "Sales",
+  "children": [
+    { "alias": "sales-b2b", "name": "B2B Sales", "desc": "Enterprise clients" },
+    { "alias": "sales-b2c", "name": "B2C Sales", "desc": "" }
+  ]
 }
 ```
 
-Validation:
+---
 
-- `name` bắt buộc
+### 8.2 Create Department
 
-Note:
+```
+POST /api/organization/departments
+Authorization: Bearer <accessToken>
+Permission: organization_update
+```
 
-- `desc` hiện tại không được lưu ở department root
-- `id` được tạo bằng `countDocuments + 1`
-
-Response 201:
-
+**Body:**
 ```json
 {
-  "statusCode": 201,
-  "message": "Create department success",
-  "data": {
-    "_id": "...",
-    "id": "5",
-    "parent": "Phòng Vận Hành",
-    "children": [],
-    "createdAt": "...",
-    "updatedAt": "..."
-  }
+  "name": "Engineering",
+  "alias": "engineering",
+  "desc": "Engineering department"
 }
 ```
 
-### 11.4. POST /organization/groups
+> `alias` is auto-generated from `name` if not provided.
 
-Status codes:
+**Response `201`:** Created department object.
 
-- `201` tạo group thành công
-- `400` thiếu `name` hoặc `parentId`
-- `401` chưa đăng nhập
-- `404` không tìm thấy department
-- `500` lỗi server
+**Errors:** `400 VALIDATION_ERROR`, `409 DEPARTMENT_ALREADY_EXISTS`
 
-Body:
+---
 
+### 8.3 Create Group (Sub-department)
+
+```
+POST /api/organization/groups
+Authorization: Bearer <accessToken>
+Permission: organization_update
+```
+
+**Body:**
 ```json
 {
-  "name": "Nhóm CSKH",
-  "desc": "Chăm sóc khách hàng",
-  "parentId": "1"
+  "name": "Backend Team",
+  "desc": "Node.js / Go backend developers",
+  "parentId": "1",
+  "parentAlias": "engineering",
+  "alias": "engineering-backend"
 }
 ```
 
-Validation:
+> Either `parentId` or `parentAlias` is required.  
+> `alias` is auto-generated if not provided.
 
-- `name` bắt buộc
-- `parentId` bắt buộc
-
-Response 201:
-
+**Response `201`:**
 ```json
 {
-  "statusCode": 201,
+  "success": true,
   "message": "Create group success",
   "data": {
-    "name": "Nhóm CSKH",
-    "desc": "Chăm sóc khách hàng",
-    "parentId": "1"
+    "alias": "engineering-backend",
+    "name": "Backend Team",
+    "desc": "Node.js / Go backend developers",
+    "parentId": "1",
+    "parentAlias": "engineering"
   }
 }
 ```
 
-Error:
-
-- `404 { "message": "Department not found" }`
+**Errors:** `400 VALIDATION_ERROR`, `404 DEPARTMENT_NOT_FOUND`, `409 GROUP_ALREADY_EXISTS`
 
 ---
 
-## 12. Metadata API
+## 9. Metadata
 
-Base path: `/metadata`
+**Base path:** `/api/metadata`  
+**All routes require authentication + `metadata_read` permission.**
 
-Auth: Bearer token
+### 9.1 Get All Metadata
 
-### 12.1. GET /metadata
+```
+GET /api/metadata
+Authorization: Bearer <accessToken>
+```
 
-Status codes:
-
-- `200` lấy metadata thành công
-- `401` chưa đăng nhập
-- `500` lỗi server
-
-Response 200:
-
+**Response `200`:**
 ```json
 {
-  "statusCode": 200,
+  "success": true,
   "message": "Get metadata success",
   "data": {
     "platforms": ["SmaxAi", "Botvn", "Appvn"],
-    "customerGroups": ["Nhóm Facebook Ads", "Nhóm Content"],
-    "customerTypes": [
-      "Standard Customer",
-      "VIP Customer",
-      "Partner",
-      "Regular",
-      "Premium"
-    ],
-    "staffRoles": [
-      { "value": "OWNER", "label": "Owner" },
-      { "value": "ADMIN", "label": "Admin" },
-      { "value": "MANAGER", "label": "Manager (Trưởng phòng)" },
-      { "value": "STAFF", "label": "Staff (Nhân viên)" }
-    ],
-    "userRoles": [
-      { "value": "OWNER", "label": "Owner" },
-      { "value": "ADMIN", "label": "Admin" },
-      { "value": "MANAGER", "label": "Manager (Trưởng phòng)" },
-      { "value": "STAFF", "label": "Staff (Nhân viên)" }
-    ],
-    "departments": ["Phòng Marketing", "Phòng Sale", "Phòng Kỹ Thuật"]
-  }
-}
-```
-
-### 12.2. GET /metadata/roles
-
-Query params:
-
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Status codes:
-
-- `200` lấy danh sách role thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Get roles success",
-  "data": {
-    "items": [
-      { "value": "OWNER", "label": "Owner" },
-      { "value": "ADMIN", "label": "Admin" },
-      { "value": "MANAGER", "label": "Manager (Trưởng phòng)" },
-      { "value": "STAFF", "label": "Staff (Nhân viên)" }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 4,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
-  }
-}
-```
-
-### 12.3. GET /metadata/departments
-
-Query params:
-
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Status codes:
-
-- `200` lấy danh sách department thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Get departments success",
-  "data": {
-    "items": [
-      "Phòng Marketing",
-      "Phòng Sale",
-      "Phòng Kỹ Thuật",
-      "Phòng Nhân Sự"
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 4,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
-  }
-}
-```
-
-### 12.4. GET /metadata/customer-groups
-
-Query params:
-
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Status codes:
-
-- `200` lấy danh sách customer group thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
-
-Response 200:
-
-```json
-{
-  "statusCode": 200,
-  "message": "Get customer groups success",
-  "data": {
-    "items": ["Nhóm Facebook Ads", "Nhóm Content", "Nhóm Design"],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 11,
-      "totalPages": 2,
-      "hasNextPage": true,
-      "hasPreviousPage": false
-    }
+    "customerGroups": ["Mới", "Tiềm năng", "Thân thiết", "Rời bỏ", "VIP"],
+    "customerTypes": ["Standard Customer", "VIP Customer", "Partner", "Regular", "Premium"],
+    "staffRoles": [ { "id": "role-staff", "value": "STAFF", "label": "Staff", "level": 1 } ],
+    "userRoles": [ ... ],
+    "departments": ["Sales", "Engineering"],
+    "departmentOptions": [ { "id": "1", "alias": "sales", "value": "sales", "label": "Sales", "groups": [...] } ],
+    "departmentGroups": [ ... ],
+    "activityGroups": [ { "alias": "sales-b2b", "label": "B2B Sales", ... } ]
   }
 }
 ```
 
 ---
 
-## 13. Functions API
+### 9.2 Get Roles Metadata
 
-Base path: `/functions`
+```
+GET /api/metadata/roles?page=1&limit=20
+Authorization: Bearer <accessToken>
+```
 
-Auth: Bearer token
+**Response `200`:** Paginated list of role metadata objects.
 
-### 13.1. Function response shape
+---
 
+### 9.3 Get Departments Metadata
+
+```
+GET /api/metadata/departments?page=1&limit=20
+Authorization: Bearer <accessToken>
+```
+
+**Response `200`:** Paginated list of department names.
+
+---
+
+### 9.4 Get Department Groups
+
+```
+GET /api/metadata/department-groups
+Authorization: Bearer <accessToken>
+```
+
+**Response `200`:** Full list of department objects with their groups.
+
+---
+
+### 9.5 Get Activity Groups
+
+```
+GET /api/metadata/activity-groups?page=1&limit=20
+Authorization: Bearer <accessToken>
+```
+
+**Response `200`:** Paginated list of all leaf groups.
+
+---
+
+### 9.6 Get Customer Groups
+
+```
+GET /api/metadata/customer-groups?page=1&limit=20
+Authorization: Bearer <accessToken>
+```
+
+**Response `200`:** Paginated list of customer group names.
+
+---
+
+## 10. Functions
+
+**Base path:** `/api/functions`  
+**All routes require authentication.**
+
+### 10.1 List Functions
+
+```
+GET /api/functions?page=1&limit=20
+Authorization: Bearer <accessToken>
+Permission: functions_read
+```
+
+**Response `200`:** Paginated list of staff function objects.
+
+---
+
+### 10.2 Create Function
+
+```
+POST /api/functions
+Authorization: Bearer <accessToken>
+Permission: functions_create
+```
+
+**Body:**
 ```json
 {
-  "_id": "...",
-  "id": "FUNC001",
-  "title": "Marketing",
-  "desc": "Quản lý các chiến dịch quảng cáo...",
-  "type": "marketing",
-  "createdAt": "...",
-  "updatedAt": "..."
+  "title": "Backend Developer",
+  "desc": "Develops and maintains backend services",
+  "type": "tech"
 }
 ```
 
-### 13.2. GET /functions
-
-Query params:
-
-- `page`: số trang, mặc định `1`
-- `limit`: số phần tử mỗi trang, mặc định `10`, tối đa `100`
-
-Status codes:
-
-- `200` lấy danh sách functions thành công
-- `400` pagination không hợp lệ
-- `401` chưa đăng nhập
-- `500` lỗi server
-
-Response 200:
-
+**Response `201`:**
 ```json
 {
-  "statusCode": 200,
-  "message": "Get functions success",
+  "success": true,
+  "message": "Create function success",
   "data": {
-    "items": [
-      {
-        "_id": "...",
-        "id": "FUNC001",
-        "title": "Marketing",
-        "desc": "Quản lý các chiến dịch quảng cáo...",
-        "type": "marketing",
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "totalItems": 3,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPreviousPage": false
-    }
+    "id": "FUNC-001",
+    "title": "Backend Developer",
+    "desc": "Develops and maintains backend services",
+    "type": "tech"
   }
 }
 ```
 
-### 13.3. POST /functions
-
-Status codes:
-
-- `201` tạo function thành công
-- `400` thiếu `title`
-- `401` chưa đăng nhập
-- `409` trùng dữ liệu unique
-- `500` lỗi server
-
-Body:
-
-```json
-{
-  "title": "Customer Success",
-  "desc": "Theo dõi trải nghiệm khách hàng",
-  "type": "operation"
-}
-```
-
-Validation:
-
-- `title` bắt buộc
-
-Default:
-
-- `desc`: `""`
-- `type`: `tech`
-- `id`: auto `FUNCxxx`
-
-Response 201: `{ statusCode, message: "Create function success", data: Function }`
+**Errors:** `400 VALIDATION_ERROR`
 
 ---
 
-## 14. Demo accounts
+## 11. RBAC
 
-- Owner: `owner@crm.vn` / `Owner@123`
-- Admin: `admin@crm.vn` / `Admin@123`
-- Manager: `manager.sale@crm.vn` / `Manager@123`
-- Staff: `staff1@crm.vn` / `Staff@123`
+**Base path:** `/api/rbac`  
+**All routes require authentication.**
 
-## 15. FE integration notes
+### 11.1 List All Permissions
 
-### 15.1. Web flow
+```
+GET /api/rbac
+Authorization: Bearer <accessToken>
+Permission: permissions_read
+```
 
-1. Call `POST /auth/login`
-2. Lưu `accessToken` ở memory/state management
-3. Refresh token đã được server set cookie httpOnly
-4. Khi access token hết hạn, call `POST /auth/refresh`
-5. Update lại `accessToken`
-6. Khi logout, call `POST /auth/logout`
-7. Nếu quên mật khẩu ở môi trường demo/manual test, call `POST /auth/forgot-password` rồi `POST /auth/reset-password`
-8. Nếu user chủ động đổi mật khẩu khi đang đăng nhập, call `POST /auth/change-password`, sau đó login lại
-
-### 15.2. Mobile flow
-
-1. Call `POST /auth/login`
-2. Lưu:
-   - `accessToken`
-   - `refreshToken`
-   - `sessionId`
-3. Khi access token hết hạn, call `POST /auth/refresh` với body:
-
+**Response `200`:**
 ```json
 {
-  "sessionId": "...",
-  "refreshToken": "..."
+  "success": true,
+  "message": "Get permissions success",
+  "data": [
+    {
+      "id": "users_create",
+      "name": "Create Users",
+      "resource": "users",
+      "action": "create",
+      "description": ""
+    }
+  ]
 }
 ```
 
-4. Khi logout, call `POST /auth/logout` với bearer token hoặc cặp `sessionId` + `refreshToken`
+---
 
-Nếu cần quên mật khẩu trên mobile:
+### 11.2 Get Permission by ID
 
-1. Call `POST /auth/forgot-password` với `email`
-2. Lấy `resetToken` từ response demo
-3. Call `POST /auth/reset-password` với `email`, `resetToken`, `newPassword`
-4. Login lại bằng mật khẩu mới
+```
+GET /api/rbac/:id
+Authorization: Bearer <accessToken>
+Permission: permissions_read
+```
 
-### 15.3. Chưa có trong API hiện tại
+**Response `200`:** Single permission object.
 
-Các phần sau hiện chưa được implement:
+**Errors:** `404 PERMISSION_NOT_FOUND`
 
-- Sorting qua query param
-- Batch APIs
-- Upload file/avatar riêng
-- Force reset password
-- OpenAPI / Swagger JSON
+---
 
-Nếu cần, có thể generate tiếp 1 bản Swagger/OpenAPI 3.0 từ tài liệu này.
+### 11.3 List All Roles
+
+```
+GET /api/rbac/roles
+Authorization: Bearer <accessToken>
+Permission: roles_read
+```
+
+**Response `200`:** Array of all role objects.
+
+---
+
+### 11.4 Get Role by ID
+
+```
+GET /api/rbac/roles/:id
+Authorization: Bearer <accessToken>
+Permission: roles_read
+```
+
+**Response `200`:** Role object including `permissionsDetails` array.
+
+**Errors:** `404 ROLE_NOT_FOUND`
+
+---
+
+### 11.5 Create Role
+
+```
+POST /api/rbac/roles
+Authorization: Bearer <accessToken>
+Permission: roles_manage
+```
+
+**Body:**
+```json
+{
+  "id": "role-custom",
+  "name": "CUSTOM_ROLE",
+  "description": "A custom role for specific use",
+  "permissions": ["customers_read", "leads_read"],
+  "level": 1
+}
+```
+
+**Response `201`:** Created role object.
+
+**Errors:** `400 VALIDATION_ERROR`, `409 ROLE_ALREADY_EXISTS`
+
+---
+
+### 11.6 Update Role
+
+```
+PUT /api/rbac/roles/:id
+Authorization: Bearer <accessToken>
+Permission: roles_manage
+```
+
+**Body** (at least one field required):
+```json
+{
+  "name": "UPDATED_ROLE",
+  "description": "Updated description",
+  "permissions": ["customers_read", "leads_read", "tasks_read"],
+  "level": 2
+}
+```
+
+**Response `200`:** Updated role object.
+
+**Errors:** `400 VALIDATION_ERROR`, `403 FORBIDDEN` (system roles), `404 ROLE_NOT_FOUND`
+
+---
+
+### 11.7 Delete Role
+
+```
+DELETE /api/rbac/roles/:id
+Authorization: Bearer <accessToken>
+Permission: roles_manage
+```
+
+**Response `200`:** `{ "success": true, "message": "Delete role success", "data": null }`
+
+**Errors:** `403 FORBIDDEN` (system roles), `404 ROLE_NOT_FOUND`
+
+---
+
+## 12. Action Config
+
+**Base path:** `/api/action-config`  
+**All routes require authentication.**
+
+---
+
+### 12.1 Results
+
+#### List Results
+
+```
+GET /api/action-config/results?search=&page=1&limit=200
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_read
+```
+
+#### Create Result
+
+```
+POST /api/action-config/results
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_create
+```
+
+**Body:**
+```json
+{
+  "name": "Khách quan tâm",
+  "type": "success",
+  "description": "Khách hàng thể hiện sự quan tâm rõ ràng"
+}
+```
+
+> `type`: `"success"` | `"failure"` | `"neutral"` | `"incomplete"` | `"skip"`
+
+#### Update Result
+
+```
+PUT /api/action-config/results/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_update
+```
+
+**Body** (at least one field required):
+```json
+{
+  "name": "Khách rất quan tâm",
+  "type": "success"
+}
+```
+
+#### Delete Result
+
+```
+DELETE /api/action-config/results/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_delete
+```
+
+---
+
+### 12.2 Reasons
+
+#### List Reasons
+
+```
+GET /api/action-config/reasons?search=&page=1&limit=200
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_read
+```
+
+#### Create Reason
+
+```
+POST /api/action-config/reasons
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_create
+```
+
+**Body:**
+```json
+{
+  "name": "Lý do khách không quan tâm",
+  "description": "Khách hàng đã có giải pháp khác"
+}
+```
+
+#### Update Reason
+
+```
+PUT /api/action-config/reasons/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_update
+```
+
+#### Delete Reason
+
+```
+DELETE /api/action-config/reasons/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_delete
+```
+
+---
+
+### 12.3 Actions
+
+#### List Actions
+
+```
+GET /api/action-config/actions?search=&page=1&limit=200
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_read
+```
+
+#### Create Action
+
+```
+POST /api/action-config/actions
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_create
+```
+
+**Body:**
+```json
+{
+  "name": "Gọi điện lần 1",
+  "type": "call",
+  "category": "primary",
+  "reasonIds": ["reason-001", "reason-002"],
+  "description": "Cuộc gọi chào hỏi đầu tiên"
+}
+```
+
+> `type`: `"call"` | `"email"` | `"meeting"` | `"sms"` | `"send_block_automation"` | `"review"` | `"manual_order"` | `"other"`  
+> `category`: `"primary"` | `"secondary"` (auto-derived from `type` if omitted)
+
+#### Update Action
+
+```
+PUT /api/action-config/actions/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_update
+```
+
+**Body** (at least one field required): Same fields as create.
+
+#### Delete Action
+
+```
+DELETE /api/action-config/actions/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_delete
+```
+
+---
+
+### 12.4 Action Chains
+
+#### List Action Chains
+
+```
+GET /api/action-config/chains?search=&page=1&limit=200
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_read
+```
+
+#### Get Action Chain by ID
+
+```
+GET /api/action-config/chains/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_read
+```
+
+**Response `200`:** Full chain object including `steps` and `branches`.
+
+#### Create Action Chain
+
+```
+POST /api/action-config/chains
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_create
+```
+
+**Body:**
+```json
+{
+  "name": "Chăm sóc khách hàng mới",
+  "description": "Quy trình chăm sóc cho khách đăng ký mới",
+  "delay": "immediate",
+  "active": true,
+  "steps": [
+    {
+      "order": 1,
+      "actionId": "action-001",
+      "branches": [
+        {
+          "resultId": "result-001",
+          "order": 0,
+          "nextStepType": "next_in_chain",
+          "nextActionId": "action-002",
+          "closeOutcome": null,
+          "delayUnit": "day",
+          "delayValue": 3
+        },
+        {
+          "resultId": "result-002",
+          "order": 1,
+          "nextStepType": "close_task",
+          "nextActionId": null,
+          "closeOutcome": "failure",
+          "delayUnit": null,
+          "delayValue": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+> `delay`: `"immediate"` | `"1h"` | `"4h"` | `"1d"` | `"3d"` | `"7d"`  
+> `nextStepType`: `"next_in_chain"` | `"close_task"` | `"close_chain"` | `"close_chain_clone_task"` | `"create_order"` | `"call_block_automation"` | `"add_from_other_chain"`  
+> `closeOutcome`: `"success"` | `"failure"` | `null`  
+> `delayUnit` (branch): `"immediate"` | `"hour"` | `"day"` | `"week"` | `null`
+
+**Response `201`:** Created chain object.
+
+#### Update Action Chain
+
+```
+PUT /api/action-config/chains/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_update
+```
+
+**Body** (at least one field required): Same fields as create.
+
+**Response `200`:** Updated chain object.
+
+#### Delete Action Chain
+
+```
+DELETE /api/action-config/chains/:id
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_delete
+```
+
+**Response `200`:** `{ "success": true, "message": "Delete action chain success", "data": null }`
+
+---
+
+### 12.5 Save Chain Rule Configuration
+
+```
+PUT /api/action-config/chains/:id/rule
+Authorization: Bearer <accessToken>
+Permission: actions_cfg_update
+```
+
+> Dedicated endpoint to save the full `steps + branches` configuration for an existing chain (replaces all steps).
+
+**Body:**
+```json
+{
+  "steps": [
+    {
+      "order": 1,
+      "actionId": "action-001",
+      "branches": [
+        {
+          "resultId": "result-001",
+          "order": 0,
+          "nextStepType": "next_in_chain",
+          "nextActionId": "action-002",
+          "closeOutcome": null,
+          "delayUnit": "day",
+          "delayValue": 3
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "actionId": "action-002",
+      "branches": [
+        {
+          "resultId": "result-003",
+          "order": 0,
+          "nextStepType": "close_task",
+          "nextActionId": null,
+          "closeOutcome": "success",
+          "delayUnit": null,
+          "delayValue": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Response `200`:** Updated chain object.
+
+**Errors:** `400 VALIDATION_ERROR`, `404 CHAIN_NOT_FOUND`
+
+---
+
+## 13. System Routes
+
+### Health Check
+
+```
+GET /health
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Health check success",
+  "data": { "status": "ok", "service": "crm-server" }
+}
+```
+
+### API Info
+
+```
+GET /api
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "message": "CRM server API is running",
+  "data": {
+    "resources": ["customers", "staff", "auth", "leads", "tasks", "events", "organization", "metadata", "functions", "action-config"]
+  }
+}
+```
+
+---
+
+## 14. Enum Reference
+
+### Customer Types
+`"Standard Customer"` | `"VIP Customer"` | `"Partner"` | `"Regular"` | `"Premium"`
+
+### Platforms
+`"SmaxAi"` | `"Botvn"` | `"Appvn"`
+
+### Customer Groups (default)
+`"Mới"` | `"Tiềm năng"` | `"Thân thiết"` | `"Rời bỏ"` | `"VIP"`
+
+### Lead Action Types
+`"green"` | `"orange"` | `"blue"` | `""`
+
+### Task Time Types
+`"soon"` | `"late"` | `"future"`
+
+### Event Groups
+`"user_moi"` | `"biz_moi"` | `"can_nang_cap"` | `"sap_het_han"` | `"chuyen_khoan"`
+
+### Timeline Entry Types
+`"phone"` | `"email"` | `"event"` | `"note"`
+
+### User Roles
+`"OWNER"` | `"ADMIN"` | `"MANAGER"` | `"STAFF"`
+
+### Assignment Roles (for customers)
+`"sale"` | `"marketing"` | `"tuvan"` | `"kythuat"` | `"cskh"`
+
+### Action Types
+`"call"` | `"email"` | `"meeting"` | `"sms"` | `"send_block_automation"` | `"review"` | `"manual_order"` | `"other"`
+
+### Action Categories
+`"primary"` | `"secondary"`
+
+### Result Types
+`"success"` | `"failure"` | `"neutral"` | `"incomplete"` | `"skip"`
+
+### Chain Delays (initial delay)
+`"immediate"` | `"1h"` | `"4h"` | `"1d"` | `"3d"` | `"7d"`
+
+### Branch Next Step Types
+`"next_in_chain"` | `"close_task"` | `"close_chain"` | `"close_chain_clone_task"` | `"create_order"` | `"call_block_automation"` | `"add_from_other_chain"`
+
+### Branch Close Outcomes
+`"success"` | `"failure"`
+
+### Branch Delay Units
+`"immediate"` | `"hour"` | `"day"` | `"week"`
+
+---
+
+## 15. Error Codes
+
+| HTTP | Code                    | Description                                 |
+|------|-------------------------|---------------------------------------------|
+| 400  | `VALIDATION_ERROR`      | Request validation failed                   |
+| 400  | `INVALID_JSON_PAYLOAD`  | Malformed JSON body                         |
+| 400  | `INVALID_RESET_TOKEN`   | Reset token invalid or expired              |
+| 401  | `UNAUTHORIZED`          | Missing or invalid access token             |
+| 401  | `INVALID_CREDENTIALS`   | Wrong email or password                     |
+| 401  | `INVALID_SESSION`       | Session not found                           |
+| 401  | `INVALID_REFRESH_TOKEN` | Refresh token invalid or expired            |
+| 401  | `INVALID_CURRENT_PASSWORD` | Current password mismatch               |
+| 403  | `FORBIDDEN`             | Insufficient permissions                    |
+| 403  | `CORS_ORIGIN_FORBIDDEN` | Request origin not allowed                  |
+| 404  | `ROUTE_NOT_FOUND`       | Endpoint does not exist                     |
+| 404  | `USER_NOT_FOUND`        | User not found                              |
+| 404  | `CUSTOMER_NOT_FOUND`    | Customer not found                          |
+| 404  | `LEAD_NOT_FOUND`        | Lead not found                              |
+| 404  | `TASK_NOT_FOUND`        | Task not found                              |
+| 404  | `EVENT_NOT_FOUND`       | Event not found                             |
+| 404  | `ROLE_NOT_FOUND`        | Role not found                              |
+| 404  | `PERMISSION_NOT_FOUND`  | Permission not found                        |
+| 404  | `DEPARTMENT_NOT_FOUND`  | Department not found                        |
+| 409  | `DUPLICATE_VALUE`       | Unique field constraint violation           |
+| 409  | `DEPARTMENT_ALREADY_EXISTS` | Department alias/name already exists   |
+| 409  | `GROUP_ALREADY_EXISTS`  | Group alias/name already exists             |
+| 409  | `ROLE_ALREADY_EXISTS`   | Role ID already exists                      |
+| 500  | `INTERNAL_SERVER_ERROR` | Unexpected server error                     |

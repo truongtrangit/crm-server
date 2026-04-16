@@ -107,6 +107,7 @@ const ALL_CLOSE_STATUSES    = ALL_CLOSE_OUTCOMES;
 
 const BRANCH_DELAY_UNIT_VALUES = Object.freeze({
   IMMEDIATE: "immediate",
+  MINUTE:    "minute",
   HOUR:      "hour",
   DAY:       "day",
   WEEK:      "week",

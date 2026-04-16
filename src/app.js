@@ -16,6 +16,8 @@ const metadataRouter = require("./routes/metadata");
 const functionsRouter = require("./routes/functions");
 const rbacRouter = require("./routes/rbac");
 const actionConfigRouter = require("./routes/actionConfig");
+const eventChainsRouter = require("./routes/eventChains");
+const EventActionChainController = require("./controllers/EventActionChainController");
 
 const app = express();
 const allowedOrigins = env.clientUrl
@@ -84,6 +86,13 @@ app.use("/api/metadata", metadataRouter);
 app.use("/api/functions", functionsRouter);
 app.use("/api/rbac", rbacRouter);
 app.use("/api/action-config", actionConfigRouter);
+// Nested: chuỗi hành động trong sự kiện
+app.use("/api/events/:eventId/chains", eventChainsRouter);
+// Task Queue: lấy tất cả steps cần làm (cross-event)
+app.get("/api/event-chains/queue",
+  require("./middleware/auth").authenticateRequest,
+  require("./utils/asyncHandler")(EventActionChainController.getTaskQueue)
+);
 
 app.use((req, res) => {
   return sendError(
