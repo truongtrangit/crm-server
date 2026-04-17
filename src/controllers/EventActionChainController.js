@@ -21,6 +21,19 @@ function calcScheduledAt(activatedAt, delayUnit, delayValue) {
   return d;
 }
 
+/**
+ * Converts ActionChain.delay string ("immediate" | "1h" | "4h" | "1d" | "3d" | "7d")
+ * into { unit, value } compatible with calcScheduledAt.
+ */
+function parseChainDelay(delay) {
+  if (!delay || delay === "immediate") return { unit: "immediate", value: null };
+  const match = delay.match(/^(\d+)(h|d)$/);
+  if (!match) return { unit: "immediate", value: null };
+  const value = parseInt(match[1], 10);
+  const unit  = match[2] === "h" ? "hour" : "day";
+  return { unit, value };
+}
+
 async function buildStepSnapshot(templateStep, actionMap) {
   const action = actionMap[templateStep.actionId];
   return {
@@ -78,9 +91,19 @@ class EventActionChainController {
 
     if (steps.length > 0) {
       const now = new Date();
-      steps[0].status = "active";
+      // Apply the chain-level delay to the FIRST step's scheduled time.
+      // This is the delay from the moment the chain is added to the event.
+      const { unit: chainDelayUnit, value: chainDelayValue } = parseChainDelay(template.delay);
+      const scheduledAt = calcScheduledAt(now, chainDelayUnit, chainDelayValue);
+
+      steps[0].status      = "active";
       steps[0].activatedAt = now;
-      steps[0].scheduledAt = now;
+      steps[0].scheduledAt = scheduledAt;
+      // Store the chain delay on the step for display / audit trail
+      if (chainDelayUnit && chainDelayUnit !== "immediate") {
+        steps[0].delayUnit  = chainDelayUnit;
+        steps[0].delayValue = chainDelayValue;
+      }
     }
 
     const chainCount = await EventActionChain.countDocuments({ eventId });
