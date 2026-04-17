@@ -300,7 +300,8 @@ function serializeUser(user) {
 
   return {
     ...item,
-    roleLabel: formatRoleLabel(item.role),
+    // Derive display label directly from roleId (e.g. "staff" → "Staff")
+    roleLabel: formatRoleLabel(item.roleId),
     departmentAliases: item.departmentAliases || [],
     groupAliases: item.groupAliases || [],
   };
@@ -534,7 +535,6 @@ async function createUserAccount(actor, payload = {}) {
     group,
     groupAliases: organizationAssignments.groupAliases,
     phone: normalizeString(payload.phone),
-    role: targetRole.name,
     roleId: targetRole.id,
     managerId,
     createdBy: actor.id,
@@ -728,7 +728,6 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     payload.phone !== undefined
       ? normalizeString(payload.phone)
       : targetUser.phone;
-  targetUser.role = nextRole.name;
   targetUser.roleId = nextRole.id;
 
   if (nextRole.name !== STAFF_ROLE_NAME) {
@@ -905,7 +904,10 @@ async function deleteUserAccount(actor, targetUser) {
 
   // ── Guard 3: Protect the last OWNER in the system ────────────────────────
   if (targetRoleName === OWNER_ROLE_NAME) {
-    const ownerCount = await User.countDocuments({ role: OWNER_ROLE_NAME });
+    const ownerRole = await Role.findOne({ name: OWNER_ROLE_NAME }).lean();
+    const ownerCount = ownerRole
+      ? await User.countDocuments({ roleId: ownerRole.id })
+      : 0;
     if (ownerCount <= 1) {
       throw createHttpError(
         403,

@@ -5,6 +5,7 @@ const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
 const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
 const { createHttpError } = require("../utils/http");
+const { getUserRoleName } = require("../utils/rbac");
 
 class CustomerService {
   async getCustomers(queryParams) {
@@ -146,7 +147,7 @@ class CustomerService {
     }
 
     // Authorization check
-    const currentRole = currentUser.role.toUpperCase();
+    const currentRole = (await getUserRoleName(currentUser) || "STAFF").toUpperCase();
     if (currentRole === "MANAGER") {
       const isSelf = currentUser.id === userId;
       const isSubordinate = targetUser.managerId === currentUser.id;
@@ -194,7 +195,7 @@ class CustomerService {
     }
 
     // Authorization check
-    const currentRole = currentUser.role.toUpperCase();
+    const currentRole = (await getUserRoleName(currentUser) || "STAFF").toUpperCase();
     if (currentRole === "MANAGER") {
       const targetUser = await User.findOne({ id: userId });
       const isSelf = currentUser.id === userId;

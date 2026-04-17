@@ -84,33 +84,19 @@ async function migrateUsersToRbac() {
 
     const roles = await Role.find({}, { id: 1, name: 1 }).lean();
     const rolesById = new Map(roles.map((role) => [role.id, role]));
-    const rolesByName = new Map(roles.map((role) => [role.name, role]));
-    const users = await User.find();
+    const staffRole = roles.find((r) => r.name === "STAFF") || null;
+
+    // Only migrate users that don't have a valid roleId yet
+    const users = await User.find({ $or: [{ roleId: null }, { roleId: { $exists: false } }] });
     let migrated = 0;
 
     for (const user of users) {
-      const currentRoleId = typeof user.roleId === "string" ? user.roleId : "";
-      const currentRoleName = typeof user.role === "string" ? user.role : "";
-      let role = rolesById.get(currentRoleId) || null;
+      const role = rolesById.get(user.roleId) || staffRole;
+      if (!role) continue;
 
-      if (!role && currentRoleName) {
-        role = rolesByName.get(currentRoleName.toUpperCase()) || null;
-      }
-
-      if (!role) {
-        role = rolesByName.get("STAFF") || null;
-      }
-
-      if (!role) {
-        continue;
-      }
-
-      if (user.roleId !== role.id || user.role !== role.name) {
-        user.roleId = role.id;
-        user.role = role.name;
-        await user.save();
-        migrated++;
-      }
+      user.roleId = role.id;
+      await user.save();
+      migrated++;
     }
 
     console.log(`✓ Migrated ${migrated} users to RBAC`);

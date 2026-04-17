@@ -35,15 +35,7 @@ async function resolveUserRole(user) {
   }
 
   if (user.roleId) {
-    const roleById = await Role.findOne({ id: user.roleId });
-
-    if (roleById) {
-      return roleById;
-    }
-  }
-
-  if (user.role) {
-    return Role.findOne({ name: String(user.role).trim().toUpperCase() });
+    return Role.findOne({ id: user.roleId });
   }
 
   return null;
