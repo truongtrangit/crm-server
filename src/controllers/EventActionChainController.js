@@ -353,8 +353,11 @@ class EventActionChainController {
   }
 
   // ─── GET /api/event-chains/queue ───
+  // Returns all active event-chains with their active step, enriched with event info.
+  // Sorted by scheduledAt ASC (most urgent first); null scheduledAt goes last.
   async getTaskQueue(req, res) {
-    const { eventId, limit = 50, overdueOnly } = req.query;
+    const Event = require("../models/Event");
+    const { eventId, overdueOnly, limit = 200 } = req.query;
     const now = new Date();
 
     const matchFilter = { status: "active", "steps.status": "active" };
@@ -364,16 +367,37 @@ class EventActionChainController {
       .sort({ "steps.scheduledAt": 1 })
       .limit(Number(limit));
 
+    if (chains.length === 0) {
+      return sendSuccess(res, 200, "Get task queue success", { items: [], total: 0 });
+    }
+
+    // Batch-load events
+    const eventIds = [...new Set(chains.map(c => c.eventId))];
+    const events   = await Event.find({ id: { $in: eventIds } })
+      .select("id name sub group stage customer assignee plan");
+    const eventMap = Object.fromEntries(events.map(e => [e.id, e]));
+
     const queue = [];
     for (const chain of chains) {
       const activeStep = chain.steps.find(s => s.status === "active");
       if (!activeStep) continue;
-      if (overdueOnly === "true" && activeStep.scheduledAt > now) continue;
+      if (overdueOnly === "true" && activeStep.scheduledAt && activeStep.scheduledAt > now) continue;
 
+      const evt = eventMap[chain.eventId] || null;
       queue.push({
         chainId:   chain.id,
         chainName: chain.name,
         eventId:   chain.eventId,
+        event: evt ? {
+          id:       evt.id,
+          name:     evt.name,
+          sub:      evt.sub,
+          group:    evt.group,
+          stage:    evt.stage,
+          customer: evt.customer,
+          assignee: evt.assignee,
+          plan:     evt.plan,
+        } : null,
         step: {
           order:          activeStep.order,
           actionId:       activeStep.actionId,
@@ -384,12 +408,18 @@ class EventActionChainController {
           activatedAt:    activeStep.activatedAt,
           delayUnit:      activeStep.delayUnit,
           delayValue:     activeStep.delayValue,
-          isOverdue:      activeStep.scheduledAt && activeStep.scheduledAt < now,
+          isOverdue:      !!activeStep.scheduledAt && activeStep.scheduledAt < now,
         },
       });
     }
 
-    queue.sort((a, b) => new Date(a.step.scheduledAt) - new Date(b.step.scheduledAt));
+    // Sort: overdue first, then by scheduledAt asc, null last
+    queue.sort((a, b) => {
+      const sa = a.step.scheduledAt ? new Date(a.step.scheduledAt).getTime() : Infinity;
+      const sb = b.step.scheduledAt ? new Date(b.step.scheduledAt).getTime() : Infinity;
+      return sa - sb;
+    });
+
     return sendSuccess(res, 200, "Get task queue success", { items: queue, total: queue.length });
   }
 }
