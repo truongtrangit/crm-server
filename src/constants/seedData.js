@@ -3,7 +3,7 @@
  *
  * Bao gồm:
  *   organizations · users · customers · events (đủ 5 nhóm)
- *   actions · results · reasons · actionChains · actionRules
+ *   actions · results · reasons · actionChains
  *
  * Giữ ít, đủ để test đầy đủ các luồng chính.
  */
@@ -967,203 +967,6 @@ actionChains.push({
   ],
 });
 
-// ─── ActionRules ──────────────────────────────────────────────────────────────
-// ActionRule dùng schema riêng:
-//   branch.nextStepType: "next_in_chain" | "specific_action" | "close"
-//   branch.closeStatus:  "success" | "failure"
-//   branch.delayUnit:    "immediate" | "hour" | "day" | "week"
-const actionRules = [
-  // ─ Quy tắc 1: Upsell khách hàng Trial (3 bước) ──────────────────────────
-  {
-    id: "RULE001",
-    name: "Upsell khách hàng Trial",
-    description:
-      "Quy tắc chủ động tiếp cận khách hàng đang dùng Trial, " +
-      "tư vấn và chốt chuyển đổi lên gói Basic hoặc Premium.",
-    active: true,
-    chainId: null, // Quy tắc độc lập, không gắn chuỗi template
-    delay: "immediate",
-    steps: [
-      {
-        order: 1,
-        actionId: "ACT004", // Gửi email giới thiệu tự động
-        branches: [
-          {
-            resultId:     "RES005", // Đã gửi email
-            nextStepType: "next_in_chain",
-            nextActionId: null,
-            closeStatus:  null,
-            delayUnit:    "hour",
-            delayValue:   6,
-          },
-        ],
-      },
-      {
-        order: 2,
-        actionId: "ACT001", // Gọi điện lần 1
-        branches: [
-          {
-            resultId:     "RES009", // Hứng thú - cần demo
-            nextStepType: "specific_action",
-            nextActionId: "ACT003", // Gọi tư vấn nâng cấp
-            closeStatus:  null,
-            delayUnit:    "day",
-            delayValue:   1,
-          },
-          {
-            resultId:     "RES002", // Không bắt máy
-            nextStepType: "next_in_chain",
-            nextActionId: null,
-            closeStatus:  null,
-            delayUnit:    "hour",
-            delayValue:   4,
-          },
-          {
-            resultId:     "RES004", // Từ chối
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "failure",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-        ],
-      },
-      {
-        order: 3,
-        actionId: "ACT003", // Gọi tư vấn nâng cấp
-        branches: [
-          {
-            resultId:     "RES008", // Đã gia hạn (nâng cấp thành công)
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "success",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-          {
-            resultId:     "RES003", // Hẹn gọi lại
-            nextStepType: "specific_action",
-            nextActionId: "ACT003", // Gọi lại lần nữa
-            closeStatus:  null,
-            delayUnit:    "day",
-            delayValue:   3,
-          },
-          {
-            resultId:     "RES004", // Từ chối
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "failure",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-        ],
-      },
-    ],
-  },
-
-  // ─ Quy tắc 2: Xử lý thanh toán thất bại (4 bước) ───────────────────────
-  {
-    id: "RULE002",
-    name: "Xử lý thanh toán thất bại",
-    description:
-      "Quy tắc xử lý khi khách hàng có giao dịch thất bại: " +
-      "thông báo nhanh → gọi hỗ trợ → gọi xác nhận lần 2 → tạo lại đơn hàng.",
-    active: true,
-    chainId: "CHAIN002", // Gắn với chuỗi Xử lý chuyển khoản
-    delay: "immediate",
-    steps: [
-      {
-        order: 1,
-        actionId: "ACT005", // Gửi email nhắc (thay bằng email thất bại)
-        branches: [
-          {
-            resultId:     "RES005", // Đã gửi email
-            nextStepType: "next_in_chain",
-            nextActionId: null,
-            closeStatus:  null,
-            delayUnit:    "hour",
-            delayValue:   1,
-          },
-        ],
-      },
-      {
-        order: 2,
-        actionId: "ACT006", // Gọi xác nhận thanh toán
-        branches: [
-          {
-            resultId:     "RES006", // Đã thanh toán
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "success",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-          {
-            resultId:     "RES007", // Chưa thanh toán
-            nextStepType: "next_in_chain",
-            nextActionId: null,
-            closeStatus:  null,
-            delayUnit:    "hour",
-            delayValue:   2,
-          },
-          {
-            resultId:     "RES002", // Không bắt máy
-            nextStepType: "next_in_chain",
-            nextActionId: null,
-            closeStatus:  null,
-            delayUnit:    "hour",
-            delayValue:   3,
-          },
-        ],
-      },
-      {
-        order: 3,
-        actionId: "ACT006", // Gọi xác nhận lần 2
-        branches: [
-          {
-            resultId:     "RES006", // Đã thanh toán
-            nextStepType: "specific_action",
-            nextActionId: "ACT009", // → Tạo đơn hàng thủ công
-            closeStatus:  null,
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-          {
-            resultId:     "RES007", // Vẫn chưa thanh toán
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "failure",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-          {
-            resultId:     "RES002", // Không bắt máy lần 2
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "failure",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-        ],
-      },
-      {
-        order: 4,
-        actionId: "ACT009", // Tạo đơn hàng thủ công
-        branches: [
-          {
-            resultId:     "RES011", // Đã tạo đơn hàng
-            nextStepType: "close",
-            nextActionId: null,
-            closeStatus:  "success",
-            delayUnit:    "immediate",
-            delayValue:   0,
-          },
-        ],
-      },
-    ],
-  },
-];
-
 module.exports = {
   organizations,
   users,
@@ -1172,10 +975,8 @@ module.exports = {
   tasks,
   staffFunctions,
   events,
-  // Action config
   results,
   reasons,
   actions,
   actionChains,
-  actionRules,
 };

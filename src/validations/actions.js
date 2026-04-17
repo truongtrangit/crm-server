@@ -109,7 +109,7 @@ const saveChainRuleSchema = Joi.object({
   steps: Joi.array().items(chainStepSchema).required(),
 });
 
-// (ActionRule schemas removed — rule configuration is now embedded in ActionChain.steps.branches)
+
 
 // ─── List Query ───
 const listQuerySchema = Joi.object({

@@ -23,7 +23,6 @@ const Action        = require("../models/Action");
 const Result        = require("../models/Result");
 const Reason        = require("../models/Reason");
 const ActionChain   = require("../models/ActionChain");
-const ActionRule    = require("../models/ActionRule");
 const Role          = require("../models/Role");
 const Permission    = require("../models/Permission");
 
@@ -37,7 +36,6 @@ const COLLECTIONS_TO_CLEAR = [
   { model: Task,             name: "Task" },
   { model: StaffFunction,    name: "StaffFunction" },
   { model: ActionChain,      name: "ActionChain" },
-  { model: ActionRule,       name: "ActionRule" },
   { model: Action,           name: "Action" },
   { model: Result,           name: "Result" },
   { model: Reason,           name: "Reason" },
