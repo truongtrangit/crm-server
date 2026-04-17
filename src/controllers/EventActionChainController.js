@@ -234,6 +234,12 @@ class EventActionChainController {
     const action = await Action.findOne({ id: actionId });
     if (!action) throw createHttpError(404, "Action không tồn tại");
 
+    // ─── Duplicate check: mỗi action chỉ được xuất hiện 1 lần trong chuỗi ───
+    const alreadyUsed = chain.steps.some(s => s.actionId === actionId);
+    if (alreadyUsed) {
+      throw createHttpError(409, `Hành động "${action.name}" đã tồn tại trong chuỗi này. Mỗi hành động chỉ được thêm một lần.`);
+    }
+
     // Xác định vị trí insert: sau insertAfterOrder hoặc sau currentStepIndex
     const insertAfter = insertAfterOrder != null
       ? chain.steps.findIndex(s => s.order === insertAfterOrder)
