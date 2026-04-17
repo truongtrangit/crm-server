@@ -6,13 +6,13 @@
 // ─── Action Types ───
 const ACTION_TYPE_VALUES = Object.freeze({
   CALL:                  "call",
-  EMAIL:                 "email",
-  MEETING:               "meeting",
-  SMS:                   "sms",
   SEND_BLOCK_AUTOMATION: "send_block_automation",
+  OTHER:                 "other",
+  // Hành động phụ
   REVIEW:                "review",
   MANUAL_ORDER:          "manual_order",
-  OTHER:                 "other",
+  CREATE_BOOKING:        "create_booking",
+  // ── Để thêm type mới: đận đây một dòng + thêm vào nhóm bên dưới ──
 });
 
 /** Nhóm loại hành động: chính / phụ */
@@ -21,7 +21,7 @@ const ACTION_CATEGORY_VALUES = Object.freeze({
   SECONDARY: "secondary", // Hành động phụ
 });
 
-const PRIMARY_ACTION_TYPES   = [
+const PRIMARY_ACTION_TYPES = [
   ACTION_TYPE_VALUES.CALL,
   ACTION_TYPE_VALUES.SEND_BLOCK_AUTOMATION,
   ACTION_TYPE_VALUES.OTHER,
@@ -30,9 +30,8 @@ const PRIMARY_ACTION_TYPES   = [
 const SECONDARY_ACTION_TYPES = [
   ACTION_TYPE_VALUES.REVIEW,
   ACTION_TYPE_VALUES.MANUAL_ORDER,
-  ACTION_TYPE_VALUES.EMAIL,
-  ACTION_TYPE_VALUES.SMS,
-  ACTION_TYPE_VALUES.MEETING,
+  ACTION_TYPE_VALUES.CREATE_BOOKING,
+  // Để thêm hành động phụ mới: thêm key vào ACTION_TYPE_VALUES bên trên và append vào đây
 ];
 
 const ALL_ACTION_TYPES = [...PRIMARY_ACTION_TYPES, ...SECONDARY_ACTION_TYPES];
