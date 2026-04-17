@@ -10,6 +10,7 @@ const {
   injectStepSchema,
   updateStepDelaySchema,
   updateStepNoteSchema,
+  upsertStepBranchSchema,
 } = require("../validations/eventActionChain");
 
 const router = express.Router({ mergeParams: true });
@@ -63,6 +64,23 @@ router.patch(
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
   validate(updateStepNoteSchema),
   asyncHandler(EventActionChainController.updateStepNote)
+);
+
+// ─── PUT /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches ───
+// Thêm / cập nhật branch (kết quả → bước tiếp theo) cho một step
+router.put(
+  "/:chainId/steps/:stepOrder/branches",
+  requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  validate(upsertStepBranchSchema),
+  asyncHandler(EventActionChainController.upsertStepBranch)
+);
+
+// ─── DELETE /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches/:resultId ───
+// Xóa một branch khỏi step
+router.delete(
+  "/:chainId/steps/:stepOrder/branches/:resultId",
+  requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  asyncHandler(EventActionChainController.deleteStepBranch)
 );
 
 // ─── PUT /api/events/:eventId/chains/:chainId/close ───

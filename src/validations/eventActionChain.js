@@ -54,10 +54,27 @@ const updateStepNoteSchema = Joi.object({
   note: Joi.string().allow("").max(1000).required(),
 });
 
+// Cấu hình kết quả cho step (thêm / cập nhật branch trên EventActionChain step)
+const upsertStepBranchSchema = Joi.object({
+  resultId:     Joi.string().required().messages({ "any.required": "resultId là bắt buộc" }),
+  nextStepType: Joi.string().valid(...NEXT_STEP_TYPES).required().messages({
+    "any.only": `nextStepType phải là 1 trong: ${NEXT_STEP_TYPES.join(", ")}`,
+    "any.required": "nextStepType là bắt buộc",
+  }),
+  // Chỉ cần khi nextStepType === 'next_in_chain'
+  nextActionId:  Joi.string().allow(null, "").default(null),
+  // Chỉ cần khi nextStepType === 'close_task'
+  closeOutcome:  Joi.string().valid("success", "failure").allow(null).default(null),
+  // Delay tùy chọn
+  delayUnit:  Joi.string().valid(...DELAY_UNITS).allow(null).default(null),
+  delayValue: Joi.number().integer().min(0).allow(null).default(null),
+});
+
 module.exports = {
   addChainToEventSchema,
   saveStepSchema,
   injectStepSchema,
   updateStepDelaySchema,
   updateStepNoteSchema,
+  upsertStepBranchSchema,
 };

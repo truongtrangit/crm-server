@@ -430,6 +430,79 @@ class EventActionChainController {
 
     return sendSuccess(res, 200, "Get task queue success", { items: queue, total: queue.length });
   }
+  /**
+   * PUT /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches
+   *
+   * Adds or updates a branch on a specific step of an EventActionChain.
+   * Branches are stored directly on the event-chain step → template is NEVER touched.
+   * Works for both template-originated steps and manually-injected steps.
+   */
+  async upsertStepBranch(req, res) {
+    const { eventId, chainId, stepOrder } = req.params;
+    const {
+      resultId, nextStepType, nextActionId = null,
+      closeOutcome = null, delayUnit = null, delayValue = null,
+    } = req.body;
+
+    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
+    if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
+
+    const step = chain.steps.find(s => s.order === Number(stepOrder));
+    if (!step) throw createHttpError(404, `Không tìm thấy step order=${stepOrder}`);
+    if (step.isLocked) throw createHttpError(400, "Step đã lock, không thể chỉnh sửa cấu hình");
+
+    // Upsert: nếu đã có branch với resultId đó thì cập nhật, ngược lại thêm mới
+    const existingIdx = step.branches.findIndex(b => b.resultId === resultId);
+    const branchData = {
+      resultId,
+      order: existingIdx >= 0 ? step.branches[existingIdx].order : step.branches.length,
+      nextStepType,
+      nextActionId:  nextStepType === "next_in_chain" ? nextActionId : null,
+      closeOutcome:  nextStepType === "close_task"    ? closeOutcome : null,
+      delayUnit,
+      delayValue,
+    };
+
+    if (existingIdx >= 0) {
+      step.branches[existingIdx] = branchData;
+    } else {
+      step.branches.push(branchData);
+    }
+
+    chain.markModified("steps");
+    await chain.save();
+    return sendSuccess(res, 200, "Cập nhật cấu hình kết quả thành công", chain);
+  }
+
+  /**
+   * DELETE /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches/:resultId
+   *
+   * Removes a branch from a specific EventActionChain step.
+   */
+  async deleteStepBranch(req, res) {
+    const { eventId, chainId, stepOrder, resultId } = req.params;
+
+    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
+    if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
+
+    const step = chain.steps.find(s => s.order === Number(stepOrder));
+    if (!step) throw createHttpError(404, `Không tìm thấy step order=${stepOrder}`);
+    if (step.isLocked) throw createHttpError(400, "Step đã lock, không thể chỉnh sửa cấu hình");
+
+    const before = step.branches.length;
+    step.branches = step.branches.filter(b => b.resultId !== resultId);
+    if (step.branches.length === before) throw createHttpError(404, "Branch không tồn tại");
+
+    // Nếu đang select kết quả vừa xóa → reset
+    if (step.selectedResultId === resultId) step.selectedResultId = null;
+
+    chain.markModified("steps");
+    await chain.save();
+    return sendSuccess(res, 200, "Xóa kết quả khỏi bước thành công", chain);
+  }
+
 }
 
 module.exports = new EventActionChainController();
