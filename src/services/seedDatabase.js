@@ -5,6 +5,11 @@ const Organization = require("../models/Organization");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
 const Task = require("../models/Task");
+const Action = require("../models/Action");
+const Result = require("../models/Result");
+const Reason = require("../models/Reason");
+const ActionChain = require("../models/ActionChain");
+const ActionRule = require("../models/ActionRule");
 const seedData = require("../constants/seedData");
 const { hashPassword } = require("../utils/auth");
 const { seedRbac, migrateUsersToRbac } = require("./rbacSeed");
@@ -143,11 +148,7 @@ async function syncUserOrganizationReferences() {
 }
 
 async function seedDatabase() {
-  await seedCollection(
-    Organization,
-    seedData.organizations,
-    "organization items",
-  );
+  await seedCollection(Organization, seedData.organizations, "organization items");
   await syncOrganizationAliases();
   await seedUsers();
   await syncUserOrganizationReferences();
@@ -155,11 +156,14 @@ async function seedDatabase() {
   await seedCollection(Lead, seedData.leads, "leads");
   await seedCollection(Task, seedData.tasks, "tasks");
   await seedCollection(Event, seedData.events, "events");
-  await seedCollection(
-    StaffFunction,
-    seedData.staffFunctions,
-    "staff functions",
-  );
+  await seedCollection(StaffFunction, seedData.staffFunctions, "staff functions");
+
+  // ── Action config — thứ tự: Reason → Result → Action → ActionChain → ActionRule ──────
+  await seedCollection(Reason, seedData.reasons, "reasons");
+  await seedCollection(Result, seedData.results, "results");
+  await seedCollection(Action, seedData.actions, "actions");
+  await seedCollection(ActionChain, seedData.actionChains, "action chains");
+  await seedCollection(ActionRule, seedData.actionRules, "action rules");
 
   // Seed RBAC
   await seedRbac();

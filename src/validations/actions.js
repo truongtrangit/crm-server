@@ -72,7 +72,12 @@ const branchSchema = Joi.object({
   nextActionId: Joi.string().allow(null, "").optional().default(null),
   closeOutcome: Joi.string().valid(...ALL_CLOSE_OUTCOMES).allow(null).optional().default(null),
   delayUnit:    Joi.string().valid(...ALL_BRANCH_DELAY_UNITS).allow(null).optional().default(null),
-  delayValue:   Joi.number().integer().min(1).allow(null).optional().default(null),
+  // delayValue: 0 khi immediate, >= 1 khi có đơn vị thời gian
+  delayValue: Joi.when('delayUnit', {
+    is:        Joi.string().valid('immediate'),
+    then:      Joi.number().integer().min(0).allow(null).optional().default(0),
+    otherwise: Joi.number().integer().min(1).allow(null).optional().default(null),
+  }),
 });
 
 const chainStepSchema = Joi.object({
