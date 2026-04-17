@@ -1,6 +1,7 @@
 const Event = require("../models/Event");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
+const EventActionChain = require("../models/EventActionChain");
 const { generateSequentialId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
@@ -284,6 +285,9 @@ class EventService {
     if (!deleted) {
       throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
     }
+
+    // ━ Cascade: xóa tất cả EventActionChain thuộc event này
+    await EventActionChain.deleteMany({ eventId: id });
   }
 
   async syncCustomer(id) {

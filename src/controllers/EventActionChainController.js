@@ -388,12 +388,15 @@ class EventActionChainController {
       if (!activeStep) continue;
       if (overdueOnly === "true" && activeStep.scheduledAt && activeStep.scheduledAt > now) continue;
 
-      const evt = eventMap[chain.eventId] || null;
+      const evt = eventMap[chain.eventId];
+      // ── Defensive: bỏ qua chain mà event đã bị xóa (orphan) ──
+      if (!evt) continue;
+
       queue.push({
         chainId:   chain.id,
         chainName: chain.name,
         eventId:   chain.eventId,
-        event: evt ? {
+        event: {
           id:       evt.id,
           name:     evt.name,
           sub:      evt.sub,
@@ -402,7 +405,7 @@ class EventActionChainController {
           customer: evt.customer,
           assignee: evt.assignee,
           plan:     evt.plan,
-        } : null,
+        },
         step: {
           order:          activeStep.order,
           actionId:       activeStep.actionId,
