@@ -55,11 +55,9 @@ const actionChainSchema = new mongoose.Schema(
     id:          { type: String, required: true, unique: true },
     name:        { type: String, required: true, trim: true },
     description: { type: String, default: "" },
-    delay: {
-      type: String,
-      enum: ALL_CHAIN_DELAYS,
-      default: "immediate",
-    },
+    // Flexible delay: unit ('immediate' | 'minute' | 'hour' | 'day' | 'week') + value (number)
+    delayUnit:  { type: String, enum: ['immediate', 'minute', 'hour', 'day', 'week'], default: 'immediate' },
+    delayValue: { type: Number, default: null },
     active: { type: Boolean, default: true },
     steps: { type: [stepSchema], default: [] },
   },

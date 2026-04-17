@@ -3,11 +3,12 @@ const {
   ALL_ACTION_TYPES,
   ACTION_CATEGORY_VALUES,
   ALL_RESULT_TYPES,
-  ALL_CHAIN_DELAYS,
   ALL_NEXT_STEP_TYPES,
   ALL_CLOSE_OUTCOMES,
   ALL_BRANCH_DELAY_UNITS,
 } = require("../constants/actionConfig");
+
+const CHAIN_DELAY_UNITS = ['immediate', 'minute', 'hour', 'day', 'week'];
 
 // ─── Result ───
 const createResultSchema = Joi.object({
@@ -91,7 +92,12 @@ const createActionChainSchema = Joi.object({
     "any.required": "name is required",
   }),
   description: Joi.string().allow("").optional(),
-  delay:  Joi.string().valid(...ALL_CHAIN_DELAYS).optional().default("immediate"),
+  delayUnit:  Joi.string().valid(...CHAIN_DELAY_UNITS).optional().default("immediate"),
+  delayValue: Joi.when('delayUnit', {
+    is:        Joi.string().valid('immediate'),
+    then:      Joi.number().integer().min(0).allow(null).optional().default(null),
+    otherwise: Joi.number().integer().min(1).allow(null).optional().default(1),
+  }),
   active: Joi.boolean().optional().default(true),
   steps:  Joi.array().items(chainStepSchema).optional().default([]),
 });
@@ -99,7 +105,8 @@ const createActionChainSchema = Joi.object({
 const updateActionChainSchema = Joi.object({
   name:        Joi.string().trim().optional(),
   description: Joi.string().allow("").optional(),
-  delay:       Joi.string().valid(...ALL_CHAIN_DELAYS).optional(),
+  delayUnit:   Joi.string().valid(...CHAIN_DELAY_UNITS).optional(),
+  delayValue:  Joi.number().integer().min(1).allow(null).optional(),
   active:      Joi.boolean().optional(),
   steps:       Joi.array().items(chainStepSchema).optional(),
 }).min(1);

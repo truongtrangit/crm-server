@@ -319,17 +319,18 @@ const actions = [
 
 // ─── ActionChains ─────────────────────────────────────────────────────────────
 // Đây là chuỗi hành động template (cấu hình quy tắc)
-// delay (chain-level): "immediate" | "1h" | "4h" | "1d" | "3d" | "7d"
+// delayUnit: "immediate" | "minute" | "hour" | "day" | "week"
+// delayValue: số tương ứng (null khi immediate)
 // branch.nextStepType: "next_in_chain" | "close_task" | "close_chain" | ...
 // branch.closeOutcome: "success" | "failure" (chỉ khi nextStepType === "close_task")
-// branch.delayUnit: "immediate" | "minute" | "hour" | "day" | "week"
 const actionChains = [
   // ─ Chuỗi 1: Chăm sóc khách hàng mới ────────────────────────────────────
   {
     id: "CHAIN001",
     name: "Chăm sóc khách hàng mới",
     description: "Chuỗi chăm sóc tự động khi có user/biz mới đăng ký",
-    delay: "immediate",
+    delayUnit:  "immediate",
+    delayValue: null,
     active: true,
     steps: [
       {
@@ -421,7 +422,8 @@ const actionChains = [
     id: "CHAIN002",
     name: "Xử lý chuyển khoản",
     description: "Xác nhận và xử lý khi nhận thanh toán chuyển khoản",
-    delay: "immediate",
+    delayUnit:  "immediate",
+    delayValue: null,
     active: true,
     steps: [
       {
@@ -465,7 +467,8 @@ const actionChains = [
     id: "CHAIN003",
     name: "Nhắc gia hạn gói cước",
     description: "Tự động nhắc gia hạn khi gói cước sắp hết hạn",
-    delay: "immediate",
+    delayUnit:  "immediate",
+    delayValue: null,
     active: true,
     steps: [
       {
@@ -818,7 +821,8 @@ actionChains.push({
   description:
     "Chuỗi 5 bước chuyển đổi khách hàng từ gói Trial sang gói trả phí: " +
     "gửi tài liệu → gọi tư vấn → gọi chốt deal → tạo đơn hàng → xác nhận thanh toán.",
-  delay: "1d", // Bắt đầu 1 ngày sau khi sự kiện kích hoạt
+  delayUnit:  "day",   // Bắt đầu 1 ngày sau khi sự kiện kích hoạt
+  delayValue: 1,
   active: true,
   steps: [
     // ── Bước 1: Gửi tài liệu & proposal ──────────────────────────────────

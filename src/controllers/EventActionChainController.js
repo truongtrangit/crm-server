@@ -93,7 +93,8 @@ class EventActionChainController {
       const now = new Date();
       // Apply the chain-level delay to the FIRST step's scheduled time.
       // This is the delay from the moment the chain is added to the event.
-      const { unit: chainDelayUnit, value: chainDelayValue } = parseChainDelay(template.delay);
+      const chainDelayUnit  = template.delayUnit  || "immediate";
+      const chainDelayValue = template.delayValue  || null;
       const scheduledAt = calcScheduledAt(now, chainDelayUnit, chainDelayValue);
 
       steps[0].status      = "active";
