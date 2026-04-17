@@ -61,6 +61,7 @@ class EventActionChainController {
 
     const template = await ActionChain.findOne({ id: chainId });
     if (!template) throw createHttpError(404, "ActionChain không tồn tại");
+    if (!template.active) throw createHttpError(422, "Chỉ có thể thêm chuỗi hành động đang kích hoạt (active) vào sự kiện");
 
     const exists = await EventActionChain.findOne({ eventId, chainId });
     if (exists) throw createHttpError(409, "Chuỗi hành động này đã được thêm vào sự kiện");
@@ -296,7 +297,11 @@ class EventActionChainController {
     step.delayUnit    = delayUnit ?? step.delayUnit;
     step.delayValue   = delayValue ?? step.delayValue;
     step.delayEditNote= editNote || step.delayEditNote;
-    step.scheduledAt  = calcScheduledAt(step.activatedAt, step.delayUnit, step.delayValue);
+
+    // ── Bug fix: tính scheduledAt từ NOW (thời điểm user cập nhật),
+    // không phải từ activatedAt (đã là quá khứ).
+    // Nếu dùng activatedAt: delay 5p nhưng step đã active 2p → chỉ còn 3p.
+    step.scheduledAt  = calcScheduledAt(new Date(), step.delayUnit, step.delayValue);
 
     chain.markModified("steps");
     await chain.save();
