@@ -1,23 +1,14 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const env = require("./config/env");
-const { authenticateRequest } = require("./middleware/auth");
 const requestLogger = require("./middleware/requestLogger");
 const { createHttpError, sendError, sendSuccess } = require("./utils/http");
 const logger = require("./utils/logger");
-const authRouter = require("./routes/auth");
-const customersRouter = require("./routes/customers");
-const usersRouter = require("./routes/users");
-const leadsRouter = require("./routes/leads");
-const tasksRouter = require("./routes/tasks");
-const eventsRouter = require("./routes/events");
-const organizationRouter = require("./routes/organization");
-const metadataRouter = require("./routes/metadata");
-const functionsRouter = require("./routes/functions");
-const rbacRouter = require("./routes/rbac");
-const actionConfigRouter = require("./routes/actionConfig");
-const eventChainsRouter = require("./routes/eventChains");
-const EventActionChainController = require("./controllers/EventActionChainController");
+
+// ─── Versioned Routers ────────────────────────────────────────────────────────
+const v1Router = require("./routes/v1");
 
 const app = express();
 const allowedOrigins = env.clientUrl
@@ -25,6 +16,37 @@ const allowedOrigins = env.clientUrl
   .map((item) => item.trim())
   .filter(Boolean);
 
+// ─── Security Headers ─────────────────────────────────────────────────────────
+app.use(helmet());
+
+// ─── Rate Limiters ────────────────────────────────────────────────────────────
+/** Strict limiter for auth routes – chống brute-force login */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 20,                  // tối đa 20 requests / 15 phút / IP
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again after 15 minutes.",
+    code: "TOO_MANY_REQUESTS",
+  },
+});
+
+/** General limiter cho toàn bộ API */
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 200,                 // tối đa 200 requests / 15 phút / IP
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again after 15 minutes.",
+    code: "TOO_MANY_REQUESTS",
+  },
+});
+
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
   cors({
     origin(origin, callback) {
@@ -49,62 +71,42 @@ app.use(
 app.use(express.json());
 app.use(requestLogger);
 
-app.get("/health", (_req, res) => {
-  return sendSuccess(res, 200, "Health check success", {
+// ─── Utility Routes ───────────────────────────────────────────────────────────
+app.get("/health", (_req, res) =>
+  sendSuccess(res, 200, "Health check success", {
     status: "ok",
     service: "crm-server",
-  });
-});
-
-app.get("/api", (_req, res) => {
-  return sendSuccess(res, 200, "CRM server API is running", {
-    resources: [
-      "customers",
-      "staff",
-      "auth",
-      "leads",
-      "tasks",
-      "events",
-      "organization",
-      "metadata",
-      "functions",
-      "action-config",
-    ],
-  });
-});
-
-app.use("/api/auth", authRouter);
-
-app.use(authenticateRequest);
-app.use("/api/customers", customersRouter);
-app.use("/api/users", usersRouter);
-app.use("/api/leads", leadsRouter);
-app.use("/api/tasks", tasksRouter);
-app.use("/api/events", eventsRouter);
-app.use("/api/organization", organizationRouter);
-app.use("/api/metadata", metadataRouter);
-app.use("/api/functions", functionsRouter);
-app.use("/api/rbac", rbacRouter);
-app.use("/api/action-config", actionConfigRouter);
-// Nested: chuỗi hành động trong sự kiện
-app.use("/api/events/:eventId/chains", eventChainsRouter);
-// Task Queue: lấy tất cả steps cần làm (cross-event)
-app.get("/api/event-chains/queue",
-  require("./middleware/auth").authenticateRequest,
-  require("./utils/asyncHandler")(EventActionChainController.getTaskQueue)
+  }),
 );
 
-app.use((req, res) => {
-  return sendError(
-    res,
-    404,
-    `Route not found: ${req.method} ${req.originalUrl}`,
-    {
-      code: "ROUTE_NOT_FOUND",
+/** API root: thông tin các versions hiện có */
+app.get("/api", (_req, res) =>
+  sendSuccess(res, 200, "CRM server API", {
+    versions: {
+      v1: "/api/v1",
     },
-  );
-});
+    latest: "v1",
+  }),
+);
 
+// ─── API Versioning ───────────────────────────────────────────────────────────
+// Áp dụng rate limiter chung cho toàn bộ /api/v1
+app.use("/api/v1", apiLimiter);
+
+// Auth limiter cho riêng /api/v1/auth
+app.use("/api/v1/auth", authLimiter);
+
+// Mount versioned router
+app.use("/api/v1", v1Router);
+
+// ─── 404 Handler ─────────────────────────────────────────────────────────────
+app.use((req, res) =>
+  sendError(res, 404, `Route not found: ${req.method} ${req.originalUrl}`, {
+    code: "ROUTE_NOT_FOUND",
+  }),
+);
+
+// ─── Global Error Handler ────────────────────────────────────────────────────
 app.use((error, _req, res, _next) => {
   logger.error("Unhandled error", {
     message: error.message,
