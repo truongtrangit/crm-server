@@ -23,12 +23,13 @@ app.use(helmet());
 /** Strict limiter for auth routes – chống brute-force login */
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 15 giây
-  max: 500,                  // tối đa 500 requests / 15 giây / IP
+  max: 50, // tối đa 500 requests / 15 giây / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
     success: false,
-    message: "Too many requests from this IP, please try again after 15 seconds.",
+    message:
+      "Too many requests from this IP, please try again after 15 seconds.",
     code: "TOO_MANY_REQUESTS",
   },
 });
@@ -36,12 +37,13 @@ const authLimiter = rateLimit({
 /** General limiter cho toàn bộ API */
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 15 phút
-  max: 500,                 // tối đa 200 requests / 15 phút / IP
+  max: 500, // tối đa 200 requests / 15 phút / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
     success: false,
-    message: "Too many requests from this IP, please try again after 15 minutes.",
+    message:
+      "Too many requests from this IP, please try again after 15 minutes.",
     code: "TOO_MANY_REQUESTS",
   },
 });

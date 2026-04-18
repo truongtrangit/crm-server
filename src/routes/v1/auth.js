@@ -10,7 +10,7 @@ const logger = require("../../utils/logger");
 const {
   buildAuthResponse,
   clearRefreshCookies,
-  createPasswordResetToken,   
+  createPasswordResetToken,
   createSessionTokens,
   getRefreshContext,
   hashPassword,
@@ -331,6 +331,8 @@ router.post("/change-password", authenticateRequest, validate(changePasswordSche
   return sendSuccess(res, 200, "Change password success", null);
 });
 
+// Actually, it's create staff step, in this system, ownner/admin will create user
+// We don't have register by user
 router.post(
   "/register",
   authenticateRequest,

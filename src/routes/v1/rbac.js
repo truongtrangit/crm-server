@@ -13,41 +13,6 @@ const { createRoleSchema, updateRoleSchema } = require("../../validations/rbac")
 
 const router = express.Router();
 
-// ==================== PERMISSIONS ROUTES ====================
-
-/**
- * GET /api/permissions
- * Get all permissions (requires PERMISSIONS_READ or OWNER)
- */
-router.get(
-  "/",
-  requirePermission(PERMISSIONS.PERMISSIONS_READ),
-  async (req, res) => {
-    const permissions = await Permission.find().select("-createdBy");
-    return sendSuccess(res, 200, "Get permissions success", permissions);
-  },
-);
-
-/**
- * GET /api/permissions/:id
- * Get permission by ID
- */
-router.get(
-  "/:id",
-  requirePermission(PERMISSIONS.PERMISSIONS_READ),
-  async (req, res) => {
-    const permission = await Permission.findOne({ id: req.params.id });
-
-    if (!permission) {
-      return sendError(res, 404, "Permission not found", {
-        code: "PERMISSION_NOT_FOUND",
-      });
-    }
-
-    return sendSuccess(res, 200, "Get permission success", permission);
-  },
-);
-
 // ==================== ROLES ROUTES ====================
 
 /**
@@ -89,6 +54,41 @@ router.get(
     };
 
     return sendSuccess(res, 200, "Get role success", roleWithPermissions);
+  },
+);
+
+// ==================== PERMISSIONS ROUTES ====================
+
+/**
+ * GET /api/permissions
+ * Get all permissions (requires PERMISSIONS_READ or OWNER)
+ */
+router.get(
+  "/",
+  requirePermission(PERMISSIONS.PERMISSIONS_READ),
+  async (req, res) => {
+    const permissions = await Permission.find().select("-createdBy");
+    return sendSuccess(res, 200, "Get permissions success", permissions);
+  },
+);
+
+/**
+ * GET /api/permissions/:id
+ * Get permission by ID
+ */
+router.get(
+  "/:id",
+  requirePermission(PERMISSIONS.PERMISSIONS_READ),
+  async (req, res) => {
+    const permission = await Permission.findOne({ id: req.params.id });
+
+    if (!permission) {
+      return sendError(res, 404, "Permission not found", {
+        code: "PERMISSION_NOT_FOUND",
+      });
+    }
+
+    return sendSuccess(res, 200, "Get permission success", permission);
   },
 );
 
