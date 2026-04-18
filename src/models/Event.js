@@ -46,6 +46,8 @@ const eventSchema = new mongoose.Schema(
       name: { type: String, default: "" },
       avatar: { type: String, default: "" },
       role: { type: String, default: "" },
+      department: [{ type: String }],
+      group: [{ type: String }],
     },
     stage: { type: String, default: "" },
     source: { type: String, default: "CRM" },

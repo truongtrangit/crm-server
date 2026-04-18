@@ -106,7 +106,7 @@ class EventController {
 
     // Thực hiện unassign
     event.assigneeId = null;
-    event.assignee = { name: '', avatar: '', role: '' };
+    event.assignee = { name: '', avatar: '', role: '', department: [], group: [] };
     await event.save();
     return sendSuccess(res, 200, 'Unassign thành công', event);
   }
@@ -130,6 +130,8 @@ class EventController {
       name: actor.name || '',
       avatar: actor.avatar || '',
       role: actor.roleId || '',
+      department: actor.department || [],
+      group: actor.group || [],
     };
     await event.save();
     return sendSuccess(res, 200, 'Tự nhận sự kiện thành công', event);

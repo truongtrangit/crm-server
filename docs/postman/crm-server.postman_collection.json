@@ -1,51 +1,31 @@
 {
   "info": {
-    "_postman_id": "crm-server-full-v2",
-    "name": "CRM Server API — Full",
-    "description": "Complete API collection for CRM Server.\n\n## Setup\n1. Import the companion environment file `crm-server-local.postman_environment.json`.\n2. Run **Auth → Login** first — `accessToken` is stored automatically via a test script.\n3. All other requests read `{{accessToken}}` from the environment.\n\n## Token Refresh\nIf you receive a `401 UNAUTHORIZED`, run **Auth → Refresh Token** to get a new access token.",
+    "_postman_id": "crm-server-v2-2026",
+    "name": "CRM Server API v2 (2026)",
+    "description": "Full CRM API Collection — covers Auth, Users, Customers, Leads, Tasks, Events, Event Action Chains, Organization, Metadata, Functions, RBAC, Action Config.\n\nSeed data users:\n- owner@crm.vn / Owner@123\n- admin@crm.vn / Admin@123\n- manager.sale@crm.vn / Manager@123\n- staff1@crm.vn / Staff@123\n\nBase URL: {{baseUrl}} (default: http://localhost:4000)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:4000", "type": "string" }
+    { "key": "baseUrl", "value": "http://localhost:4000", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "eventId", "value": "EVT001", "type": "string" },
+    { "key": "chainId", "value": "CHAIN001", "type": "string" }
   ],
   "item": [
-    {
-      "name": "⚙️ System",
-      "item": [
-        {
-          "name": "Health Check",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
-          }
-        },
-        {
-          "name": "API Info",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": { "raw": "{{baseUrl}}/api", "host": ["{{baseUrl}}"], "path": ["api"] }
-          }
-        }
-      ]
-    },
     {
       "name": "🔐 Auth",
       "item": [
         {
-          "name": "Login",
+          "name": "Login (Owner)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    if (json.data && json.data.accessToken) {",
-                  "        pm.environment.set('accessToken', json.data.accessToken);",
-                  "        console.log('✅ accessToken saved to environment');",
-                  "    }",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  console.log('Token saved:', json.data.accessToken.substring(0,20) + '...');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -57,24 +37,21 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"owner@crm.local\",\n  \"password\": \"crm123456\"\n}"
+              "raw": "{\n  \"email\": \"owner@crm.vn\",\n  \"password\": \"Owner@123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           }
         },
         {
-          "name": "Refresh Token",
+          "name": "Login (Admin)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    if (json.data && json.data.accessToken) {",
-                  "        pm.environment.set('accessToken', json.data.accessToken);",
-                  "        console.log('✅ accessToken refreshed');",
-                  "    }",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -84,44 +61,75 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{}" },
-            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@crm.vn\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           }
         },
         {
-          "name": "Forgot Password",
+          "name": "Login (Manager Sale)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"owner@crm.local\"\n}"
+              "raw": "{\n  \"email\": \"manager.sale@crm.vn\",\n  \"password\": \"Manager@123\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "forgot-password"] }
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           }
         },
         {
-          "name": "Reset Password",
+          "name": "Login (Staff1 - Vũ Thu Phương)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"owner@crm.local\",\n  \"resetToken\": \"PASTE_RESET_TOKEN_HERE\",\n  \"newPassword\": \"newSecure456\"\n}"
+              "raw": "{\n  \"email\": \"staff1@crm.vn\",\n  \"password\": \"Staff@123\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "reset-password"] }
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           }
         },
         {
-          "name": "Logout",
+          "name": "Login (Staff2 - Lê Văn Hùng)",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": { "mode": "raw", "raw": "{}" },
-            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff2@crm.vn\",\n  \"password\": \"Staff@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           }
         },
         {
@@ -142,7 +150,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"0901234567\",\n  \"avatar\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"0901234567\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
           }
@@ -157,53 +165,52 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"currentPassword\": \"crm123456\",\n  \"newPassword\": \"newSecure789\"\n}"
+              "raw": "{\n  \"currentPassword\": \"Owner@123\",\n  \"newPassword\": \"Owner@456\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/auth/change-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "change-password"] }
           }
         },
         {
-          "name": "Register New User",
+          "name": "Forgot Password",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"New Staff Member\",\n  \"email\": \"newstaff@crm.local\",\n  \"password\": \"crm123456\",\n  \"role\": \"STAFF\",\n  \"phone\": \"0901234567\",\n  \"avatar\": \"\",\n  \"department\": [\"Sales\"],\n  \"departmentAliases\": [\"sales\"],\n  \"managerId\": null\n}"
+              "raw": "{\n  \"email\": \"staff1@crm.vn\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "forgot-password"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
           }
         }
       ]
     },
     {
-      "name": "👥 Users (Staff)",
+      "name": "👥 Users",
       "item": [
         {
           "name": "List Users",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/users?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "", "disabled": true },
-                { "key": "department", "value": "", "disabled": true },
-                { "key": "role", "value": "", "disabled": true },
-                { "key": "managerId", "value": "", "disabled": true }
-              ]
-            }
+            "url": { "raw": "{{baseUrl}}/api/users?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "users"], "query": [
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" },
+              { "key": "search", "value": "", "disabled": true },
+              { "key": "role", "value": "STAFF", "disabled": true },
+              { "key": "department", "value": "Phòng Sale", "disabled": true }
+            ]}
           }
         },
         {
-          "name": "Create User",
+          "name": "Create User (STAFF)",
           "request": {
             "method": "POST",
             "header": [
@@ -212,7 +219,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Nguyen Van A\",\n  \"email\": \"nvana@crm.local\",\n  \"password\": \"crm123456\",\n  \"role\": \"STAFF\",\n  \"phone\": \"0901234567\",\n  \"avatar\": \"\",\n  \"department\": [\"Sales\"],\n  \"departmentAliases\": [\"sales\"],\n  \"group\": [\"B2B Sales\"],\n  \"groupAliases\": [\"sales-b2b\"],\n  \"managerId\": null\n}"
+              "raw": "{\n  \"name\": \"Nhân viên mới\",\n  \"email\": \"newstaff@crm.vn\",\n  \"password\": \"Staff@123\",\n  \"role\": \"STAFF\",\n  \"phone\": \"0901000099\",\n  \"department\": [\"Phòng Sale\"],\n  \"group\": [\"Nhóm Sale Hà Nội\"],\n  \"managerId\": \"USER003\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
           }
@@ -227,13 +234,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Nguyen Van A (Updated)\",\n  \"role\": \"MANAGER\",\n  \"phone\": \"0912345678\"\n}"
+              "raw": "{\n  \"name\": \"Tên đã cập nhật\",\n  \"phone\": \"0912000011\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users", "{{userId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/users/USER004", "host": ["{{baseUrl}}"], "path": ["api", "users", "USER004"] }
           }
         },
         {
@@ -241,36 +244,26 @@
           "request": {
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users", "{{userId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/users/USER007", "host": ["{{baseUrl}}"], "path": ["api", "users", "USER007"] }
           }
         }
       ]
     },
     {
-      "name": "🏢 Customers",
+      "name": "🤝 Customers",
       "item": [
         {
           "name": "List Customers",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/customers?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "", "disabled": true },
-                { "key": "type", "value": "", "disabled": true },
-                { "key": "group", "value": "", "disabled": true },
-                { "key": "platform", "value": "", "disabled": true }
-              ]
-            }
+            "url": { "raw": "{{baseUrl}}/api/customers?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "customers"], "query": [
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" },
+              { "key": "search", "value": "", "disabled": true },
+              { "key": "type", "value": "VIP Customer", "disabled": true },
+              { "key": "group", "value": "Nhóm Sale Hà Nội", "disabled": true }
+            ]}
           }
         },
         {
@@ -286,11 +279,7 @@
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "{{customerId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/customers/CUST001", "host": ["{{baseUrl}}"], "path": ["api", "customers", "CUST001"] }
           }
         },
         {
@@ -303,7 +292,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@company.com\",\n  \"avatar\": \"\",\n  \"type\": \"Standard Customer\",\n  \"phone\": \"0901234567\",\n  \"biz\": [\"BIZ-001\"],\n  \"platforms\": [\"SmaxAi\"],\n  \"group\": \"Mới\",\n  \"registeredAt\": \"2026-01-01\",\n  \"lastLoginAt\": \"2026-04-01\",\n  \"tags\": [\"priority\", \"enterprise\"]\n}"
+              "raw": "{\n  \"name\": \"Khách hàng mới\",\n  \"email\": \"new.customer@example.com\",\n  \"phone\": \"0900 111 222\",\n  \"type\": \"Trial\",\n  \"biz\": [\"NewBiz\"],\n  \"platforms\": [\"SmaxAi\"],\n  \"group\": \"Nhóm Sale HCM\",\n  \"registeredAt\": \"18/04/2026\",\n  \"tags\": [\"#Trial\"]\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/customers", "host": ["{{baseUrl}}"], "path": ["api", "customers"] }
           }
@@ -318,25 +307,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe (Updated)\",\n  \"type\": \"VIP Customer\",\n  \"tags\": [\"VIP\", \"priority\"]\n}"
+              "raw": "{\n  \"type\": \"Premium\",\n  \"tags\": [\"#VIP\", \"#Premium\"]\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "{{customerId}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Customer",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "{{customerId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/customers/CUST001", "host": ["{{baseUrl}}"], "path": ["api", "customers", "CUST001"] }
           }
         },
         {
@@ -349,13 +322,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"role\": \"sale\"\n}"
+              "raw": "{\n  \"userId\": \"USER004\",\n  \"role\": \"sale\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/customers/{{customerId}}/assignees",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "{{customerId}}", "assignees"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/customers/CUST001/assignees", "host": ["{{baseUrl}}"], "path": ["api", "customers", "CUST001", "assignees"] }
           }
         },
         {
@@ -363,172 +332,7 @@
           "request": {
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/customers/{{customerId}}/assignees/{{userId}}?role=sale",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "{{customerId}}", "assignees", "{{userId}}"],
-              "query": [{ "key": "role", "value": "sale" }]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "💡 Leads",
-      "item": [
-        {
-          "name": "List Leads",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "", "disabled": true },
-                { "key": "status", "value": "", "disabled": true },
-                { "key": "assignee", "value": "", "disabled": true }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Lead",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Potential Client XYZ\",\n  \"avatar\": \"\",\n  \"timeAgo\": \"Vừa xong\",\n  \"tags\": [\"B2B\", \"Enterprise\"],\n  \"assignee\": {\n    \"name\": \"Nguyen Van A\",\n    \"avatar\": \"\"\n  },\n  \"status\": \"Biz tạo mới\",\n  \"actionNeeded\": \"Gọi điện tư vấn\",\n  \"actionType\": \"orange\",\n  \"email\": \"lead@company.com\",\n  \"phone\": \"0901234567\",\n  \"source\": \"Facebook Ads\",\n  \"address\": \"Hanoi, Vietnam\"\n}"
-            },
-            "url": { "raw": "{{baseUrl}}/api/leads", "host": ["{{baseUrl}}"], "path": ["api", "leads"] }
-          }
-        },
-        {
-          "name": "Update Lead",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Potential Client XYZ (Updated)\",\n  \"status\": \"Đang tư vấn\",\n  \"actionType\": \"green\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}"]
-            }
-          }
-        },
-        {
-          "name": "Update Lead Status",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"Đã chuyển đổi\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}", "status"]
-            }
-          }
-        },
-        {
-          "name": "Delete Lead",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "✅ Tasks",
-      "item": [
-        {
-          "name": "List Tasks",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/tasks?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tasks"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "", "disabled": true },
-                { "key": "platform", "value": "", "disabled": true },
-                { "key": "assignee", "value": "", "disabled": true },
-                { "key": "status", "value": "", "disabled": true }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Task",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"action\": \"Gọi điện tư vấn khách hàng\",\n  \"time\": \"10:00 16/04/2026\",\n  \"timeType\": \"future\",\n  \"customer\": {\n    \"name\": \"John Doe\",\n    \"avatar\": \"\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"0901234567\"\n  },\n  \"platform\": \"SmaxAi\",\n  \"assignee\": {\n    \"name\": \"Nguyen Van A\",\n    \"avatar\": \"\"\n  },\n  \"status\": \"Đang thực hiện\"\n}"
-            },
-            "url": { "raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"] }
-          }
-        },
-        {
-          "name": "Update Task",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"action\": \"Gọi điện tư vấn lần 2\",\n  \"status\": \"Hoàn thành\",\n  \"timeType\": \"soon\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/tasks/{{taskId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tasks", "{{taskId}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Task",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/tasks/{{taskId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tasks", "{{taskId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/customers/CUST001/assignees/USER004?role=sale", "host": ["{{baseUrl}}"], "path": ["api", "customers", "CUST001", "assignees", "USER004"], "query": [{ "key": "role", "value": "sale" }] }
           }
         }
       ]
@@ -537,23 +341,89 @@
       "name": "📅 Events",
       "item": [
         {
-          "name": "List Events",
+          "name": "List All Events",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/events?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "events"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "", "disabled": true },
-                { "key": "group", "value": "", "disabled": true, "description": "user_moi | biz_moi | can_nang_cap | sap_het_han | chuyen_khoan" },
-                { "key": "stage", "value": "", "disabled": true },
-                { "key": "assignee", "value": "", "disabled": true }
-              ]
-            }
+            "url": { "raw": "{{baseUrl}}/api/events?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" },
+              { "key": "search", "value": "", "disabled": true },
+              { "key": "group", "value": "user_moi", "disabled": true },
+              { "key": "assignee", "value": "Vũ Thu Phương", "disabled": true }
+            ]}
+          }
+        },
+        {
+          "name": "List Unassigned Events",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events?unassigned=true&page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "unassigned", "value": "true" },
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" }
+            ]}
+          }
+        },
+        {
+          "name": "List Unsynced Events (customerId=null)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events?unsynced=true&page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "unsynced", "value": "true" },
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" }
+            ]}
+          }
+        },
+        {
+          "name": "List Events by Group — user_moi",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events?group=user_moi&page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "group", "value": "user_moi" },
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" }
+            ]}
+          }
+        },
+        {
+          "name": "List Events by Group — biz_moi",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events?group=biz_moi&page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "group", "value": "biz_moi" },
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" }
+            ]}
+          }
+        },
+        {
+          "name": "List Events by Group — sap_het_han",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events?group=sap_het_han&page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "group", "value": "sap_het_han" },
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" }
+            ]}
+          }
+        },
+        {
+          "name": "List Events by Group — chuyen_khoan",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events?group=chuyen_khoan&page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "events"], "query": [
+              { "key": "group", "value": "chuyen_khoan" },
+              { "key": "page", "value": "1" },
+              { "key": "limit", "value": "20" }
+            ]}
           }
         },
         {
@@ -565,19 +435,31 @@
           }
         },
         {
-          "name": "Get Event by ID",
+          "name": "Get Event by ID (EVT001)",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/events/{{eventId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "events", "{{eventId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}"] }
           }
         },
         {
-          "name": "Create Event",
+          "name": "Get Unassigned Event (EVT003)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/EVT003", "host": ["{{baseUrl}}"], "path": ["api", "events", "EVT003"] }
+          }
+        },
+        {
+          "name": "Get Unsynced Event (EVT004)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/EVT004", "host": ["{{baseUrl}}"], "path": ["api", "events", "EVT004"] }
+          }
+        },
+        {
+          "name": "Create Event (Assigned)",
           "request": {
             "method": "POST",
             "header": [
@@ -586,7 +468,22 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"SmaxAi Enterprise Package\",\n  \"sub\": \"Gói doanh nghiệp\",\n  \"group\": \"biz_moi\",\n  \"customer\": {\n    \"name\": \"Nguyen Van A\",\n    \"avatar\": \"\",\n    \"role\": \"CEO\",\n    \"email\": \"ceo@company.com\",\n    \"phone\": \"0901234567\",\n    \"source\": \"Referral\",\n    \"address\": \"Hanoi, Vietnam\"\n  },\n  \"biz\": {\n    \"id\": \"BIZ-001\",\n    \"tags\": [\"enterprise\", \"priority\"]\n  },\n  \"assignee\": {\n    \"name\": \"Sale Staff A\",\n    \"avatar\": \"\",\n    \"role\": \"sale\"\n  },\n  \"customerId\": null,\n  \"assigneeId\": null,\n  \"stage\": \"Đang tư vấn\",\n  \"source\": \"CRM\",\n  \"tags\": [\"hot\", \"Q2\"],\n  \"plan\": {\n    \"name\": \"PRO\",\n    \"cycle\": \"Thanh toán theo năm\",\n    \"price\": \"5,000,000 đ\",\n    \"daysLeft\": 365,\n    \"expiryDate\": \"2027-04-16\"\n  },\n  \"services\": [\n    { \"name\": \"SMS Marketing\", \"active\": true },\n    { \"name\": \"Email Automation\", \"active\": false }\n  ],\n  \"quotas\": [\n    { \"name\": \"Tin nhắn\", \"used\": 500, \"total\": 1000, \"color\": \"blue\" },\n    { \"name\": \"Email\", \"used\": 100, \"total\": \"unlimited\", \"color\": \"green\" }\n  ]\n}"
+              "raw": "{\n  \"name\": \"Test Event được tạo thủ công\",\n  \"sub\": \"Subtext mô tả\",\n  \"group\": \"biz_moi\",\n  \"customer\": {\n    \"name\": \"Test Customer\",\n    \"avatar\": \"\",\n    \"role\": \"CEO\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"0900000001\",\n    \"source\": \"CRM\",\n    \"address\": \"Hà Nội\"\n  },\n  \"customerId\": \"CUST001\",\n  \"biz\": { \"id\": \"#BIZ_TEST\", \"tags\": [\"Trial\"] },\n  \"assigneeId\": \"USER004\",\n  \"assignee\": {\n    \"name\": \"Vũ Thu Phương\",\n    \"avatar\": \"https://i.pravatar.cc/100?img=25\",\n    \"role\": \"Nhân viên Sales\"\n  },\n  \"stage\": \"Chờ xử lý\",\n  \"plan\": {\n    \"name\": \"TRIAL\",\n    \"cycle\": \"Dùng thử\",\n    \"price\": \"0 đ\",\n    \"daysLeft\": 14,\n    \"expiryDate\": \"02/05/2026\"\n  },\n  \"services\": [],\n  \"quotas\": []\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"] }
+          }
+        },
+        {
+          "name": "Create Event (Unassigned — no assigneeId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sự kiện chưa gán nhân viên\",\n  \"sub\": \"Hệ thống tự động\",\n  \"group\": \"user_moi\",\n  \"customer\": {\n    \"name\": \"Khách hàng X\",\n    \"avatar\": \"\",\n    \"role\": \"\",\n    \"email\": \"khachx@example.com\",\n    \"phone\": \"0900000099\",\n    \"source\": \"Landing Page\",\n    \"address\": \"TP. HCM\"\n  },\n  \"customerId\": null,\n  \"biz\": { \"id\": \"\", \"tags\": [\"Trial\"] },\n  \"assigneeId\": null,\n  \"assignee\": { \"name\": \"\", \"avatar\": \"\", \"role\": \"\" },\n  \"stage\": \"Chờ phân công\",\n  \"plan\": {\n    \"name\": \"TRIAL\", \"cycle\": \"Dùng thử\", \"price\": \"0 đ\", \"daysLeft\": 14, \"expiryDate\": \"\"\n  },\n  \"services\": [],\n  \"quotas\": []\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"] }
           }
@@ -601,17 +498,13 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stage\": \"Đã ký hợp đồng\",\n  \"tags\": [\"hot\", \"Q2\", \"signed\"]\n}"
+              "raw": "{\n  \"stage\": \"Đang tư vấn\",\n  \"tags\": [\"#UserMoi\", \"#InProgress\"]\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/events/{{eventId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "events", "{{eventId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}"] }
           }
         },
         {
-          "name": "Add Timeline Entry",
+          "name": "Add Timeline Entry — Phone Call",
           "request": {
             "method": "POST",
             "header": [
@@ -620,13 +513,48 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"phone\",\n  \"title\": \"Cuộc gọi tư vấn lần 2\",\n  \"time\": \"14:00 16/04/2026\",\n  \"content\": \"Khách đang cân nhắc gói PRO. Hẹn gặp tuần sau.\",\n  \"duration\": \"15 phút\"\n}"
+              "raw": "{\n  \"type\": \"phone\",\n  \"title\": \"Gọi điện tư vấn lần 2\",\n  \"time\": \"14:00 18/04/2026\",\n  \"content\": \"Khách hàng quan tâm, hỏi thêm về gói Premium\",\n  \"duration\": \"8 phút\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/events/{{eventId}}/timeline",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "events", "{{eventId}}", "timeline"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/timeline", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "timeline"] }
+          }
+        },
+        {
+          "name": "Add Timeline Entry — Note",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"note\",\n  \"title\": \"Ghi chú nội bộ\",\n  \"content\": \"Khách mong muốn nâng lên Enterprise trong Q2, cần xin duyệt ngân sách\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/timeline", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "timeline"] }
+          }
+        },
+        {
+          "name": "Sync Event Customer (EVT004 — unsynced)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/EVT004/sync-customer", "host": ["{{baseUrl}}"], "path": ["api", "events", "EVT004", "sync-customer"] }
+          }
+        },
+        {
+          "name": "Self-Assign Event (EVT003 — unassigned)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/EVT003/self-assign", "host": ["{{baseUrl}}"], "path": ["api", "events", "EVT003", "self-assign"] }
+          }
+        },
+        {
+          "name": "Unassign Event (EVT001)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/EVT001/assignee", "host": ["{{baseUrl}}"], "path": ["api", "events", "EVT001", "assignee"] }
           }
         },
         {
@@ -634,48 +562,207 @@
           "request": {
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/events/{{eventId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "events", "{{eventId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⛓️ Event Action Chains",
+      "item": [
+        {
+          "name": "List Chains for Event",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains"] }
           }
         },
         {
-          "name": "Sync Event Customer",
+          "name": "Add Chain to Event (CHAIN001 — Chăm sóc KH mới)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('chainId', json.data.id);",
+                  "  console.log('Chain ID saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{accessToken}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{}" },
-            "url": {
-              "raw": "{{baseUrl}}/api/events/{{eventId}}/sync-customer",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "events", "{{eventId}}", "sync-customer"]
-            }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chainId\": \"CHAIN001\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains"] }
+          }
+        },
+        {
+          "name": "Add Chain to Event (CHAIN004 — Trial→Trả phí)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chainId\": \"CHAIN004\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/EVT009/chains", "host": ["{{baseUrl}}"], "path": ["api", "events", "EVT009", "chains"] }
+          }
+        },
+        {
+          "name": "Save Current Step — Success (Đã liên hệ & quan tâm)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedResultId\": \"RES001\",\n  \"selectedReasonId\": null,\n  \"note\": \"Khách hàng rất quan tâm, hẹn demo tuần tới\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/current", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "current"] }
+          }
+        },
+        {
+          "name": "Save Current Step — Failure (Không bắt máy)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedResultId\": \"RES002\",\n  \"selectedReasonId\": \"REAS001\",\n  \"note\": \"Gọi 2 lần vào buổi sáng đều không bắt được\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/current", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "current"] }
+          }
+        },
+        {
+          "name": "Save Current Step — Neutral (Hẹn gọi lại)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedResultId\": \"RES003\",\n  \"selectedReasonId\": \"REAS001\",\n  \"note\": \"Khách bận họp, hẹn gọi lại vào thứ Tư\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/current", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "current"] }
+          }
+        },
+        {
+          "name": "Update Current Step Delay (chỉnh delay)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delayUnit\": \"day\",\n  \"delayValue\": 3,\n  \"delayEditNote\": \"Khách hẹn gọi lại sau cuối tuần\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/current/delay", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "current", "delay"] }
+          }
+        },
+        {
+          "name": "Update Step Note (step đã done)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Cập nhật: khách xác nhận sẽ thanh toán thứ Sáu này\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/1/note", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "1", "note"] }
+          }
+        },
+        {
+          "name": "Inject Step (thêm bước ad-hoc)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actionId\": \"ACT007\",\n  \"insertAfterOrder\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps"] }
+          }
+        },
+        {
+          "name": "Upsert Step Branch",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resultId\": \"RES009\",\n  \"order\": 2,\n  \"nextStepType\": \"next_in_chain\",\n  \"nextActionId\": \"ACT013\",\n  \"closeOutcome\": null,\n  \"delayUnit\": \"day\",\n  \"delayValue\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/2/branches", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "2", "branches"] }
+          }
+        },
+        {
+          "name": "Delete Step Branch",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/steps/2/branches/RES009", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "steps", "2", "branches", "RES009"] }
+          }
+        },
+        {
+          "name": "Close Chain",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}/close", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}", "close"] }
+          }
+        },
+        {
+          "name": "Delete Chain",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/chains/{{chainId}}", "host": ["{{baseUrl}}"], "path": ["api", "events", "{{eventId}}", "chains", "{{chainId}}"] }
           }
         }
       ]
     },
     {
-      "name": "🏗️ Organization",
+      "name": "🏢 Organization",
       "item": [
         {
           "name": "List Organization",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/organization?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "organization"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" }
-              ]
-            }
+            "url": { "raw": "{{baseUrl}}/api/organization?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "organization"] }
           }
         },
         {
@@ -688,7 +775,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Engineering\",\n  \"alias\": \"engineering\",\n  \"desc\": \"Engineering department\"\n}"
+              "raw": "{\n  \"name\": \"Phòng Kinh Doanh\",\n  \"desc\": \"Phòng kinh doanh tổng hợp\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/organization/departments", "host": ["{{baseUrl}}"], "path": ["api", "organization", "departments"] }
           }
@@ -703,7 +790,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Backend Team\",\n  \"desc\": \"Node.js / Go backend developers\",\n  \"parentAlias\": \"engineering\",\n  \"alias\": \"engineering-backend\"\n}"
+              "raw": "{\n  \"name\": \"Nhóm Sale Miền Trung\",\n  \"desc\": \"Telesale khu vực Đà Nẵng\",\n  \"parentId\": \"2\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/organization/groups", "host": ["{{baseUrl}}"], "path": ["api", "organization", "groups"] }
           }
@@ -726,11 +813,11 @@
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/metadata/roles?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "metadata", "roles"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }] }
+            "url": { "raw": "{{baseUrl}}/api/metadata/roles", "host": ["{{baseUrl}}"], "path": ["api", "metadata", "roles"] }
           }
         },
         {
-          "name": "Get Departments",
+          "name": "Get Departments Metadata",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
@@ -746,14 +833,6 @@
           }
         },
         {
-          "name": "Get Activity Groups",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/metadata/activity-groups", "host": ["{{baseUrl}}"], "path": ["api", "metadata", "activity-groups"] }
-          }
-        },
-        {
           "name": "Get Customer Groups",
           "request": {
             "method": "GET",
@@ -764,126 +843,7 @@
       ]
     },
     {
-      "name": "🔧 Functions",
-      "item": [
-        {
-          "name": "List Functions",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/functions?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api", "functions"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }] }
-          }
-        },
-        {
-          "name": "Create Function",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Backend Developer\",\n  \"desc\": \"Develops and maintains backend services\",\n  \"type\": \"tech\"\n}"
-            },
-            "url": { "raw": "{{baseUrl}}/api/functions", "host": ["{{baseUrl}}"], "path": ["api", "functions"] }
-          }
-        }
-      ]
-    },
-    {
-      "name": "🛡️ RBAC",
-      "item": [
-        {
-          "name": "List Permissions",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/rbac", "host": ["{{baseUrl}}"], "path": ["api", "rbac"] }
-          }
-        },
-        {
-          "name": "Get Permission by ID",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/rbac/{{permissionId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rbac", "{{permissionId}}"]
-            }
-          }
-        },
-        {
-          "name": "List Roles",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/rbac/roles", "host": ["{{baseUrl}}"], "path": ["api", "rbac", "roles"] }
-          }
-        },
-        {
-          "name": "Get Role by ID",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/rbac/roles/{{roleId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rbac", "roles", "{{roleId}}"]
-            }
-          }
-        },
-        {
-          "name": "Create Role",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"role-custom-sales\",\n  \"name\": \"CUSTOM_SALES\",\n  \"description\": \"Custom sales role with limited access\",\n  \"permissions\": [\"customers_read\", \"leads_read\", \"tasks_read\"],\n  \"level\": 1\n}"
-            },
-            "url": { "raw": "{{baseUrl}}/api/rbac/roles", "host": ["{{baseUrl}}"], "path": ["api", "rbac", "roles"] }
-          }
-        },
-        {
-          "name": "Update Role",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated description\",\n  \"permissions\": [\"customers_read\", \"leads_read\", \"tasks_read\", \"tasks_create\"]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/rbac/roles/{{roleId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rbac", "roles", "{{roleId}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Role",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/rbac/roles/{{roleId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rbac", "roles", "{{roleId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "⚡ Action Config",
+      "name": "⚙️ Action Config",
       "item": [
         {
           "name": "Results",
@@ -893,7 +853,7 @@
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/action-config/results?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "results"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "200" }, { "key": "search", "value": "", "disabled": true }] }
+                "url": { "raw": "{{baseUrl}}/api/action-config/results?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "results"] }
               }
             },
             {
@@ -906,7 +866,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Khách quan tâm\",\n  \"type\": \"success\",\n  \"description\": \"Khách hàng thể hiện sự quan tâm rõ ràng\"\n}"
+                  "raw": "{\n  \"name\": \"Đã tư vấn thành công\",\n  \"type\": \"success\",\n  \"description\": \"Tư vấn xong, khách đồng ý gia hạn\"\n}"
                 },
                 "url": { "raw": "{{baseUrl}}/api/action-config/results", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "results"] }
               }
@@ -921,25 +881,9 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Khách rất quan tâm\",\n  \"type\": \"success\"\n}"
+                  "raw": "{\n  \"name\": \"Đã liên hệ & rất quan tâm\",\n  \"type\": \"success\"\n}"
                 },
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/results/{{resultId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "results", "{{resultId}}"]
-                }
-              }
-            },
-            {
-              "name": "Delete Result",
-              "request": {
-                "method": "DELETE",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/results/{{resultId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "results", "{{resultId}}"]
-                }
+                "url": { "raw": "{{baseUrl}}/api/action-config/results/RES001", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "results", "RES001"] }
               }
             }
           ]
@@ -952,7 +896,7 @@
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/action-config/reasons?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "reasons"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "200" }] }
+                "url": { "raw": "{{baseUrl}}/api/action-config/reasons?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "reasons"] }
               }
             },
             {
@@ -965,40 +909,9 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Khách đã có giải pháp khác\",\n  \"description\": \"Khách hàng không có nhu cầu vì đã sử dụng sản phẩm của đối thủ\"\n}"
+                  "raw": "{\n  \"name\": \"Cần duyệt nội bộ\",\n  \"description\": \"Phải chờ cấp trên duyệt ngân sách\"\n}"
                 },
                 "url": { "raw": "{{baseUrl}}/api/action-config/reasons", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "reasons"] }
-              }
-            },
-            {
-              "name": "Update Reason",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Khách đang cân nhắc\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/reasons/{{reasonId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "reasons", "{{reasonId}}"]
-                }
-              }
-            },
-            {
-              "name": "Delete Reason",
-              "request": {
-                "method": "DELETE",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/reasons/{{reasonId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "reasons", "{{reasonId}}"]
-                }
               }
             }
           ]
@@ -1011,7 +924,7 @@
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/action-config/actions?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "actions"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "200" }] }
+                "url": { "raw": "{{baseUrl}}/api/action-config/actions?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "actions"] }
               }
             },
             {
@@ -1024,40 +937,9 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Gọi điện lần 1\",\n  \"type\": \"call\",\n  \"category\": \"primary\",\n  \"reasonIds\": [],\n  \"description\": \"Cuộc gọi chào hỏi khách hàng lần đầu\"\n}"
+                  "raw": "{\n  \"name\": \"Gửi Zalo chăm sóc\",\n  \"type\": \"send_block_automation\",\n  \"category\": \"primary\",\n  \"reasonIds\": [],\n  \"description\": \"Block automation gửi Zalo ZNS chăm sóc\"\n}"
                 },
                 "url": { "raw": "{{baseUrl}}/api/action-config/actions", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "actions"] }
-              }
-            },
-            {
-              "name": "Update Action",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Gọi điện chào hỏi lần 1 (Updated)\",\n  \"reasonIds\": [\"reason-001\"]\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/actions/{{actionId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "actions", "{{actionId}}"]
-                }
-              }
-            },
-            {
-              "name": "Delete Action",
-              "request": {
-                "method": "DELETE",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/actions/{{actionId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "actions", "{{actionId}}"]
-                }
               }
             }
           ]
@@ -1070,23 +952,27 @@
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/action-config/chains?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "chains"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "200" }] }
+                "url": { "raw": "{{baseUrl}}/api/action-config/chains?page=1&limit=200", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "chains"] }
               }
             },
             {
-              "name": "Get Action Chain by ID",
+              "name": "Get Chain by ID (CHAIN004 — 5 bước)",
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/chains/{{chainId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "chains", "{{chainId}}"]
-                }
+                "url": { "raw": "{{baseUrl}}/api/action-config/chains/CHAIN004", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "chains", "CHAIN004"] }
               }
             },
             {
-              "name": "Create Action Chain",
+              "name": "Get Chain by ID (CHAIN006 — Inactive)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/action-config/chains/CHAIN006", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "chains", "CHAIN006"] }
+              }
+            },
+            {
+              "name": "Create Action Chain (3 bước demo)",
               "request": {
                 "method": "POST",
                 "header": [
@@ -1095,13 +981,13 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Chăm sóc khách hàng mới\",\n  \"description\": \"Quy trình chăm sóc khách đăng ký mới\",\n  \"delay\": \"immediate\",\n  \"active\": true,\n  \"steps\": [\n    {\n      \"order\": 1,\n      \"actionId\": \"action-001\",\n      \"branches\": [\n        {\n          \"resultId\": \"result-001\",\n          \"order\": 0,\n          \"nextStepType\": \"next_in_chain\",\n          \"nextActionId\": \"action-002\",\n          \"closeOutcome\": null,\n          \"delayUnit\": \"day\",\n          \"delayValue\": 3\n        },\n        {\n          \"resultId\": \"result-002\",\n          \"order\": 1,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"failure\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        }\n      ]\n    },\n    {\n      \"order\": 2,\n      \"actionId\": \"action-002\",\n      \"branches\": [\n        {\n          \"resultId\": \"result-003\",\n          \"order\": 0,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"success\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        }\n      ]\n    }\n  ]\n}"
+                  "raw": "{\n  \"name\": \"Chuỗi follow-up sau demo\",\n  \"description\": \"Theo dõi khách sau buổi demo: gọi → gửi proposal → chốt\",\n  \"delayUnit\": \"day\",\n  \"delayValue\": 1,\n  \"active\": true,\n  \"steps\": [\n    {\n      \"order\": 1,\n      \"actionId\": \"ACT001\",\n      \"branches\": [\n        {\n          \"resultId\": \"RES001\",\n          \"order\": 1,\n          \"nextStepType\": \"next_in_chain\",\n          \"nextActionId\": \"ACT008\",\n          \"closeOutcome\": null,\n          \"delayUnit\": \"day\",\n          \"delayValue\": 1\n        },\n        {\n          \"resultId\": \"RES004\",\n          \"order\": 2,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"failure\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        }\n      ]\n    },\n    {\n      \"order\": 2,\n      \"actionId\": \"ACT008\",\n      \"branches\": [\n        {\n          \"resultId\": \"RES010\",\n          \"order\": 1,\n          \"nextStepType\": \"next_in_chain\",\n          \"nextActionId\": \"ACT010\",\n          \"closeOutcome\": null,\n          \"delayUnit\": \"day\",\n          \"delayValue\": 2\n        }\n      ]\n    },\n    {\n      \"order\": 3,\n      \"actionId\": \"ACT010\",\n      \"branches\": [\n        {\n          \"resultId\": \"RES006\",\n          \"order\": 1,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"success\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        },\n        {\n          \"resultId\": \"RES004\",\n          \"order\": 2,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"failure\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        }\n      ]\n    }\n  ]\n}"
                 },
                 "url": { "raw": "{{baseUrl}}/api/action-config/chains", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "chains"] }
               }
             },
             {
-              "name": "Update Action Chain",
+              "name": "Update Action Chain (CHAIN006 toggle active)",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -1110,47 +996,75 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Chăm sóc khách hàng mới (Updated)\",\n  \"active\": false,\n  \"delay\": \"1d\"\n}"
+                  "raw": "{\n  \"active\": true\n}"
                 },
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/chains/{{chainId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "chains", "{{chainId}}"]
-                }
-              }
-            },
-            {
-              "name": "Delete Action Chain",
-              "request": {
-                "method": "DELETE",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/chains/{{chainId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "chains", "{{chainId}}"]
-                }
-              }
-            },
-            {
-              "name": "Save Chain Rule (Steps & Branches)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"steps\": [\n    {\n      \"order\": 1,\n      \"actionId\": \"action-001\",\n      \"branches\": [\n        {\n          \"resultId\": \"result-001\",\n          \"order\": 0,\n          \"nextStepType\": \"next_in_chain\",\n          \"nextActionId\": \"action-002\",\n          \"closeOutcome\": null,\n          \"delayUnit\": \"day\",\n          \"delayValue\": 3\n        },\n        {\n          \"resultId\": \"result-002\",\n          \"order\": 1,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"failure\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        }\n      ]\n    },\n    {\n      \"order\": 2,\n      \"actionId\": \"action-002\",\n      \"branches\": [\n        {\n          \"resultId\": \"result-003\",\n          \"order\": 0,\n          \"nextStepType\": \"close_task\",\n          \"nextActionId\": null,\n          \"closeOutcome\": \"success\",\n          \"delayUnit\": null,\n          \"delayValue\": null\n        }\n      ]\n    }\n  ]\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/api/action-config/chains/{{chainId}}/rule",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "action-config", "chains", "{{chainId}}", "rule"]
-                }
+                "url": { "raw": "{{baseUrl}}/api/action-config/chains/CHAIN006", "host": ["{{baseUrl}}"], "path": ["api", "action-config", "chains", "CHAIN006"] }
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "🛡️ RBAC",
+      "item": [
+        {
+          "name": "List All Permissions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/rbac", "host": ["{{baseUrl}}"], "path": ["api", "rbac"] }
+          }
+        },
+        {
+          "name": "List All Roles",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/rbac/roles", "host": ["{{baseUrl}}"], "path": ["api", "rbac", "roles"] }
+          }
+        },
+        {
+          "name": "Get Role by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/rbac/roles/role-staff", "host": ["{{baseUrl}}"], "path": ["api", "rbac", "roles", "role-staff"] }
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"role-readonly\",\n  \"name\": \"READONLY\",\n  \"description\": \"Chỉ xem, không sửa\",\n  \"permissions\": [\"customers_read\", \"events_read\", \"leads_read\"],\n  \"level\": 0\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/rbac/roles", "host": ["{{baseUrl}}"], "path": ["api", "rbac", "roles"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "API Info",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api", "host": ["{{baseUrl}}"], "path": ["api"] }
+          }
         }
       ]
     }

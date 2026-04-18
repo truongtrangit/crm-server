@@ -137,20 +137,26 @@ class EventService {
       name: payloadAssignee.name || "",
       avatar: payloadAssignee.avatar || "",
       role: payloadAssignee.role || "",
+      department: "",
+      group: "",
     };
 
-    // 2. Try to map Staff by email or name
-    if (payloadAssignee.email || payloadAssignee.name) {
+    // 2. Try to map Staff by assigneeId first, then email/name
+    const staffLookupId = payload.assigneeId || null;
+    if (staffLookupId || payloadAssignee.email || payloadAssignee.name) {
       const staffQuery = [];
+      if (staffLookupId) staffQuery.push({ id: staffLookupId });
       if (payloadAssignee.email) staffQuery.push({ email: payloadAssignee.email });
       if (payloadAssignee.name) staffQuery.push({ name: payloadAssignee.name });
-      
+
       const existingStaff = await User.findOne({ $or: staffQuery });
       if (existingStaff) {
         assigneeId = existingStaff.id;
         mappedAssignee.name = existingStaff.name;
         mappedAssignee.avatar = existingStaff.avatar || mappedAssignee.avatar;
         mappedAssignee.role = existingStaff.role || mappedAssignee.role;
+        mappedAssignee.department = existingStaff.department || [];
+        mappedAssignee.group = existingStaff.group || [];
       }
     }
 
@@ -239,26 +245,36 @@ class EventService {
       };
     }
 
-    if (body.assignee) {
+    if (body.assignee !== undefined || body.assigneeId !== undefined) {
+      const incomingAssignee = body.assignee || {};
       event.assignee = {
-        name: body.assignee.name ?? event.assignee.name,
-        avatar: body.assignee.avatar ?? event.assignee.avatar,
-        role: body.assignee.role ?? event.assignee.role,
+        name: incomingAssignee.name ?? event.assignee.name,
+        avatar: incomingAssignee.avatar ?? event.assignee.avatar,
+        role: incomingAssignee.role ?? event.assignee.role,
+        department: event.assignee.department || "",
+        group: event.assignee.group || "",
       };
 
-      if (event.assignee.name || body.assignee.email) {
+      // Lookup by assigneeId first, then email/name
+      const lookupId = body.assigneeId || null;
+      if (lookupId || incomingAssignee.email || event.assignee.name) {
         const staffQuery = [];
-        if (body.assignee.email) staffQuery.push({ email: body.assignee.email });
+        if (lookupId) staffQuery.push({ id: lookupId });
+        if (incomingAssignee.email) staffQuery.push({ email: incomingAssignee.email });
         if (event.assignee.name) staffQuery.push({ name: event.assignee.name });
-        
+
         const existingStaff = await User.findOne({ $or: staffQuery });
         if (existingStaff) {
           event.assigneeId = existingStaff.id;
           event.assignee.name = existingStaff.name;
           event.assignee.avatar = existingStaff.avatar || event.assignee.avatar;
           event.assignee.role = existingStaff.role || event.assignee.role;
+          event.assignee.department = existingStaff.department || [];
+          event.assignee.group = existingStaff.group || [];
         } else {
           event.assigneeId = null;
+          event.assignee.department = [];
+          event.assignee.group = [];
         }
       }
     }

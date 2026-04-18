@@ -146,8 +146,28 @@ async function main() {
   await Customer.insertMany(seedData.customers);
   console.log(`   ✓ Seeded ${seedData.customers.length} customers`);
 
-  await Event.insertMany(seedData.events);
-  console.log(`   ✓ Seeded ${seedData.events.length} events`);
+  // Enrich event assignee snapshots with department/group from the seeded users
+  const seededUsers = await User.find({}, { id: 1, name: 1, avatar: 1, department: 1, group: 1, roleId: 1 }).lean();
+  const userMap = Object.fromEntries(seededUsers.map(u => [u.id, u]));
+
+  const enrichedEvents = seedData.events.map(evt => {
+    if (!evt.assigneeId) return evt;
+    const u = userMap[evt.assigneeId];
+    if (!u) return evt;
+    return {
+      ...evt,
+      assignee: {
+        ...(evt.assignee || {}),
+        name:       u.name       || evt.assignee?.name       || '',
+        avatar:     u.avatar     || evt.assignee?.avatar      || '',
+        department: u.department || [],
+        group:      u.group      || [],
+      },
+    };
+  });
+
+  await Event.insertMany(enrichedEvents);
+  console.log(`   ✓ Seeded ${enrichedEvents.length} events`);
 
   await StaffFunction.insertMany(seedData.staffFunctions);
   console.log(`   ✓ Seeded ${seedData.staffFunctions.length} staff functions`);
