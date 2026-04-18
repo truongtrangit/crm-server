@@ -70,7 +70,15 @@ const branchSchema = Joi.object({
   resultId:     Joi.string().required(),
   order:        Joi.number().integer().min(0).optional().default(0),
   nextStepType: Joi.string().valid(...ALL_NEXT_STEP_TYPES).optional().default("close_task"),
-  nextActionId: Joi.string().allow(null, "").optional().default(null),
+  // nextActionId bắt buộc khi nextStepType === "next_in_chain"
+  nextActionId: Joi.when('nextStepType', {
+    is:        'next_in_chain',
+    then:      Joi.string().required().messages({
+      'any.required': 'nextActionId là bắt buộc khi nextStepType là next_in_chain',
+      'string.empty': 'nextActionId không được để trống khi nextStepType là next_in_chain',
+    }),
+    otherwise: Joi.string().allow(null, '').optional().default(null),
+  }),
   closeOutcome: Joi.string().valid(...ALL_CLOSE_OUTCOMES).allow(null).optional().default(null),
   delayUnit:    Joi.string().valid(...ALL_BRANCH_DELAY_UNITS).allow(null).optional().default(null),
   // delayValue: 0 khi immediate, >= 1 khi có đơn vị thời gian
@@ -113,7 +121,8 @@ const updateActionChainSchema = Joi.object({
 
 // Dedicated endpoint: save full chain rule config (steps + branches)
 const saveChainRuleSchema = Joi.object({
-  steps: Joi.array().items(chainStepSchema).required(),
+  steps:  Joi.array().items(chainStepSchema).required(),
+  active: Joi.boolean().optional(),
 });
 
 

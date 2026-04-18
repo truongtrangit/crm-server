@@ -43,7 +43,7 @@ async function buildStepSnapshot(templateStep, actionMap) {
     actionType:      action?.type || "",
     actionCategory:  action?.category || ACTION_TYPE_CATEGORY_MAP?.[action?.type] || "primary",
     actionReasonIds: action?.reasonIds || [],
-    branches:        templateStep.branches.map(b => ({ ...b.toObject?.() || b })),
+    branches:        templateStep.branches.map(b => ({ ...b })),
     selectedResultId:  null,
     selectedReasonId:  null,
     note:            "",
@@ -72,7 +72,7 @@ class EventActionChainController {
     const { eventId } = req.params;
     const { chainId } = req.body;
 
-    const template = await ActionChain.findOne({ id: chainId });
+    const template = await ActionChain.findOne({ id: chainId }).lean();
     if (!template) throw createHttpError(404, "ActionChain không tồn tại");
     if (!template.active) throw createHttpError(422, "Chỉ có thể thêm chuỗi hành động đang kích hoạt (active) vào sự kiện");
 
@@ -564,6 +564,11 @@ class EventActionChainController {
     const step = chain.steps.find(s => s.order === Number(stepOrder));
     if (!step) throw createHttpError(404, `Không tìm thấy step order=${stepOrder}`);
     if (step.isLocked) throw createHttpError(400, "Step đã lock, không thể chỉnh sửa cấu hình");
+
+    // Validate: next_in_chain bắt buộc phải chỉ định nextActionId
+    if (nextStepType === "next_in_chain" && !nextActionId) {
+      throw createHttpError(422, "Khi chọn loại 'Hành động tiếp theo trong chuỗi', phải chỉ định hành động cụ thể (nextActionId)");
+    }
 
     // Upsert: nếu đã có branch với resultId đó thì cập nhật, ngược lại thêm mới
     const existingIdx = step.branches.findIndex(b => b.resultId === resultId);
