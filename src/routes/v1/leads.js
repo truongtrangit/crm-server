@@ -1,21 +1,21 @@
 const express = require("express");
-const Lead = require("../models/Lead");
-const { generateSequentialId } = require("../utils/id");
-const { buildSearchRegex } = require("../utils/query");
-const { sendError, sendSuccess } = require("../utils/http");
+const Lead = require("../../models/Lead");
+const { generateSequentialId } = require("../../utils/id");
+const { buildSearchRegex } = require("../../utils/query");
+const { sendError, sendSuccess } = require("../../utils/http");
 const {
   buildPaginatedResponse,
   resolvePagination,
-} = require("../utils/pagination");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
+} = require("../../utils/pagination");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
 const {
   createLeadSchema,
   updateLeadSchema,
   updateLeadStatusSchema,
   listLeadsQuerySchema,
-} = require("../validations/leads");
+} = require("../../validations/leads");
 
 const router = express.Router();
 

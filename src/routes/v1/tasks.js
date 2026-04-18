@@ -1,20 +1,20 @@
 const express = require("express");
-const Task = require("../models/Task");
-const { generateTaskId } = require("../utils/id");
-const { buildSearchRegex } = require("../utils/query");
-const { sendError, sendSuccess } = require("../utils/http");
+const Task = require("../../models/Task");
+const { generateTaskId } = require("../../utils/id");
+const { buildSearchRegex } = require("../../utils/query");
+const { sendError, sendSuccess } = require("../../utils/http");
 const {
   buildPaginatedResponse,
   resolvePagination,
-} = require("../utils/pagination");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
+} = require("../../utils/pagination");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
 const {
   createTaskSchema,
   updateTaskSchema,
   listTasksQuerySchema,
-} = require("../validations/tasks");
+} = require("../../validations/tasks");
 
 const router = express.Router();
 

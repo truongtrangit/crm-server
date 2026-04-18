@@ -1,21 +1,21 @@
 const express = require("express");
-const Organization = require("../models/Organization");
-const { sendError, sendSuccess } = require("../utils/http");
+const Organization = require("../../models/Organization");
+const { sendError, sendSuccess } = require("../../utils/http");
 const {
   buildPaginatedResponse,
   resolvePagination,
-} = require("../utils/pagination");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
+} = require("../../utils/pagination");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
 const {
   buildDepartmentAlias,
   buildGroupAlias,
-} = require("../utils/organization");
+} = require("../../utils/organization");
 const {
   createDepartmentSchema,
   createGroupSchema,
-} = require("../validations/organization");
+} = require("../../validations/organization");
 
 const router = express.Router();
 

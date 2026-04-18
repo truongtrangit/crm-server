@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { EVENT_GROUP_IDS } = require("../constants/eventGroups");
 
 const timelineEntrySchema = new mongoose.Schema(
   {
@@ -23,13 +24,7 @@ const eventSchema = new mongoose.Schema(
     sub: { type: String, default: "" },
     group: {
       type: String,
-      enum: [
-        "user_moi",
-        "biz_moi",
-        "can_nang_cap",
-        "sap_het_han",
-        "chuyen_khoan",
-      ],
+      enum: EVENT_GROUP_IDS,
       required: true,
     },
     customerId: { type: String, ref: "Customer", default: null },

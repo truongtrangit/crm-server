@@ -1,16 +1,16 @@
 const express = require("express");
-const User = require("../models/User");
+const User = require("../../models/User");
 const {
   authenticateRequest,
   requirePermission,
-} = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { sendError, sendSuccess } = require("../utils/http");
-const logger = require("../utils/logger");
+} = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { sendError, sendSuccess } = require("../../utils/http");
+const logger = require("../../utils/logger");
 const {
   buildAuthResponse,
   clearRefreshCookies,
-  createPasswordResetToken,
+  createPasswordResetToken,   
   createSessionTokens,
   getRefreshContext,
   hashPassword,
@@ -19,13 +19,13 @@ const {
   rotateSessionTokens,
   setRefreshCookies,
   verifyPassword,
-} = require("../utils/auth");
+} = require("../../utils/auth");
 const {
   createUserAccount,
   serializeUser,
   updateOwnProfile,
-} = require("../services/UserService");
-const { PERMISSIONS } = require("../constants/rbac");
+} = require("../../services/UserService");
+const { PERMISSIONS } = require("../../constants/rbac");
 const {
   loginSchema,
   forgotPasswordSchema,
@@ -33,7 +33,7 @@ const {
   changePasswordSchema,
   updateProfileSchema,
   registerSchema,
-} = require("../validations/auth");
+} = require("../../validations/auth");
 
 const router = express.Router();
 

@@ -1,16 +1,21 @@
 const express = require("express");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
-const asyncHandler = require("../utils/asyncHandler");
-const UserController = require("../controllers/UserController");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
+const asyncHandler = require("../../utils/asyncHandler");
+const UserController = require("../../controllers/UserController");
 const {
   createUserSchema,
   updateUserSchema,
   listUsersQuerySchema,
-} = require("../validations/users");
+} = require("../../validations/users");
 
 const router = express.Router();
+
+router.get(
+  "/org-options",
+  asyncHandler(UserController.getOrgOptions),
+);
 
 router.get(
   "/",

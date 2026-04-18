@@ -8,33 +8,47 @@ const { resolvePagination } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 
 class EventService {
-  async getEvents(queryParams) {
+  // Elevated roles bypass scope filter — see all events
+  _isElevatedRole(user) {
+    return ['OWNER', 'ADMIN', 'MANAGER'].includes((user?.roleId || '').toUpperCase());
+  }
+
+  async getEvents(queryParams, currentUser) {
     const { search = "", group, stage, assignee } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
-    const query = {};
 
+    // Dùng $and để tránh conflict giữa scope $or và search $or
+    const andClauses = [];
+
+    // Scope: STAFF/MANAGER thấy event của mình + event chưa assign
+    if (!this._isElevatedRole(currentUser)) {
+      andClauses.push({
+        $or: [
+          { assigneeId: currentUser?.id },
+          { assigneeId: null },
+        ],
+      });
+    }
+
+    // Search text
     if (searchRegex) {
-      query.$or = [
-        { name: searchRegex },
-        { id: searchRegex },
-        { "customer.name": searchRegex },
-        { "biz.id": searchRegex },
-        { stage: searchRegex },
-      ];
+      andClauses.push({
+        $or: [
+          { name: searchRegex },
+          { id: searchRegex },
+          { "customer.name": searchRegex },
+          { "biz.id": searchRegex },
+          { stage: searchRegex },
+        ],
+      });
     }
 
-    if (group) {
-      query.group = group;
-    }
+    const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
-    if (stage) {
-      query.stage = stage;
-    }
-
-    if (assignee) {
-      query["assignee.name"] = assignee;
-    }
+    if (group)    query.group = group;
+    if (stage)    query.stage = stage;
+    if (assignee) query["assignee.name"] = assignee;
 
     const [events, totalItems] = await Promise.all([
       Event.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -44,7 +58,7 @@ class EventService {
     return { events, totalItems, page, limit };
   }
 
-  async getEventStats() {
+  async getEventStats(currentUser) {
     const groups = [
       "user_moi",
       "biz_moi",
@@ -53,7 +67,13 @@ class EventService {
       "chuyen_khoan",
     ];
 
+    // STAFF/MANAGER: đếm event của mình + event chưa assign
+    const matchStage = this._isElevatedRole(currentUser)
+      ? {}
+      : { $or: [{ assigneeId: currentUser?.id }, { assigneeId: null }] };
+
     const counts = await Event.aggregate([
+      { $match: matchStage },
       { $group: { _id: "$group", count: { $sum: 1 } } },
     ]);
 

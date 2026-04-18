@@ -382,17 +382,61 @@ class EventActionChainController {
   }
 
   // ─── GET /api/event-chains/queue ───
-  // Returns all active event-chains with their active step, enriched with event info.
+  // Returns active event-chains with their active step, enriched with event info.
+  // Filtered by role (RBAC) + optional query params.
   // Sorted by scheduledAt ASC (most urgent first); null scheduledAt goes last.
   async getTaskQueue(req, res) {
-    const Event = require("../models/Event");
-    const { eventId, overdueOnly, limit = 200 } = req.query;
-    const now = new Date();
+    const Event  = require("../models/Event");
+    const User   = require("../models/User");
+    const { getUserRoleName } = require("../utils/rbac");
 
-    const matchFilter = { status: "active", "steps.status": "active" };
-    if (eventId) matchFilter.eventId = eventId;
+    const {
+      eventId,
+      overdueOnly,
+      limit = 200,
+      // Filters
+      department,  // phòng ban
+      group,       // nhóm trong phòng ban
+      eventGroup,  // nhóm sự kiện (Event.group: user_moi, biz_moi, ...)
+      search,      // tìm theo tên KH / NV / sự kiện
+    } = req.query;
 
-    const chains = await EventActionChain.find(matchFilter)
+    const now      = new Date();
+    const roleName = await getUserRoleName(req.user);
+    const isAdminOrOwner = ["OWNER", "ADMIN"].includes(roleName);
+    const isManager      = roleName === "MANAGER";
+
+    // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────
+    let allowedEventIds = null; // null = không giới hạn (owner/admin)
+
+    if (!isAdminOrOwner) {
+      // Xây dựng danh sách assigneeId được phép
+      const allowedUserIds = new Set([req.user.id]);
+
+      if (isManager) {
+        // Manager thấy events của bản thân + nhân viên dưới quyền
+        const subordinates = await User.find({ managerId: req.user.id }).select("id");
+        subordinates.forEach((u) => allowedUserIds.add(u.id));
+      }
+      // staff: chỉ thấy event của chính mình (allowedUserIds = { req.user.id })
+
+      const allowedEvents = await Event.find({
+        assigneeId: { $in: [...allowedUserIds] },
+      }).select("id");
+      allowedEventIds = allowedEvents.map((e) => e.id);
+    }
+
+    // ── 2. Lọc EventActionChain theo eventId whitelist ───────────────────────
+    const chainFilter = { status: "active", "steps.status": "active" };
+    if (eventId)          chainFilter.eventId = eventId;
+    if (allowedEventIds !== null) chainFilter.eventId = { $in: allowedEventIds };
+
+    // Nếu vừa có eventId vừa có whitelist → giao nhau
+    if (eventId && allowedEventIds !== null) {
+      chainFilter.eventId = allowedEventIds.includes(eventId) ? eventId : "__none__";
+    }
+
+    const chains = await EventActionChain.find(chainFilter)
       .sort({ "steps.scheduledAt": 1 })
       .limit(Number(limit));
 
@@ -400,21 +444,61 @@ class EventActionChainController {
       return sendSuccess(res, 200, "Get task queue success", { items: [], total: 0 });
     }
 
-    // Batch-load events
-    const eventIds = [...new Set(chains.map(c => c.eventId))];
-    const events   = await Event.find({ id: { $in: eventIds } })
-      .select("id name sub group stage customer assignee plan");
-    const eventMap = Object.fromEntries(events.map(e => [e.id, e]));
+    // ── 3. Batch-load events ─────────────────────────────────────────────────
+    const rawEventIds = [...new Set(chains.map((c) => c.eventId))];
+    const eventQuery  = { id: { $in: rawEventIds } };
 
+    // Filter eventGroup (nhóm sự kiện)
+    if (eventGroup) eventQuery.group = eventGroup;
+
+    // Filter department (chỉ cho phép owner/admin/manager)
+    if (department && !isAdminOrOwner && !isManager) {
+      // staff không được filter dept → bỏ qua
+    } else if (department) {
+      // Tìm users thuộc phòng ban đó, rồi filter events của họ
+      const deptUsers = await User.find({ department: department }).select("id");
+      const deptUserIds = deptUsers.map((u) => u.id);
+      eventQuery.assigneeId = { $in: deptUserIds };
+    }
+
+    // Filter group (nhóm trong phòng ban — chỉ owner/admin/manager)
+    if (group && (isAdminOrOwner || isManager)) {
+      const groupUsers = await User.find({ group: group }).select("id");
+      const groupUserIds = groupUsers.map((u) => u.id);
+      // Nếu đã filter dept, giao nhau với assigneeId.$in
+      if (eventQuery.assigneeId) {
+        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
+          groupUserIds.includes(id)
+        );
+      } else {
+        eventQuery.assigneeId = { $in: groupUserIds };
+      }
+    }
+
+    // Search (tên KH, tên NV, tên sự kiện)
+    if (search && search.trim()) {
+      const s = search.trim();
+      const regex = new RegExp(s, "i");
+      eventQuery.$or = [
+        { name:              regex },
+        { "customer.name":   regex },
+        { "assignee.name":   regex },
+      ];
+    }
+
+    const events   = await Event.find(eventQuery)
+      .select("id name sub group stage customer assignee plan assigneeId");
+    const eventMap = Object.fromEntries(events.map((e) => [e.id, e]));
+
+    // ── 4. Build queue ───────────────────────────────────────────────────────
     const queue = [];
     for (const chain of chains) {
-      const activeStep = chain.steps.find(s => s.status === "active");
+      const activeStep = chain.steps.find((s) => s.status === "active");
       if (!activeStep) continue;
       if (overdueOnly === "true" && activeStep.scheduledAt && activeStep.scheduledAt > now) continue;
 
       const evt = eventMap[chain.eventId];
-      // ── Defensive: bỏ qua chain mà event đã bị xóa (orphan) ──
-      if (!evt) continue;
+      if (!evt) continue; // orphan hoặc bị lọc ra bởi eventQuery
 
       queue.push({
         chainId:   chain.id,
@@ -445,7 +529,7 @@ class EventActionChainController {
       });
     }
 
-    // Sort: overdue first, then by scheduledAt asc, null last
+    // Sort: overdue first, then scheduledAt asc, null last
     queue.sort((a, b) => {
       const sa = a.step.scheduledAt ? new Date(a.step.scheduledAt).getTime() : Infinity;
       const sb = b.step.scheduledAt ? new Date(b.step.scheduledAt).getTime() : Infinity;

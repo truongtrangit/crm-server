@@ -1,9 +1,9 @@
 const express = require("express");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
-const asyncHandler = require("../utils/asyncHandler");
-const CustomerController = require("../controllers/CustomerController");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
+const asyncHandler = require("../../utils/asyncHandler");
+const CustomerController = require("../../controllers/CustomerController");
 
 const {
   createCustomerSchema,
@@ -11,7 +11,7 @@ const {
   assignCustomerSchema,
   unassignCustomerQuerySchema,
   listCustomersQuerySchema,
-} = require("../validations/customers");
+} = require("../../validations/customers");
 
 const router = express.Router();
 

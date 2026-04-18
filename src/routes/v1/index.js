@@ -1,19 +1,20 @@
 const { Router } = require("express");
 
-const authRouter = require("../auth");
-const customersRouter = require("../customers");
-const usersRouter = require("../users");
-const leadsRouter = require("../leads");
-const tasksRouter = require("../tasks");
-const eventsRouter = require("../events");
-const organizationRouter = require("../organization");
-const metadataRouter = require("../metadata");
-const functionsRouter = require("../functions");
-const rbacRouter = require("../rbac");
-const actionConfigRouter = require("../actionConfig");
-const eventChainsRouter = require("../eventChains");
+const authRouter = require("./auth");
+const customersRouter = require("./customers");
+const usersRouter = require("./users");
+const leadsRouter = require("./leads");
+const tasksRouter = require("./tasks");
+const eventsRouter = require("./events");
+const organizationRouter = require("./organization");
+const metadataRouter = require("./metadata");
+const functionsRouter = require("./functions");
+const rbacRouter = require("./rbac");
+const actionConfigRouter = require("./actionConfig");
+const eventChainsRouter = require("./eventChains");
 
-const { authenticateRequest } = require("../../middleware/auth");
+const { authenticateRequest, requirePermission } = require("../../middleware/auth");
+const { PERMISSIONS } = require("../../constants/rbac");
 const { sendSuccess } = require("../../utils/http");
 
 const v1Router = Router();
@@ -63,6 +64,7 @@ const asyncHandler = require("../../utils/asyncHandler");
 const EventActionChainController = require("../../controllers/EventActionChainController");
 v1Router.get(
   "/event-chains/queue",
+  requirePermission(PERMISSIONS.EVENT_CHAINS_READ),
   asyncHandler(EventActionChainController.getTaskQueue),
 );
 

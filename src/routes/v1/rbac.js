@@ -1,15 +1,15 @@
 const express = require("express");
-const Role = require("../models/Role");
-const Permission = require("../models/Permission");
+const Role = require("../../models/Role");
+const Permission = require("../../models/Permission");
 const {
   authenticateRequest,
   requirePermission,
-} = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
-const { sendSuccess, sendError } = require("../utils/http");
-const logger = require("../utils/logger");
-const { createRoleSchema, updateRoleSchema } = require("../validations/rbac");
+} = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
+const { sendSuccess, sendError } = require("../../utils/http");
+const logger = require("../../utils/logger");
+const { createRoleSchema, updateRoleSchema } = require("../../validations/rbac");
 
 const router = express.Router();
 

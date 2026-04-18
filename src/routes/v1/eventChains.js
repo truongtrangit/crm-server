@@ -1,9 +1,9 @@
 const express = require("express");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
-const asyncHandler = require("../utils/asyncHandler");
-const EventActionChainController = require("../controllers/EventActionChainController");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
+const asyncHandler = require("../../utils/asyncHandler");
+const EventActionChainController = require("../../controllers/EventActionChainController");
 const {
   addChainToEventSchema,
   saveStepSchema,
@@ -11,7 +11,7 @@ const {
   updateStepDelaySchema,
   updateStepNoteSchema,
   upsertStepBranchSchema,
-} = require("../validations/eventActionChain");
+} = require("../../validations/eventActionChain");
 
 const router = express.Router({ mergeParams: true });
 

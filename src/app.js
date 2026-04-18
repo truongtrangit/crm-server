@@ -22,8 +22,8 @@ app.use(helmet());
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 /** Strict limiter for auth routes – chống brute-force login */
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 phút
-  max: 20,                  // tối đa 20 requests / 15 phút / IP
+  windowMs: 1 * 60 * 1000, // 15 phút
+  max: 60,                  // tối đa 20 requests / 15 phút / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {

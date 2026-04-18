@@ -1,15 +1,15 @@
 const express = require("express");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
-const asyncHandler = require("../utils/asyncHandler");
-const EventController = require("../controllers/EventController");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
+const asyncHandler = require("../../utils/asyncHandler");
+const EventController = require("../../controllers/EventController");
 const {
   createEventSchema,
   updateEventSchema,
   listEventsQuerySchema,
   addTimelineSchema,
-} = require("../validations/events");
+} = require("../../validations/events");
 
 const router = express.Router();
 
@@ -63,6 +63,20 @@ router.post(
   "/:id/sync-customer",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
   asyncHandler(EventController.syncCustomer)
+);
+
+// Tự gán bản thân vào event chưa có người phụ trách
+router.post(
+  "/:id/self-assign",
+  requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  asyncHandler(EventController.selfAssignEvent)
+);
+
+// Unassign người phụ trách
+router.delete(
+  "/:id/assignee",
+  requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  asyncHandler(EventController.unassignEvent)
 );
 
 module.exports = router;

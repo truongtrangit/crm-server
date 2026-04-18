@@ -1,16 +1,16 @@
 const express = require("express");
-const Organization = require("../models/Organization");
-const Role = require("../models/Role");
-const { paginateArray } = require("../utils/pagination");
-const { sendSuccess } = require("../utils/http");
-const { requirePermission } = require("../middleware/auth");
+const Organization = require("../../models/Organization");
+const Role = require("../../models/Role");
+const { paginateArray } = require("../../utils/pagination");
+const { sendSuccess } = require("../../utils/http");
+const { requirePermission } = require("../../middleware/auth");
 const {
   PLATFORMS,
   CUSTOMER_GROUPS,
   CUSTOMER_TYPES,
-} = require("../constants/appData");
-const { PERMISSIONS } = require("../constants/rbac");
-const { buildOrganizationDirectory } = require("../utils/organization");
+} = require("../../constants/appData");
+const { PERMISSIONS } = require("../../constants/rbac");
+const { buildOrganizationDirectory } = require("../../utils/organization");
 
 const router = express.Router();
 

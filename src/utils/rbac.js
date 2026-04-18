@@ -5,16 +5,21 @@ function getPermissionVariants(permission) {
     return [];
   }
 
-  const [resource, action] = permission.split("_");
-
-  if (!resource || !action) {
+  // Tách theo dấu _ CUỐI CÙNG để xử lý đúng các permission
+  // có nhiều segment như "actions_cfg_read", "event_chains_read"
+  const lastUnderscore = permission.lastIndexOf("_");
+  if (lastUnderscore === -1) {
     return [permission];
   }
+
+  const resource = permission.slice(0, lastUnderscore);  // "actions_cfg"
+  const action   = permission.slice(lastUnderscore + 1); // "read"
 
   if (action === "manage") {
     return [permission];
   }
 
+  // Nếu có _manage thì cũng được coi là đủ quyền
   return [permission, `${resource}_manage`];
 }
 

@@ -1,15 +1,15 @@
 const express = require("express");
-const StaffFunction = require("../models/StaffFunction");
-const { generateSequentialId } = require("../utils/id");
-const { sendSuccess } = require("../utils/http");
+const StaffFunction = require("../../models/StaffFunction");
+const { generateSequentialId } = require("../../utils/id");
+const { sendSuccess } = require("../../utils/http");
 const {
   buildPaginatedResponse,
   resolvePagination,
-} = require("../utils/pagination");
-const { requirePermission } = require("../middleware/auth");
-const validate = require("../middleware/validate");
-const { PERMISSIONS } = require("../constants/rbac");
-const { createFunctionSchema } = require("../validations/functions");
+} = require("../../utils/pagination");
+const { requirePermission } = require("../../middleware/auth");
+const validate = require("../../middleware/validate");
+const { PERMISSIONS } = require("../../constants/rbac");
+const { createFunctionSchema } = require("../../validations/functions");
 
 const router = express.Router();
 
