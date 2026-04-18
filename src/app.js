@@ -22,8 +22,8 @@ app.use(helmet());
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 /** Strict limiter for auth routes – chống brute-force login */
 const authLimiter = rateLimit({
-  windowMs: 15 * 1000, // 15 giây
-  max: 1000,                  // tối đa 500 requests / 15 giây / IP
+  windowMs: 60 * 1000, // 15 giây
+  max: 500,                  // tối đa 500 requests / 15 giây / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -35,8 +35,8 @@ const authLimiter = rateLimit({
 
 /** General limiter cho toàn bộ API */
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 phút
-  max: 200,                 // tối đa 200 requests / 15 phút / IP
+  windowMs: 60 * 1000, // 15 phút
+  max: 500,                 // tối đa 200 requests / 15 phút / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {

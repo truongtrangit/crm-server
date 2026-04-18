@@ -8,11 +8,6 @@ const { resolvePagination } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 
 class EventService {
-  // Elevated roles bypass scope filter — see all events
-  _isElevatedRole(user) {
-    return ['OWNER', 'ADMIN', 'MANAGER'].includes((user?.roleId || '').toUpperCase());
-  }
-
   async getEvents(queryParams, currentUser) {
     const { search = "", group, stage, assignee } = queryParams;
     const searchRegex = buildSearchRegex(search);
@@ -21,11 +16,21 @@ class EventService {
     // Dùng $and để tránh conflict giữa scope $or và search $or
     const andClauses = [];
 
-    // Scope: STAFF/MANAGER thấy event của mình + event chưa assign
-    if (!this._isElevatedRole(currentUser)) {
+    const role = (currentUser?.roleId || '').toUpperCase();
+    const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(role);
+    const isManager = role === 'MANAGER';
+
+    // Scope: MANAGER / STAFF thấy event của mình + event chưa assign (+ nhân viên dưới cấp nếu là Manager)
+    if (!isAdminOrOwner) {
+      const allowedUserIds = [currentUser?.id];
+      if (isManager && currentUser?.id) {
+        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
+        allowedUserIds.push(...subordinates.map(u => u.id));
+      }
+
       andClauses.push({
         $or: [
-          { assigneeId: currentUser?.id },
+          { assigneeId: { $in: allowedUserIds } },
           { assigneeId: null },
         ],
       });
@@ -67,10 +72,25 @@ class EventService {
       "chuyen_khoan",
     ];
 
-    // STAFF/MANAGER: đếm event của mình + event chưa assign
-    const matchStage = this._isElevatedRole(currentUser)
-      ? {}
-      : { $or: [{ assigneeId: currentUser?.id }, { assigneeId: null }] };
+    const role = (currentUser?.roleId || '').toUpperCase();
+    const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(role);
+    const isManager = role === 'MANAGER';
+
+    let matchStage = {};
+
+    if (!isAdminOrOwner) {
+      const allowedUserIds = [currentUser?.id];
+      if (isManager && currentUser?.id) {
+        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
+        allowedUserIds.push(...subordinates.map(u => u.id));
+      }
+      matchStage = {
+        $or: [
+          { assigneeId: { $in: allowedUserIds } },
+          { assigneeId: null }
+        ]
+      };
+    }
 
     const counts = await Event.aggregate([
       { $match: matchStage },
