@@ -449,21 +449,26 @@ class EventActionChainController {
     const eventQuery  = { id: { $in: rawEventIds } };
 
     // Filter eventGroup (nhóm sự kiện)
-    if (eventGroup) eventQuery.group = eventGroup;
+    if (eventGroup) {
+      const groups = typeof eventGroup === "string" ? eventGroup.split(',').map(s => s.trim()).filter(Boolean) : eventGroup;
+      eventQuery.group = { $in: Array.isArray(groups) ? groups : [groups] };
+    }
 
     // Filter department (chỉ cho phép owner/admin/manager)
     if (department && !isAdminOrOwner && !isManager) {
       // staff không được filter dept → bỏ qua
     } else if (department) {
       // Tìm users thuộc phòng ban đó, rồi filter events của họ
-      const deptUsers = await User.find({ department: department }).select("id");
+      const depts = typeof department === "string" ? department.split(',').map(s => s.trim()).filter(Boolean) : department;
+      const deptUsers = await User.find({ department: { $in: Array.isArray(depts) ? depts : [depts] } }).select("id");
       const deptUserIds = deptUsers.map((u) => u.id);
       eventQuery.assigneeId = { $in: deptUserIds };
     }
 
     // Filter group (nhóm trong phòng ban — chỉ owner/admin/manager)
     if (group && (isAdminOrOwner || isManager)) {
-      const groupUsers = await User.find({ group: group }).select("id");
+      const grps = typeof group === "string" ? group.split(',').map(s => s.trim()).filter(Boolean) : group;
+      const groupUsers = await User.find({ group: { $in: Array.isArray(grps) ? grps : [grps] } }).select("id");
       const groupUserIds = groupUsers.map((u) => u.id);
       // Nếu đã filter dept, giao nhau với assigneeId.$in
       if (eventQuery.assigneeId) {
