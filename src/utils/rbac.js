@@ -1,4 +1,6 @@
+const CacheService = require("../services/CacheService");
 const Role = require("../models/Role");
+const env = require("../config/env");
 
 function getPermissionVariants(permission) {
   if (!permission || typeof permission !== "string") {
@@ -35,15 +37,27 @@ function permissionListIncludes(permissionList, permission) {
 }
 
 async function resolveUserRole(user) {
-  if (!user) {
+  if (!user || !user.roleId) {
     return null;
   }
 
-  if (user.roleId) {
-    return Role.findOne({ id: user.roleId });
+  const cacheKey = `rbac:role:${user.roleId}`;
+  
+  // 1. Đọc từ Redis Cache
+  let role = await CacheService.get(cacheKey);
+  
+  if (role) {
+    return role;
   }
 
-  return null;
+  // 2. Cache miss -> Lấy từ MongoDB
+  role = await Role.findOne({ id: user.roleId }).lean();
+  
+  if (role) {
+    await CacheService.set(cacheKey, role, env.cacheRoleTtlSeconds); 
+  }
+
+  return role;
 }
 
 /**

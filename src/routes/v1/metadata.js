@@ -1,6 +1,8 @@
 const express = require("express");
 const Organization = require("../../models/Organization");
 const Role = require("../../models/Role");
+const CacheService = require("../../services/CacheService");
+const env = require("../../config/env");
 const { paginateArray } = require("../../utils/pagination");
 const { sendSuccess } = require("../../utils/http");
 const { requirePermission } = require("../../middleware/auth");
@@ -72,6 +74,13 @@ function formatOrganizationMetadata(departments) {
 }
 
 async function getDerivedMetadata() {
+  const cacheKey = "system:metadata";
+  let metadata = await CacheService.get(cacheKey);
+
+  if (metadata) {
+    return metadata;
+  }
+
   const roles = await Role.find(
     {},
     { id: 1, name: 1, description: 1, level: 1, isSystem: 1 },
@@ -84,7 +93,7 @@ async function getDerivedMetadata() {
   const roleOptions = roles.map(formatRoleMetadata);
   const organizationMetadata = formatOrganizationMetadata(departments);
 
-  return {
+  metadata = {
     platforms: PLATFORMS,
     customerGroups:
       organizationMetadata.activityGroups.length > 0
@@ -98,6 +107,9 @@ async function getDerivedMetadata() {
     departmentGroups: organizationMetadata.departmentGroups,
     activityGroups: organizationMetadata.activityGroups,
   };
+
+  await CacheService.set(cacheKey, metadata, env.cacheMetadataTtlSeconds); 
+  return metadata;
 }
 
 router.use(requirePermission(PERMISSIONS.METADATA_READ));

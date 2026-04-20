@@ -10,6 +10,7 @@ const { PERMISSIONS } = require("../../constants/rbac");
 const { sendSuccess, sendError } = require("../../utils/http");
 const logger = require("../../utils/logger");
 const { createRoleSchema, updateRoleSchema } = require("../../validations/rbac");
+const CacheService = require("../../services/CacheService");
 
 const router = express.Router();
 
@@ -120,6 +121,7 @@ router.post(
     });
 
     await role.save();
+    await CacheService.del("system:metadata");
     logger.info("Role created", { roleId: id, roleName: name, createdBy: req.user.id });
     return sendSuccess(res, 201, "Create role success", role);
   },
@@ -156,6 +158,9 @@ router.put(
     if (level !== undefined) role.level = level;
 
     await role.save();
+    await CacheService.del(`rbac:role:${req.params.id}`);
+    await CacheService.del("system:metadata");
+    
     logger.info("Role updated", { roleId: req.params.id, updatedBy: req.user.id });
     return sendSuccess(res, 200, "Update role success", role);
   },
@@ -184,6 +189,9 @@ router.delete(
     }
 
     await Role.deleteOne({ id: req.params.id });
+    await CacheService.del(`rbac:role:${req.params.id}`);
+    await CacheService.del("system:metadata");
+
     logger.info("Role deleted", { roleId: req.params.id, deletedBy: req.user.id });
     return sendSuccess(res, 200, "Delete role success", null);
   },

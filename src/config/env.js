@@ -12,6 +12,11 @@ const env = {
   passwordResetTokenTtlMinutes:
     Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES) || 30,
   defaultUserPassword: process.env.DEFAULT_USER_PASSWORD || "crm123456",
+  redisUri: process.env.REDIS_URI || "redis://127.0.0.1:6379",
+  redisUsername: process.env.REDIS_USERNAME || "dev_user",
+  redisPassword: process.env.REDIS_PASSWORD || "dev_password",
+  cacheRoleTtlSeconds: Number(process.env.CACHE_ROLE_TTL_SECONDS) || 86400, // Mặc định 24h
+  cacheMetadataTtlSeconds: Number(process.env.CACHE_METADATA_TTL_SECONDS) || 14400, // Mặc định 4h
 };
 
 module.exports = env;

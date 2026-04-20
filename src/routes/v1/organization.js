@@ -1,5 +1,6 @@
 const express = require("express");
 const Organization = require("../../models/Organization");
+const CacheService = require("../../services/CacheService");
 const { sendError, sendSuccess } = require("../../utils/http");
 const {
   buildPaginatedResponse,
@@ -70,6 +71,7 @@ router.post(
       children: [],
     });
 
+    await CacheService.del("system:metadata");
     return sendSuccess(res, 201, "Create department success", department);
   },
 );
@@ -120,6 +122,7 @@ router.post(
     department.children.push({ name, desc, alias });
     await department.save();
 
+    await CacheService.del("system:metadata");
     return sendSuccess(res, 201, "Create group success", {
       alias,
       name,
