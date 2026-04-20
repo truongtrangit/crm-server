@@ -1,0 +1,1023 @@
+{
+  "info": {
+    "name": "CRM Server API",
+    "_postman_id": "crm-server-v1",
+    "description": "Full API collection for CRM Server — Base URL: http://localhost:4000/api/v1\n\n## Setup\n1. Run **Auth / Login** first\n2. The `accessToken` collection variable is set automatically via the test script\n3. All subsequent requests use `{{accessToken}}` in the Authorization header",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:4000/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken","value": "", "type": "string" },
+    { "key": "sessionId",   "value": "", "type": "string" },
+    { "key": "userId",      "value": "USER001", "type": "string" },
+    { "key": "customerId",  "value": "CUST001", "type": "string" },
+    { "key": "eventId",     "value": "EVT001",  "type": "string" },
+    { "key": "chainId",     "value": "CHN001",  "type": "string" },
+    { "key": "leadId",      "value": "LEAD001", "type": "string" },
+    { "key": "taskId",      "value": "TASK001", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const body = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  body.data.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+            "  pm.collectionVariables.set('sessionId',    body.data.sessionId);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"owner@crm.vn\",\n  \"password\": \"crm@123456\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Login (as Manager)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const body = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  body.data.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+            "  pm.collectionVariables.set('sessionId',    body.data.sessionId);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"manager.cskh@crm.vn\",\n  \"password\": \"crm@123456\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const body = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  body.data.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth","refresh"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth","me"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Own Profile",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth","me"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Owner Updated\",\n  \"phone\": \"0901234567\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/change-password", "host": ["{{baseUrl}}"], "path": ["auth","change-password"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"crm@123456\",\n  \"newPassword\": \"crm@newpass789\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth","forgot-password"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"owner@crm.vn\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth","reset-password"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"owner@crm.vn\",\n  \"resetToken\": \"<token_from_forgot_password_response>\",\n  \"newPassword\": \"crm@newpass789\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Staff (Owner/Admin only)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth","register"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nhân Viên Mới\",\n  \"email\": \"newstaff@crm.vn\",\n  \"password\": \"crm@123456\",\n  \"roleId\": \"staff\",\n  \"department\": [\"Phòng Sale\"],\n  \"phone\": \"0987654321\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth","logout"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👥 Users (Staff)",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"], "path": ["users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "role", "value": "staff", "disabled": true },
+                { "key": "department", "value": "Phòng Sale", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Org Options (departments + groups)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/users/org-options", "host": ["{{baseUrl}}"], "path": ["users","org-options"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Trần Thị Sale\",\n  \"email\": \"tranthi.sale@crm.vn\",\n  \"password\": \"crm@123456\",\n  \"roleId\": \"staff\",\n  \"phone\": \"0901111222\",\n  \"department\": [\"Phòng Sale\"],\n  \"group\": [\"Nhóm Sale HN\"]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users","{{userId}}"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Tên Đã Sửa\",\n  \"phone\": \"0909999888\",\n  \"roleId\": \"manager\",\n  \"department\": [\"Phòng CSKH\"]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users","{{userId}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏢 Customers",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=1&limit=20",
+              "host": ["{{baseUrl}}"], "path": ["customers"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "type", "value": "VIP Customer", "disabled": true },
+                { "key": "group", "value": "VIP", "disabled": true },
+                { "key": "platform", "value": "SmaxAi", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer By ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/customers/{{customerId}}", "host": ["{{baseUrl}}"], "path": ["customers","{{customerId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assignment Roles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/customers/meta/assignment-roles", "host": ["{{baseUrl}}"], "path": ["customers","meta","assignment-roles"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Công Ty ABC\",\n  \"email\": \"abc@company.vn\",\n  \"phone\": \"0281234567\",\n  \"type\": \"Standard Customer\",\n  \"group\": \"Mới\",\n  \"platforms\": [\"SmaxAi\"],\n  \"biz\": [\"BIZ001\"],\n  \"tags\": [\"potential\", \"tech\"],\n  \"registeredAt\": \"01/01/2024\",\n  \"lastLoginAt\": \"20/04/2024\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/customers/{{customerId}}", "host": ["{{baseUrl}}"], "path": ["customers","{{customerId}}"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Công Ty ABC Updated\",\n  \"group\": \"Tiềm năng\",\n  \"platforms\": [\"SmaxAi\", \"Botvn\"],\n  \"tags\": [\"updated\"]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/customers/{{customerId}}", "host": ["{{baseUrl}}"], "path": ["customers","{{customerId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Staff to Customer",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/customers/{{customerId}}/assignees", "host": ["{{baseUrl}}"], "path": ["customers","{{customerId}}","assignees"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"USER003\",\n  \"role\": \"sale\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign Staff from Customer",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/assignees/USER003?role=sale",
+              "host": ["{{baseUrl}}"], "path": ["customers","{{customerId}}","assignees","USER003"],
+              "query": [{ "key": "role", "value": "sale" }]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📋 Leads",
+      "item": [
+        {
+          "name": "List Leads",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/leads?page=1&limit=20",
+              "host": ["{{baseUrl}}"], "path": ["leads"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "Biz tạo mới", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Lead",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/leads", "host": ["{{baseUrl}}"], "path": ["leads"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nguyễn Văn Lead\",\n  \"email\": \"lead@example.vn\",\n  \"phone\": \"0912345678\",\n  \"source\": \"Zalo\",\n  \"address\": \"Hà Nội\",\n  \"status\": \"Biz tạo mới\",\n  \"actionNeeded\": \"Gọi điện tư vấn\",\n  \"actionType\": \"green\",\n  \"tags\": [\"zalo\", \"hn\"]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Lead",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/leads/{{leadId}}", "host": ["{{baseUrl}}"], "path": ["leads","{{leadId}}"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"Đang tư vấn\",\n  \"actionNeeded\": \"Follow up\",\n  \"actionType\": \"orange\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Lead Status",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/leads/{{leadId}}/status", "host": ["{{baseUrl}}"], "path": ["leads","{{leadId}}","status"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"Đã chuyển đổi\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Lead",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/leads/{{leadId}}", "host": ["{{baseUrl}}"], "path": ["leads","{{leadId}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "✅ Tasks",
+      "item": [
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tasks?page=1&limit=20",
+              "host": ["{{baseUrl}}"], "path": ["tasks"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "Đang thực hiện", "disabled": true },
+                { "key": "platform", "value": "SmaxAi", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/tasks", "host": ["{{baseUrl}}"], "path": ["tasks"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"Gọi điện tư vấn SmaxAi\",\n  \"time\": \"Hôm nay 14:00\",\n  \"timeType\": \"today\",\n  \"platform\": \"SmaxAi\",\n  \"status\": \"Đang thực hiện\",\n  \"customer\": {\n    \"name\": \"Công Ty ABC\",\n    \"email\": \"abc@company.vn\",\n    \"phone\": \"0281234567\"\n  },\n  \"assignee\": {\n    \"name\": \"Nguyễn Văn A\",\n    \"avatar\": \"\"\n  }\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["tasks","{{taskId}}"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"Hoàn thành\",\n  \"time\": \"Hôm nay 15:00\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["tasks","{{taskId}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📅 Events",
+      "item": [
+        {
+          "name": "List Events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/events?page=1&limit=20",
+              "host": ["{{baseUrl}}"], "path": ["events"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "group", "value": "user_moi", "disabled": true },
+                { "key": "assigneeId", "value": "USER001", "disabled": true },
+                { "key": "unassigned", "value": "true", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/events/stats", "host": ["{{baseUrl}}"], "path": ["events","stats"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event By ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events", "host": ["{{baseUrl}}"], "path": ["events"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sự kiện User Mới Tháng 4\",\n  \"sub\": \"Onboard user đăng ký gói Trial\",\n  \"group\": \"user_moi\",\n  \"customer\": {\n    \"name\": \"Công Ty ABC\",\n    \"email\": \"abc@company.vn\",\n    \"phone\": \"0281234567\",\n    \"role\": \"Giám đốc\",\n    \"address\": \"Hà Nội\"\n  },\n  \"assigneeId\": \"USER003\",\n  \"biz\": { \"id\": \"BIZ001\", \"tags\": [\"smaxai\"] },\n  \"tags\": [\"trial\"],\n  \"plan\": {\n    \"name\": \"TRIAL\",\n    \"cycle\": \"Thanh toán theo tháng\",\n    \"price\": \"0 đ\",\n    \"daysLeft\": 30,\n    \"expiryDate\": \"20/05/2024\"\n  },\n  \"services\": [\n    { \"name\": \"SmaxAi Bot\", \"active\": true }\n  ],\n  \"quotas\": [\n    { \"name\": \"Tin nhắn\", \"used\": 0, \"total\": 1000, \"color\": \"blue\" }\n  ]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sự kiện Updated\",\n  \"stage\": \"Đã ký hợp đồng\",\n  \"tags\": [\"signed\"],\n  \"plan\": {\n    \"name\": \"BASIC\",\n    \"cycle\": \"Thanh toán theo năm\",\n    \"price\": \"500.000 đ\",\n    \"daysLeft\": 365\n  }\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Timeline Entry",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/timeline", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","timeline"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"phone\",\n  \"title\": \"Gọi điện tư vấn\",\n  \"time\": \"14:30\",\n  \"content\": \"Khách đồng ý nâng cấp gói\",\n  \"duration\": \"15 phút\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Sync Customer to Event",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/sync-customer", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","sync-customer"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Self-Assign Event",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/self-assign", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","self-assign"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign Event",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/assignee", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","assignee"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⛓️ Event Action Chains",
+      "item": [
+        {
+          "name": "Get Task Queue",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/event-chains/queue?limit=50",
+              "host": ["{{baseUrl}}"], "path": ["event-chains","queue"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "eventId", "value": "", "disabled": true },
+                { "key": "overdueOnly", "value": "true", "disabled": true },
+                { "key": "department", "value": "Phòng Sale", "disabled": true },
+                { "key": "eventGroup", "value": "user_moi", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event Chains (by event)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Chain to Event",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"chainId\": \"{{chainId}}\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Chain Detail",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Save Current Step (submit result)",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/steps/current", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","steps","current"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"selectedResultId\": \"RES001\",\n  \"selectedReasonId\": \"REA001\",\n  \"note\": \"Khách đồng ý, sẽ ghi nhớ thêm\",\n  \"nextStepDelay\": {\n    \"delayUnit\": \"hour\",\n    \"delayValue\": 2,\n    \"editNote\": \"Chỉnh delay do khách bận\"\n  }\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Save Current Step (with override)",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/steps/current", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","steps","current"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"selectedResultId\": \"RES001\",\n  \"note\": \"Bỏ qua step 2, nhảy thẳng step 3\",\n  \"nextStepOverride\": {\n    \"targetStepOrder\": 3,\n    \"delayUnit\": \"day\",\n    \"delayValue\": 1\n  }\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Inject Step to Chain",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/steps/inject", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","steps","inject"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"actionId\": \"ACT001\",\n  \"delayUnit\": \"hour\",\n  \"delayValue\": 1,\n  \"insertAfterOrder\": 2\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Step Delay",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/steps/1/delay", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","steps","1","delay"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"delayUnit\": \"day\",\n  \"delayValue\": 2,\n  \"editNote\": \"Hoãn do khách đi công tác\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Step Note",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/steps/1/note", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","steps","1","note"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"note\": \"Ghi chú bổ sung sau khi đã lock step\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Upsert Step Branch",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/steps/1/branches", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","steps","1","branches"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"resultId\": \"RES001\",\n  \"nextStepType\": \"next_in_chain\",\n  \"nextActionId\": \"ACT002\",\n  \"delayUnit\": \"hour\",\n  \"delayValue\": 4\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Close Chain",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}/close", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}","close"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Khách không còn nhu cầu\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Chain from Event",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/events/{{eventId}}/chains/{{chainId}}", "host": ["{{baseUrl}}"], "path": ["events","{{eventId}}","chains","{{chainId}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Action Config",
+      "item": [
+        {
+          "name": "Results",
+          "item": [
+            {
+              "name": "List Results",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/results?limit=200", "host": ["{{baseUrl}}"], "path": ["action-config","results"], "query": [{ "key": "limit", "value": "200" }] }
+              }
+            },
+            {
+              "name": "Get Result By ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/results/RES001", "host": ["{{baseUrl}}"], "path": ["action-config","results","RES001"] }
+              }
+            },
+            {
+              "name": "Create Result",
+              "request": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/action-config/results", "host": ["{{baseUrl}}"], "path": ["action-config","results"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Đồng ý nâng cấp\",\n  \"type\": \"success\"\n}" }
+              }
+            },
+            {
+              "name": "Update Result",
+              "request": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/action-config/results/RES001", "host": ["{{baseUrl}}"], "path": ["action-config","results","RES001"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Đồng ý nâng cấp (updated)\",\n  \"type\": \"success\"\n}" }
+              }
+            },
+            {
+              "name": "Delete Result",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/action-config/results/RES001", "host": ["{{baseUrl}}"], "path": ["action-config","results","RES001"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reasons",
+          "item": [
+            {
+              "name": "List Reasons",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/reasons?limit=200", "host": ["{{baseUrl}}"], "path": ["action-config","reasons"], "query": [{ "key": "limit", "value": "200" }] }
+              }
+            },
+            {
+              "name": "Get Reason By ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/reasons/REA001", "host": ["{{baseUrl}}"], "path": ["action-config","reasons","REA001"] }
+              }
+            },
+            {
+              "name": "Create Reason",
+              "request": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/action-config/reasons", "host": ["{{baseUrl}}"], "path": ["action-config","reasons"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Không nghe máy\",\n  \"description\": \"Khách không bắt máy sau 3 lần gọi\"\n}" }
+              }
+            },
+            {
+              "name": "Update Reason",
+              "request": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/action-config/reasons/REA001", "host": ["{{baseUrl}}"], "path": ["action-config","reasons","REA001"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Không nghe máy (updated)\"\n}" }
+              }
+            },
+            {
+              "name": "Delete Reason",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/action-config/reasons/REA001", "host": ["{{baseUrl}}"], "path": ["action-config","reasons","REA001"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actions",
+          "item": [
+            {
+              "name": "List Actions",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/actions?limit=200", "host": ["{{baseUrl}}"], "path": ["action-config","actions"], "query": [{ "key": "limit", "value": "200" }] }
+              }
+            },
+            {
+              "name": "Get Action By ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/actions/ACT001", "host": ["{{baseUrl}}"], "path": ["action-config","actions","ACT001"] }
+              }
+            },
+            {
+              "name": "Create Action",
+              "request": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/action-config/actions", "host": ["{{baseUrl}}"], "path": ["action-config","actions"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Gọi điện tư vấn\",\n  \"type\": \"call\",\n  \"category\": \"primary\",\n  \"reasonIds\": [\"REA001\", \"REA002\"]\n}" }
+              }
+            },
+            {
+              "name": "Update Action",
+              "request": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/action-config/actions/ACT001", "host": ["{{baseUrl}}"], "path": ["action-config","actions","ACT001"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Gọi điện tư vấn (updated)\",\n  \"reasonIds\": [\"REA001\"]\n}" }
+              }
+            },
+            {
+              "name": "Delete Action",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/action-config/actions/ACT001", "host": ["{{baseUrl}}"], "path": ["action-config","actions","ACT001"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Action Chains (Templates)",
+          "item": [
+            {
+              "name": "List Action Chains",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/chains?limit=200", "host": ["{{baseUrl}}"], "path": ["action-config","chains"], "query": [{ "key": "limit", "value": "200" }] }
+              }
+            },
+            {
+              "name": "Get Chain By ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/action-config/chains/{{chainId}}", "host": ["{{baseUrl}}"], "path": ["action-config","chains","{{chainId}}"] }
+              }
+            },
+            {
+              "name": "Create Action Chain",
+              "request": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/action-config/chains", "host": ["{{baseUrl}}"], "path": ["action-config","chains"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Chăm sóc User Mới\",\n  \"description\": \"Chuỗi hành động onboard user mới đăng ký\",\n  \"delayUnit\": \"hour\",\n  \"delayValue\": 1,\n  \"active\": true\n}" }
+              }
+            },
+            {
+              "name": "Update Action Chain",
+              "request": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/action-config/chains/{{chainId}}", "host": ["{{baseUrl}}"], "path": ["action-config","chains","{{chainId}}"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Chăm sóc User Mới (v2)\",\n  \"active\": true,\n  \"delayUnit\": \"day\",\n  \"delayValue\": 1\n}" }
+              }
+            },
+            {
+              "name": "Save Chain Rules (steps + branches)",
+              "request": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/action-config/chains/{{chainId}}/rule", "host": ["{{baseUrl}}"], "path": ["action-config","chains","{{chainId}}","rule"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"steps\": [\n    {\n      \"order\": 1,\n      \"actionId\": \"ACT001\",\n      \"branches\": [\n        {\n          \"order\": 1,\n          \"resultId\": \"RES001\",\n          \"nextStepType\": \"next_in_chain\",\n          \"nextActionId\": \"ACT002\",\n          \"delayUnit\": \"hour\",\n          \"delayValue\": 2\n        },\n        {\n          \"order\": 2,\n          \"resultId\": \"RES002\",\n          \"nextStepType\": \"close_task\",\n          \"closeOutcome\": \"failure\"\n        }\n      ]\n    },\n    {\n      \"order\": 2,\n      \"actionId\": \"ACT002\",\n      \"branches\": [\n        {\n          \"order\": 1,\n          \"resultId\": \"RES001\",\n          \"nextStepType\": \"close_task\",\n          \"closeOutcome\": \"success\"\n        }\n      ]\n    }\n  ]\n}" }
+              }
+            },
+            {
+              "name": "Delete Action Chain",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/action-config/chains/{{chainId}}", "host": ["{{baseUrl}}"], "path": ["action-config","chains","{{chainId}}"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔒 RBAC",
+      "item": [
+        {
+          "name": "List All Permissions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/rbac/", "host": ["{{baseUrl}}"], "path": ["rbac",""] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Permission By ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/rbac/users_read", "host": ["{{baseUrl}}"], "path": ["rbac","users_read"] }
+          },
+          "response": []
+        },
+        {
+          "name": "List All Roles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/rbac/roles", "host": ["{{baseUrl}}"], "path": ["rbac","roles"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Role By ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/rbac/roles/staff", "host": ["{{baseUrl}}"], "path": ["rbac","roles","staff"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Custom Role",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/rbac/roles", "host": ["{{baseUrl}}"], "path": ["rbac","roles"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"supervisor\",\n  \"name\": \"SUPERVISOR\",\n  \"description\": \"Supervisor role — giám sát\",\n  \"level\": 2,\n  \"permissions\": [\"users_read\", \"events_read\", \"events_update\"]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/rbac/roles/supervisor", "host": ["{{baseUrl}}"], "path": ["rbac","roles","supervisor"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Supervisor role (updated)\",\n  \"permissions\": [\"users_read\", \"events_read\", \"events_update\", \"customers_read\"]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/rbac/roles/supervisor", "host": ["{{baseUrl}}"], "path": ["rbac","roles","supervisor"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Metadata",
+      "item": [
+        {
+          "name": "Get All Metadata",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/metadata", "host": ["{{baseUrl}}"], "path": ["metadata"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Roles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/metadata/roles", "host": ["{{baseUrl}}"], "path": ["metadata","roles"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Departments",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/metadata/departments", "host": ["{{baseUrl}}"], "path": ["metadata","departments"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Department Groups",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/metadata/department-groups", "host": ["{{baseUrl}}"], "path": ["metadata","department-groups"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity Groups",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/metadata/activity-groups", "host": ["{{baseUrl}}"], "path": ["metadata","activity-groups"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Groups",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/metadata/customer-groups", "host": ["{{baseUrl}}"], "path": ["metadata","customer-groups"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏗️ Organization",
+      "item": [
+        {
+          "name": "List Organization (Departments + Groups)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/organization?page=1&limit=50", "host": ["{{baseUrl}}"], "path": ["organization"], "query": [{ "key": "page","value":"1"},{"key":"limit","value":"50"}] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/organization/departments", "host": ["{{baseUrl}}"], "path": ["organization","departments"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Phòng Marketing\",\n  \"alias\": \"marketing\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Group in Department",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/organization/groups", "host": ["{{baseUrl}}"], "path": ["organization","groups"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nhóm Content\",\n  \"desc\": \"Nhóm làm nội dung\",\n  \"parentAlias\": \"marketing\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛠️ Functions (Chức danh)",
+      "item": [
+        {
+          "name": "List Functions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/functions?page=1&limit=50", "host": ["{{baseUrl}}"], "path": ["functions"], "query": [{"key":"page","value":"1"},{"key":"limit","value":"50"}] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Function",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/functions", "host": ["{{baseUrl}}"], "path": ["functions"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Backend Developer\",\n  \"desc\": \"Phát triển backend API\",\n  \"type\": \"tech\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "http://localhost:4000/health", "host": ["http://localhost:4000"], "path": ["health"] }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
