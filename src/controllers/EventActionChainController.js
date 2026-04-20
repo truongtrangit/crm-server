@@ -21,18 +21,6 @@ function calcScheduledAt(activatedAt, delayUnit, delayValue) {
   return d;
 }
 
-/**
- * Converts ActionChain.delay string ("immediate" | "1h" | "4h" | "1d" | "3d" | "7d")
- * into { unit, value } compatible with calcScheduledAt.
- */
-function parseChainDelay(delay) {
-  if (!delay || delay === "immediate") return { unit: "immediate", value: null };
-  const match = delay.match(/^(\d+)(h|d)$/);
-  if (!match) return { unit: "immediate", value: null };
-  const value = parseInt(match[1], 10);
-  const unit  = match[2] === "h" ? "hour" : "day";
-  return { unit, value };
-}
 
 async function buildStepSnapshot(templateStep, actionMap) {
   const action = actionMap[templateStep.actionId];

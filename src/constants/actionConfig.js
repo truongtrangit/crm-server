@@ -55,18 +55,6 @@ const RESULT_TYPE_VALUES = Object.freeze({
 
 const ALL_RESULT_TYPES = Object.values(RESULT_TYPE_VALUES);
 
-// ─── Chain Delays ───
-const CHAIN_DELAY_VALUES = Object.freeze({
-  IMMEDIATE:  "immediate",
-  ONE_HOUR:   "1h",
-  FOUR_HOURS: "4h",
-  ONE_DAY:    "1d",
-  THREE_DAYS: "3d",
-  SEVEN_DAYS: "7d",
-});
-
-const ALL_CHAIN_DELAYS = Object.values(CHAIN_DELAY_VALUES);
-
 // ─── Branch / Next Step Types ───
 /**
  * Các loại bước tiếp theo trong nhánh kết quả:
@@ -100,10 +88,6 @@ const CLOSE_OUTCOME_VALUES = Object.freeze({
 
 const ALL_CLOSE_OUTCOMES = Object.values(CLOSE_OUTCOME_VALUES);
 
-// Legacy aliases (kept for backward compat)
-const CLOSE_STATUS_VALUES   = CLOSE_OUTCOME_VALUES;
-const ALL_CLOSE_STATUSES    = ALL_CLOSE_OUTCOMES;
-
 const BRANCH_DELAY_UNIT_VALUES = Object.freeze({
   IMMEDIATE: "immediate",
   MINUTE:    "minute",
@@ -125,17 +109,11 @@ module.exports = {
   // Result types
   RESULT_TYPE_VALUES,
   ALL_RESULT_TYPES,
-  // Chain delays
-  CHAIN_DELAY_VALUES,
-  ALL_CHAIN_DELAYS,
   // Next step / Branch
   NEXT_STEP_TYPE_VALUES,
   ALL_NEXT_STEP_TYPES,
   CLOSE_OUTCOME_VALUES,
   ALL_CLOSE_OUTCOMES,
-  // Legacy
-  CLOSE_STATUS_VALUES,
-  ALL_CLOSE_STATUSES,
   BRANCH_DELAY_UNIT_VALUES,
   ALL_BRANCH_DELAY_UNITS,
 };

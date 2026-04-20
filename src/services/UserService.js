@@ -565,8 +565,8 @@ async function getUserForStaffApi(actor, userId) {
     throw createHttpError(404, "User not found");
   }
 
-  const actorRoleName2 = await getUserRoleName(actor);
-  if (actorRoleName2 === MANAGER_ROLE_NAME) {
+  const actorRoleName = await getUserRoleName(actor);
+  if (actorRoleName === MANAGER_ROLE_NAME) {
     const managerDeptAliases = Array.isArray(actor.departmentAliases)
       ? actor.departmentAliases
       : Array.isArray(actor.department)
@@ -687,9 +687,8 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
 
   ensureDepartmentByRole(nextRole.name, organizationAssignments.departments);
 
-  const actorRoleName4 = await getUserRoleName(actor);
   if (
-    actorRoleName4 === MANAGER_ROLE_NAME &&
+    actorRoleName === MANAGER_ROLE_NAME &&
     !isWithinManagerScope(actor, {
       department: organizationAssignments.departments,
       group: organizationAssignments.groups,
@@ -931,7 +930,6 @@ async function deleteUserAccount(actor, targetUser) {
 }
 
 module.exports = {
-  createHttpError,
   createUserAccount,
   deleteUserAccount,
   getUserForStaffApi,

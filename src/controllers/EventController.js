@@ -2,7 +2,6 @@ const EventService = require("../services/EventService");
 const Event = require("../models/Event");
 const { sendSuccess, sendError } = require("../utils/http");
 const { buildPaginatedResponse } = require("../utils/pagination");
-const { ROLE_DEFINITIONS } = require("../constants/rbac");
 
 // Roles that bypass ownership check (can update any event)
 const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];

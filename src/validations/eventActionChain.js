@@ -6,8 +6,6 @@ const NEXT_STEP_TYPES = [
 ];
 const DELAY_UNITS = ["immediate", "minute", "hour", "day", "week"];
 
-const STEP_STATUSES = ["pending", "active", "done", "skipped"];
-
 // Thêm chain vào event: chỉ cần chainId
 const addChainToEventSchema = Joi.object({
   chainId: Joi.string().required().messages({

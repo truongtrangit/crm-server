@@ -5,7 +5,6 @@ const {
   hasPermission,
   hasAnyPermission,
   hasAllPermissions,
-  getUserRoleName,
 } = require("../utils/rbac");
 
 async function authenticateRequest(req, res, next) {
@@ -55,26 +54,6 @@ async function authenticateRequest(req, res, next) {
   req.user = user;
 
   return next();
-}
-
-function authorizeRoles(...roles) {
-  return async (req, res, next) => {
-    if (!req.user) {
-      return sendError(res, 401, "Authentication required", {
-        code: "AUTHENTICATION_REQUIRED",
-      });
-    }
-
-    const roleName = await getUserRoleName(req.user);
-
-    if (!roleName || !roles.includes(roleName)) {
-      return sendError(res, 403, "Forbidden", {
-        code: "FORBIDDEN",
-      });
-    }
-
-    return next();
-  };
 }
 
 /**
@@ -127,6 +106,5 @@ function requirePermission(...permissionsOrOptions) {
 
 module.exports = {
   authenticateRequest,
-  authorizeRoles,
   requirePermission,
 };

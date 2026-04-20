@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { ALL_CHAIN_DELAYS, ALL_NEXT_STEP_TYPES, ALL_CLOSE_OUTCOMES, ALL_BRANCH_DELAY_UNITS } = require("../constants/actionConfig");
+const { ALL_NEXT_STEP_TYPES, ALL_CLOSE_OUTCOMES, ALL_BRANCH_DELAY_UNITS } = require("../constants/actionConfig");
 
 /**
  * ActionChain: "Chuỗi hành động"
