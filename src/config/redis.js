@@ -9,9 +9,9 @@ async function connectRedis() {
     return redisClient;
   }
 
-  // Khởi tạo client nhưng nếu ko có env.redisUri thì không connect để tránh lỗi
-  if (!env.redisUri) {
-    logger.warn("REDIS_URI is not defined. Redis caching will be skipped.");
+  // Disable hoàn toàn theo config env, không cố thử connect
+  if (!env.enableRedis) {
+    logger.info("Redis is disabled via ENV. Falling back to MongoDB only.");
     return null;
   }
 
@@ -35,9 +35,8 @@ async function connectRedis() {
     await redisClient.connect();
     return redisClient;
   } catch (error) {
-    logger.warn("Failed to connect to Redis, caching will be disabled", { error: error.message });
-    redisClient = null;
-    return null; // Trả về null để chạy app không cần cache
+    logger.error("Failed to connect to Redis", { error: error.message });
+    throw error;
   }
 }
 

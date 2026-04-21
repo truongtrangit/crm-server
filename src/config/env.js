@@ -12,6 +12,7 @@ const env = {
   passwordResetTokenTtlMinutes:
     Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES) || 30,
   defaultUserPassword: process.env.DEFAULT_USER_PASSWORD || "crm123456",
+  enableRedis: process.env.ENABLE_REDIS === "true",
   redisUri: process.env.REDIS_URI || "redis://127.0.0.1:6379",
   redisUsername: process.env.REDIS_USERNAME || "dev_user",
   redisPassword: process.env.REDIS_PASSWORD || "dev_password",
