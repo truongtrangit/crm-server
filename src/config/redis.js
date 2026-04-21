@@ -35,9 +35,9 @@ async function connectRedis() {
     await redisClient.connect();
     return redisClient;
   } catch (error) {
-    logger.error("Failed to connect to Redis", { error: error.message });
+    logger.warn("Failed to connect to Redis, caching will be disabled", { error: error.message });
     redisClient = null;
-    throw error; // Bắt buộc throw để server.js bắt được và stop process.exit(1)
+    return null; // Trả về null để chạy app không cần cache
   }
 }
 
