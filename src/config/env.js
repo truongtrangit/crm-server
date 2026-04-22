@@ -18,6 +18,11 @@ const env = {
   redisPassword: process.env.REDIS_PASSWORD || "dev_password",
   cacheRoleTtlSeconds: Number(process.env.CACHE_ROLE_TTL_SECONDS) || 86400, // Mặc định 24h
   cacheMetadataTtlSeconds: Number(process.env.CACHE_METADATA_TTL_SECONDS) || 14400, // Mặc định 4h
+
+  // ─── Webhook ─────────────────────────────────────────────────────────────────
+  webhookSecret: process.env.WEBHOOK_SECRET || "whsec_dev_secret_key_change_in_production",
+  webhookSigningKey: process.env.WEBHOOK_SIGNING_KEY || "whsk_dev_signing_key_change_in_production",
+  webhookAllowedIps: process.env.WEBHOOK_ALLOWED_IPS || "", // comma-separated, empty = allow all
 };
 
 module.exports = env;

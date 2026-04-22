@@ -70,7 +70,16 @@ app.use(
   }),
 );
 
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      // Capture raw body for webhook HMAC signature verification
+      if (req.originalUrl && req.originalUrl.includes("/webhooks/")) {
+        req.rawBody = buf.toString("utf8");
+      }
+    },
+  }),
+);
 app.use(requestLogger);
 
 // ─── Utility Routes ───────────────────────────────────────────────────────────
@@ -97,6 +106,20 @@ app.use("/api/v1", apiLimiter);
 
 // Auth limiter cho riêng /api/v1/auth
 app.use("/api/v1/auth", authLimiter);
+
+// Webhook limiter — tách riêng cho webhook endpoint
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 phút
+  max: 100, // tối đa 100 webhook requests / phút / IP
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many webhook requests, please try again later.",
+    code: "TOO_MANY_REQUESTS",
+  },
+});
+app.use("/api/v1/webhooks", webhookLimiter);
 
 // Mount versioned router
 app.use("/api/v1", v1Router);
