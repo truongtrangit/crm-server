@@ -133,7 +133,21 @@ describe("POST /api/v1/webhooks/ingest", () => {
       expect(res.body.code).toBe("WEBHOOK_INVALID_SIGNATURE");
     });
 
-    it("should accept requests with valid token + signature", async () => {
+    it("should reject requests without X-Webhook-Delivery-Id → 400", async () => {
+      const body = buildUserMoiPayload();
+      const sig = generateSignature(body);
+
+      const res = await request(app)
+        .post(INGEST_URL)
+        .set("Authorization", `Bearer ${env.webhookSecret}`)
+        .set("X-Webhook-Signature", sig)
+        .send(body);
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("WEBHOOK_MISSING_DELIVERY_ID");
+    });
+
+    it("should accept requests with valid token + signature + deliveryId", async () => {
       const body = buildUserMoiPayload();
 
       const res = await webhookPost(body);

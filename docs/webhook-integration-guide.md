@@ -97,17 +97,15 @@ sig = hmac.new(WEBHOOK_SIGNING_KEY.encode(), body.encode(), hashlib.sha256).hexd
 signature = f"sha256={sig}"
 ```
 
-### 4.3. X-Webhook-Delivery-Id (Khuyến nghị)
+### 4.3. X-Webhook-Delivery-Id (Bắt buộc)
 
-ID duy nhất cho mỗi lần gửi — dùng để chống trùng lặp (idempotency).
+ID duy nhất cho mỗi lần gửi — dùng để chống trùng lặp (idempotency). **Bắt buộc phải gửi.**
 
 ```
 X-Webhook-Delivery-Id: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-> Nếu không gửi header này, CRM sẽ tự tạo. Tuy nhiên, **khuyến nghị luôn gửi** để:
-> - Tránh xử lý trùng khi retry
-> - Dễ trace/debug giữa 2 hệ thống
+> **Tại sao bắt buộc?** Nếu không có delivery ID, khi retry do network timeout, CRM không có cách nào phân biệt request mới vs request trùng → dẫn đến tạo event duplicate.
 
 ---
 
@@ -285,6 +283,7 @@ X-Webhook-Delivery-Id: 550e8400-e29b-41d4-a716-446655440000
 | HTTP Status | Code | Nguyên nhân | Xử lý |
 |-------------|------|-------------|--------|
 | `400` | `VALIDATION_ERROR` | `eventType` không hợp lệ hoặc thiếu `payload` | Kiểm tra lại body |
+| `400` | `WEBHOOK_MISSING_DELIVERY_ID` | Thiếu header `X-Webhook-Delivery-Id` | Thêm UUID unique |
 | `401` | `WEBHOOK_AUTH_REQUIRED` | Thiếu header `Authorization` | Thêm `Bearer <token>` |
 | `401` | `WEBHOOK_INVALID_TOKEN` | Token sai | Kiểm tra lại `WEBHOOK_SECRET` |
 | `401` | `WEBHOOK_SIGNATURE_REQUIRED` | Thiếu header `X-Webhook-Signature` | Thêm HMAC signature |

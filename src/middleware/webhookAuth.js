@@ -126,11 +126,20 @@ function checkIpAllowlist(req, res, next) {
 
 /**
  * Idempotency check — prevents duplicate processing of the same delivery.
- * Uses X-Webhook-Delivery-Id header (or generates one if missing).
+ * Requires X-Webhook-Delivery-Id header — rejects if missing.
  */
 async function checkIdempotency(req, res, next) {
-  const deliveryId =
-    req.get("x-webhook-delivery-id") || crypto.randomUUID();
+  const deliveryId = req.get("x-webhook-delivery-id");
+
+  if (!deliveryId) {
+    logger.warn("Webhook: Missing X-Webhook-Delivery-Id header", {
+      ip: req.ip,
+    });
+    return sendError(res, 400, "X-Webhook-Delivery-Id header is required", {
+      code: "WEBHOOK_MISSING_DELIVERY_ID",
+    });
+  }
+
   req.webhookDeliveryId = deliveryId;
 
   const existing = await WebhookLog.findOne({ deliveryId });
