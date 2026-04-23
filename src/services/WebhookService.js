@@ -25,10 +25,10 @@ class WebhookService {
   #processors = new Map();
 
   constructor() {
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.USER_MOI, this.#processUserMoi.bind(this));
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.BIZ_MOI, this.#processBizMoi.bind(this));
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.SAP_HET_HAN, this.#processSapHetHan.bind(this));
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.CAN_NANG_CAP, this.#processCanNangCap.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_UPGRADE, this.#processPlanUpgrade.bind(this));
   }
 
   /**
@@ -53,7 +53,7 @@ class WebhookService {
   async processEvent(eventType, payload, deliveryId, ipAddress, source) {
     // 1. Create webhook log with 'received' status
     const webhookLog = await WebhookLog.create({
-      deliveryId,
+      ...(deliveryId ? { deliveryId } : {}),
       eventType,
       source: source || "external",
       payload,
@@ -139,7 +139,7 @@ class WebhookService {
    * user_moi — Khách hàng đăng ký mới.
    * Tạo Event group 'user_moi' và upsert Customer by email/phone.
    */
-  async #processUserMoi(payload) {
+  async #processNewRegistration(payload) {
     const customerData = this.#extractCustomerData(payload);
     const customer = await this.#upsertCustomer(customerData);
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
@@ -148,7 +148,7 @@ class WebhookService {
       id: await generateSequentialId(Event, "EVT", 3),
       name: payload.name || `User mới: ${customerData.name || "N/A"}`,
       sub: payload.sub || "",
-      group: WEBHOOK_EVENT_TYPES.USER_MOI,
+      group: WEBHOOK_EVENT_TYPES.NEW_REGISTRATION,
       customerId: customer?.id || null,
       customer: {
         name: customerData.name || "Unknown",
@@ -196,7 +196,7 @@ class WebhookService {
    * biz_moi — Khách hàng tạo biz mới.
    * Tạo Event group 'biz_moi', link tới Customer nếu tìm thấy.
    */
-  async #processBizMoi(payload) {
+  async #processNewBiz(payload) {
     const customerData = this.#extractCustomerData(payload);
     const existingCustomer = await this.#findCustomer(customerData);
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
@@ -205,7 +205,7 @@ class WebhookService {
       id: await generateSequentialId(Event, "EVT", 3),
       name: payload.name || `Biz mới: ${payload.biz?.id || "N/A"}`,
       sub: payload.sub || "",
-      group: WEBHOOK_EVENT_TYPES.BIZ_MOI,
+      group: WEBHOOK_EVENT_TYPES.NEW_BUSINESS,
       customerId: existingCustomer?.id || null,
       customer: {
         name: customerData.name || existingCustomer?.name || "Unknown",
@@ -247,7 +247,7 @@ class WebhookService {
    * sap_het_han — Biz cần gia hạn.
    * Tạo Event group 'sap_het_han'.
    */
-  async #processSapHetHan(payload) {
+  async #processPlanExpired(payload) {
     const customerData = this.#extractCustomerData(payload);
     const existingCustomer = await this.#findCustomer(customerData);
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
@@ -256,7 +256,7 @@ class WebhookService {
       id: await generateSequentialId(Event, "EVT", 3),
       name: payload.name || `Sắp hết hạn: ${payload.biz?.id || customerData.name || "N/A"}`,
       sub: payload.sub || "",
-      group: WEBHOOK_EVENT_TYPES.SAP_HET_HAN,
+      group: WEBHOOK_EVENT_TYPES.PLAN_EXPIRED,
       customerId: existingCustomer?.id || null,
       customer: {
         name: customerData.name || existingCustomer?.name || "Unknown",
@@ -298,7 +298,7 @@ class WebhookService {
    * can_nang_cap — Biz cần nâng cấp.
    * Tạo Event group 'can_nang_cap'.
    */
-  async #processCanNangCap(payload) {
+  async #processPlanUpgrade(payload) {
     const customerData = this.#extractCustomerData(payload);
     const existingCustomer = await this.#findCustomer(customerData);
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
@@ -307,7 +307,7 @@ class WebhookService {
       id: await generateSequentialId(Event, "EVT", 3),
       name: payload.name || `Cần nâng cấp: ${payload.biz?.id || customerData.name || "N/A"}`,
       sub: payload.sub || "",
-      group: WEBHOOK_EVENT_TYPES.CAN_NANG_CAP,
+      group: WEBHOOK_EVENT_TYPES.PLAN_UPGRADE,
       customerId: existingCustomer?.id || null,
       customer: {
         name: customerData.name || existingCustomer?.name || "Unknown",

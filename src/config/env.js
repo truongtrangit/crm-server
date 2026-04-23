@@ -21,7 +21,6 @@ const env = {
 
   // ─── Webhook ─────────────────────────────────────────────────────────────────
   webhookSecret: process.env.WEBHOOK_SECRET || "whsec_dev_secret_key_change_in_production",
-  webhookSigningKey: process.env.WEBHOOK_SIGNING_KEY || "whsk_dev_signing_key_change_in_production",
   webhookAllowedIps: process.env.WEBHOOK_ALLOWED_IPS || "", // comma-separated, empty = allow all
 };
 

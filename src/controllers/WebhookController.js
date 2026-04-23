@@ -1,17 +1,34 @@
-const crypto = require("crypto");
 const WebhookService = require("../services/WebhookService");
 const { sendSuccess } = require("../utils/http");
 
+/**
+ * Mapping URL path → eventType constant.
+ * URL dùng kebab-case chuyên nghiệp, eventType dùng snake_case nội bộ.
+ */
+const ROUTE_TO_EVENT_TYPE = {
+  "new-registration": "user_moi",
+  "new-business": "biz_moi",
+  "expiring-subscription": "sap_het_han",
+  "upgrade-required": "can_nang_cap",
+};
+
 class WebhookController {
   /**
-   * POST /api/v1/webhooks/ingest
+   * POST /api/v1/webhooks/:eventSlug
    * Nhận event từ bên thứ 3.
-   * Body: { eventType, payload, timestamp?, source? }
+   * eventType được xác định từ URL path, không cần gửi trong body.
+   * Body chính là payload — bên thứ 3 chỉ gửi data, không cần wrap.
    */
   async ingest(req, res) {
-    const { eventType, payload, source } = req.body;
-    const deliveryId = req.webhookDeliveryId || crypto.randomUUID();
+    // Lấy event slug từ URL path (e.g. "/new-registration" → "new-registration")
+    const eventSlug = req.path.replace(/^\//, "");
+    const eventType = ROUTE_TO_EVENT_TYPE[eventSlug];
+
+    // Body chính là payload — không cần wrap trong { payload: ... }
+    const payload = req.body;
+    const deliveryId = req.webhookDeliveryId;
     const ipAddress = req.ip || req.socket?.remoteAddress || "";
+    const source = payload.source || "external";
 
     const result = await WebhookService.processEvent(
       eventType,

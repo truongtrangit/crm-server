@@ -6,10 +6,10 @@
  */
 
 const WEBHOOK_EVENT_TYPES = Object.freeze({
-  USER_MOI: "user_moi", // Khách hàng đăng ký mới
-  BIZ_MOI: "biz_moi", // Khách hàng tạo biz mới
-  SAP_HET_HAN: "sap_het_han", // Biz cần gia hạn
-  CAN_NANG_CAP: "can_nang_cap", // Biz cần nâng cấp
+  NEW_REGISTRATION: "user_moi", // user mới
+  NEW_BUSINESS: "biz_moi", // business mới
+  PLAN_EXPIRED: "sap_het_han", // sắp hết hạn
+  PLAN_UPGRADE: "can_nang_cap", // cần nâng cấp
 });
 
 /** Mảng các event type — dùng làm enum cho validation */

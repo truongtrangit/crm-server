@@ -38,57 +38,6 @@ function verifyWebhookToken(req, res, next) {
 }
 
 /**
- * Verify HMAC-SHA256 signature from header X-Webhook-Signature.
- * Signature format: sha256=<hex_hmac>
- *
- * The 3rd party computes: HMAC-SHA256(WEBHOOK_SIGNING_KEY, rawBody)
- * and sends it as header.
- */
-function verifyWebhookSignature(req, res, next) {
-  const signatureHeader = req.get("x-webhook-signature") || "";
-
-  if (!signatureHeader) {
-    logger.warn("Webhook: Missing X-Webhook-Signature header", {
-      ip: req.ip,
-    });
-    return sendError(res, 401, "Webhook signature required", {
-      code: "WEBHOOK_SIGNATURE_REQUIRED",
-    });
-  }
-
-  // rawBody is set by express.json() with verify option — see webhooks route
-  const rawBody = req.rawBody;
-  if (!rawBody) {
-    logger.warn("Webhook: No raw body available for signature verification");
-    return sendError(res, 400, "Cannot verify signature — no raw body", {
-      code: "WEBHOOK_NO_RAW_BODY",
-    });
-  }
-
-  const expectedHmac = crypto
-    .createHmac("sha256", env.webhookSigningKey)
-    .update(rawBody)
-    .digest("hex");
-  const expectedSignature = `sha256=${expectedHmac}`;
-
-  // Timing-safe comparison
-  if (
-    signatureHeader.length !== expectedSignature.length ||
-    !crypto.timingSafeEqual(
-      Buffer.from(signatureHeader),
-      Buffer.from(expectedSignature),
-    )
-  ) {
-    logger.warn("Webhook: Signature mismatch", { ip: req.ip });
-    return sendError(res, 401, "Invalid webhook signature", {
-      code: "WEBHOOK_INVALID_SIGNATURE",
-    });
-  }
-
-  return next();
-}
-
-/**
  * Optional IP allowlist check.
  * Only active if WEBHOOK_ALLOWED_IPS is configured (non-empty).
  */
@@ -126,30 +75,25 @@ function checkIpAllowlist(req, res, next) {
 
 /**
  * Idempotency check — prevents duplicate processing of the same delivery.
- * Requires X-Webhook-Delivery-Id header — rejects if missing.
+ * X-Webhook-Delivery-Id is optional:
+ *   - If provided → check for duplicates, reject if already processed
+ *   - If not provided → skip check, deliveryId = null
  */
 async function checkIdempotency(req, res, next) {
-  const deliveryId = req.get("x-webhook-delivery-id");
-
-  if (!deliveryId) {
-    logger.warn("Webhook: Missing X-Webhook-Delivery-Id header", {
-      ip: req.ip,
-    });
-    return sendError(res, 400, "X-Webhook-Delivery-Id header is required", {
-      code: "WEBHOOK_MISSING_DELIVERY_ID",
-    });
-  }
+  const deliveryId = req.get("x-webhook-delivery-id") || null;
 
   req.webhookDeliveryId = deliveryId;
 
-  const existing = await WebhookLog.findOne({ deliveryId });
+  if (deliveryId) {
+    const existing = await WebhookLog.findOne({ deliveryId });
 
-  if (existing) {
-    logger.info("Webhook: Duplicate delivery rejected", { deliveryId });
-    return sendError(res, 409, "Webhook already processed", {
-      code: "WEBHOOK_DUPLICATE_DELIVERY",
-      details: { deliveryId, status: existing.status },
-    });
+    if (existing) {
+      logger.info("Webhook: Duplicate delivery rejected", { deliveryId });
+      return sendError(res, 409, "Webhook already processed", {
+        code: "WEBHOOK_DUPLICATE_DELIVERY",
+        details: { deliveryId, status: existing.status },
+      });
+    }
   }
 
   return next();
@@ -157,7 +101,6 @@ async function checkIdempotency(req, res, next) {
 
 module.exports = {
   verifyWebhookToken,
-  verifyWebhookSignature,
   checkIpAllowlist,
   checkIdempotency,
 };

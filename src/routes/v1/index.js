@@ -45,7 +45,7 @@ v1Router.get("/", (_req, res) =>
 
 v1Router.use("/auth", authRouter);
 
-// ─── Webhook (own auth — token + HMAC, not CRM session) ─────────────────────
+// ─── Webhook (own auth — bearer token, not CRM session) ─────────────────────
 v1Router.use("/webhooks", webhooksRouter);
 
 // ─── Protected ───────────────────────────────────────────────────────────────

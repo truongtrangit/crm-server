@@ -70,16 +70,7 @@ app.use(
   }),
 );
 
-app.use(
-  express.json({
-    verify: (req, _res, buf) => {
-      // Capture raw body for webhook HMAC signature verification
-      if (req.originalUrl && req.originalUrl.includes("/webhooks/")) {
-        req.rawBody = buf.toString("utf8");
-      }
-    },
-  }),
-);
+app.use(express.json());
 app.use(requestLogger);
 
 // ─── Utility Routes ───────────────────────────────────────────────────────────

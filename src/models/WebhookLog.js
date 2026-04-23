@@ -7,8 +7,12 @@ const WEBHOOK_STATUSES = ["received", "processing", "processed", "failed"];
 
 const webhookLogSchema = new mongoose.Schema(
   {
-    /** Unique delivery ID from 3rd party — used for idempotency */
-    deliveryId: { type: String, required: true, unique: true, index: true },
+    /**
+     * Delivery ID from 3rd party — used for idempotency.
+     * Optional: field is absent when 3rd party doesn't provide one.
+     * Sparse unique index: only enforces uniqueness on docs where field exists.
+     */
+    deliveryId: { type: String, unique: true, sparse: true },
 
     /** Event type — matches EVENT_GROUP_IDS */
     eventType: {

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "CRM Webhook",
-    "description": "Collection để test Webhook ingest endpoint.\n\n**Setup:**\n1. Import collection này vào Postman\n2. Các biến `webhookSecret` và `webhookSigningKey` đã được set sẵn (dev defaults)\n3. Pre-request script tự động tính HMAC signature + generate delivery ID\n4. Chỉ cần bấm Send!\n\n**Lưu ý:** Đảm bảo server đang chạy tại `{{baseUrl}}` (mặc định `http://localhost:4000`)",
+    "description": "Collection để test Webhook endpoints.\n\n**Setup:**\n1. Import collection này vào Postman\n2. Biến `webhookSecret` đã set sẵn (dev default)\n3. Chỉ cần bấm Send!\n\n**Lưu ý:** Đảm bảo server đang chạy tại `{{baseUrl}}`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -14,45 +14,6 @@
       "key": "webhookSecret",
       "value": "whsec_dev_secret_key_change_in_production",
       "type": "string"
-    },
-    {
-      "key": "webhookSigningKey",
-      "value": "whsk_dev_signing_key_change_in_production",
-      "type": "string"
-    }
-  ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "// ═══ Auto-compute HMAC Signature & Delivery ID ═══",
-          "// Chạy trước mỗi request trong collection",
-          "",
-          "const body = pm.request.body ? pm.request.body.raw : '';",
-          "",
-          "// Generate unique delivery ID",
-          "const deliveryId = pm.variables.replaceIn('{{$guid}}');",
-          "pm.request.headers.upsert({",
-          "    key: 'X-Webhook-Delivery-Id',",
-          "    value: deliveryId",
-          "});",
-          "",
-          "// Compute HMAC-SHA256 signature",
-          "const signingKey = pm.collectionVariables.get('webhookSigningKey');",
-          "const hmac = CryptoJS.HmacSHA256(body, signingKey).toString(CryptoJS.enc.Hex);",
-          "const signature = 'sha256=' + hmac;",
-          "",
-          "pm.request.headers.upsert({",
-          "    key: 'X-Webhook-Signature',",
-          "    value: signature",
-          "});",
-          "",
-          "console.log('🔑 Delivery ID:', deliveryId);",
-          "console.log('🔏 Signature:', signature);"
-        ]
-      }
     }
   ],
   "auth": {
@@ -67,122 +28,102 @@
   },
   "item": [
     {
-      "name": "📥 Webhook Ingest",
+      "name": "📥 Webhook Events",
       "item": [
         {
-          "name": "user_moi — Khách hàng đăng ký mới",
+          "name": "new-registration — Khách hàng đăng ký mới",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Nguyễn Văn A\",\n      \"email\": \"nguyenvana@example.com\",\n      \"phone\": \"0901 234 567\",\n      \"source\": \"Website\",\n      \"address\": \"Hà Nội\"\n    },\n    \"tags\": [\"#trial\", \"#web\"]\n  },\n  \"source\": \"postman-test\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Nguyễn Văn A\",\n    \"email\": \"nguyenvana@example.com\",\n    \"phone\": \"0901 234 567\",\n    \"source\": \"Website\",\n    \"address\": \"Hà Nội\"\n  },\n  \"tags\": [\"#trial\", \"#web\"]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-registration",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-registration"]
             },
-            "description": "Tạo event `user_moi` — khách hàng đăng ký mới.\n\nCRM sẽ:\n- Tạo Event với group `user_moi`\n- Tạo Customer mới nếu chưa tồn tại (theo email/phone)"
-          },
-          "response": []
+            "description": "Tạo event khách hàng đăng ký mới.\n\nCRM sẽ tự động tạo Customer nếu chưa tồn tại."
+          }
         },
         {
-          "name": "user_moi — Với Assignee",
+          "name": "new-registration — Với Assignee",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Trần Thị B\",\n      \"email\": \"tranthib@example.com\",\n      \"phone\": \"0912 345 678\"\n    },\n    \"assignee\": {\n      \"email\": \"staff@company.com\"\n    }\n  },\n  \"source\": \"postman-test\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Trần Thị B\",\n    \"email\": \"tranthib@example.com\",\n    \"phone\": \"0912 345 678\"\n  },\n  \"assignee\": {\n    \"email\": \"staff@company.com\"\n  }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-registration",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-registration"]
             },
-            "description": "Tạo event `user_moi` kèm assignee.\n\nCRM sẽ lookup staff theo email và tự động gán."
-          },
-          "response": []
+            "description": "Tạo event kèm assignee. CRM sẽ lookup staff theo email."
+          }
         },
         {
-          "name": "biz_moi — Tạo Business mới",
+          "name": "new-business — Tạo Business mới",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"biz_moi\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Nguyễn Văn A\",\n      \"email\": \"nguyenvana@example.com\"\n    },\n    \"biz\": {\n      \"id\": \"BIZ-12345\",\n      \"tags\": [\"ecommerce\", \"saas\"]\n    },\n    \"plan\": {\n      \"name\": \"TRIAL\",\n      \"cycle\": \"Thanh toán theo tháng\",\n      \"price\": \"0 đ\",\n      \"daysLeft\": 14,\n      \"expiryDate\": \"2026-05-06\"\n    }\n  },\n  \"source\": \"postman-test\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Nguyễn Văn A\",\n    \"email\": \"nguyenvana@example.com\"\n  },\n  \"biz\": {\n    \"id\": \"BIZ-12345\",\n    \"tags\": [\"ecommerce\", \"saas\"]\n  },\n  \"plan\": {\n    \"name\": \"TRIAL\",\n    \"cycle\": \"Thanh toán theo tháng\",\n    \"price\": \"0 đ\",\n    \"daysLeft\": 14,\n    \"expiryDate\": \"2026-05-06\"\n  }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-business",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-business"]
             },
-            "description": "Tạo event `biz_moi` — khách hàng tạo business mới.\n\nCRM sẽ:\n- Tạo Event với group `biz_moi`\n- Liên kết Customer nếu tìm thấy theo email/phone"
-          },
-          "response": []
+            "description": "Tạo event business mới. CRM sẽ liên kết Customer nếu tìm thấy."
+          }
         },
         {
-          "name": "sap_het_han — Sắp hết hạn",
+          "name": "expiring-subscription — Sắp hết hạn",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"sap_het_han\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Nguyễn Văn A\",\n      \"email\": \"nguyenvana@example.com\"\n    },\n    \"biz\": {\n      \"id\": \"BIZ-12345\",\n      \"tags\": [\"ecommerce\"]\n    },\n    \"plan\": {\n      \"name\": \"PRO\",\n      \"daysLeft\": 3,\n      \"expiryDate\": \"2026-04-25\"\n    }\n  },\n  \"source\": \"postman-test\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Nguyễn Văn A\",\n    \"email\": \"nguyenvana@example.com\"\n  },\n  \"biz\": {\n    \"id\": \"BIZ-12345\",\n    \"tags\": [\"ecommerce\"]\n  },\n  \"plan\": {\n    \"name\": \"PRO\",\n    \"daysLeft\": 3,\n    \"expiryDate\": \"2026-04-25\"\n  }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/expiring-subscription",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "expiring-subscription"]
             },
-            "description": "Tạo event `sap_het_han` — business sắp hết hạn cần gia hạn."
-          },
-          "response": []
+            "description": "Tạo event business sắp hết hạn cần gia hạn."
+          }
         },
         {
-          "name": "can_nang_cap — Cần nâng cấp",
+          "name": "upgrade-required — Cần nâng cấp",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"can_nang_cap\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Nguyễn Văn A\",\n      \"email\": \"nguyenvana@example.com\"\n    },\n    \"biz\": {\n      \"id\": \"BIZ-12345\"\n    },\n    \"plan\": {\n      \"name\": \"BASIC\",\n      \"cycle\": \"Thanh toán theo năm\",\n      \"price\": \"500.000 đ\"\n    },\n    \"quotas\": [\n      { \"name\": \"Users\", \"used\": 48, \"total\": 50, \"color\": \"red\" },\n      { \"name\": \"Storage\", \"used\": 9.5, \"total\": 10, \"color\": \"orange\" }\n    ]\n  },\n  \"source\": \"postman-test\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Nguyễn Văn A\",\n    \"email\": \"nguyenvana@example.com\"\n  },\n  \"biz\": {\n    \"id\": \"BIZ-12345\"\n  },\n  \"plan\": {\n    \"name\": \"BASIC\",\n    \"cycle\": \"Thanh toán theo năm\",\n    \"price\": \"500.000 đ\"\n  },\n  \"quotas\": [\n    { \"name\": \"Users\", \"used\": 48, \"total\": 50, \"color\": \"red\" },\n    { \"name\": \"Storage\", \"used\": 9.5, \"total\": 10, \"color\": \"orange\" }\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/upgrade-required",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "upgrade-required"]
             },
-            "description": "Tạo event `can_nang_cap` — business cần nâng cấp gói cước."
-          },
-          "response": []
+            "description": "Tạo event business cần nâng cấp gói cước."
+          }
         }
       ],
       "description": "Các request gửi event vào CRM qua webhook."
@@ -193,152 +134,48 @@
         {
           "name": "❌ Thiếu Authorization header",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": { \"name\": \"Test\" }\n  }\n}"
+              "raw": "{\n  \"customer\": { \"name\": \"Test\" }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-registration",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-registration"]
             },
             "description": "Expect: `401 WEBHOOK_AUTH_REQUIRED`"
-          },
-          "response": []
+          }
         },
         {
           "name": "❌ Token sai",
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "wrong_token_here",
-                  "type": "string"
-                }
-              ]
+              "bearer": [{ "key": "token", "value": "wrong_token", "type": "string" }]
             },
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": { \"name\": \"Test\" }\n  }\n}"
+              "raw": "{\n  \"customer\": { \"name\": \"Test\" }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-registration",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-registration"]
             },
             "description": "Expect: `401 WEBHOOK_INVALID_TOKEN`"
-          },
-          "response": []
-        },
-        {
-          "name": "❌ Signature sai",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Override signature with invalid value",
-                  "pm.request.headers.upsert({",
-                  "    key: 'X-Webhook-Signature',",
-                  "    value: 'sha256=invalid_signature_value'",
-                  "});",
-                  "pm.request.headers.upsert({",
-                  "    key: 'X-Webhook-Delivery-Id',",
-                  "    value: pm.variables.replaceIn('{{$guid}}')",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": { \"name\": \"Test\" }\n  }\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
-            },
-            "description": "Expect: `401 WEBHOOK_INVALID_SIGNATURE`"
-          },
-          "response": []
-        },
-        {
-          "name": "❌ eventType không hợp lệ",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventType\": \"invalid_event_type\",\n  \"payload\": {\n    \"customer\": { \"name\": \"Test\" }\n  }\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
-            },
-            "description": "Expect: `400 VALIDATION_ERROR`"
-          },
-          "response": []
-        },
-        {
-          "name": "❌ Thiếu payload",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
-            },
-            "description": "Expect: `400 VALIDATION_ERROR`"
-          },
-          "response": []
+          }
         }
       ],
-      "description": "Test các trường hợp lỗi bảo mật — verify rằng webhook từ chối request không hợp lệ."
+      "description": "Test các trường hợp lỗi bảo mật."
     },
     {
       "name": "🔁 Idempotency Test",
@@ -351,15 +188,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Set fixed delivery ID for idempotency test",
                   "const fixedId = 'idempotency-test-' + Date.now();",
                   "pm.collectionVariables.set('idempotencyTestId', fixedId);",
-                  "",
-                  "const body = pm.request.body.raw;",
-                  "const signingKey = pm.collectionVariables.get('webhookSigningKey');",
-                  "const hmac = CryptoJS.HmacSHA256(body, signingKey).toString(CryptoJS.enc.Hex);",
-                  "",
-                  "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'sha256=' + hmac });",
                   "pm.request.headers.upsert({ key: 'X-Webhook-Delivery-Id', value: fixedId });"
                 ]
               }
@@ -379,23 +209,19 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Idempotency Test\",\n      \"email\": \"idempotency@test.com\"\n    }\n  },\n  \"source\": \"postman-idempotency\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Idempotency Test\",\n    \"email\": \"idempotency@test.com\"\n  }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-registration",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-registration"]
             },
-            "description": "Gửi lần đầu — expect `201`.\n\nSau đó gửi request \"Gửi lần 2\" với cùng delivery ID."
-          },
-          "response": []
+            "description": "Gửi lần đầu — expect `201`."
+          }
         },
         {
           "name": "Gửi lần 2 (duplicate → 409)",
@@ -405,15 +231,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Reuse same delivery ID from lần 1",
                   "const fixedId = pm.collectionVariables.get('idempotencyTestId');",
                   "if (!fixedId) throw new Error('Chạy \"Gửi lần 1\" trước!');",
-                  "",
-                  "const body = pm.request.body.raw;",
-                  "const signingKey = pm.collectionVariables.get('webhookSigningKey');",
-                  "const hmac = CryptoJS.HmacSHA256(body, signingKey).toString(CryptoJS.enc.Hex);",
-                  "",
-                  "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'sha256=' + hmac });",
                   "pm.request.headers.upsert({ key: 'X-Webhook-Delivery-Id', value: fixedId });"
                 ]
               }
@@ -425,8 +244,7 @@
                 "exec": [
                   "pm.test('Lần 2 — 409 Duplicate', function() {",
                   "    pm.response.to.have.status(409);",
-                  "    const body = pm.response.json();",
-                  "    pm.expect(body.code).to.eql('WEBHOOK_DUPLICATE_DELIVERY');",
+                  "    pm.expect(pm.response.json().code).to.eql('WEBHOOK_DUPLICATE_DELIVERY');",
                   "});"
                 ]
               }
@@ -435,26 +253,22 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventType\": \"user_moi\",\n  \"payload\": {\n    \"customer\": {\n      \"name\": \"Idempotency Test\",\n      \"email\": \"idempotency@test.com\"\n    }\n  },\n  \"source\": \"postman-idempotency\"\n}"
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Idempotency Test\",\n    \"email\": \"idempotency@test.com\"\n  }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/ingest",
+              "raw": "{{baseUrl}}/api/v1/webhooks/new-registration",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "webhooks", "ingest"]
+              "path": ["api", "v1", "webhooks", "new-registration"]
             },
-            "description": "Gửi lại với cùng delivery ID — expect `409 WEBHOOK_DUPLICATE_DELIVERY`.\n\n⚠️ Phải chạy \"Gửi lần 1\" trước!"
-          },
-          "response": []
+            "description": "Gửi lại cùng delivery ID — expect `409`.\n\n⚠️ Phải chạy \"Gửi lần 1\" trước!"
+          }
         }
       ],
-      "description": "Test cơ chế idempotency — gửi cùng delivery ID 2 lần.\n\n**Cách test:**\n1. Chạy \"Gửi lần 1\" → expect 201\n2. Chạy \"Gửi lần 2\" → expect 409"
+      "description": "Test idempotency — gửi cùng delivery ID 2 lần."
     }
   ]
 }
