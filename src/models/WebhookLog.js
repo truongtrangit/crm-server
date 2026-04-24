@@ -12,7 +12,14 @@ const webhookLogSchema = new mongoose.Schema(
      * Optional: field is absent when 3rd party doesn't provide one.
      * Sparse unique index: only enforces uniqueness on docs where field exists.
      */
-    deliveryId: { type: String, unique: true, sparse: true },
+    deliveryId: {
+      type: String, index: {
+        unique: true,
+        partialFilterExpression: {
+          deliveryId: { $type: "string" }
+        }
+      }
+    },
 
     /** Event type — matches EVENT_GROUP_IDS */
     eventType: {
