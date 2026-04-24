@@ -25,10 +25,13 @@ class WebhookService {
   #processors = new Map();
 
   constructor() {
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
-    this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_UPGRADE, this.#processPlanUpgrade.bind(this));
+    // ⚠️ LOG-ONLY MODE: Tạm tắt processors để log payload từ bên thứ 3 trước.
+    // Khi đã biết schema payload → bật lại từng processor.
+    //
+    // this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
+    // this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
+    // this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
+    // this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_UPGRADE, this.#processPlanUpgrade.bind(this));
   }
 
   /**
@@ -51,7 +54,7 @@ class WebhookService {
    * @returns {Promise<object>} — { webhookLog, event }
    */
   async processEvent(eventType, payload, deliveryId, ipAddress, source) {
-    // 1. Create webhook log with 'received' status
+    // 1. Create webhook log with 'received' status — always log raw payload
     const webhookLog = await WebhookLog.create({
       ...(deliveryId ? { deliveryId } : {}),
       eventType,
@@ -61,7 +64,15 @@ class WebhookService {
       ipAddress: ipAddress || "",
     });
 
-    // 2. Find processor
+    // Always log the raw payload for inspection
+    logger.info("Webhook received — raw payload logged", {
+      deliveryId,
+      eventType,
+      ipAddress,
+      payload: JSON.stringify(payload, null, 2),
+    });
+
+    // 2. Find processor — if none registered, just log and return
     const processor = this.#processors.get(eventType);
     if (!processor) {
       webhookLog.status = "failed";
@@ -102,6 +113,7 @@ class WebhookService {
         deliveryId,
         eventType,
         error: error.message,
+        stack: error.stack,
       });
 
       throw error;
