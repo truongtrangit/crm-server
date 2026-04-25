@@ -70,6 +70,13 @@ router.post("/login", validate(loginSchema), async (req, res) => {
     });
   }
 
+  if (user.isActive === false) {
+    logger.warn("Login failed: account is inactive", { email, userId: user.id });
+    return sendError(res, 403, "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.", {
+      code: "ACCOUNT_INACTIVE",
+    });
+  }
+
   user.sessions = user.sessions.filter(
     (session) => new Date(session.refreshTokenExpiresAt).getTime() > Date.now(),
   );
