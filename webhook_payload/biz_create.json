@@ -1,0 +1,157 @@
+{
+  "id": "69eb4280f0f040009807a465",
+  "picture": null,
+  "desc": "",
+  "industry": null,
+  "author_id": "66c861862ee933c5a6b4c552",
+  "page_pids": [],
+  "name": "test test",
+  "phone": "0567926846",
+  "email": "test@gmail.com",
+  "alias": "test-test",
+  "country": "VN",
+  "users": [
+    {
+      "id": "66c861862ee933c5a6b4c552",
+      "active": true,
+      "email": "truongtrang.it.spkt@gmail.com",
+      "genais": [],
+      "member_role_ids": [],
+      "name": "Trang Nguyen",
+      "notis": [],
+      "page_pid_notis": [],
+      "picture": null,
+      "role": "ADMIN",
+      "top_menu_items": []
+    }
+  ],
+  "roles": [],
+  "company_size": null,
+  "whitelisted_domains": [],
+  "website": null,
+  "modules": [
+    {
+      "alias": "storages",
+      "added_time": "2026-04-24T10:14:28.749Z",
+      "added_by": "66c861862ee933c5a6b4c552"
+    }
+  ],
+  "order": {
+    "id": "69eb4280cd2e603fb5ef83eb",
+    "cards": 100000,
+    "code": "TRIAL-SLP0CQKB9G",
+    "type": "FREE",
+    "customers": 10000,
+    "members": 3,
+    "months": 3,
+    "pages": 3,
+    "total_customers": 0,
+    "time_end": "2026-07-24T10:14:24.516Z",
+    "time_start": "2026-04-24T10:14:24.516Z",
+    "used_cards": 0,
+    "bot_available": true,
+    "chat_available": true
+  },
+  "order_genai": [],
+  "type": "BOT",
+  "top_menu_items": ["dashboard", "chats", "bot_auto", "contacts", "analytics"],
+  "top_menu_mode": "icon_text",
+  "mark_read": "all",
+  "partner_roles": [],
+  "created_at": "2026-04-24T10:14:28.753Z",
+  "updated_at": "2026-04-24T10:14:28.753Z",
+  "author": {
+    "id": "66c861862ee933c5a6b4c552",
+    "email": "truongtrang.it.spkt@gmail.com",
+    "first_name": "Trang",
+    "last_name": "Nguyen",
+    "phone": null,
+    "name": "Trang Nguyen",
+    "picture": null,
+    "roles": ["USER", "ADMIN"],
+    "language": "VI",
+    "country": "VN",
+    "services": {
+      "googles": [],
+      "facebook": {
+        "id": "462536407466943",
+        "name": "Trường Tráng",
+        "email": "462536407466943@facebook.com",
+        "user_name": "Trường Tráng",
+        "picture": "https://platform-lookaside.fbsbx.com/platform/profilepic/?asid=462536407466943&width=300&ext=1779587650&hash=AT-p6D9w5WMdrsdeP0Go7PL0",
+        "expireAt": "2026-06-23T01:54:10.260Z",
+        "updated_at": "2026-04-24T01:54:10.260Z",
+        "access_token": "EAAD3mK2kOV4BRfz38i68iQdZAZCNrGHJBRndaLTZBEnAoXCuXoRpAkwRi2ZAqZB2TMNKzp0s1VQgVf3643DmgqRTc5KggLrdcjDFeUwiVqyv7RU9y4ySLUvIpZA30n2oUBFKsYO7lrOkCqdFWDVEIdfqxWyYIiHeRc0xZAfdRRhVyN0s1eZCjeMkjtTREQfBEOqB"
+      },
+      "facebooks": [
+        {
+          "id": "462536407466943",
+          "name": "Trường Tráng",
+          "email": "462536407466943@facebook.com",
+          "user_name": "Trường Tráng",
+          "picture": "https://platform-lookaside.fbsbx.com/platform/profilepic/?asid=462536407466943&width=300&ext=1779587650&hash=AT-p6D9w5WMdrsdeP0Go7PL0",
+          "expireAt": "2026-06-23T01:54:10.260Z",
+          "updated_at": "2026-04-24T01:54:10.260Z",
+          "access_token": "EAAD3mK2kOV4BRfz38i68iQdZAZCNrGHJBRndaLTZBEnAoXCuXoRpAkwRi2ZAqZB2TMNKzp0s1VQgVf3643DmgqRTc5KggLrdcjDFeUwiVqyv7RU9y4ySLUvIpZA30n2oUBFKsYO7lrOkCqdFWDVEIdfqxWyYIiHeRc0xZAfdRRhVyN0s1eZCjeMkjtTREQfBEOqB"
+        },
+        {
+          "id": "3327061237425600",
+          "name": "Phước Thành",
+          "email": "truongtrang.mmo@gmail.com",
+          "user_name": "Phước Thành",
+          "picture": "https://platform-lookaside.fbsbx.com/platform/profilepic/?asid=3327061237425600&width=300&ext=1730454711&hash=AbZOKbNAczvYENpBGjfaU9tv",
+          "expireAt": "2024-12-01T09:51:51.354Z",
+          "updated_at": "2024-10-02T09:51:51.354Z",
+          "access_token": "EAAD3mK2kOV4BOy4I9Uy6TvdT9tPcLmnjFDIktBbCLtlibPJeZA2zVbbqvRPq349L1Y84qZCefFURuhe5l4hnuz7SkK7ZCVlVu6AEh6dg5GNxAWYExvMcivKPYoC5fa2lxNRk7bIEZBsDpON3ZB4eqQ84UZAHZBKOZBGNf6wEgZBUbucONdSJIzjQ9UXHB",
+          "access_token_error": null,
+          "access_token_error_note": null
+        },
+        {
+          "id": "462536407466943",
+          "name": "Trường Tráng",
+          "email": "truongtrang.it.spkt@gmail.com",
+          "user_name": "Trường Tráng",
+          "picture": "https://platform-lookaside.fbsbx.com/platform/profilepic/?asid=462536407466943&width=300&ext=1727668141&hash=AbZ023B9Uf9wTxHvvztKrNOu",
+          "expireAt": "2024-10-30T03:49:01.890Z",
+          "updated_at": "2024-08-31T03:49:01.890Z",
+          "access_token": "EAAD3mK2kOV4BOyiSh382EGC5RuweTj5C6xf6q9fb18O8GaZCdukcwewheRvYLUDeQ2ZA9600q5G2Pm81kvNdsEw39FvE6DtjENff1LSy2t2NrgkkdW7edBF3Dq8ukpKdxS97nt5wnilq4cKo6nFdAr6rsEoCMBi2FfoLxKOXo8fxyKZAeHPPtxT"
+        },
+        {
+          "id": "462536407466943",
+          "name": "Trường Tráng",
+          "email": "truongtrang.it.spkt@gmail.com",
+          "user_name": "Trường Tráng",
+          "picture": "https://platform-lookaside.fbsbx.com/platform/profilepic/?asid=462536407466943&width=300&ext=1730535910&hash=AbbLIy41wiXmus7Zs6VQAKww",
+          "expireAt": "2024-12-02T08:25:10.703Z",
+          "updated_at": "2024-10-03T08:25:10.703Z",
+          "access_token": "EAAD3mK2kOV4BO8WG7P25xnr5xL3ZCNnoeaOOgPoDcbg8IAFGfZCwEk3LmsjwoXZCuddRPANeNeyj6XZAAAAZB51djf3Rh5ihWA1insnlPOEjZCdy3HKmgqLi8F2qH7JwAWFhz3NmIHNDMMDcn3ZBzwoFfEpZAAQ4NsZBbwMVrLnTwZCDoJBkAqfBZA1FgDa"
+        }
+      ]
+    },
+    "dev_scopes": [],
+    "mod_scopes": [],
+    "default_biz": null,
+    "refs": [],
+    "deleted": false,
+    "biz_max_number": 5,
+    "connected_devices": [
+      {
+        "id": "dd94c081-1f8d-41fb-aaba-1526a78c0bca",
+        "name": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+        "time": "2026-04-22T13:50:54.125Z"
+      },
+      {
+        "id": "3912de6d-13cb-4d9b-9c4d-ba0c9fb2d34a",
+        "name": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+        "time": "2026-04-23T03:12:21.048Z"
+      },
+      {
+        "id": "9c447106-9da1-498c-ade8-396e5d398fc7",
+        "name": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+        "time": "2026-04-24T10:06:27.882Z"
+      }
+    ],
+    "created_at": "2024-08-23T10:16:38.603Z",
+    "updated_at": "2026-04-24T10:06:27.883Z"
+  }
+}
