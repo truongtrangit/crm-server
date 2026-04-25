@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { softDeletePlugin } = require("../utils/softDelete");
 const {
   ALL_NEXT_STEP_TYPES,
   ALL_CLOSE_OUTCOMES,
@@ -142,5 +143,7 @@ eventActionChainSchema.index({ eventId: 1, chainId: 1 }, { unique: true });
 
 // ─── Index cho Task Queue tab (query steps cần làm theo scheduledAt) ───
 eventActionChainSchema.index({ "steps.scheduledAt": 1, "steps.status": 1 });
+
+eventActionChainSchema.plugin(softDeletePlugin);
 
 module.exports = mongoose.model("EventActionChain", eventActionChainSchema);

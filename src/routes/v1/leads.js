@@ -1,6 +1,6 @@
 const express = require("express");
 const Lead = require("../../models/Lead");
-const { generateSequentialId } = require("../../utils/id");
+const { generateMonotonicId } = require("../../utils/id");
 const { buildSearchRegex } = require("../../utils/query");
 const { sendError, sendSuccess } = require("../../utils/http");
 const {
@@ -67,7 +67,7 @@ router.post(
     const payload = req.body || {};
 
     const lead = await Lead.create({
-      id: await generateSequentialId(Lead, "LEAD"),
+      id: await generateMonotonicId("LEAD"),
       name: payload.name,
       avatar:
         payload.avatar ||
@@ -145,14 +145,15 @@ router.delete(
   "/:id",
   requirePermission(PERMISSIONS.LEADS_DELETE),
   async (req, res) => {
-    const deleted = await Lead.findOneAndDelete({ id: req.params.id });
+    const lead = await Lead.findOne({ id: req.params.id });
 
-    if (!deleted) {
+    if (!lead) {
       return sendError(res, 404, "Lead not found", {
         code: "LEAD_NOT_FOUND",
       });
     }
 
+    await lead.softDelete();
     return sendSuccess(res, 200, "Delete lead success", null);
   },
 );

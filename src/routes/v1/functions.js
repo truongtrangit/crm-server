@@ -1,6 +1,6 @@
 const express = require("express");
 const StaffFunction = require("../../models/StaffFunction");
-const { generateSequentialId } = require("../../utils/id");
+const { generateMonotonicId } = require("../../utils/id");
 const { sendSuccess } = require("../../utils/http");
 const {
   buildPaginatedResponse,
@@ -43,7 +43,7 @@ router.post(
     const { title, desc = "", type = "tech" } = req.body || {};
 
     const item = await StaffFunction.create({
-      id: await generateSequentialId(StaffFunction, "FUNC"),
+      id: await generateMonotonicId("FUNC"),
       title,
       desc,
       type,

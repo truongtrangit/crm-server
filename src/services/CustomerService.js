@@ -1,6 +1,7 @@
 const Customer = require("../models/Customer");
 const User = require("../models/User");
-const { generateSequentialId } = require("../utils/id");
+const Event = require("../models/Event");
+const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
 const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
@@ -56,7 +57,7 @@ class CustomerService {
 
   async createCustomer(payload) {
     const customer = await Customer.create({
-      id: await generateSequentialId(Customer, "CUST"),
+      id: await generateMonotonicId("CUST"),
       name: payload.name,
       avatar:
         payload.avatar ||
@@ -104,7 +105,7 @@ class CustomerService {
     return existing;
   }
 
-  async deleteCustomer(id, currentUserId) {
+  async deleteCustomer(id, currentUserId, { force = false } = {}) {
     const customer = await Customer.findOne({ id });
     if (!customer) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
@@ -121,7 +122,46 @@ class CustomerService {
       });
     }
 
-    await customer.deleteOne();
+    // Referential integrity: check if any Event references this customer
+    if (!force) {
+      const linkedEvents = await Event.find(
+        { customerId: id },
+        { id: 1, name: 1 },
+      ).lean();
+      if (linkedEvents.length > 0) {
+        throw createHttpError(
+          409,
+          `Khách hàng đang liên quan tới ${linkedEvents.length} sự kiện`,
+          {
+            code: "RESOURCE_IN_USE",
+            references: linkedEvents.map((e) => ({
+              type: "Event",
+              id: e.id,
+              name: e.name,
+            })),
+          },
+        );
+      }
+    } else {
+      // Force delete: nullify references in Events
+      await Event.updateMany(
+        { customerId: id },
+        {
+          $set: {
+            customerId: null,
+            "customer.name": "(Đã xóa)",
+            "customer.avatar": "",
+            "customer.role": "",
+            "customer.email": "",
+            "customer.phone": "",
+            "customer.source": "",
+            "customer.address": "",
+          },
+        },
+      );
+    }
+
+    await customer.softDelete();
   }
 
   async assignCustomer(customerId, assignData, currentUser) {

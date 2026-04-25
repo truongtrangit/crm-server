@@ -1,7 +1,8 @@
 const User = require("../models/User");
 const Organization = require("../models/Organization");
 const Role = require("../models/Role");
-const { generateSequentialId } = require("../utils/id");
+const Event = require("../models/Event");
+const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
 const { createHttpError } = require("../utils/http");
@@ -523,7 +524,7 @@ async function createUserAccount(actor, payload = {}) {
   );
 
   const user = await User.create({
-    id: await generateSequentialId(User, "USER"),
+    id: await generateMonotonicId("USER"),
     name,
     email,
     passwordHash: await hashPassword(password),
@@ -882,7 +883,7 @@ async function updateOwnProfile(actor, payload = {}) {
   return serializeUser(actor);
 }
 
-async function deleteUserAccount(actor, targetUser) {
+async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   const actorRole = await getUserRoleWithPermissions(actor);
   const targetRole = await getUserRoleWithPermissions(targetUser);
   const actorRoleName = actorRole?.name || null;
@@ -926,7 +927,44 @@ async function deleteUserAccount(actor, targetUser) {
     );
   }
 
-  await targetUser.deleteOne();
+  // ── Guard 5: Referential integrity — check Events assigned to this user ──
+  if (!force) {
+    const assignedEvents = await Event.find(
+      { assigneeId: targetUser.id },
+      { id: 1, name: 1 },
+    ).lean();
+    if (assignedEvents.length > 0) {
+      throw createHttpError(
+        409,
+        `Người dùng đang được gán cho ${assignedEvents.length} sự kiện`,
+        {
+          code: "RESOURCE_IN_USE",
+          references: assignedEvents.map((e) => ({
+            type: "Event",
+            id: e.id,
+            name: e.name,
+          })),
+        },
+      );
+    }
+  } else {
+    // Force delete: nullify references in Events
+    await Event.updateMany(
+      { assigneeId: targetUser.id },
+      {
+        $set: {
+          assigneeId: null,
+          "assignee.name": "(Đã xóa)",
+          "assignee.avatar": "",
+          "assignee.role": "",
+          "assignee.department": [],
+          "assignee.group": [],
+        },
+      },
+    );
+  }
+
+  await targetUser.softDelete();
 }
 
 module.exports = {

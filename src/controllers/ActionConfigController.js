@@ -20,7 +20,8 @@ class ActionConfigController {
   }
 
   async deleteResult(req, res) {
-    await ActionConfigService.deleteResult(req.params.id);
+    const force = req.query.force === 'true';
+    await ActionConfigService.deleteResult(req.params.id, { force });
     return sendSuccess(res, 200, "Delete result success", null);
   }
 
@@ -41,7 +42,8 @@ class ActionConfigController {
   }
 
   async deleteReason(req, res) {
-    await ActionConfigService.deleteReason(req.params.id);
+    const force = req.query.force === 'true';
+    await ActionConfigService.deleteReason(req.params.id, { force });
     return sendSuccess(res, 200, "Delete reason success", null);
   }
 
@@ -62,7 +64,8 @@ class ActionConfigController {
   }
 
   async deleteAction(req, res) {
-    await ActionConfigService.deleteAction(req.params.id);
+    const force = req.query.force === 'true';
+    await ActionConfigService.deleteAction(req.params.id, { force });
     return sendSuccess(res, 200, "Delete action success", null);
   }
 
@@ -88,7 +91,8 @@ class ActionConfigController {
   }
 
   async deleteActionChain(req, res) {
-    await ActionConfigService.deleteActionChain(req.params.id);
+    const force = req.query.force === 'true';
+    await ActionConfigService.deleteActionChain(req.params.id, { force });
     return sendSuccess(res, 200, "Delete action chain success", null);
   }
 

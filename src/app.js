@@ -151,6 +151,7 @@ app.use((error, _req, res, _next) => {
     {
       code: error.code,
       details: error.details,
+      references: error.references,
     },
   );
 });

@@ -1,5 +1,6 @@
 const express = require("express");
 const Role = require("../../models/Role");
+const User = require("../../models/User");
 const Permission = require("../../models/Permission");
 const {
   authenticateRequest,
@@ -160,7 +161,7 @@ router.put(
     await role.save();
     await CacheService.del(`rbac:role:${req.params.id}`);
     await CacheService.del("system:metadata");
-    
+
     logger.info("Role updated", { roleId: req.params.id, updatedBy: req.user.id });
     return sendSuccess(res, 200, "Update role success", role);
   },
@@ -186,6 +187,23 @@ router.delete(
       return sendError(res, 403, "System roles cannot be deleted", {
         code: "FORBIDDEN",
       });
+    }
+
+    const force = req.query.force === 'true';
+    if (!force) {
+      const usersWithRole = await User.find({ roleId: req.params.id }, { id: 1, name: 1 }).lean();
+      if (usersWithRole.length > 0) {
+        return sendError(res, 409, `Vai trò đang được gán cho ${usersWithRole.length} người dùng`, {
+          code: "RESOURCE_IN_USE",
+          references: usersWithRole.map(u => ({ type: "User", id: u.id, name: u.name })),
+        });
+      }
+    } else {
+      // Force delete: nullify roleId for all users with this role
+      await User.updateMany(
+        { roleId: req.params.id },
+        { $set: { roleId: null } },
+      );
     }
 
     await Role.deleteOne({ id: req.params.id });

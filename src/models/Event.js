@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { softDeletePlugin } = require("../utils/softDelete");
 const { EVENT_GROUP_IDS } = require("../constants/eventGroups");
 
 const timelineEntrySchema = new mongoose.Schema(
@@ -81,5 +82,7 @@ const eventSchema = new mongoose.Schema(
     id: false,
   },
 );
+
+eventSchema.plugin(softDeletePlugin);
 
 module.exports = mongoose.model("Event", eventSchema);

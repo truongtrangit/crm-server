@@ -73,7 +73,7 @@ router.post(
     const action = payload.action || payload.name;
 
     const task = await Task.create({
-      id: await generateTaskId(Task),
+      id: await generateTaskId(),
       action,
       time: payload.time || "Sắp tới",
       timeType: payload.timeType || "future",
@@ -133,14 +133,15 @@ router.delete(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_DELETE),
   async (req, res) => {
-    const deleted = await Task.findOneAndDelete({ id: req.params.id });
+    const task = await Task.findOne({ id: req.params.id });
 
-    if (!deleted) {
+    if (!task) {
       return sendError(res, 404, "Task not found", {
         code: "TASK_NOT_FOUND",
       });
     }
 
+    await task.softDelete();
     return sendSuccess(res, 200, "Delete task success", null);
   },
 );

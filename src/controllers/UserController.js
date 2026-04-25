@@ -5,7 +5,7 @@ const {
   listUsers,
   updateUserAccount,
 } = require("../services/UserService");
-const User         = require("../models/User");
+const User = require("../models/User");
 const Organization = require("../models/Organization");
 const { getUserRoleName } = require("../utils/rbac");
 const { sendSuccess } = require("../utils/http");
@@ -29,7 +29,8 @@ class UserController {
 
   async deleteUser(req, res) {
     const user = await getUserForStaffApi(req.user, req.params.id);
-    await deleteUserAccount(req.user, user);
+    const force = req.query.force === 'true';
+    await deleteUserAccount(req.user, user, { force });
     return sendSuccess(res, 200, "Delete staff success", null);
   }
 
@@ -46,7 +47,7 @@ class UserController {
   async getOrgOptions(req, res) {
     const roleName = await getUserRoleName(req.user);
     const isAdminOrOwner = ["OWNER", "ADMIN"].includes(roleName);
-    const isManager      = roleName === "MANAGER";
+    const isManager = roleName === "MANAGER";
 
     if (!isAdminOrOwner && !isManager) {
       return sendSuccess(res, 200, "Org options", { departments: [], groups: [] });
@@ -56,14 +57,14 @@ class UserController {
       // Lấy toàn bộ org structure từ DB
       const orgs = await Organization.find({}).select("parent children");
       const departments = orgs.map((o) => o.parent).sort();
-      const groups      = orgs.flatMap((o) => o.children.map((c) => c.name)).sort();
+      const groups = orgs.flatMap((o) => o.children.map((c) => c.name)).sort();
       return sendSuccess(res, 200, "Org options", { departments, groups });
     }
 
     // Manager: chỉ trả về phòng ban/nhóm mà họ thực sự thuộc vào
     const self = await User.findOne({ id: req.user.id }).select("department group");
     const departments = (self?.department || []).sort();
-    const groups      = (self?.group      || []).sort();
+    const groups = (self?.group || []).sort();
     return sendSuccess(res, 200, "Org options", { departments, groups });
   }
 }

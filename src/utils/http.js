@@ -17,6 +17,7 @@ function createHttpError(status, message, options = {}) {
   error.status = status;
   error.code = options.code || getErrorCodeByStatus(status);
   error.details = options.details;
+  error.references = options.references;
   return error;
 }
 
@@ -29,6 +30,10 @@ function sendError(res, status, message, options = {}) {
 
   if (options.details !== undefined) {
     payload.details = options.details;
+  }
+
+  if (options.references !== undefined) {
+    payload.references = options.references;
   }
 
   return res.status(status).json(payload);

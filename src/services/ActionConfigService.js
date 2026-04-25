@@ -2,7 +2,8 @@ const Result = require("../models/Result");
 const Reason = require("../models/Reason");
 const Action = require("../models/Action");
 const ActionChain = require("../models/ActionChain");
-const { generateSequentialId } = require("../utils/id");
+const EventActionChain = require("../models/EventActionChain");
+const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -29,7 +30,7 @@ class ActionConfigService {
   }
 
   async createResult(body) {
-    const id = await generateSequentialId(Result, "RES");
+    const id = await generateMonotonicId("RES");
     return Result.create({ ...body, id });
   }
 
@@ -39,7 +40,22 @@ class ActionConfigService {
     return item;
   }
 
-  async deleteResult(id) {
+  async deleteResult(id, { force = false } = {}) {
+    if (!force) {
+      const usedInChains = await ActionChain.find({ "steps.branches.resultId": id }, { id: 1, name: 1 }).lean();
+      if (usedInChains.length > 0) {
+        throw createHttpError(409, `Kết quả đang được sử dụng trong ${usedInChains.length} chuỗi hành động`, {
+          code: "RESOURCE_IN_USE",
+          references: usedInChains.map(c => ({ type: "ActionChain", id: c.id, name: c.name })),
+        });
+      }
+    } else {
+      // Force delete: remove branches referencing this result from ActionChain steps
+      await ActionChain.updateMany(
+        { "steps.branches.resultId": id },
+        { $pull: { "steps.$[].branches": { resultId: id } } },
+      );
+    }
     const deleted = await Result.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
   }
@@ -65,7 +81,7 @@ class ActionConfigService {
   }
 
   async createReason(body) {
-    const id = await generateSequentialId(Reason, "RSN");
+    const id = await generateMonotonicId("RSN");
     return Reason.create({ ...body, id });
   }
 
@@ -75,7 +91,22 @@ class ActionConfigService {
     return item;
   }
 
-  async deleteReason(id) {
+  async deleteReason(id, { force = false } = {}) {
+    if (!force) {
+      const usedInActions = await Action.find({ reasonIds: id }, { id: 1, name: 1 }).lean();
+      if (usedInActions.length > 0) {
+        throw createHttpError(409, `Nguyên nhân đang được sử dụng trong ${usedInActions.length} hành động`, {
+          code: "RESOURCE_IN_USE",
+          references: usedInActions.map(a => ({ type: "Action", id: a.id, name: a.name })),
+        });
+      }
+    } else {
+      // Force delete: remove this reason from Action.reasonIds
+      await Action.updateMany(
+        { reasonIds: id },
+        { $pull: { reasonIds: id } },
+      );
+    }
     const deleted = await Reason.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
   }
@@ -101,7 +132,7 @@ class ActionConfigService {
   }
 
   async createAction(body) {
-    const id = await generateSequentialId(Action, "ACT");
+    const id = await generateMonotonicId("ACT");
     return Action.create({ ...body, id });
   }
 
@@ -111,7 +142,32 @@ class ActionConfigService {
     return item;
   }
 
-  async deleteAction(id) {
+  async deleteAction(id, { force = false } = {}) {
+    if (!force) {
+      const usedInChains = await ActionChain.find({
+        $or: [
+          { "steps.actionId": id },
+          { "steps.branches.nextActionId": id },
+        ],
+      }, { id: 1, name: 1 }).lean();
+      if (usedInChains.length > 0) {
+        throw createHttpError(409, `Hành động đang được sử dụng trong ${usedInChains.length} chuỗi hành động`, {
+          code: "RESOURCE_IN_USE",
+          references: usedInChains.map(c => ({ type: "ActionChain", id: c.id, name: c.name })),
+        });
+      }
+    } else {
+      // Force delete: remove steps using this action, nullify nextActionId in branches
+      await ActionChain.updateMany(
+        { "steps.actionId": id },
+        { $pull: { steps: { actionId: id } } },
+      );
+      await ActionChain.updateMany(
+        { "steps.branches.nextActionId": id },
+        { $set: { "steps.$[].branches.$[br].nextActionId": null } },
+        { arrayFilters: [{ "br.nextActionId": id }] },
+      );
+    }
     const deleted = await Action.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
   }
@@ -143,7 +199,7 @@ class ActionConfigService {
   }
 
   async createActionChain(body) {
-    const id = await generateSequentialId(ActionChain, "CHN");
+    const id = await generateMonotonicId("CHN");
     return ActionChain.create({ ...body, id });
   }
 
@@ -153,7 +209,19 @@ class ActionConfigService {
     return item;
   }
 
-  async deleteActionChain(id) {
+  async deleteActionChain(id, { force = false } = {}) {
+    if (!force) {
+      const usedInEvents = await EventActionChain.find({ chainId: id }, { eventId: 1 }).lean();
+      if (usedInEvents.length > 0) {
+        throw createHttpError(409, `Chuỗi hành động đang được sử dụng trong ${usedInEvents.length} sự kiện`, {
+          code: "RESOURCE_IN_USE",
+          references: usedInEvents.map(e => ({ type: "Event", id: e.eventId, name: `Sự kiện ${e.eventId}` })),
+        });
+      }
+    } else {
+      // Force delete: remove EventActionChains referencing this chain
+      await EventActionChain.deleteMany({ chainId: id });
+    }
     const deleted = await ActionChain.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
   }

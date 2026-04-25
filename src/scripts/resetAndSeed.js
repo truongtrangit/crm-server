@@ -26,6 +26,7 @@ const Reason          = require("../models/Reason");
 const ActionChain     = require("../models/ActionChain");
 const EventActionChain = require("../models/EventActionChain");
 const Role            = require("../models/Role");
+const Counter         = require("../models/Counter");
 
 // ─── Seed helpers ───
 const seedData = require("../constants/seedData");
@@ -53,18 +54,46 @@ const MODELS_TO_RESET = [
   { model: Organization,     name: "Organization" },
   { model: User,             name: "User" },
   { model: Role,             name: "Role" },
+  { model: Counter,          name: "Counter" },
 ];
 
 async function dropAll() {
   console.log("\n🗑  Dropping all collections...");
   for (const { model, name } of MODELS_TO_RESET) {
     try {
-      await model.deleteMany({});
+      // Use deleteMany with _includeDeleted for soft-delete models
+      if (model.findWithDeleted) {
+        await model.deleteMany({}).setOptions({ _includeDeleted: true });
+      } else {
+        await model.deleteMany({});
+      }
       console.log(`   ✓ Cleared: ${name}`);
     } catch (e) {
       console.warn(`   ⚠ Could not clear ${name}: ${e.message}`);
     }
   }
+}
+
+/**
+ * Seed Counter collection based on max IDs found in seed data.
+ * This ensures new IDs continue from where seed data left off.
+ */
+async function seedCounters() {
+  const counterSeeds = [
+    { _id: "USER", seq: seedData.users.length },
+    { _id: "CUST", seq: seedData.customers.length },
+    { _id: "EVT",  seq: seedData.events.length },
+    { _id: "RES",  seq: seedData.results.length },
+    { _id: "RSN",  seq: seedData.reasons.length },
+    { _id: "ACT",  seq: seedData.actions.length },
+    { _id: "CHN",  seq: seedData.actionChains.length },
+    { _id: "FUNC", seq: seedData.staffFunctions.length },
+    { _id: "LEAD", seq: seedData.leads.length },
+    { _id: "TASK", seq: seedData.tasks.length },
+  ];
+
+  await Counter.insertMany(counterSeeds);
+  console.log(`   ✓ Seeded ${counterSeeds.length} counters`);
 }
 
 async function seedOrganizations() {
@@ -128,6 +157,7 @@ async function main() {
   // ── 2. Seed in dependency order ──────────────────────────
   console.log("\n🌱  Seeding fresh data...");
 
+  await seedCounters();
   await seedOrganizations();
   await seedUsers();
 

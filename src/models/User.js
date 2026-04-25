@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { softDeletePlugin } = require("../utils/softDelete");
 
 const sessionSchema = new mongoose.Schema(
   {
@@ -62,5 +63,7 @@ const userSchema = new mongoose.Schema(
     id: false,
   },
 );
+
+userSchema.plugin(softDeletePlugin);
 
 module.exports = mongoose.model("User", userSchema);

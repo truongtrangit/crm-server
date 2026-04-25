@@ -3,7 +3,7 @@ const Event = require("../models/Event");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
 const { WEBHOOK_EVENT_TYPES } = require("../constants/webhookEvents");
-const { generateSequentialId } = require("../utils/id");
+const { generateMonotonicId } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
 
@@ -25,13 +25,10 @@ class WebhookService {
   #processors = new Map();
 
   constructor() {
-    // ⚠️ LOG-ONLY MODE: Tạm tắt processors để log payload từ bên thứ 3 trước.
-    // Khi đã biết schema payload → bật lại từng processor.
-    //
-    // this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
-    // this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
-    // this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
-    // this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_UPGRADE, this.#processPlanUpgrade.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_UPGRADE, this.#processPlanUpgrade.bind(this));
   }
 
   /**
@@ -157,7 +154,7 @@ class WebhookService {
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
     const event = await Event.create({
-      id: await generateSequentialId(Event, "EVT", 3),
+      id: await generateMonotonicId("EVT"),
       name: payload.name || `User mới: ${customerData.name || "N/A"}`,
       sub: payload.sub || "",
       group: WEBHOOK_EVENT_TYPES.NEW_REGISTRATION,
@@ -214,7 +211,7 @@ class WebhookService {
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
     const event = await Event.create({
-      id: await generateSequentialId(Event, "EVT", 3),
+      id: await generateMonotonicId("EVT"),
       name: payload.name || `Biz mới: ${payload.biz?.id || "N/A"}`,
       sub: payload.sub || "",
       group: WEBHOOK_EVENT_TYPES.NEW_BUSINESS,
@@ -265,7 +262,7 @@ class WebhookService {
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
     const event = await Event.create({
-      id: await generateSequentialId(Event, "EVT", 3),
+      id: await generateMonotonicId("EVT"),
       name: payload.name || `Sắp hết hạn: ${payload.biz?.id || customerData.name || "N/A"}`,
       sub: payload.sub || "",
       group: WEBHOOK_EVENT_TYPES.PLAN_EXPIRED,
@@ -316,7 +313,7 @@ class WebhookService {
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
     const event = await Event.create({
-      id: await generateSequentialId(Event, "EVT", 3),
+      id: await generateMonotonicId("EVT"),
       name: payload.name || `Cần nâng cấp: ${payload.biz?.id || customerData.name || "N/A"}`,
       sub: payload.sub || "",
       group: WEBHOOK_EVENT_TYPES.PLAN_UPGRADE,
@@ -494,7 +491,7 @@ class WebhookService {
 
     // Create new Customer
     const customer = await Customer.create({
-      id: await generateSequentialId(Customer, "CUST", 3),
+      id: await generateMonotonicId("CUST"),
       name: customerData.name || "Unknown",
       email: customerData.email || "",
       phone: customerData.phone || "",

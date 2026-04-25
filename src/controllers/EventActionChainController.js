@@ -1,6 +1,8 @@
 const EventActionChain = require("../models/EventActionChain");
 const ActionChain = require("../models/ActionChain");
 const Action = require("../models/Action");
+const Event = require("../models/Event");
+const User = require("../models/User");
 const { createHttpError, sendSuccess } = require("../utils/http");
 const { ACTION_TYPE_CATEGORY_MAP } = require("../constants/actionConfig");
 
@@ -13,9 +15,9 @@ function calcScheduledAt(activatedAt, delayUnit, delayValue) {
   const d = new Date(activatedAt);
   switch (delayUnit) {
     case "minute": d.setTime(d.getTime() + delayValue * 60 * 1000); break;
-    case "hour":   d.setTime(d.getTime() + delayValue * 60 * 60 * 1000); break;
-    case "day":    d.setTime(d.getTime() + delayValue * 24 * 60 * 60 * 1000); break;
-    case "week":   d.setTime(d.getTime() + delayValue * 7 * 24 * 60 * 60 * 1000); break;
+    case "hour": d.setTime(d.getTime() + delayValue * 60 * 60 * 1000); break;
+    case "day": d.setTime(d.getTime() + delayValue * 24 * 60 * 60 * 1000); break;
+    case "week": d.setTime(d.getTime() + delayValue * 7 * 24 * 60 * 60 * 1000); break;
     default: break;
   }
   return d;
@@ -25,24 +27,24 @@ function calcScheduledAt(activatedAt, delayUnit, delayValue) {
 async function buildStepSnapshot(templateStep, actionMap) {
   const action = actionMap[templateStep.actionId];
   return {
-    order:           templateStep.order,
-    actionId:        templateStep.actionId,
-    actionName:      action?.name || "",
-    actionType:      action?.type || "",
-    actionCategory:  action?.category || ACTION_TYPE_CATEGORY_MAP?.[action?.type] || "primary",
+    order: templateStep.order,
+    actionId: templateStep.actionId,
+    actionName: action?.name || "",
+    actionType: action?.type || "",
+    actionCategory: action?.category || ACTION_TYPE_CATEGORY_MAP?.[action?.type] || "primary",
     actionReasonIds: action?.reasonIds || [],
-    branches:        templateStep.branches.map(b => ({ ...b })),
-    selectedResultId:  null,
-    selectedReasonId:  null,
-    note:            "",
-    delayUnit:       null,
-    delayValue:      null,
-    activatedAt:     null,
-    scheduledAt:     null,
-    completedAt:     null,
-    delayEditNote:   "",
-    status:          "pending",
-    isLocked:        false,
+    branches: templateStep.branches.map(b => ({ ...b })),
+    selectedResultId: null,
+    selectedReasonId: null,
+    note: "",
+    delayUnit: null,
+    delayValue: null,
+    activatedAt: null,
+    scheduledAt: null,
+    completedAt: null,
+    delayEditNote: "",
+    status: "pending",
+    isLocked: false,
   };
 }
 
@@ -81,16 +83,16 @@ class EventActionChainController {
       const now = new Date();
       // Apply the chain-level delay to the FIRST step's scheduled time.
       // This is the delay from the moment the chain is added to the event.
-      const chainDelayUnit  = template.delayUnit  || "immediate";
-      const chainDelayValue = template.delayValue  || null;
+      const chainDelayUnit = template.delayUnit || "immediate";
+      const chainDelayValue = template.delayValue || null;
       const scheduledAt = calcScheduledAt(now, chainDelayUnit, chainDelayValue);
 
-      steps[0].status      = "active";
+      steps[0].status = "active";
       steps[0].activatedAt = now;
       steps[0].scheduledAt = scheduledAt;
       // Store the chain delay on the step for display / audit trail
       if (chainDelayUnit && chainDelayUnit !== "immediate") {
-        steps[0].delayUnit  = chainDelayUnit;
+        steps[0].delayUnit = chainDelayUnit;
         steps[0].delayValue = chainDelayValue;
       }
     }
@@ -100,9 +102,9 @@ class EventActionChainController {
 
     const chain = new EventActionChain({
       id, eventId, chainId,
-      name:    template.name,
-      status:  "active",
-      order:   chainCount + 1,
+      name: template.name,
+      status: "active",
+      order: chainCount + 1,
       currentStepIndex: 0,
       steps,
     });
@@ -158,14 +160,14 @@ class EventActionChainController {
     if (nextStepOverride?.targetStepOrder != null) {
       const overrideIdx = chain.steps.findIndex(s => s.order === nextStepOverride.targetStepOrder);
       if (overrideIdx !== -1) {
-        const delayUnit  = nextStepOverride.delayUnit  ?? null;
+        const delayUnit = nextStepOverride.delayUnit ?? null;
         const delayValue = nextStepOverride.delayValue ?? null;
         const step = chain.steps[overrideIdx];
-        step.status      = "active";
+        step.status = "active";
         step.activatedAt = now;
         step.scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
-        step.delayUnit   = delayUnit;
-        step.delayValue  = delayValue;
+        step.delayUnit = delayUnit;
+        step.delayValue = delayValue;
         chain.currentStepIndex = overrideIdx;
         // Ghi lại step thực tế được activate tiếp theo
         currentStep.activatedNextStepOrder = step.order;
@@ -193,15 +195,15 @@ class EventActionChainController {
       if (nextIdx === -1) nextIdx = currentIdx + 1;
 
       if (nextIdx !== -1 && nextIdx < chain.steps.length) {
-        const delayUnit  = nextStepDelay?.delayUnit  ?? matchedBranch?.delayUnit  ?? null;
+        const delayUnit = nextStepDelay?.delayUnit ?? matchedBranch?.delayUnit ?? null;
         const delayValue = nextStepDelay?.delayValue ?? matchedBranch?.delayValue ?? null;
-        const editNote   = nextStepDelay?.editNote   ?? "";
+        const editNote = nextStepDelay?.editNote ?? "";
 
-        chain.steps[nextIdx].status        = "active";
-        chain.steps[nextIdx].activatedAt   = now;
-        chain.steps[nextIdx].scheduledAt   = calcScheduledAt(now, delayUnit, delayValue);
-        chain.steps[nextIdx].delayUnit     = delayUnit;
-        chain.steps[nextIdx].delayValue    = delayValue;
+        chain.steps[nextIdx].status = "active";
+        chain.steps[nextIdx].activatedAt = now;
+        chain.steps[nextIdx].scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
+        chain.steps[nextIdx].delayUnit = delayUnit;
+        chain.steps[nextIdx].delayValue = delayValue;
         chain.steps[nextIdx].delayEditNote = editNote;
         chain.currentStepIndex = nextIdx;
         // Ghi lại step thực tế được activate
@@ -213,13 +215,13 @@ class EventActionChainController {
       // Advance sang step kế tiếp theo index nếu có
       const nextIdx = currentIdx + 1;
       if (nextIdx < chain.steps.length) {
-        const delayUnit  = nextStepDelay?.delayUnit  ?? null;
+        const delayUnit = nextStepDelay?.delayUnit ?? null;
         const delayValue = nextStepDelay?.delayValue ?? null;
-        chain.steps[nextIdx].status      = "active";
+        chain.steps[nextIdx].status = "active";
         chain.steps[nextIdx].activatedAt = now;
         chain.steps[nextIdx].scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
-        chain.steps[nextIdx].delayUnit   = delayUnit;
-        chain.steps[nextIdx].delayValue  = delayValue;
+        chain.steps[nextIdx].delayUnit = delayUnit;
+        chain.steps[nextIdx].delayValue = delayValue;
         chain.currentStepIndex = nextIdx;
         currentStep.activatedNextStepOrder = chain.steps[nextIdx].order;
       }
@@ -266,24 +268,24 @@ class EventActionChainController {
     const newOrder = maxOrder + 1;
 
     const newStep = {
-      order:           newOrder,
-      actionId:        action.id,
-      actionName:      action.name || "",
-      actionType:      action.type || "",
-      actionCategory:  action.category || "primary",
+      order: newOrder,
+      actionId: action.id,
+      actionName: action.name || "",
+      actionType: action.type || "",
+      actionCategory: action.category || "primary",
       actionReasonIds: action.reasonIds || [],
-      branches:        [],
-      selectedResultId:  null,
-      selectedReasonId:  null,
-      note:            "",
-      delayUnit:       delayUnit || null,
-      delayValue:      delayValue || null,
-      activatedAt:     null,
-      scheduledAt:     null,
-      completedAt:     null,
-      delayEditNote:   "",
-      status:          "pending",
-      isLocked:        false,
+      branches: [],
+      selectedResultId: null,
+      selectedReasonId: null,
+      note: "",
+      delayUnit: delayUnit || null,
+      delayValue: delayValue || null,
+      activatedAt: null,
+      scheduledAt: null,
+      completedAt: null,
+      delayEditNote: "",
+      status: "pending",
+      isLocked: false,
     };
 
     // Insert vào đúng vị trí trong mảng steps
@@ -306,14 +308,14 @@ class EventActionChainController {
     if (!step) throw createHttpError(400, "Không có step active");
     if (step.isLocked) throw createHttpError(400, "Step đã lock");
 
-    step.delayUnit    = delayUnit ?? step.delayUnit;
-    step.delayValue   = delayValue ?? step.delayValue;
-    step.delayEditNote= editNote || step.delayEditNote;
+    step.delayUnit = delayUnit ?? step.delayUnit;
+    step.delayValue = delayValue ?? step.delayValue;
+    step.delayEditNote = editNote || step.delayEditNote;
 
     // ── Bug fix: tính scheduledAt từ NOW (thời điểm user cập nhật),
     // không phải từ activatedAt (đã là quá khứ).
     // Nếu dùng activatedAt: delay 5p nhưng step đã active 2p → chỉ còn 3p.
-    step.scheduledAt  = calcScheduledAt(new Date(), step.delayUnit, step.delayValue);
+    step.scheduledAt = calcScheduledAt(new Date(), step.delayUnit, step.delayValue);
 
     chain.markModified("steps");
     await chain.save();
@@ -374,8 +376,6 @@ class EventActionChainController {
   // Filtered by role (RBAC) + optional query params.
   // Sorted by scheduledAt ASC (most urgent first); null scheduledAt goes last.
   async getTaskQueue(req, res) {
-    const Event  = require("../models/Event");
-    const User   = require("../models/User");
     const { getUserRoleName } = require("../utils/rbac");
 
     const {
@@ -389,10 +389,10 @@ class EventActionChainController {
       search,      // tìm theo tên KH / NV / sự kiện
     } = req.query;
 
-    const now      = new Date();
+    const now = new Date();
     const roleName = await getUserRoleName(req.user);
     const isAdminOrOwner = ["OWNER", "ADMIN"].includes(roleName);
-    const isManager      = roleName === "MANAGER";
+    const isManager = roleName === "MANAGER";
 
     // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────
     let allowedEventIds = null; // null = không giới hạn (owner/admin)
@@ -416,7 +416,7 @@ class EventActionChainController {
 
     // ── 2. Lọc EventActionChain theo eventId whitelist ───────────────────────
     const chainFilter = { status: "active", "steps.status": "active" };
-    if (eventId)          chainFilter.eventId = eventId;
+    if (eventId) chainFilter.eventId = eventId;
     if (allowedEventIds !== null) chainFilter.eventId = { $in: allowedEventIds };
 
     // Nếu vừa có eventId vừa có whitelist → giao nhau
@@ -434,7 +434,7 @@ class EventActionChainController {
 
     // ── 3. Batch-load events ─────────────────────────────────────────────────
     const rawEventIds = [...new Set(chains.map((c) => c.eventId))];
-    const eventQuery  = { id: { $in: rawEventIds } };
+    const eventQuery = { id: { $in: rawEventIds } };
 
     // Filter eventGroup (nhóm sự kiện)
     if (eventGroup) {
@@ -473,13 +473,13 @@ class EventActionChainController {
       const s = search.trim();
       const regex = new RegExp(s, "i");
       eventQuery.$or = [
-        { name:              regex },
-        { "customer.name":   regex },
-        { "assignee.name":   regex },
+        { name: regex },
+        { "customer.name": regex },
+        { "assignee.name": regex },
       ];
     }
 
-    const events   = await Event.find(eventQuery)
+    const events = await Event.find(eventQuery)
       .select("id name sub group stage customer assignee plan assigneeId");
     const eventMap = Object.fromEntries(events.map((e) => [e.id, e]));
 
@@ -494,30 +494,30 @@ class EventActionChainController {
       if (!evt) continue; // orphan hoặc bị lọc ra bởi eventQuery
 
       queue.push({
-        chainId:   chain.id,
+        chainId: chain.id,
         chainName: chain.name,
-        eventId:   chain.eventId,
+        eventId: chain.eventId,
         event: {
-          id:       evt.id,
-          name:     evt.name,
-          sub:      evt.sub,
-          group:    evt.group,
-          stage:    evt.stage,
+          id: evt.id,
+          name: evt.name,
+          sub: evt.sub,
+          group: evt.group,
+          stage: evt.stage,
           customer: evt.customer,
           assignee: evt.assignee,
-          plan:     evt.plan,
+          plan: evt.plan,
         },
         step: {
-          order:          activeStep.order,
-          actionId:       activeStep.actionId,
-          actionName:     activeStep.actionName,
-          actionType:     activeStep.actionType,
+          order: activeStep.order,
+          actionId: activeStep.actionId,
+          actionName: activeStep.actionName,
+          actionType: activeStep.actionType,
           actionCategory: activeStep.actionCategory,
-          scheduledAt:    activeStep.scheduledAt,
-          activatedAt:    activeStep.activatedAt,
-          delayUnit:      activeStep.delayUnit,
-          delayValue:     activeStep.delayValue,
-          isOverdue:      !!activeStep.scheduledAt && activeStep.scheduledAt < now,
+          scheduledAt: activeStep.scheduledAt,
+          activatedAt: activeStep.activatedAt,
+          delayUnit: activeStep.delayUnit,
+          delayValue: activeStep.delayValue,
+          isOverdue: !!activeStep.scheduledAt && activeStep.scheduledAt < now,
         },
       });
     }
@@ -564,8 +564,8 @@ class EventActionChainController {
       resultId,
       order: existingIdx >= 0 ? step.branches[existingIdx].order : step.branches.length,
       nextStepType,
-      nextActionId:  nextStepType === "next_in_chain" ? nextActionId : null,
-      closeOutcome:  nextStepType === "close_task"    ? closeOutcome : null,
+      nextActionId: nextStepType === "next_in_chain" ? nextActionId : null,
+      closeOutcome: nextStepType === "close_task" ? closeOutcome : null,
       delayUnit,
       delayValue,
     };

@@ -2,7 +2,7 @@ const Event = require("../models/Event");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
 const EventActionChain = require("../models/EventActionChain");
-const { generateSequentialId } = require("../utils/id");
+const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -181,7 +181,7 @@ class EventService {
     }
 
     const event = await Event.create({
-      id: await generateSequentialId(Event, "EVT", 3),
+      id: await generateMonotonicId("EVT"),
       name: payload.name || "Sự kiện mới",
       sub: payload.sub || "",
       group: payload.group,
@@ -337,13 +337,18 @@ class EventService {
   }
 
   async deleteEvent(id) {
-    const deleted = await Event.findOneAndDelete({ id });
-    if (!deleted) {
+    const event = await Event.findOne({ id });
+    if (!event) {
       throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
     }
 
-    // ━ Cascade: xóa tất cả EventActionChain thuộc event này
-    await EventActionChain.deleteMany({ eventId: id });
+    // ━ Cascade: soft-delete all EventActionChains belonging to this event
+    const chains = await EventActionChain.find({ eventId: id });
+    for (const chain of chains) {
+      await chain.softDelete();
+    }
+
+    await event.softDelete();
   }
 
   async syncCustomer(id) {

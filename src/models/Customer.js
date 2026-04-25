@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { softDeletePlugin } = require("../utils/softDelete");
 
 const assigneeSchema = new mongoose.Schema(
   {
@@ -34,5 +35,7 @@ const customerSchema = new mongoose.Schema(
     id: false,
   },
 );
+
+customerSchema.plugin(softDeletePlugin);
 
 module.exports = mongoose.model("Customer", customerSchema);

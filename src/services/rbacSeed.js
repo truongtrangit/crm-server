@@ -1,12 +1,13 @@
 const Permission = require("../models/Permission");
 const Role = require("../models/Role");
+const User = require("../models/User");
 const {
   PERMISSIONS,
   ROLE_DEFINITIONS,
   RESOURCES,
   ACTIONS,
 } = require("../constants/rbac");
-const { generateSequentialId } = require("../utils/id");
+
 
 /**
  * Seed permissions and roles into database
@@ -79,7 +80,6 @@ async function seedRbac() {
  */
 async function migrateUsersToRbac() {
   try {
-    const User = require("../models/User");
     console.log("Starting user migration to RBAC...");
 
     const roles = await Role.find({}, { id: 1, name: 1 }).lean();

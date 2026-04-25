@@ -9,6 +9,7 @@ const Action = require("../models/Action");
 const Result = require("../models/Result");
 const Reason = require("../models/Reason");
 const ActionChain = require("../models/ActionChain");
+const Counter = require("../models/Counter");
 const seedData = require("../constants/seedData");
 const { hashPassword } = require("../utils/auth");
 const { seedRbac, migrateUsersToRbac } = require("./rbacSeed");
@@ -168,6 +169,41 @@ async function seedDatabase() {
 
   // Migrate existing users to RBAC
   await migrateUsersToRbac();
+
+  // Seed counters if not present (ensures monotonic IDs start correctly)
+  await seedCounters();
+}
+
+/**
+ * Initialize counters based on existing max IDs in collections.
+ * Only creates counter entries that don't already exist.
+ */
+async function seedCounters() {
+  const prefixConfigs = [
+    { prefix: "USER", items: seedData.users },
+    { prefix: "CUST", items: seedData.customers },
+    { prefix: "EVT",  items: seedData.events },
+    { prefix: "RES",  items: seedData.results },
+    { prefix: "RSN",  items: seedData.reasons },
+    { prefix: "ACT",  items: seedData.actions },
+    { prefix: "CHN",  items: seedData.actionChains },
+    { prefix: "FUNC", items: seedData.staffFunctions },
+    { prefix: "LEAD", items: seedData.leads },
+    { prefix: "TASK", items: seedData.tasks },
+  ];
+
+  let seeded = 0;
+  for (const { prefix, items } of prefixConfigs) {
+    const existing = await Counter.findById(prefix);
+    if (!existing) {
+      await Counter.create({ _id: prefix, seq: items.length });
+      seeded++;
+    }
+  }
+
+  if (seeded > 0) {
+    console.log(`Seeded ${seeded} counters`);
+  }
 }
 
 module.exports = {

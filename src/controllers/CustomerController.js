@@ -34,7 +34,8 @@ class CustomerController {
   }
 
   async deleteCustomer(req, res) {
-    await CustomerService.deleteCustomer(req.params.id, req.user?.id);
+    const force = req.query.force === 'true';
+    await CustomerService.deleteCustomer(req.params.id, req.user?.id, { force });
     return sendSuccess(res, 200, "Delete customer success", null);
   }
 

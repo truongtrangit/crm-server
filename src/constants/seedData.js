@@ -54,7 +54,7 @@ const organizations = [
 // ─── Users ────────────────────────────────────────────────────────────────────
 const users = [
   {
-    id: "USER001",
+    id: "USER1",
     name: "Chủ hệ thống CRM",
     email: "owner@crm.vn",
     password: "Owner@123",
@@ -65,7 +65,7 @@ const users = [
     role: "OWNER",
   },
   {
-    id: "USER002",
+    id: "USER2",
     name: "Quản trị CRM",
     email: "admin@crm.vn",
     password: "Admin@123",
@@ -76,7 +76,7 @@ const users = [
     role: "ADMIN",
   },
   {
-    id: "USER003",
+    id: "USER3",
     name: "Phạm Thanh Sơn",
     email: "manager.sale@crm.vn",
     password: "Manager@123",
@@ -87,7 +87,7 @@ const users = [
     role: "MANAGER",
   },
   {
-    id: "USER006",
+    id: "USER6",
     name: "Nguyễn Thị Mai",
     email: "manager.cskh@crm.vn",
     password: "Manager@123",
@@ -98,7 +98,7 @@ const users = [
     role: "MANAGER",
   },
   {
-    id: "USER004",
+    id: "USER4",
     name: "Vũ Thu Phương",
     email: "staff1@crm.vn",
     password: "Staff@123",
@@ -107,10 +107,10 @@ const users = [
     group: ["Nhóm Sale Hà Nội"],
     phone: "0901 000 004",
     role: "STAFF",
-    managerId: "USER003",
+    managerId: "USER3",
   },
   {
-    id: "USER005",
+    id: "USER5",
     name: "Lê Văn Hùng",
     email: "staff2@crm.vn",
     password: "Staff@123",
@@ -119,10 +119,10 @@ const users = [
     group: ["Nhóm Sale HCM"],
     phone: "0901 000 005",
     role: "STAFF",
-    managerId: "USER003",
+    managerId: "USER3",
   },
   {
-    id: "USER007",
+    id: "USER7",
     name: "Trần Đức Anh",
     email: "staff3@crm.vn",
     password: "Staff@123",
@@ -131,10 +131,10 @@ const users = [
     group: ["Nhóm Sale Đà Nẵng"],
     phone: "0901 000 007",
     role: "STAFF",
-    managerId: "USER003",
+    managerId: "USER3",
   },
   {
-    id: "USER008",
+    id: "USER8",
     name: "Hoàng Diệu Linh",
     email: "staff4@crm.vn",
     password: "Staff@123",
@@ -143,14 +143,14 @@ const users = [
     group: ["Nhóm Support L1"],
     phone: "0901 000 008",
     role: "STAFF",
-    managerId: "USER006",
+    managerId: "USER6",
   },
 ];
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 const customers = [
   {
-    id: "CUST001",
+    id: "CUST1",
     name: "Phạm Tường Vy",
     avatar: "https://i.pravatar.cc/100?img=15",
     type: "VIP Customer",
@@ -164,7 +164,7 @@ const customers = [
     tags: ["#KHTiemNang", "#VIP"],
   },
   {
-    id: "CUST002",
+    id: "CUST2",
     name: "Minh Khôi",
     avatar: "https://i.pravatar.cc/100?img=62",
     type: "Premium",
@@ -178,7 +178,7 @@ const customers = [
     tags: ["#Enterprise"],
   },
   {
-    id: "CUST003",
+    id: "CUST3",
     name: "Hoàng Sơn",
     avatar: "https://i.pravatar.cc/100?img=7",
     type: "Trial",
@@ -192,7 +192,7 @@ const customers = [
     tags: ["#Trial"],
   },
   {
-    id: "CUST004",
+    id: "CUST4",
     name: "Nguyễn Thị Lan",
     avatar: "https://i.pravatar.cc/100?img=5",
     type: "Regular",
@@ -206,7 +206,7 @@ const customers = [
     tags: ["#NewUser"],
   },
   {
-    id: "CUST005",
+    id: "CUST5",
     name: "Bảo Quốc",
     avatar: "https://i.pravatar.cc/100?img=33",
     type: "Regular",
@@ -220,7 +220,7 @@ const customers = [
     tags: ["#Follow"],
   },
   {
-    id: "CUST006",
+    id: "CUST6",
     name: "Trần Thị Hoa",
     avatar: "https://i.pravatar.cc/100?img=20",
     type: "Trial",
@@ -234,7 +234,7 @@ const customers = [
     tags: ["#Trial", "#NewUser"],
   },
   {
-    id: "CUST007",
+    id: "CUST7",
     name: "Đặng Quang Huy",
     avatar: "https://i.pravatar.cc/100?img=52",
     type: "Enterprise",
@@ -248,7 +248,7 @@ const customers = [
     tags: ["#Enterprise", "#VIP"],
   },
   {
-    id: "CUST008",
+    id: "CUST8",
     name: "Lý Thị Thu",
     avatar: "https://i.pravatar.cc/100?img=18",
     type: "Premium",
@@ -272,25 +272,25 @@ const tasks = [];
 // ─── StaffFunctions ──────────────────────────────────────────────────────────
 const staffFunctions = [
   {
-    id: "FUNC001",
+    id: "FUNC1",
     title: "Marketing",
     desc: "Quản lý chiến dịch quảng cáo, tạo leads đầu vào.",
     type: "marketing",
   },
   {
-    id: "FUNC002",
+    id: "FUNC2",
     title: "Sale (Bán hàng)",
     desc: "Tiếp nhận Lead từ Marketing, chăm sóc và chốt đơn.",
     type: "sale",
   },
   {
-    id: "FUNC003",
+    id: "FUNC3",
     title: "Kỹ Thuật",
     desc: "Xây dựng và bảo trì nền tảng CRM.",
     type: "tech",
   },
   {
-    id: "FUNC004",
+    id: "FUNC4",
     title: "CSKH",
     desc: "Chăm sóc và hỗ trợ sau bán hàng.",
     type: "cskh",
@@ -300,38 +300,38 @@ const staffFunctions = [
 // ─── Results ─────────────────────────────────────────────────────────────────
 // type: "success" | "failure" | "neutral" | "skip"
 const results = [
-  { id: "RES001", name: "Đã liên hệ & quan tâm",    type: "success", description: "Khách hàng bắt máy và thể hiện sự quan tâm" },
-  { id: "RES002", name: "Không bắt máy",             type: "failure", description: "Gọi điện nhưng khách không nghe máy" },
-  { id: "RES003", name: "Hẹn gọi lại",               type: "neutral", description: "Khách hàng nhờ gọi lại sau" },
-  { id: "RES004", name: "Từ chối",                   type: "failure", description: "Khách hàng từ chối dịch vụ" },
-  { id: "RES005", name: "Đã gửi email giới thiệu",   type: "success", description: "Automation đã gửi email thành công" },
-  { id: "RES006", name: "Đã thanh toán",             type: "success", description: "Khách hàng xác nhận đã thanh toán" },
-  { id: "RES007", name: "Chưa thanh toán",           type: "failure", description: "Khách hàng chưa thực hiện thanh toán" },
-  { id: "RES008", name: "Đã gia hạn",                type: "success", description: "Khách hàng đã gia hạn gói dịch vụ" },
-  { id: "RES009", name: "Hứng thú - cần demo",       type: "neutral", description: "Khách hàng quan tâm nhưng muốn xem demo trước" },
-  { id: "RES010", name: "Đã gửi tài liệu",           type: "success", description: "Tài liệu/proposal đã được gửi thành công" },
-  { id: "RES011", name: "Đã tạo đơn hàng",           type: "success", description: "Đơn hàng được tạo thành công trong hệ thống" },
-  { id: "RES012", name: "Máy bận",                   type: "failure", description: "Gọi nhưng đường dây đang bận" },
-  { id: "RES013", name: "Sai số điện thoại",         type: "failure", description: "Số điện thoại không liên lạc được" },
-  { id: "RES014", name: "Đã demo thành công",        type: "success", description: "Buổi demo được khách hàng đánh giá tốt" },
-  { id: "RES015", name: "Cần thêm thời gian",        type: "neutral", description: "Khách hàng muốn suy nghĩ thêm" },
-  { id: "RES016", name: "Đã gửi hợp đồng",           type: "success", description: "Hợp đồng đã được gửi để ký duyệt" },
+  { id: "RES1", name: "Đã liên hệ & quan tâm",    type: "success", description: "Khách hàng bắt máy và thể hiện sự quan tâm" },
+  { id: "RES2", name: "Không bắt máy",             type: "failure", description: "Gọi điện nhưng khách không nghe máy" },
+  { id: "RES3", name: "Hẹn gọi lại",               type: "neutral", description: "Khách hàng nhờ gọi lại sau" },
+  { id: "RES4", name: "Từ chối",                   type: "failure", description: "Khách hàng từ chối dịch vụ" },
+  { id: "RES5", name: "Đã gửi email giới thiệu",   type: "success", description: "Automation đã gửi email thành công" },
+  { id: "RES6", name: "Đã thanh toán",             type: "success", description: "Khách hàng xác nhận đã thanh toán" },
+  { id: "RES7", name: "Chưa thanh toán",           type: "failure", description: "Khách hàng chưa thực hiện thanh toán" },
+  { id: "RES8", name: "Đã gia hạn",                type: "success", description: "Khách hàng đã gia hạn gói dịch vụ" },
+  { id: "RES9", name: "Hứng thú - cần demo",       type: "neutral", description: "Khách hàng quan tâm nhưng muốn xem demo trước" },
+  { id: "RES10", name: "Đã gửi tài liệu",           type: "success", description: "Tài liệu/proposal đã được gửi thành công" },
+  { id: "RES11", name: "Đã tạo đơn hàng",           type: "success", description: "Đơn hàng được tạo thành công trong hệ thống" },
+  { id: "RES12", name: "Máy bận",                   type: "failure", description: "Gọi nhưng đường dây đang bận" },
+  { id: "RES13", name: "Sai số điện thoại",         type: "failure", description: "Số điện thoại không liên lạc được" },
+  { id: "RES14", name: "Đã demo thành công",        type: "success", description: "Buổi demo được khách hàng đánh giá tốt" },
+  { id: "RES15", name: "Cần thêm thời gian",        type: "neutral", description: "Khách hàng muốn suy nghĩ thêm" },
+  { id: "RES16", name: "Đã gửi hợp đồng",           type: "success", description: "Hợp đồng đã được gửi để ký duyệt" },
 ];
 
 // ─── Reasons ─────────────────────────────────────────────────────────────────
 const reasons = [
-  { id: "REAS001", name: "Bận việc",             description: "Khách hàng bận, không tiếp chuyện được" },
-  { id: "REAS002", name: "Không có nhu cầu",     description: "Khách không có nhu cầu sử dụng dịch vụ" },
-  { id: "REAS003", name: "Giá cao",              description: "Khách hàng cho rằng giá dịch vụ quá cao" },
-  { id: "REAS004", name: "Cân nhắc thêm",        description: "Khách muốn suy nghĩ thêm trước khi quyết định" },
-  { id: "REAS005", name: "Dùng dịch vụ khác",    description: "Đang dùng sản phẩm/dịch vụ của đối thủ" },
-  { id: "REAS006", name: "Chưa có ngân sách",    description: "Khách hàng chưa có budget để thanh toán ngay" },
-  { id: "REAS007", name: "Cần thêm thông tin",   description: "Khách cần tài liệu/demo trước khi quyết định" },
-  { id: "REAS008", name: "Sai số tài khoản",     description: "Thông tin thanh toán không chính xác" },
-  { id: "REAS009", name: "Hết hạn thẻ",          description: "Thẻ thanh toán đã hết hạn" },
-  { id: "REAS010", name: "Khó khăn kỹ thuật",    description: "Gặp vấn đề kỹ thuật khi triển khai" },
-  { id: "REAS011", name: "Nhân sự chưa sẵn sàng", description: "Chưa có nhân sự vận hành hệ thống" },
-  { id: "REAS012", name: "Cần duyệt nội bộ",     description: "Phải chờ cấp trên duyệt ngân sách/hợp đồng" },
+  { id: "REAS1", name: "Bận việc",             description: "Khách hàng bận, không tiếp chuyện được" },
+  { id: "REAS2", name: "Không có nhu cầu",     description: "Khách không có nhu cầu sử dụng dịch vụ" },
+  { id: "REAS3", name: "Giá cao",              description: "Khách hàng cho rằng giá dịch vụ quá cao" },
+  { id: "REAS4", name: "Cân nhắc thêm",        description: "Khách muốn suy nghĩ thêm trước khi quyết định" },
+  { id: "REAS5", name: "Dùng dịch vụ khác",    description: "Đang dùng sản phẩm/dịch vụ của đối thủ" },
+  { id: "REAS6", name: "Chưa có ngân sách",    description: "Khách hàng chưa có budget để thanh toán ngay" },
+  { id: "REAS7", name: "Cần thêm thông tin",   description: "Khách cần tài liệu/demo trước khi quyết định" },
+  { id: "REAS8", name: "Sai số tài khoản",     description: "Thông tin thanh toán không chính xác" },
+  { id: "REAS9", name: "Hết hạn thẻ",          description: "Thẻ thanh toán đã hết hạn" },
+  { id: "REAS10", name: "Khó khăn kỹ thuật",    description: "Gặp vấn đề kỹ thuật khi triển khai" },
+  { id: "REAS11", name: "Nhân sự chưa sẵn sàng", description: "Chưa có nhân sự vận hành hệ thống" },
+  { id: "REAS12", name: "Cần duyệt nội bộ",     description: "Phải chờ cấp trên duyệt ngân sách/hợp đồng" },
 ];
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -339,31 +339,31 @@ const reasons = [
 // category: "primary" | "secondary"
 const actions = [
   {
-    id: "ACT001",
+    id: "ACT1",
     name: "Gọi điện lần 1",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS001", "REAS002", "REAS003", "REAS004", "REAS005"],
+    reasonIds: ["REAS1", "REAS2", "REAS3", "REAS4", "REAS5"],
     description: "Cuộc gọi chào hàng/chăm sóc đầu tiên",
   },
   {
-    id: "ACT002",
+    id: "ACT2",
     name: "Gọi điện lần 2",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS001", "REAS002", "REAS003", "REAS004"],
+    reasonIds: ["REAS1", "REAS2", "REAS3", "REAS4"],
     description: "Cuộc gọi tiếp theo nếu lần 1 không thành công",
   },
   {
-    id: "ACT003",
+    id: "ACT3",
     name: "Gọi điện tư vấn nâng cấp",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS001", "REAS003", "REAS004", "REAS006"],
+    reasonIds: ["REAS1", "REAS3", "REAS4", "REAS6"],
     description: "Tư vấn khách hàng nâng cấp gói dịch vụ",
   },
   {
-    id: "ACT004",
+    id: "ACT4",
     name: "Gửi email giới thiệu tự động",
     type: "send_block_automation",
     category: "primary",
@@ -371,7 +371,7 @@ const actions = [
     description: "Block automation gửi email chào mừng/giới thiệu dịch vụ",
   },
   {
-    id: "ACT005",
+    id: "ACT5",
     name: "Gửi email nhắc gia hạn",
     type: "send_block_automation",
     category: "primary",
@@ -379,15 +379,15 @@ const actions = [
     description: "Block automation gửi email nhắc gia hạn dịch vụ",
   },
   {
-    id: "ACT006",
+    id: "ACT6",
     name: "Gọi điện xác nhận thanh toán",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS001", "REAS002", "REAS008", "REAS009"],
+    reasonIds: ["REAS1", "REAS2", "REAS8", "REAS9"],
     description: "Gọi xác nhận khách hàng đã thanh toán",
   },
   {
-    id: "ACT007",
+    id: "ACT7",
     name: "Review hợp đồng",
     type: "review",
     category: "secondary",
@@ -395,7 +395,7 @@ const actions = [
     description: "Xem lại hợp đồng/điều khoản với khách hàng",
   },
   {
-    id: "ACT008",
+    id: "ACT8",
     name: "Gửi tài liệu & proposal",
     type: "send_block_automation",
     category: "primary",
@@ -403,7 +403,7 @@ const actions = [
     description: "Block automation gửi tài liệu giới thiệu, bảng giá và proposal",
   },
   {
-    id: "ACT009",
+    id: "ACT9",
     name: "Tạo đơn hàng thủ công",
     type: "manual_order",
     category: "secondary",
@@ -411,23 +411,23 @@ const actions = [
     description: "Nhân viên sale tạo đơn hàng thủ công sau khi chốt deal",
   },
   {
-    id: "ACT010",
+    id: "ACT10",
     name: "Gọi điện chốt deal",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS003", "REAS004", "REAS006", "REAS007"],
+    reasonIds: ["REAS3", "REAS4", "REAS6", "REAS7"],
     description: "Cuộc gọi cuối cùng để chốt hợp đồng/gói dịch vụ",
   },
   {
-    id: "ACT011",
+    id: "ACT11",
     name: "Gọi điện lần 3 (khẩn)",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS001", "REAS002", "REAS012"],
+    reasonIds: ["REAS1", "REAS2", "REAS12"],
     description: "Cuộc gọi lần 3, ưu tiên cao khi gói sắp hết hạn",
   },
   {
-    id: "ACT012",
+    id: "ACT12",
     name: "Gửi SMS nhắc nhở",
     type: "send_block_automation",
     category: "primary",
@@ -435,15 +435,15 @@ const actions = [
     description: "Block automation gửi SMS nhắc gia hạn qua Zalo/SMS",
   },
   {
-    id: "ACT013",
+    id: "ACT13",
     name: "Gọi demo sản phẩm",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS007", "REAS010", "REAS011"],
+    reasonIds: ["REAS7", "REAS10", "REAS11"],
     description: "Gọi để giới thiệu demo trực tiếp với khách hàng",
   },
   {
-    id: "ACT014",
+    id: "ACT14",
     name: "Tạo booking demo",
     type: "create_booking",
     category: "secondary",
@@ -451,7 +451,7 @@ const actions = [
     description: "Đặt lịch buổi demo với chuyên gia kỹ thuật",
   },
   {
-    id: "ACT015",
+    id: "ACT15",
     name: "Gửi hợp đồng điện tử",
     type: "send_block_automation",
     category: "primary",
@@ -459,11 +459,11 @@ const actions = [
     description: "Gửi hợp đồng điện tử qua email để ký duyệt",
   },
   {
-    id: "ACT016",
+    id: "ACT16",
     name: "Gọi điện hỗ trợ kỹ thuật",
     type: "call",
     category: "primary",
-    reasonIds: ["REAS010", "REAS011"],
+    reasonIds: ["REAS10", "REAS11"],
     description: "Gọi hỗ trợ khách hàng gặp vấn đề kỹ thuật",
   },
 ];
@@ -478,7 +478,7 @@ const actionChains = [
 
   // ─ CHAIN001: Chăm sóc khách hàng mới ──────────────────────────────────────
   {
-    id: "CHAIN001",
+    id: "CHAIN1",
     name: "Chăm sóc khách hàng mới",
     description: "Chuỗi chăm sóc tự động khi có user/biz mới đăng ký: gửi email → gọi điện lần 1 → dự phòng gọi lần 2",
     delayUnit:  "immediate",
@@ -487,13 +487,13 @@ const actionChains = [
     steps: [
       {
         order: 1,
-        actionId: "ACT004", // Gửi email giới thiệu tự động
+        actionId: "ACT4", // Gửi email giới thiệu tự động
         branches: [
           {
-            resultId:     "RES005", // Đã gửi email
+            resultId:     "RES5", // Đã gửi email
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT001", // → Gọi điện lần 1
+            nextActionId: "ACT1", // → Gọi điện lần 1
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   2,
@@ -502,10 +502,10 @@ const actionChains = [
       },
       {
         order: 2,
-        actionId: "ACT001", // Gọi điện lần 1
+        actionId: "ACT1", // Gọi điện lần 1
         branches: [
           {
-            resultId:     "RES001", // Đã liên hệ & quan tâm
+            resultId:     "RES1", // Đã liên hệ & quan tâm
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -514,25 +514,25 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES002", // Không bắt máy
+            resultId:     "RES2", // Không bắt máy
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT002", // → Gọi điện lần 2
+            nextActionId: "ACT2", // → Gọi điện lần 2
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
           },
           {
-            resultId:     "RES012", // Máy bận
+            resultId:     "RES12", // Máy bận
             order:        3,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT002",
+            nextActionId: "ACT2",
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   3,
           },
           {
-            resultId:     "RES004", // Từ chối
+            resultId:     "RES4", // Từ chối
             order:        4,
             nextStepType: "close_task",
             nextActionId: null,
@@ -544,10 +544,10 @@ const actionChains = [
       },
       {
         order: 3,
-        actionId: "ACT002", // Gọi điện lần 2
+        actionId: "ACT2", // Gọi điện lần 2
         branches: [
           {
-            resultId:     "RES001", // Đã liên hệ & quan tâm
+            resultId:     "RES1", // Đã liên hệ & quan tâm
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -556,7 +556,7 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES002", // Không bắt máy
+            resultId:     "RES2", // Không bắt máy
             order:        2,
             nextStepType: "close_task",
             nextActionId: null,
@@ -565,7 +565,7 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES013", // Sai số điện thoại
+            resultId:     "RES13", // Sai số điện thoại
             order:        3,
             nextStepType: "close_task",
             nextActionId: null,
@@ -574,7 +574,7 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES003", // Hẹn gọi lại
+            resultId:     "RES3", // Hẹn gọi lại
             order:        4,
             nextStepType: "close_chain",
             nextActionId: null,
@@ -589,7 +589,7 @@ const actionChains = [
 
   // ─ CHAIN002: Xử lý chuyển khoản ────────────────────────────────────────────
   {
-    id: "CHAIN002",
+    id: "CHAIN2",
     name: "Xử lý chuyển khoản",
     description: "Xác nhận và xử lý khi nhận thanh toán chuyển khoản: gọi xác nhận → gọi lại nếu thất bại",
     delayUnit:  "immediate",
@@ -598,10 +598,10 @@ const actionChains = [
     steps: [
       {
         order: 1,
-        actionId: "ACT006", // Gọi điện xác nhận thanh toán
+        actionId: "ACT6", // Gọi điện xác nhận thanh toán
         branches: [
           {
-            resultId:     "RES006", // Đã thanh toán
+            resultId:     "RES6", // Đã thanh toán
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -610,25 +610,25 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES007", // Chưa thanh toán
+            resultId:     "RES7", // Chưa thanh toán
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT006", // → Gọi lại
+            nextActionId: "ACT6", // → Gọi lại
             closeOutcome: null,
             delayUnit:    "minute",
             delayValue:   30,
           },
           {
-            resultId:     "RES002", // Không bắt máy
+            resultId:     "RES2", // Không bắt máy
             order:        3,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT006", // → Gọi lại
+            nextActionId: "ACT6", // → Gọi lại
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   1,
           },
           {
-            resultId:     "RES008", // Sai số tài khoản (dùng chung REAS008)
+            resultId:     "RES8", // Sai số tài khoản (dùng chung REAS008)
             order:        4,
             nextStepType: "close_task",
             nextActionId: null,
@@ -643,7 +643,7 @@ const actionChains = [
 
   // ─ CHAIN003: Nhắc gia hạn gói cước ─────────────────────────────────────────
   {
-    id: "CHAIN003",
+    id: "CHAIN3",
     name: "Nhắc gia hạn gói cước",
     description: "Tự động nhắc gia hạn khi gói cước sắp hết hạn: gửi email → gọi tư vấn → gọi lại nếu hẹn",
     delayUnit:  "immediate",
@@ -652,13 +652,13 @@ const actionChains = [
     steps: [
       {
         order: 1,
-        actionId: "ACT005", // Gửi email nhắc gia hạn
+        actionId: "ACT5", // Gửi email nhắc gia hạn
         branches: [
           {
-            resultId:     "RES005", // Đã gửi email
+            resultId:     "RES5", // Đã gửi email
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT003", // → Gọi tư vấn nâng cấp
+            nextActionId: "ACT3", // → Gọi tư vấn nâng cấp
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
@@ -667,10 +667,10 @@ const actionChains = [
       },
       {
         order: 2,
-        actionId: "ACT003", // Gọi điện tư vấn nâng cấp
+        actionId: "ACT3", // Gọi điện tư vấn nâng cấp
         branches: [
           {
-            resultId:     "RES008", // Đã gia hạn
+            resultId:     "RES8", // Đã gia hạn
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -679,16 +679,16 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES001", // Quan tâm, hỏi thêm
+            resultId:     "RES1", // Quan tâm, hỏi thêm
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT011", // → Gọi lần 3 (khẩn)
+            nextActionId: "ACT11", // → Gọi lần 3 (khẩn)
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
           },
           {
-            resultId:     "RES004", // Từ chối
+            resultId:     "RES4", // Từ chối
             order:        3,
             nextStepType: "close_task",
             nextActionId: null,
@@ -697,10 +697,10 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES003", // Hẹn gọi lại
+            resultId:     "RES3", // Hẹn gọi lại
             order:        4,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT003",
+            nextActionId: "ACT3",
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   2,
@@ -709,10 +709,10 @@ const actionChains = [
       },
       {
         order: 3,
-        actionId: "ACT011", // Gọi điện lần 3 (khẩn)
+        actionId: "ACT11", // Gọi điện lần 3 (khẩn)
         branches: [
           {
-            resultId:     "RES008", // Đã gia hạn
+            resultId:     "RES8", // Đã gia hạn
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -721,7 +721,7 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES002", // Không bắt máy
+            resultId:     "RES2", // Không bắt máy
             order:        2,
             nextStepType: "close_task",
             nextActionId: null,
@@ -730,7 +730,7 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES004", // Từ chối
+            resultId:     "RES4", // Từ chối
             order:        3,
             nextStepType: "close_task",
             nextActionId: null,
@@ -745,7 +745,7 @@ const actionChains = [
 
   // ─ CHAIN004: Chuyển đổi Trial → Trả phí (5 bước) ──────────────────────────
   {
-    id: "CHAIN004",
+    id: "CHAIN4",
     name: "Chuyển đổi Trial → Trả phí",
     description: "Chuỗi 5 bước chuyển đổi khách hàng từ Trial sang trả phí: gửi tài liệu → gọi tư vấn → gọi chốt deal → tạo đơn → xác nhận",
     delayUnit:  "day",
@@ -754,13 +754,13 @@ const actionChains = [
     steps: [
       {
         order: 1,
-        actionId: "ACT008", // Gửi tài liệu & proposal
+        actionId: "ACT8", // Gửi tài liệu & proposal
         branches: [
           {
-            resultId:     "RES010", // Đã gửi tài liệu
+            resultId:     "RES10", // Đã gửi tài liệu
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT001", // → Gọi điện lần 1
+            nextActionId: "ACT1", // → Gọi điện lần 1
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   4,
@@ -769,37 +769,37 @@ const actionChains = [
       },
       {
         order: 2,
-        actionId: "ACT001", // Gọi điện lần 1
+        actionId: "ACT1", // Gọi điện lần 1
         branches: [
           {
-            resultId:     "RES009", // Hứng thú - cần demo
+            resultId:     "RES9", // Hứng thú - cần demo
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT013", // → Gọi demo
+            nextActionId: "ACT13", // → Gọi demo
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
           },
           {
-            resultId:     "RES001", // Đã liên hệ & quan tâm
+            resultId:     "RES1", // Đã liên hệ & quan tâm
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT010", // → Gọi chốt deal
+            nextActionId: "ACT10", // → Gọi chốt deal
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   2,
           },
           {
-            resultId:     "RES002", // Không bắt máy
+            resultId:     "RES2", // Không bắt máy
             order:        3,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT002", // → Gọi điện lần 2
+            nextActionId: "ACT2", // → Gọi điện lần 2
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   3,
           },
           {
-            resultId:     "RES004", // Từ chối
+            resultId:     "RES4", // Từ chối
             order:        4,
             nextStepType: "close_task",
             nextActionId: null,
@@ -811,28 +811,28 @@ const actionChains = [
       },
       {
         order: 3,
-        actionId: "ACT013", // Gọi demo sản phẩm
+        actionId: "ACT13", // Gọi demo sản phẩm
         branches: [
           {
-            resultId:     "RES014", // Đã demo thành công
+            resultId:     "RES14", // Đã demo thành công
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT010", // → Gọi chốt deal
+            nextActionId: "ACT10", // → Gọi chốt deal
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
           },
           {
-            resultId:     "RES015", // Cần thêm thời gian
+            resultId:     "RES15", // Cần thêm thời gian
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT010",
+            nextActionId: "ACT10",
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   3,
           },
           {
-            resultId:     "RES004", // Từ chối sau demo
+            resultId:     "RES4", // Từ chối sau demo
             order:        3,
             nextStepType: "close_task",
             nextActionId: null,
@@ -844,28 +844,28 @@ const actionChains = [
       },
       {
         order: 4,
-        actionId: "ACT010", // Gọi chốt deal
+        actionId: "ACT10", // Gọi chốt deal
         branches: [
           {
-            resultId:     "RES006", // Đã thanh toán (chốt thành công)
+            resultId:     "RES6", // Đã thanh toán (chốt thành công)
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT009", // → Tạo đơn hàng thủ công
+            nextActionId: "ACT9", // → Tạo đơn hàng thủ công
             closeOutcome: null,
             delayUnit:    "immediate",
             delayValue:   0,
           },
           {
-            resultId:     "RES003", // Hẹn gọi lại
+            resultId:     "RES3", // Hẹn gọi lại
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT010", // → Gọi lại chốt deal
+            nextActionId: "ACT10", // → Gọi lại chốt deal
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   2,
           },
           {
-            resultId:     "RES004", // Từ chối
+            resultId:     "RES4", // Từ chối
             order:        3,
             nextStepType: "close_task",
             nextActionId: null,
@@ -877,10 +877,10 @@ const actionChains = [
       },
       {
         order: 5,
-        actionId: "ACT009", // Tạo đơn hàng thủ công
+        actionId: "ACT9", // Tạo đơn hàng thủ công
         branches: [
           {
-            resultId:     "RES011", // Đã tạo đơn hàng
+            resultId:     "RES11", // Đã tạo đơn hàng
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -895,7 +895,7 @@ const actionChains = [
 
   // ─ CHAIN005: Doanh nghiệp mới (từ Biz) ─────────────────────────────────────
   {
-    id: "CHAIN005",
+    id: "CHAIN5",
     name: "Hỗ trợ doanh nghiệp mới",
     description: "Chuỗi hỗ trợ onboarding doanh nghiệp mới: gửi SMS/email → gọi hỗ trợ → tạo booking demo",
     delayUnit:  "immediate",
@@ -904,13 +904,13 @@ const actionChains = [
     steps: [
       {
         order: 1,
-        actionId: "ACT012", // Gửi SMS nhắc nhở
+        actionId: "ACT12", // Gửi SMS nhắc nhở
         branches: [
           {
-            resultId:     "RES005", // Đã gửi
+            resultId:     "RES5", // Đã gửi
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT016", // → Gọi hỗ trợ kỹ thuật
+            nextActionId: "ACT16", // → Gọi hỗ trợ kỹ thuật
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   1,
@@ -919,28 +919,28 @@ const actionChains = [
       },
       {
         order: 2,
-        actionId: "ACT016", // Gọi điện hỗ trợ kỹ thuật
+        actionId: "ACT16", // Gọi điện hỗ trợ kỹ thuật
         branches: [
           {
-            resultId:     "RES001", // Đã liên hệ
+            resultId:     "RES1", // Đã liên hệ
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT014", // → Tạo booking demo
+            nextActionId: "ACT14", // → Tạo booking demo
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
           },
           {
-            resultId:     "RES002", // Không bắt máy
+            resultId:     "RES2", // Không bắt máy
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT001", // → Gọi điện lần 1
+            nextActionId: "ACT1", // → Gọi điện lần 1
             closeOutcome: null,
             delayUnit:    "hour",
             delayValue:   2,
           },
           {
-            resultId:     "RES004", // Từ chối
+            resultId:     "RES4", // Từ chối
             order:        3,
             nextStepType: "close_task",
             nextActionId: null,
@@ -952,10 +952,10 @@ const actionChains = [
       },
       {
         order: 3,
-        actionId: "ACT014", // Tạo booking demo
+        actionId: "ACT14", // Tạo booking demo
         branches: [
           {
-            resultId:     "RES014", // Đã demo thành công
+            resultId:     "RES14", // Đã demo thành công
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -964,10 +964,10 @@ const actionChains = [
             delayValue:   null,
           },
           {
-            resultId:     "RES003", // Hẹn lại
+            resultId:     "RES3", // Hẹn lại
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT014",
+            nextActionId: "ACT14",
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   2,
@@ -979,7 +979,7 @@ const actionChains = [
 
   // ─ CHAIN006: Xử lý nâng cấp cần thiết (inactive — đang tắt) ───────────────
   {
-    id: "CHAIN006",
+    id: "CHAIN6",
     name: "Nâng cấp Enterprise",
     description: "Chuỗi tư vấn và chốt deal nâng cấp lên gói Enterprise (hiện tắt - đang review)",
     delayUnit:  "day",
@@ -988,13 +988,13 @@ const actionChains = [
     steps: [
       {
         order: 1,
-        actionId: "ACT008", // Gửi tài liệu Enterprise
+        actionId: "ACT8", // Gửi tài liệu Enterprise
         branches: [
           {
-            resultId:     "RES010",
+            resultId:     "RES10",
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT003",
+            nextActionId: "ACT3",
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
@@ -1003,19 +1003,19 @@ const actionChains = [
       },
       {
         order: 2,
-        actionId: "ACT003", // Gọi tư vấn nâng cấp
+        actionId: "ACT3", // Gọi tư vấn nâng cấp
         branches: [
           {
-            resultId:     "RES001",
+            resultId:     "RES1",
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT015", // → Gửi hợp đồng
+            nextActionId: "ACT15", // → Gửi hợp đồng
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
           },
           {
-            resultId:     "RES004",
+            resultId:     "RES4",
             order:        2,
             nextStepType: "close_task",
             nextActionId: null,
@@ -1027,13 +1027,13 @@ const actionChains = [
       },
       {
         order: 3,
-        actionId: "ACT015", // Gửi hợp đồng điện tử
+        actionId: "ACT15", // Gửi hợp đồng điện tử
         branches: [
           {
-            resultId:     "RES016", // Đã gửi hợp đồng
+            resultId:     "RES16", // Đã gửi hợp đồng
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT006", // → Xác nhận thanh toán
+            nextActionId: "ACT6", // → Xác nhận thanh toán
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   2,
@@ -1042,22 +1042,22 @@ const actionChains = [
       },
       {
         order: 4,
-        actionId: "ACT006", // Gọi xác nhận thanh toán
+        actionId: "ACT6", // Gọi xác nhận thanh toán
         branches: [
           {
-            resultId:     "RES006", // Đã thanh toán
+            resultId:     "RES6", // Đã thanh toán
             order:        1,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT009",
+            nextActionId: "ACT9",
             closeOutcome: null,
             delayUnit:    "immediate",
             delayValue:   null,
           },
           {
-            resultId:     "RES007", // Chưa thanh toán
+            resultId:     "RES7", // Chưa thanh toán
             order:        2,
             nextStepType: "next_in_chain",
-            nextActionId: "ACT006",
+            nextActionId: "ACT6",
             closeOutcome: null,
             delayUnit:    "day",
             delayValue:   1,
@@ -1066,10 +1066,10 @@ const actionChains = [
       },
       {
         order: 5,
-        actionId: "ACT009", // Tạo đơn hàng
+        actionId: "ACT9", // Tạo đơn hàng
         branches: [
           {
-            resultId:     "RES011",
+            resultId:     "RES11",
             order:        1,
             nextStepType: "close_task",
             nextActionId: null,
@@ -1106,7 +1106,7 @@ const events = [
 
   // EVT001: user_moi — có assignee — đã đồng bộ
   {
-    id: "EVT001",
+    id: "EVT1",
     name: "Đăng ký tài khoản mới",
     sub: "Hệ thống tự động",
     group: "user_moi",
@@ -1119,10 +1119,10 @@ const events = [
       source: "Facebook Ads",
       address: "Tầng 3, Tòa nhà AB, Quận 1, TP. HCM",
     },
-    customerId: "CUST001",
+    customerId: "CUST1",
     biz: { id: "#BIZ001", tags: ["Trial", "SmaxAi"] },
     assignee: { name: "Vũ Thu Phương", avatar: "https://i.pravatar.cc/100?img=25", role: "Nhân viên Sales" },
-    assigneeId: "USER004",
+    assigneeId: "USER4",
     stage: "Đăng ký thành công",
     source: "CRM",
     tags: ["#UserMoi", "#Trial"],
@@ -1138,7 +1138,7 @@ const events = [
 
   // EVT002: user_moi — có assignee — đã đồng bộ — timeline phong phú
   {
-    id: "EVT002",
+    id: "EVT2",
     name: "Hoàn tất hồ sơ cá nhân",
     sub: "Người dùng tự thao tác",
     group: "user_moi",
@@ -1151,10 +1151,10 @@ const events = [
       source: "Google Ads",
       address: "89 Trần Phú, Hà Đông, Hà Nội",
     },
-    customerId: "CUST004",
+    customerId: "CUST4",
     biz: { id: "#BIZ002", tags: ["Trial", "Appvn"] },
     assignee: { name: "Lê Văn Hùng", avatar: "https://i.pravatar.cc/100?img=30", role: "Nhân viên Sales" },
-    assigneeId: "USER005",
+    assigneeId: "USER5",
     stage: "Đã hoàn tất hồ sơ",
     source: "CRM",
     tags: ["#NewUser", "#HoSoHoanTat"],
@@ -1172,7 +1172,7 @@ const events = [
 
   // EVT003: user_moi — CHƯA có assignee
   {
-    id: "EVT003",
+    id: "EVT3",
     name: "Người dùng mới từ Google Ads",
     sub: "Tự đăng ký",
     group: "user_moi",
@@ -1185,7 +1185,7 @@ const events = [
       source: "Google Ads",
       address: "Đà Nẵng",
     },
-    customerId: "CUST006",
+    customerId: "CUST6",
     biz: { id: "#BIZ007", tags: ["Trial"] },
     assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
     assigneeId: null,
@@ -1202,7 +1202,7 @@ const events = [
 
   // EVT004: user_moi — CHƯA có assignee, CHƯA đồng bộ nhân viên hệ thống (customer ID chưa map)
   {
-    id: "EVT004",
+    id: "EVT4",
     name: "Đăng ký nhanh qua landing page",
     sub: "Landing page campaign tháng 4",
     group: "user_moi",
@@ -1236,7 +1236,7 @@ const events = [
 
   // EVT005: biz_moi — có assignee — timeline bình thường
   {
-    id: "EVT005",
+    id: "EVT5",
     name: "Tạo doanh nghiệp thành công",
     sub: "Hệ thống tự động",
     group: "biz_moi",
@@ -1249,10 +1249,10 @@ const events = [
       source: "Facebook",
       address: "123 Nguyễn Trãi, Quận 5, TP. HCM",
     },
-    customerId: "CUST003",
+    customerId: "CUST3",
     biz: { id: "#BIZ003", tags: ["Trial", "FB"] },
     assignee: { name: "Vũ Thu Phương", avatar: "https://i.pravatar.cc/100?img=25", role: "Nhân viên Sales" },
-    assigneeId: "USER004",
+    assigneeId: "USER4",
     stage: "Tạo biz thành công",
     source: "CRM",
     tags: ["#BizMoi", "#Trial"],
@@ -1268,7 +1268,7 @@ const events = [
 
   // EVT006: biz_moi — có assignee — Doanh nghiệp lớn (Enterprise)
   {
-    id: "EVT006",
+    id: "EVT6",
     name: "Kết nối kênh chat đầu tiên",
     sub: "Tự động kích hoạt",
     group: "biz_moi",
@@ -1281,10 +1281,10 @@ const events = [
       source: "Zalo",
       address: "Hà Nội",
     },
-    customerId: "CUST007",
+    customerId: "CUST7",
     biz: { id: "#BIZ008", tags: ["Basic", "Zalo"] },
     assignee: { name: "Phạm Thanh Sơn", avatar: "https://i.pravatar.cc/100?img=12", role: "Manager" },
-    assigneeId: "USER003",
+    assigneeId: "USER3",
     stage: "Kết nối thành công",
     source: "CRM",
     tags: ["#BizMoi", "#Enterprise", "#ZaloOA"],
@@ -1303,7 +1303,7 @@ const events = [
 
   // EVT007: biz_moi — CHƯA có assignee — khách từ website
   {
-    id: "EVT007",
+    id: "EVT7",
     name: "Doanh nghiệp mới tự đăng ký website",
     sub: "Đăng ký trực tiếp",
     group: "biz_moi",
@@ -1316,7 +1316,7 @@ const events = [
       source: "Website",
       address: "Quận Bình Thạnh, TP. HCM",
     },
-    customerId: "CUST008",
+    customerId: "CUST8",
     biz: { id: "#BIZ009", tags: ["Trial"] },
     assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
     assigneeId: null,
@@ -1337,7 +1337,7 @@ const events = [
 
   // EVT008: can_nang_cap — có assignee — nhiều cảnh báo quota
   {
-    id: "EVT008",
+    id: "EVT8",
     name: "Dung lượng lưu trữ sắp đầy",
     sub: "Cảnh báo tự động",
     group: "can_nang_cap",
@@ -1350,10 +1350,10 @@ const events = [
       source: "Direct",
       address: "TP. HCM",
     },
-    customerId: "CUST001",
+    customerId: "CUST1",
     biz: { id: "#BIZ001", tags: ["Basic", "SmaxAi"] },
     assignee: { name: "Phạm Thanh Sơn", avatar: "https://i.pravatar.cc/100?img=12", role: "Manager" },
-    assigneeId: "USER003",
+    assigneeId: "USER3",
     stage: "Cảnh báo nâng cấp",
     source: "CRM",
     tags: ["#UpgradeNeeded", "#StorageFull"],
@@ -1377,7 +1377,7 @@ const events = [
 
   // EVT009: can_nang_cap — có assignee — Trial hết hạn
   {
-    id: "EVT009",
+    id: "EVT9",
     name: "Hết hạn gói Trial — Cần nâng cấp",
     sub: "Hệ thống gửi thông báo",
     group: "can_nang_cap",
@@ -1390,10 +1390,10 @@ const events = [
       source: "Google Ads",
       address: "Hà Nội",
     },
-    customerId: "CUST004",
+    customerId: "CUST4",
     biz: { id: "#BIZ002", tags: ["Trial"] },
     assignee: { name: "Vũ Thu Phương", avatar: "https://i.pravatar.cc/100?img=25", role: "Nhân viên Sales" },
-    assigneeId: "USER004",
+    assigneeId: "USER4",
     stage: "Hết hạn Trial",
     source: "CRM",
     tags: ["#TrialExpired", "#CanNangCap"],
@@ -1411,7 +1411,7 @@ const events = [
 
   // EVT010: can_nang_cap — CHƯA có assignee — cảnh báo user quota
   {
-    id: "EVT010",
+    id: "EVT10",
     name: "Vượt giới hạn số lượng user",
     sub: "Hệ thống cảnh báo",
     group: "can_nang_cap",
@@ -1424,7 +1424,7 @@ const events = [
       source: "Zalo",
       address: "TP. HCM",
     },
-    customerId: "CUST005",
+    customerId: "CUST5",
     biz: { id: "#BIZ004", tags: ["Basic"] },
     assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
     assigneeId: null,
@@ -1447,7 +1447,7 @@ const events = [
 
   // EVT011: sap_het_han — có assignee — còn 7 ngày
   {
-    id: "EVT011",
+    id: "EVT11",
     name: "Gói cước sắp hết hạn — còn 7 ngày",
     sub: "Thông báo tự động",
     group: "sap_het_han",
@@ -1460,10 +1460,10 @@ const events = [
       source: "Direct",
       address: "Hà Nội",
     },
-    customerId: "CUST002",
+    customerId: "CUST2",
     biz: { id: "#BIZ005", tags: ["Enterprise", "TPBank"] },
     assignee: { name: "Phạm Thanh Sơn", avatar: "https://i.pravatar.cc/100?img=12", role: "Manager" },
-    assigneeId: "USER003",
+    assigneeId: "USER3",
     stage: "Còn 7 ngày",
     source: "CRM",
     tags: ["#SapHetHan", "#Enterprise"],
@@ -1483,7 +1483,7 @@ const events = [
 
   // EVT012: sap_het_han — có assignee — còn 2 ngày (khẩn cấp)
   {
-    id: "EVT012",
+    id: "EVT12",
     name: "Gói cước sắp hết hạn — còn 2 ngày",
     sub: "Cảnh báo khẩn cấp",
     group: "sap_het_han",
@@ -1496,10 +1496,10 @@ const events = [
       source: "Facebook",
       address: "TP. HCM",
     },
-    customerId: "CUST003",
+    customerId: "CUST3",
     biz: { id: "#BIZ003", tags: ["Trial"] },
     assignee: { name: "Lê Văn Hùng", avatar: "https://i.pravatar.cc/100?img=30", role: "Nhân viên Sales" },
-    assigneeId: "USER005",
+    assigneeId: "USER5",
     stage: "Còn 2 ngày — Khẩn",
     source: "CRM",
     tags: ["#Urgent", "#SapHetHan"],
@@ -1517,7 +1517,7 @@ const events = [
 
   // EVT013: sap_het_han — CHƯA có assignee — khách lớn (Đặng Quang Huy)
   {
-    id: "EVT013",
+    id: "EVT13",
     name: "Gói Premium sắp hết hạn — còn 14 ngày",
     sub: "Nhắc gia hạn trước 14 ngày",
     group: "sap_het_han",
@@ -1530,7 +1530,7 @@ const events = [
       source: "Direct",
       address: "Hà Nội",
     },
-    customerId: "CUST007",
+    customerId: "CUST7",
     biz: { id: "#BIZ008", tags: ["Premium", "Direct"] },
     assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
     assigneeId: null,
@@ -1557,7 +1557,7 @@ const events = [
 
   // EVT014: chuyen_khoan — có assignee — đã xác nhận
   {
-    id: "EVT014",
+    id: "EVT14",
     name: "Xác nhận thanh toán thành công",
     sub: "Đơn hàng #DH2026-001",
     group: "chuyen_khoan",
@@ -1570,10 +1570,10 @@ const events = [
       source: "TPBank",
       address: "Hà Nội",
     },
-    customerId: "CUST002",
+    customerId: "CUST2",
     biz: { id: "#BIZ005", tags: ["Enterprise", "TPBank"] },
     assignee: { name: "Phạm Thanh Sơn", avatar: "https://i.pravatar.cc/100?img=12", role: "Manager" },
-    assigneeId: "USER003",
+    assigneeId: "USER3",
     stage: "Đã xác nhận",
     source: "TPBank",
     tags: ["#Paid", "#Enterprise"],
@@ -1593,7 +1593,7 @@ const events = [
 
   // EVT015: chuyen_khoan — có assignee — chờ xác nhận
   {
-    id: "EVT015",
+    id: "EVT15",
     name: "Thanh toán chuyển khoản mới",
     sub: "Đơn hàng #DH2026-002",
     group: "chuyen_khoan",
@@ -1606,10 +1606,10 @@ const events = [
       source: "VCB",
       address: "TP. HCM",
     },
-    customerId: "CUST005",
+    customerId: "CUST5",
     biz: { id: "#BIZ006", tags: ["Premium", "VCB"] },
     assignee: { name: "Lê Văn Hùng", avatar: "https://i.pravatar.cc/100?img=30", role: "Nhân viên Sales" },
-    assigneeId: "USER005",
+    assigneeId: "USER5",
     stage: "Chờ xác nhận",
     source: "VCB",
     tags: ["#WaitingConfirm", "#ChuyenKhoan"],
@@ -1624,7 +1624,7 @@ const events = [
 
   // EVT016: chuyen_khoan — CHƯA có assignee — cần xử lý gấp
   {
-    id: "EVT016",
+    id: "EVT16",
     name: "Chuyển khoản nhưng chưa có đơn hàng",
     sub: "Cần xác minh nội dung CK",
     group: "chuyen_khoan",
@@ -1637,7 +1637,7 @@ const events = [
       source: "BIDV",
       address: "TP. HCM",
     },
-    customerId: "CUST008",
+    customerId: "CUST8",
     biz: { id: "", tags: [] },
     assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
     assigneeId: null,
@@ -1654,7 +1654,7 @@ const events = [
 
   // EVT017: chuyen_khoan — CHƯA có assignee, CHƯA đồng bộ — customer ID null
   {
-    id: "EVT017",
+    id: "EVT17",
     name: "Thanh toán từ khách hàng chưa trong hệ thống",
     sub: "Đơn hàng #DH2026-003",
     group: "chuyen_khoan",
