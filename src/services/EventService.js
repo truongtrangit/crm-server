@@ -4,7 +4,7 @@ const User = require("../models/User");
 const EventActionChain = require("../models/EventActionChain");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
-const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
+const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 
 class EventService {
@@ -55,8 +55,10 @@ class EventService {
     if (stage)    query.stage = stage;
     if (assignee) query["assignee.name"] = assignee;
 
+    const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "assignee.name", "stage"]);
+
     const [events, totalItems] = await Promise.all([
-      Event.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Event.find(query).sort(sortObj).skip(skip).limit(limit),
       Event.countDocuments(query),
     ]);
 

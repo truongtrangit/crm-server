@@ -3,7 +3,7 @@ const User = require("../models/User");
 const Event = require("../models/Event");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
-const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
+const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
 const { createHttpError } = require("../utils/http");
 const { getUserRoleName } = require("../utils/rbac");
@@ -41,14 +41,16 @@ class CustomerService {
 
     let customers, totalItems;
 
+    const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "email", "type"]);
+
     if (canSeeDeleted) {
       [customers, totalItems] = await Promise.all([
-        Customer.findWithDeleted(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Customer.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit),
         Customer.countWithDeleted(query),
       ]);
     } else {
       [customers, totalItems] = await Promise.all([
-        Customer.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Customer.find(query).sort(sortObj).skip(skip).limit(limit),
         Customer.countDocuments(query),
       ]);
     }

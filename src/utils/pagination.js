@@ -61,6 +61,27 @@ function paginateArray(items, query = {}) {
   return buildPaginatedResponse(paginatedItems, totalItems, page, limit);
 }
 
+/**
+ * Resolve sort parameters from query string.
+ * @param {object} query       – req.query
+ * @param {string[]} allowedFields – fields the caller permits (default: createdAt, name)
+ * @param {object} defaultSort  – fallback sort object (default: { createdAt: -1 })
+ * @returns {object} MongoDB sort object, e.g. { name: 1 }
+ */
+function resolveSort(query = {}, allowedFields = ["createdAt", "name", "updatedAt", "email"], defaultSort = { createdAt: -1 }) {
+  const { sort, sortOrder } = query;
+
+  if (!sort) return defaultSort;
+
+  const field = String(sort).trim();
+  if (!allowedFields.includes(field)) return defaultSort;
+
+  const order = String(sortOrder || "desc").toLowerCase() === "asc" ? 1 : -1;
+
+  // Add _id as tiebreaker for stable ordering when primary field has duplicates
+  return { [field]: order, _id: order };
+}
+
 module.exports = {
   DEFAULT_LIMIT,
   DEFAULT_PAGE,
@@ -68,4 +89,5 @@ module.exports = {
   buildPaginatedResponse,
   paginateArray,
   resolvePagination,
+  resolveSort,
 };

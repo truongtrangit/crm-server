@@ -9,6 +9,7 @@ const { createHttpError } = require("../utils/http");
 const {
   buildPaginatedResponse,
   resolvePagination,
+  resolveSort,
 } = require("../utils/pagination");
 const {
   isWithinManagerScope,
@@ -412,14 +413,16 @@ async function listUsers(actor, filters) {
 
   let users, totalItems;
 
+  const sortObj = resolveSort(filters, ["createdAt", "name", "updatedAt", "email", "roleId"]);
+
   if (canSeeDeleted) {
     [users, totalItems] = await Promise.all([
-      User.findWithDeleted(query).sort({ createdAt: -1, id: 1 }).skip(skip).limit(limit),
+      User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit),
       User.countWithDeleted(query),
     ]);
   } else {
     [users, totalItems] = await Promise.all([
-      User.find(query).sort({ createdAt: -1, id: 1 }).skip(skip).limit(limit),
+      User.find(query).sort(sortObj).skip(skip).limit(limit),
       User.countDocuments(query),
     ]);
   }
