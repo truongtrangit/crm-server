@@ -54,8 +54,8 @@ const subscriptionSchema = new mongoose.Schema(
     /** active | expired | cancelled | pending */
     status: {
       type: String,
-      enum: ["active", "expired", "cancelled", "pending"],
-      default: "active",
+      enum: ["active", "expired", "cancelled", "pending", "inactive"],
+      default: "inactive",
     },
 
     // ─── Dữ liệu mở rộng ────────────────────────────────────────────────

@@ -29,6 +29,7 @@ const customerSchema = new mongoose.Schema(
     tags: { type: [String], default: [] },
     assignees: { type: [assigneeSchema], default: [] },
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,

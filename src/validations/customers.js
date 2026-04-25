@@ -18,6 +18,7 @@ const createCustomerSchema = Joi.object({
   lastLoginAt: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   extraInfo: Joi.any().optional(),
+  isActive: Joi.boolean().optional(),
 });
 
 const updateCustomerSchema = Joi.object({
@@ -35,6 +36,7 @@ const updateCustomerSchema = Joi.object({
   lastLoginAt: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   extraInfo: Joi.any().optional(),
+  isActive: Joi.boolean().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
 });

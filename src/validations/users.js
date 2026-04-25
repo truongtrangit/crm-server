@@ -23,6 +23,7 @@ const createUserSchema = Joi.object({
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
   managerId: Joi.string().allow("", null).optional(),
+  isActive: Joi.boolean().optional(),
 });
 
 const updateUserSchema = Joi.object({
@@ -44,6 +45,7 @@ const updateUserSchema = Joi.object({
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
   managerId: Joi.string().allow("", null).optional(),
+  isActive: Joi.boolean().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
 });

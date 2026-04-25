@@ -56,6 +56,7 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: { type: Date, default: null },
     passwordReset: { type: passwordResetSchema, default: () => ({}) },
     sessions: { type: [sessionSchema], default: [] },
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,
