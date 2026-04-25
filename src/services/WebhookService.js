@@ -2,6 +2,7 @@ const WebhookLog = require("../models/WebhookLog");
 const Event = require("../models/Event");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
+const Subscription = require("../models/Subscription");
 const { WEBHOOK_EVENT_TYPES } = require("../constants/webhookEvents");
 const { generateMonotonicId } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
@@ -301,40 +302,193 @@ class WebhookService {
    * Tạo Event group 'biz_moi', link tới Customer nếu tìm thấy.
    */
   async #processNewBiz(payload) {
-    const customerData = this.#extractCustomerData(payload);
-    const existingCustomer = await this.#findCustomer(customerData);
-    const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+    // ─── 1. Resolve Customer from users array ─────────────────────────────
+    const users = Array.isArray(payload.users) ? payload.users : [];
+    // Ưu tiên user trùng author_id, fallback lấy user đầu tiên
+    const primaryUser =
+      users.find((u) => u.id === payload.author_id) || users[0] || {};
 
+    const userEmail = (primaryUser.email || "").trim().toLowerCase();
+    const userPhone = (primaryUser.phone || "").trim();
+    const userName = primaryUser.name || "";
+    const userAvatar = primaryUser.picture || "";
+    const userRole = primaryUser.role || "";
+
+    let customer = null;
+    const orConditions = [];
+    if (userEmail) orConditions.push({ email: userEmail });
+    if (userPhone) orConditions.push({ phone: userPhone });
+
+    if (orConditions.length > 0) {
+      customer = await Customer.findOneWithDeleted({ $or: orConditions });
+    }
+
+    // Nếu customer đã bị soft-delete, chỉ log
+    if (customer?.isDeleted) {
+      logger.warn("Biz create — customer was soft-deleted, skipping customer link", {
+        customerId: customer.id,
+        email: userEmail,
+      });
+      customer = null;
+    }
+
+    if (!customer && (userEmail || userPhone)) {
+      // Tạo customer mới từ user
+      customer = await Customer.create({
+        id: await generateMonotonicId("CUST"),
+        name: userName || "Unknown",
+        email: userEmail || "",
+        phone: userPhone || "",
+        avatar: userAvatar || `https://ui-avatars.com/api/?name=${userName?.split(" ")?.join("+")}&background=random`,
+        type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+        biz: [payload.alias || ""],
+        platforms: ["SmaxAi"],
+        group: "",
+        registeredAt: payload.created_at
+          ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+          : "",
+        lastLoginAt: payload.updated_at
+          ? new Date(payload.updated_at).toLocaleDateString("vi-VN")
+          : "",
+        tags: ["#Webhook"],
+        extraInfo: {
+          thirdPartyId: primaryUser.id || null,
+          roles: primaryUser.role ? [primaryUser.role] : [],
+          country: payload.country || null,
+        },
+      });
+
+      logger.info("Biz create — new customer created from users[]", {
+        customerId: customer.id,
+        email: userEmail,
+      });
+    } else if (customer) {
+      // Cập nhật biz list cho customer đã tồn tại
+      const bizAlias = payload.alias || "";
+      if (bizAlias && !customer.biz.includes(bizAlias)) {
+        customer.biz.push(bizAlias);
+        await customer.save();
+      }
+    }
+
+    // ─── 2. Resolve Subscription from order ───────────────────────────────
+    const order = payload.order || {};
+    let subscription = null;
+
+    if (order.id) {
+      // Tìm subscription đã tồn tại theo externalId
+      subscription = await Subscription.findOne({ externalId: order.id });
+
+      if (!subscription) {
+        const now = new Date();
+        const endDate = order.time_end ? new Date(order.time_end) : null;
+        const status = endDate && endDate > now ? "active" : "expired";
+
+        subscription = await Subscription.create({
+          id: await generateMonotonicId("SUB"),
+          externalId: order.id,
+          source: "SmaxAi",
+          code: order.code || "",
+          planType: order.type || "FREE",
+          name: `${order.type || "FREE"} — ${order.code || "N/A"}`,
+          months: order.months || 0,
+          startDate: order.time_start ? new Date(order.time_start) : null,
+          endDate,
+          maxMembers: order.members || 0,
+          maxPages: order.pages || 0,
+          maxCustomers: order.customers || 0,
+          maxCards: order.cards || 0,
+          usedCards: order.used_cards || 0,
+          totalCustomers: order.total_customers || 0,
+          botAvailable: order.bot_available || false,
+          chatAvailable: order.chat_available || false,
+          customerId: customer?.id || null,
+          status,
+          metadata: order,
+        });
+
+        logger.info("Biz create — subscription created", {
+          subscriptionId: subscription.id,
+          externalId: order.id,
+          planType: order.type,
+        });
+      } else {
+        // Nếu đã có, cập nhật customerId nếu chưa link
+        if (!subscription.customerId && customer) {
+          subscription.customerId = customer.id;
+          await subscription.save();
+        }
+      }
+    }
+
+    // ─── 3. Build plan snapshot cho Event ──────────────────────────────────
+    const endDate = order.time_end ? new Date(order.time_end) : null;
+    const daysLeft = endDate
+      ? Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    const plan = {
+      name: order.type || "TRIAL",
+      cycle: `${order.months || 0} tháng`,
+      price: order.type === "FREE" ? "0 đ" : "",
+      daysLeft,
+      expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+    };
+
+    // ─── 4. Build services & quotas ───────────────────────────────────────
+    const services = [
+      { name: "Bot", active: order.bot_available || false },
+      { name: "Chat", active: order.chat_available || false },
+    ];
+    // Thêm modules từ payload
+    if (Array.isArray(payload.modules)) {
+      for (const mod of payload.modules) {
+        if (mod.alias) services.push({ name: mod.alias, active: true });
+      }
+    }
+
+    const quotas = [
+      { name: "Members", used: (payload.users || []).length, total: order.members || 0, color: "blue" },
+      { name: "Pages", used: (payload.page_pids || []).length, total: order.pages || 0, color: "green" },
+      { name: "Customers", used: order.total_customers || 0, total: order.customers || 0, color: "purple" },
+      { name: "Cards", used: order.used_cards || 0, total: order.cards || 0, color: "orange" },
+    ];
+
+    // ─── 5. Create Event ──────────────────────────────────────────────────
     const event = await Event.create({
       id: await generateMonotonicId("EVT"),
-      name: payload.name || `Biz mới: ${payload.biz?.id || "N/A"}`,
-      sub: payload.sub || "",
+      name: payload.alias || payload.name || "Biz mới",
+      sub: payload.desc || "",
       group: WEBHOOK_EVENT_TYPES.NEW_BUSINESS,
-      customerId: existingCustomer?.id || null,
+      customerId: customer?.id || null,
       customer: {
-        name: customerData.name || existingCustomer?.name || "Unknown",
-        avatar: customerData.avatar || existingCustomer?.avatar || "",
-        role: customerData.role || "",
-        email: customerData.email || existingCustomer?.email || "",
-        phone: customerData.phone || existingCustomer?.phone || "",
-        source: customerData.source || "Webhook",
-        address: customerData.address || "",
+        name: customer?.name || userName || "Unknown",
+        avatar: customer?.avatar || userAvatar || "",
+        role: "",
+        email: customer?.email || userEmail || "",
+        phone: customer?.phone || userPhone || "",
+        source: "SmaxAi",
+        address: "",
       },
-      assigneeId,
-      assignee,
-      biz: payload.biz || { id: "", tags: [] },
-      stage: payload.stage || "",
-      source: "Webhook",
-      tags: payload.tags || [],
-      plan: payload.plan || {},
-      services: payload.services || [],
-      quotas: payload.quotas || [],
+      biz: {
+        id: payload.alias || "",
+        tags: [],
+      },
+      assigneeId: null,
+      assignee: { name: "", avatar: "", role: "", department: [], group: [] },
+      stage: "",
+      source: "SmaxAi",
+      subscriptionId: subscription?.id || null,
+      tags: ["#Webhook", `#${order.type || "FREE"}`],
+      plan,
+      services,
+      quotas,
       timeline: [
         {
           type: "event",
-          title: "Sự kiện tạo tự động từ Webhook",
+          title: "Biz mới tạo từ Webhook",
           time: new Date().toLocaleString("vi-VN"),
-          content: `Biz mới được tạo: ${payload.biz?.id || "N/A"}`,
+          content: `Biz "${payload.name || payload.alias || "N/A"}" được tạo bởi ${userName || "N/A"} — Gói: ${order.type || "FREE"} (${order.code || "N/A"})`,
           createdBy: "Webhook System",
         },
       ],
@@ -342,7 +496,7 @@ class WebhookService {
 
     return {
       eventId: event.id,
-      customerId: existingCustomer?.id || null,
+      customerId: customer?.id || null,
       event,
     };
   }
