@@ -364,9 +364,9 @@ class WebhookService {
       });
     } else if (customer) {
       // Cập nhật biz list cho customer đã tồn tại
-      const bizAlias = payload.alias || "";
-      if (bizAlias && !customer.biz.includes(bizAlias)) {
-        customer.biz.push(bizAlias);
+      const bizName = payload.name || "";
+      if (bizName && !customer.biz.includes(bizName)) {
+        customer.biz.push(bizName);
         await customer.save();
       }
     }
@@ -428,7 +428,7 @@ class WebhookService {
       : 0;
 
     const plan = {
-      name: order.type || "TRIAL",
+      name: `${order.type} - ${order.code}`,
       cycle: `${order.months || 0} tháng`,
       price: order.type === "FREE" ? "0 đ" : "",
       daysLeft,
@@ -441,11 +441,11 @@ class WebhookService {
       { name: "Chat", active: order.chat_available || false },
     ];
     // Thêm modules từ payload
-    if (Array.isArray(payload.modules)) {
-      for (const mod of payload.modules) {
-        if (mod.alias) services.push({ name: mod.alias, active: true });
-      }
-    }
+    // if (Array.isArray(payload.modules)) {
+    //   for (const mod of payload.modules) {
+    //     if (mod.alias) services.push({ name: mod.alias, active: true });
+    //   }
+    // }
 
     const quotas = [
       { name: "Members", used: (payload.users || []).length, total: order.members || 0, color: "blue" },
@@ -457,7 +457,7 @@ class WebhookService {
     // ─── 5. Create Event ──────────────────────────────────────────────────
     const event = await Event.create({
       id: await generateMonotonicId("EVT"),
-      name: payload.alias || payload.name || "Biz mới",
+      name: payload.name || payload.alias || "Biz mới",
       sub: payload.desc || "",
       group: WEBHOOK_EVENT_TYPES.NEW_BUSINESS,
       customerId: customer?.id || null,
@@ -471,7 +471,7 @@ class WebhookService {
         address: "",
       },
       biz: {
-        id: payload.alias || "",
+        id: payload.name || payload.alias || "",
         tags: [],
       },
       assigneeId: null,
