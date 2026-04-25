@@ -31,6 +31,8 @@ class WebhookService {
     this.registerProcessor(WEBHOOK_EVENT_TYPES.USER_LOGIN, this.#processUserLogin.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.ORDER_CREATE, this.#processOrderCreate.bind(this));
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.ORDER_ACTIVE, this.#processOrderActive.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_UPGRADE, this.#processPlanUpgrade.bind(this));
   }
@@ -96,6 +98,7 @@ class WebhookService {
       webhookLog.processedAt = new Date();
       webhookLog.createdEventId = result.eventId || null;
       webhookLog.createdCustomerId = result.customerId || null;
+      webhookLog.createdSubscriptionId = result.subscriptionId || null;
       await webhookLog.save();
 
       logger.info("Webhook processed successfully", {
@@ -312,7 +315,6 @@ class WebhookService {
     const userPhone = (primaryUser.phone || "").trim();
     const userName = primaryUser.name || "";
     const userAvatar = primaryUser.picture || "";
-    const userRole = primaryUser.role || "";
 
     let customer = null;
     const orConditions = [];
@@ -341,7 +343,7 @@ class WebhookService {
         phone: userPhone || "",
         avatar: userAvatar || `https://ui-avatars.com/api/?name=${userName?.split(" ")?.join("+")}&background=random`,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
-        biz: [payload.alias || ""],
+        biz: [payload.name || ""],
         platforms: ["SmaxAi"],
         group: "",
         registeredAt: payload.created_at
@@ -600,6 +602,227 @@ class WebhookService {
       eventId: event.id,
       customerId: existingCustomer?.id || null,
       event,
+    };
+  }
+
+  /**
+   * order_create — Đơn hàng / subscription mới.
+   * Chỉ tạo Subscription record, lưu DB. Không tạo Event.
+   * Khi biz nào sử dụng subscriptionId thì link qua sau.
+   */
+  async #processOrderCreate(payload) {
+    // ─── 1. Dedup: kiểm tra externalId ─────────────────────────────────────
+    const existingSub = await Subscription.findOne({ externalId: payload.id });
+    if (existingSub) {
+      logger.info("Order create — subscription already exists, skipping", {
+        subscriptionId: existingSub.id,
+        externalId: payload.id,
+      });
+      return {
+        eventId: null,
+        customerId: existingSub.customerId || null,
+        subscriptionId: existingSub.id,
+      };
+    }
+
+    // ─── 2. Resolve Customer from author_id ────────────────────────────────
+    // NOTE: Author maybe not Customer
+    let customer = null;
+    if (payload.author_id) {
+      customer = await Customer.findOne({
+        "extraInfo.thirdPartyId": payload.author_id,
+      });
+    }
+
+    // ─── 3. Extract package quotas ─────────────────────────────────────────
+    const pkgtime = payload.pkgtime || {};
+    const pkgmember = payload.pkgmember || {};
+    const pkgpage = payload.pkgpage || {};
+    const pkgcustomer = payload.pkgcustomer || {};
+    const pkgcard = payload.pkgcard || {};
+
+    // ─── 4. Map status ─────────────────────────────────────────────────────
+    const rawStatus = (payload.status || "").toLowerCase();
+    const statusMap = {
+      paid: "paid",
+      none: "none",
+      active: "active",
+      expired: "expired",
+      cancelled: "cancelled",
+    };
+    const status = statusMap[rawStatus] || "pending";
+
+    // ─── 5. Build name ─────────────────────────────────────────────────────
+    const planType = payload.type || "FREE";
+    const name = [
+      planType,
+      payload.code || "",
+      pkgpage.name ? `(${pkgpage.name})` : "",
+    ]
+      .filter(Boolean)
+      .join(" — ");
+
+    // ─── 6. Create Subscription ────────────────────────────────────────────
+    const subscription = await Subscription.create({
+      id: await generateMonotonicId("SUB"),
+      externalId: payload.id,
+      source: "SmaxAi",
+      code: payload.code || "",
+      planType,
+      name,
+      months: pkgtime.month || 0,
+      startDate: payload.time_start ? new Date(payload.time_start) : null,
+      endDate: payload.time_end ? new Date(payload.time_end) : null,
+      maxMembers: pkgmember.number || 0,
+      maxPages: pkgpage.number || 0,
+      maxCustomers: pkgcustomer.number || 0,
+      maxCards: pkgcard.number || 0,
+      totalAmount: payload.total_amount || 0,
+      currency: payload.currency || "USD",
+      paymentGate: payload.payment_gate || "",
+      orderType: payload.order_type || "",
+      isFirstOrder: payload.is_first_order || false,
+      customerId: customer?.id || null,
+      externalBizId: payload.biz_id || null,
+      externalAuthorId: payload.author_id || null,
+      parentOrderId: payload.parent_order_id || null,
+      status,
+      metadata: payload,
+      createdAt: payload.created_at ? new Date(payload.created_at) : null,
+      updatedAt: payload.updated_at ? new Date(payload.updated_at) : null,
+    });
+
+    logger.info("Order create — subscription created", {
+      subscriptionId: subscription.id,
+      externalId: payload.id,
+      code: payload.code,
+      planType,
+      status,
+      customerId: customer?.id || null,
+    });
+
+    return {
+      eventId: null,
+      customerId: customer?.id || null,
+      subscriptionId: subscription.id,
+    };
+  }
+
+  /**
+   * order_active — Kích hoạt đơn hàng (PAID).
+   * Tìm Subscription đã tạo từ order_create và cập nhật status + dates + quotas.
+   * Nếu chưa có thì tạo mới (edge case nếu order_create không đến).
+   */
+  async #processOrderActive(payload) {
+    // ─── 1. Find existing Subscription ─────────────────────────────────────
+    let subscription = await Subscription.findOne({ externalId: payload.id });
+
+    // Thông tin quotas từ biz.order (chuẩn nhất khi đã active)
+    const bizOrder = payload.biz?.order || {};
+    const pkgtime = payload.pkgtime || {};
+    const pkgmember = payload.pkgmember || {};
+    const pkgpage = payload.pkgpage || {};
+    const pkgcustomer = payload.pkgcustomer || {};
+    const pkgcard = payload.pkgcard || {};
+
+    if (subscription) {
+      // ─── 2a. Update existing subscription ───────────────────────────────
+      subscription.status = "active";
+      subscription.startDate = payload.time_start
+        ? new Date(payload.time_start)
+        : subscription.startDate;
+      subscription.endDate = payload.time_end
+        ? new Date(payload.time_end)
+        : subscription.endDate;
+
+      // Refresh quotas từ biz.order (có dữ liệu chuẩn sau khi active)
+      if (bizOrder.members) subscription.maxMembers = bizOrder.members;
+      if (bizOrder.pages) subscription.maxPages = bizOrder.pages;
+      if (bizOrder.customers) subscription.maxCustomers = bizOrder.customers;
+      if (bizOrder.cards) subscription.maxCards = bizOrder.cards;
+      if (bizOrder.used_cards !== undefined) subscription.usedCards = bizOrder.used_cards;
+      if (bizOrder.total_customers !== undefined) subscription.totalCustomers = bizOrder.total_customers;
+      if (bizOrder.bot_available !== undefined) subscription.botAvailable = bizOrder.bot_available;
+      if (bizOrder.chat_available !== undefined) subscription.chatAvailable = bizOrder.chat_available;
+      if (bizOrder.months) subscription.months = bizOrder.months;
+
+      // Cập nhật amount & payment
+      subscription.totalAmount = payload.total_amount || subscription.totalAmount;
+      subscription.paymentGate = payload.payment_gate || subscription.paymentGate;
+
+      // Lưu lại full payload mới vào metadata
+      subscription.metadata = payload;
+
+      await subscription.save();
+
+      logger.info("Order active — subscription updated to active", {
+        subscriptionId: subscription.id,
+        externalId: payload.id,
+        status: "active",
+      });
+
+      return {
+        eventId: null,
+        customerId: subscription.customerId || null,
+        subscriptionId: subscription.id,
+      };
+    }
+
+    // ─── 2b. Create new (edge case) ───────────────────────────────────────
+    let customer = null;
+    if (payload.author_id) {
+      customer = await Customer.findOne({
+        "extraInfo.thirdPartyId": payload.author_id,
+      });
+    }
+
+    const planType = payload.type || "FREE";
+    const name = [planType, payload.code || "", pkgpage.name ? `(${pkgpage.name})` : ""]
+      .filter(Boolean)
+      .join(" — ");
+
+    subscription = await Subscription.create({
+      id: await generateMonotonicId("SUB"),
+      externalId: payload.id,
+      source: "SmaxAi",
+      code: payload.code || "",
+      planType,
+      name,
+      months: bizOrder.months || pkgtime.month || 0,
+      startDate: payload.time_start ? new Date(payload.time_start) : null,
+      endDate: payload.time_end ? new Date(payload.time_end) : null,
+      maxMembers: bizOrder.members || pkgmember.number || 0,
+      maxPages: bizOrder.pages || pkgpage.number || 0,
+      maxCustomers: bizOrder.customers || pkgcustomer.number || 0,
+      maxCards: bizOrder.cards || pkgcard.number || 0,
+      usedCards: bizOrder.used_cards || 0,
+      totalCustomers: bizOrder.total_customers || 0,
+      botAvailable: bizOrder.bot_available || false,
+      chatAvailable: bizOrder.chat_available || false,
+      totalAmount: payload.total_amount || 0,
+      currency: payload.currency || "USD",
+      paymentGate: payload.payment_gate || "",
+      orderType: payload.order_type || "",
+      isFirstOrder: payload.is_first_order || false,
+      customerId: customer?.id || null,
+      externalBizId: payload.biz_id || null,
+      externalAuthorId: payload.author_id || null,
+      parentOrderId: payload.parent_order_id || null,
+      status: "active",
+      metadata: payload,
+      created_at: payload.created_at ? new Date(payload.created_at) : undefined,
+      updated_at: payload.updated_at ? new Date(payload.updated_at) : undefined,
+    });
+
+    logger.info("Order active — subscription created (no prior order_create)", {
+      subscriptionId: subscription.id,
+      externalId: payload.id,
+    });
+
+    return {
+      eventId: null,
+      customerId: customer?.id || null,
+      subscriptionId: subscription.id,
     };
   }
 

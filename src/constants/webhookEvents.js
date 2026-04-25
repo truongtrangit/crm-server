@@ -9,6 +9,8 @@ const WEBHOOK_EVENT_TYPES = Object.freeze({
   USER_LOGIN: "user_login", // user đăng nhập
   NEW_REGISTRATION: "user_moi", // user mới
   NEW_BUSINESS: "biz_moi", // business mới
+  ORDER_CREATE: "order_create", // đơn hàng / subscription mới
+  ORDER_ACTIVE: "order_active", // đơn hàng được kích hoạt (PAID)
   PLAN_EXPIRED: "sap_het_han", // sắp hết hạn
   PLAN_UPGRADE: "can_nang_cap", // cần nâng cấp
 });

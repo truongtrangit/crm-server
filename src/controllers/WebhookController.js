@@ -9,6 +9,8 @@ const ROUTE_TO_EVENT_TYPE = {
   "new-login": "user_login",
   "new-registration": "user_moi",
   "new-business": "biz_moi",
+  "order-create": "order_create",
+  "order-active": "order_active",
   "expiring-subscription": "sap_het_han",
   "upgrade-required": "can_nang_cap",
 };
@@ -44,6 +46,7 @@ class WebhookController {
       eventType,
       status: result.webhookLog.status,
       eventId: result.event?.id || null,
+      subscriptionId: result.webhookLog.createdSubscriptionId || null,
     });
   }
 

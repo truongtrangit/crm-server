@@ -30,6 +30,12 @@ router.post("/new-business", asyncHandler(WebhookController.ingest));
 // POST /api/v1/webhooks/expiring-subscription   → Biz cần gia hạn
 router.post("/expiring-subscription", asyncHandler(WebhookController.ingest));
 
+// POST /api/v1/webhooks/order-create             → Đơn hàng / subscription mới
+router.post("/order-create", asyncHandler(WebhookController.ingest));
+
+// POST /api/v1/webhooks/order-active             → Kích hoạt đơn hàng (PAID)
+router.post("/order-active", asyncHandler(WebhookController.ingest));
+
 // POST /api/v1/webhooks/upgrade-required        → Biz cần nâng cấp
 router.post("/upgrade-required", asyncHandler(WebhookController.ingest));
 

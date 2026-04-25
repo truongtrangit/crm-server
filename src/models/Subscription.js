@@ -21,11 +21,11 @@ const subscriptionSchema = new mongoose.Schema(
     source: { type: String, default: "CRM" },
 
     // ─── Thông tin gói ───────────────────────────────────────────────────
-    /** Mã đơn hàng / coupon (e.g. "TRIAL-SLP0CQKB9G") */
+    /** Mã đơn hàng / coupon (e.g. "SAI-SLP05YHEN0") */
     code: { type: String, default: "" },
-    /** Loại gói: FREE, BASIC, PRO, ENTERPRISE, ... */
+    /** Loại gói: FREE, ENTERPRISE, PRO, ... */
     planType: { type: String, default: "FREE" },
-    /** Tên hiển thị (e.g. "Gói dùng thử", "Pro Plan") */
+    /** Tên hiển thị (e.g. "ENTERPRISE — SAI-SLP05YHEN0") */
     name: { type: String, default: "" },
 
     // ─── Thời hạn ────────────────────────────────────────────────────────
@@ -46,15 +46,33 @@ const subscriptionSchema = new mongoose.Schema(
     botAvailable: { type: Boolean, default: false },
     chatAvailable: { type: Boolean, default: false },
 
+    // ─── Thanh toán ──────────────────────────────────────────────────────
+    /** Tổng số tiền */
+    totalAmount: { type: Number, default: 0 },
+    /** Đơn vị tiền tệ (USD, VND, ...) */
+    currency: { type: String, default: "VND" },
+    /** Cổng thanh toán (manual, stripe, ...) */
+    paymentGate: { type: String, default: "" },
+    /** Loại đơn hàng (subcription, addon, ...) */
+    orderType: { type: String, default: "" },
+    /** Đơn hàng đầu tiên? */
+    isFirstOrder: { type: Boolean, default: false },
+
     // ─── Liên kết ────────────────────────────────────────────────────────
     /** Link tới Customer sở hữu gói */
     customerId: { type: String, ref: "Customer", default: null, index: true },
+    /** ID biz bên thứ 3 — dùng để link khi biz create đến */
+    externalBizId: { type: String, default: null, index: true, sparse: true },
+    /** ID tác giả / người đặt bên thứ 3 */
+    externalAuthorId: { type: String, default: null },
+    /** ID đơn hàng cha (gia hạn / nâng cấp) */
+    parentOrderId: { type: String, default: null },
 
     // ─── Trạng thái ──────────────────────────────────────────────────────
-    /** active | expired | cancelled | pending */
+    /** active | expired | cancelled | pending | inactive | none | paid */
     status: {
       type: String,
-      enum: ["active", "expired", "cancelled", "pending", "inactive"],
+      enum: ["active", "expired", "cancelled", "pending", "inactive", "none", "paid"],
       default: "inactive",
     },
 
@@ -63,7 +81,10 @@ const subscriptionSchema = new mongoose.Schema(
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   {
-    timestamps: true,
+    timestamps: {
+      createdAt: "created_at",
+      updatedAt: "updated_at",
+    },
     versionKey: false,
     id: false,
   },

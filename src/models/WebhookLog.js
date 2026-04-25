@@ -59,6 +59,9 @@ const webhookLogSchema = new mongoose.Schema(
 
     /** ID of the Customer created/updated from this webhook (if any) */
     createdCustomerId: { type: String, default: null },
+
+    /** ID of the Subscription created from this webhook (if any) */
+    createdSubscriptionId: { type: String, default: null },
   },
   {
     timestamps: true,
