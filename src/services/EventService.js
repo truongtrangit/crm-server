@@ -4,7 +4,7 @@ const User = require("../models/User");
 const EventActionChain = require("../models/EventActionChain");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
-const { resolvePagination } = require("../utils/pagination");
+const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 
 class EventService {
@@ -60,7 +60,7 @@ class EventService {
       Event.countDocuments(query),
     ]);
 
-    return { events, totalItems, page, limit };
+    return buildPaginatedResponse(events, totalItems, page, limit);
   }
 
   async getEventStats(currentUser) {

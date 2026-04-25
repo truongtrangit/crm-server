@@ -7,6 +7,7 @@ const { generateMonotonicId } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
 const { CUSTOMER_TYPES_MAPPING } = require("../constants/appData");
+const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 
 /**
  * WebhookService — Strategy-based event processor.
@@ -124,24 +125,23 @@ class WebhookService {
    * Used by internal API for monitoring.
    */
   async getLogs(queryParams) {
-    const { status, eventType, page = 1, limit = 20 } = queryParams;
+    const { status, eventType } = queryParams;
+    const { page, limit, skip } = resolvePagination(queryParams);
     const query = {};
 
     if (status) query.status = status;
     if (eventType) query.eventType = eventType;
 
-    const skip = (Number(page) - 1) * Number(limit);
-
     const [logs, totalItems] = await Promise.all([
       WebhookLog.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       WebhookLog.countDocuments(query),
     ]);
 
-    return { logs, totalItems, page: Number(page), limit: Number(limit) };
+    return buildPaginatedResponse(logs, totalItems, page, limit);
   }
 
   // ─── Event Processors ────────────────────────────────────────────────────────

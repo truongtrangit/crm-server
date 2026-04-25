@@ -3,7 +3,7 @@ const User = require("../models/User");
 const Event = require("../models/Event");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
-const { resolvePagination } = require("../utils/pagination");
+const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
 const { createHttpError } = require("../utils/http");
 const { getUserRoleName } = require("../utils/rbac");
@@ -53,7 +53,7 @@ class CustomerService {
       ]);
     }
 
-    return { customers, totalItems, page, limit };
+    return buildPaginatedResponse(customers, totalItems, page, limit);
   }
 
   getAssignmentRoles() {

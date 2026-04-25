@@ -1,16 +1,10 @@
 const CustomerService = require("../services/CustomerService");
 const { sendSuccess } = require("../utils/http");
-const { buildPaginatedResponse } = require("../utils/pagination");
 
 class CustomerController {
   async getCustomers(req, res) {
-    const { customers, totalItems, page, limit } = await CustomerService.getCustomers(req.query, req.user);
-    return sendSuccess(
-      res,
-      200,
-      "Get customer list success",
-      buildPaginatedResponse(customers, totalItems, page, limit)
-    );
+    const result = await CustomerService.getCustomers(req.query, req.user);
+    return sendSuccess(res, 200, "Get customer list success", result);
   }
 
   async getAssignmentRoles(req, res) {

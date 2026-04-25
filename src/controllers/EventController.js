@@ -1,7 +1,6 @@
 const EventService = require("../services/EventService");
 const Event = require("../models/Event");
 const { sendSuccess, sendError } = require("../utils/http");
-const { buildPaginatedResponse } = require("../utils/pagination");
 
 // Roles that bypass ownership check (can update any event)
 const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
@@ -29,13 +28,8 @@ async function checkEventOwnership(req, res) {
 
 class EventController {
   async getEvents(req, res) {
-    const { events, totalItems, page, limit } = await EventService.getEvents(req.query, req.user);
-    return sendSuccess(
-      res,
-      200,
-      "Get event list success",
-      buildPaginatedResponse(events, totalItems, page, limit)
-    );
+    const result = await EventService.getEvents(req.query, req.user);
+    return sendSuccess(res, 200, "Get event list success", result);
   }
 
   async getEventStats(req, res) {

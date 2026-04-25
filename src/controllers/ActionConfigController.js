@@ -1,12 +1,11 @@
 const ActionConfigService = require("../services/ActionConfigService");
 const { sendSuccess } = require("../utils/http");
-const { buildPaginatedResponse } = require("../utils/pagination");
 
 class ActionConfigController {
   // ─── Results ───
   async listResults(req, res) {
-    const { items, totalItems, page, limit } = await ActionConfigService.listResults(req.query);
-    return sendSuccess(res, 200, "Get results success", buildPaginatedResponse(items, totalItems, page, limit));
+    const result = await ActionConfigService.listResults(req.query);
+    return sendSuccess(res, 200, "Get results success", result);
   }
 
   async createResult(req, res) {
@@ -27,8 +26,8 @@ class ActionConfigController {
 
   // ─── Reasons ───
   async listReasons(req, res) {
-    const { items, totalItems, page, limit } = await ActionConfigService.listReasons(req.query);
-    return sendSuccess(res, 200, "Get reasons success", buildPaginatedResponse(items, totalItems, page, limit));
+    const result = await ActionConfigService.listReasons(req.query);
+    return sendSuccess(res, 200, "Get reasons success", result);
   }
 
   async createReason(req, res) {
@@ -49,8 +48,8 @@ class ActionConfigController {
 
   // ─── Actions ───
   async listActions(req, res) {
-    const { items, totalItems, page, limit } = await ActionConfigService.listActions(req.query);
-    return sendSuccess(res, 200, "Get actions success", buildPaginatedResponse(items, totalItems, page, limit));
+    const result = await ActionConfigService.listActions(req.query);
+    return sendSuccess(res, 200, "Get actions success", result);
   }
 
   async createAction(req, res) {
@@ -71,8 +70,8 @@ class ActionConfigController {
 
   // ─── Action Chains ───
   async listActionChains(req, res) {
-    const { items, totalItems, page, limit } = await ActionConfigService.listActionChains(req.query);
-    return sendSuccess(res, 200, "Get action chains success", buildPaginatedResponse(items, totalItems, page, limit));
+    const result = await ActionConfigService.listActionChains(req.query);
+    return sendSuccess(res, 200, "Get action chains success", result);
   }
 
   async getActionChain(req, res) {

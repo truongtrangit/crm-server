@@ -53,16 +53,7 @@ class WebhookController {
    */
   async getLogs(req, res) {
     const result = await WebhookService.getLogs(req.query);
-
-    return sendSuccess(res, 200, "Webhook logs retrieved", {
-      items: result.logs,
-      pagination: {
-        page: result.page,
-        limit: result.limit,
-        totalItems: result.totalItems,
-        totalPages: Math.ceil(result.totalItems / result.limit),
-      },
-    });
+    return sendSuccess(res, 200, "Webhook logs retrieved", result);
   }
 }
 

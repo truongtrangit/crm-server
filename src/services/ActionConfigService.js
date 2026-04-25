@@ -5,7 +5,7 @@ const ActionChain = require("../models/ActionChain");
 const EventActionChain = require("../models/EventActionChain");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
-const { resolvePagination } = require("../utils/pagination");
+const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 
 class ActionConfigService {
@@ -26,7 +26,7 @@ class ActionConfigService {
       Result.countDocuments(query),
     ]);
 
-    return { items, totalItems, page, limit };
+    return buildPaginatedResponse(items, totalItems, page, limit);
   }
 
   async createResult(body) {
@@ -77,7 +77,7 @@ class ActionConfigService {
       Reason.countDocuments(query),
     ]);
 
-    return { items, totalItems, page, limit };
+    return buildPaginatedResponse(items, totalItems, page, limit);
   }
 
   async createReason(body) {
@@ -128,7 +128,7 @@ class ActionConfigService {
       Action.countDocuments(query),
     ]);
 
-    return { items, totalItems, page, limit };
+    return buildPaginatedResponse(items, totalItems, page, limit);
   }
 
   async createAction(body) {
@@ -189,7 +189,7 @@ class ActionConfigService {
       ActionChain.countDocuments(query),
     ]);
 
-    return { items, totalItems, page, limit };
+    return buildPaginatedResponse(items, totalItems, page, limit);
   }
 
   async getActionChain(id) {
