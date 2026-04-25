@@ -45,7 +45,16 @@ v1Router.get("/", (_req, res) =>
 
 v1Router.use("/auth", authRouter);
 
-// ─── Webhook (own auth — bearer token, not CRM session) ─────────────────────
+// ─── Webhook logs — CRM session auth (specific route MUST come before catch-all) ─
+const WebhookController = require("../../controllers/WebhookController");
+v1Router.get(
+  "/webhooks/logs",
+  authenticateRequest,
+  requirePermission(PERMISSIONS.EVENTS_READ),
+  asyncHandler(WebhookController.getLogs),
+);
+
+// ─── Webhook ingestion (own auth — bearer token, not CRM session) ───────────
 v1Router.use("/webhooks", webhooksRouter);
 
 // ─── Protected ───────────────────────────────────────────────────────────────
@@ -61,14 +70,6 @@ v1Router.use("/metadata", metadataRouter);
 v1Router.use("/functions", functionsRouter);
 v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
-
-// Webhook logs — internal monitoring (requires CRM auth)
-const WebhookController = require("../../controllers/WebhookController");
-v1Router.get(
-  "/webhooks/logs",
-  requirePermission(PERMISSIONS.EVENTS_READ),
-  asyncHandler(WebhookController.getLogs),
-);
 
 // Nested: chuỗi hành động trong sự kiện
 v1Router.use("/events/:eventId/chains", eventChainsRouter);
