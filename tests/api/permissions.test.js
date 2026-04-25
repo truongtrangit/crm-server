@@ -104,11 +104,11 @@ describe("[PERM] Customers — GET /customers (CUSTOMERS_READ)", () => {
 });
 
 describe("[PERM] Customers — POST /customers (CUSTOMERS_CREATE)", () => {
-  const body = { name: "Perm Cust", email: "perm.cust@test.com", phone: "0912000099", type: "Trial", biz: [], platforms: [], group: "Nhóm Sale HN", registeredAt: "01/01/2026", tags: [] };
-  it("✅ OWNER can create customer",   () => expectStatus("owner",   "post", "/api/v1/customers", { ...body, email: "perm.o@t.com", name: "PC-O" }, 201));
-  it("✅ ADMIN can create customer",   () => expectStatus("admin",   "post", "/api/v1/customers", { ...body, email: "perm.a@t.com", name: "PC-A" }, 201));
-  it("✅ MANAGER can create customer", () => expectStatus("manager", "post", "/api/v1/customers", { ...body, email: "perm.m@t.com", name: "PC-M" }, 201));
-  it("✅ STAFF can create customer",   () => expectStatus("staff1",  "post", "/api/v1/customers", { ...body, email: "perm.s@t.com", name: "PC-S" }, 201));
+  const body = { name: "Perm Cust", email: "perm.cust@test.com", type: "Trial", biz: [], platforms: [], group: "Nhóm Sale HN", registeredAt: "01/01/2026", tags: [] };
+  it("✅ OWNER can create customer",   () => expectStatus("owner",   "post", "/api/v1/customers", { ...body, email: `perm.o.${Date.now()}@t.com`, phone: `07${Date.now()}`.slice(0, 10), name: "PC-O" }, 201));
+  it("✅ ADMIN can create customer",   () => expectStatus("admin",   "post", "/api/v1/customers", { ...body, email: `perm.a.${Date.now()}@t.com`, phone: `06${Date.now()}`.slice(0, 10), name: "PC-A" }, 201));
+  it("✅ MANAGER can create customer", () => expectStatus("manager", "post", "/api/v1/customers", { ...body, email: `perm.m.${Date.now()}@t.com`, phone: `05${Date.now()}`.slice(0, 10), name: "PC-M" }, 201));
+  it("✅ STAFF can create customer",   () => expectStatus("staff1",  "post", "/api/v1/customers", { ...body, email: `perm.s.${Date.now()}@t.com`, phone: `04${Date.now()}`.slice(0, 10), name: "PC-S" }, 201));
 });
 
 describe("[PERM] Customers — PUT /customers/:id (CUSTOMERS_UPDATE)", () => {

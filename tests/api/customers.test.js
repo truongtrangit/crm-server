@@ -100,13 +100,13 @@ describe("POST /customers", () => {
 
   it("✅ MANAGER creates customer (CUSTOMERS_CREATE)", async () => {
     const api = await authRequest("manager");
-    const res = await api.post(BASE).send({ ...validBody, email: "manager.cust@test.com", name: "Manager Cust" });
+    const res = await api.post(BASE).send({ ...validBody, email: `manager.cust.${Date.now()}@test.com`, phone: `09${Date.now()}`.slice(0, 10), name: "Manager Cust" });
     expect(res.status).toBe(201);
   });
 
   it("✅ STAFF creates customer (also has CUSTOMERS_CREATE)", async () => {
     const api = await authRequest("staff1");
-    const res = await api.post(BASE).send({ ...validBody, email: "staff.cust@test.com", name: "Staff Cust" });
+    const res = await api.post(BASE).send({ ...validBody, email: `staff.cust.${Date.now()}@test.com`, phone: `08${Date.now()}`.slice(0, 10), name: "Staff Cust" });
     expect(res.status).toBe(201);
   });
 
