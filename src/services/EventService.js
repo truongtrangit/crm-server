@@ -171,6 +171,11 @@ class EventService {
 
       const existingStaff = await User.findOne({ $or: staffQuery });
       if (existingStaff) {
+        if (existingStaff.isActive === false) {
+          throw createHttpError(400, "Không thể phân công nhân viên đã ngừng hoạt động", {
+            code: "STAFF_INACTIVE",
+          });
+        }
         assigneeId = existingStaff.id;
         mappedAssignee.name = existingStaff.name;
         mappedAssignee.avatar = existingStaff.avatar || mappedAssignee.avatar;
@@ -285,6 +290,11 @@ class EventService {
 
         const existingStaff = await User.findOne({ $or: staffQuery });
         if (existingStaff) {
+          if (existingStaff.isActive === false) {
+            throw createHttpError(400, "Không thể phân công nhân viên đã ngừng hoạt động", {
+              code: "STAFF_INACTIVE",
+            });
+          }
           event.assigneeId = existingStaff.id;
           event.assignee.name = existingStaff.name;
           event.assignee.avatar = existingStaff.avatar || event.assignee.avatar;
