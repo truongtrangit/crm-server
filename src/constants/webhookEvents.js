@@ -6,6 +6,7 @@
  */
 
 const WEBHOOK_EVENT_TYPES = Object.freeze({
+  USER_LOGIN: "user_login", // user đăng nhập
   NEW_REGISTRATION: "user_moi", // user mới
   NEW_BUSINESS: "biz_moi", // business mới
   PLAN_EXPIRED: "sap_het_han", // sắp hết hạn

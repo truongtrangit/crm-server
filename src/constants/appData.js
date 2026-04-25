@@ -1,12 +1,14 @@
 const PLATFORMS = ["SmaxAi", "Botvn", "Appvn"];
 const CUSTOMER_GROUPS = ["Mới", "Tiềm năng", "Thân thiết", "Rời bỏ", "VIP"];
-const CUSTOMER_TYPES = [
-  "Standard Customer",
-  "VIP Customer",
-  "Partner",
-  "Regular",
-  "Premium",
-];
+const CUSTOMER_TYPES_MAPPING = {
+  NEW_CUSTOMER: "New Customer",
+  STANDARD_CUSTOMER: "Standard Customer",
+  VIP_CUSTOMER: "VIP Customer",
+  PARTNER: "Partner",
+  REGULAR: "Regular",
+  PREMIUM: "Premium",
+}
+const CUSTOMER_TYPES = Object.values(CUSTOMER_TYPES_MAPPING);
 const USER_ROLE_VALUES = Object.freeze({
   OWNER: "OWNER",
   ADMIN: "ADMIN",
@@ -29,6 +31,7 @@ module.exports = {
   PLATFORMS,
   CUSTOMER_GROUPS,
   CUSTOMER_TYPES,
+  CUSTOMER_TYPES_MAPPING,
   DEFAULT_USER_ROLE,
   USER_ROLES,
   USER_ROLE_VALUES,
