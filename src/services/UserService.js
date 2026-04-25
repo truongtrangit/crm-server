@@ -743,6 +743,10 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? normalizeString(payload.phone)
       : targetUser.phone;
   targetUser.roleId = nextRole.id;
+  targetUser.isActive =
+    payload.isActive !== undefined
+      ? payload.isActive
+      : targetUser.isActive;
 
   if (nextRole.name !== STAFF_ROLE_NAME) {
     targetUser.managerId = null;

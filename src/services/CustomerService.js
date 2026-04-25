@@ -114,6 +114,7 @@ class CustomerService {
       lastLoginAt: payload.lastLoginAt ?? existing.lastLoginAt,
       tags: Array.isArray(payload.tags) ? payload.tags : existing.tags,
       extraInfo: payload.extraInfo !== undefined ? payload.extraInfo : existing.extraInfo,
+      isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
     });
 
     await existing.save();
