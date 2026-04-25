@@ -44,4 +44,10 @@ router.delete(
   asyncHandler(UserController.deleteUser),
 );
 
+router.put(
+  "/:id/restore",
+  requirePermission(PERMISSIONS.USERS_DELETE),
+  asyncHandler(UserController.restoreUser),
+);
+
 module.exports = router;

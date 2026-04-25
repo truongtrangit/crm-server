@@ -9,8 +9,8 @@ const { createHttpError } = require("../utils/http");
 const { getUserRoleName } = require("../utils/rbac");
 
 class CustomerService {
-  async getCustomers(queryParams) {
-    const { search = "", type, group, platform } = queryParams;
+  async getCustomers(queryParams, currentUser) {
+    const { search = "", type, group, platform, includeDeleted } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
     const query = {};
@@ -35,10 +35,23 @@ class CustomerService {
       query.platforms = platform;
     }
 
-    const [customers, totalItems] = await Promise.all([
-      Customer.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Customer.countDocuments(query),
-    ]);
+    // Owner/Admin can see deleted customers
+    const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
+    const canSeeDeleted = ["OWNER", "ADMIN"].includes(roleName) && includeDeleted === "true";
+
+    let customers, totalItems;
+
+    if (canSeeDeleted) {
+      [customers, totalItems] = await Promise.all([
+        Customer.findWithDeleted(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Customer.countWithDeleted(query),
+      ]);
+    } else {
+      [customers, totalItems] = await Promise.all([
+        Customer.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Customer.countDocuments(query),
+      ]);
+    }
 
     return { customers, totalItems, page, limit };
   }
@@ -75,6 +88,7 @@ class CustomerService {
       lastLoginAt:
         payload.lastLoginAt || new Date().toLocaleDateString("vi-VN"),
       tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
+      extraInfo: payload.extraInfo || null,
     });
     return customer;
   }
@@ -99,6 +113,7 @@ class CustomerService {
       registeredAt: payload.registeredAt ?? existing.registeredAt,
       lastLoginAt: payload.lastLoginAt ?? existing.lastLoginAt,
       tags: Array.isArray(payload.tags) ? payload.tags : existing.tags,
+      extraInfo: payload.extraInfo !== undefined ? payload.extraInfo : existing.extraInfo,
     });
 
     await existing.save();
@@ -265,6 +280,18 @@ class CustomerService {
     }
 
     await customer.save();
+    return customer;
+  }
+
+  async restoreCustomer(id) {
+    const customer = await Customer.findOneWithDeleted({ id });
+    if (!customer) {
+      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
+    }
+    if (!customer.isDeleted) {
+      throw createHttpError(400, "Customer is not deleted", { code: "CUSTOMER_NOT_DELETED" });
+    }
+    await customer.restore();
     return customer;
   }
 }

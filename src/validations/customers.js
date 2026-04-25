@@ -17,6 +17,7 @@ const createCustomerSchema = Joi.object({
   registeredAt: Joi.string().allow("").optional(),
   lastLoginAt: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
+  extraInfo: Joi.any().optional(),
 });
 
 const updateCustomerSchema = Joi.object({
@@ -33,6 +34,7 @@ const updateCustomerSchema = Joi.object({
   registeredAt: Joi.string().allow("").optional(),
   lastLoginAt: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
+  extraInfo: Joi.any().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
 });
@@ -57,6 +59,7 @@ const listCustomersQuerySchema = Joi.object({
   type: Joi.string().allow("").optional(),
   group: Joi.string().allow("").optional(),
   platform: Joi.string().allow("").optional(),
+  includeDeleted: Joi.string().valid("true", "false").optional(),
   page: Joi.number().integer().min(1).optional(),
   limit: Joi.number().integer().min(1).max(100).optional(),
 });

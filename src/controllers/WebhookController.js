@@ -6,6 +6,7 @@ const { sendSuccess } = require("../utils/http");
  * URL dùng kebab-case chuyên nghiệp, eventType dùng snake_case nội bộ.
  */
 const ROUTE_TO_EVENT_TYPE = {
+  "new-login": "user_login",
   "new-registration": "user_moi",
   "new-business": "biz_moi",
   "expiring-subscription": "sap_het_han",

@@ -3,6 +3,7 @@ const {
   deleteUserAccount,
   getUserForStaffApi,
   listUsers,
+  restoreUserAccount,
   updateUserAccount,
 } = require("../services/UserService");
 const User = require("../models/User");
@@ -32,6 +33,11 @@ class UserController {
     const force = req.query.force === 'true';
     await deleteUserAccount(req.user, user, { force });
     return sendSuccess(res, 200, "Delete staff success", null);
+  }
+
+  async restoreUser(req, res) {
+    const user = await restoreUserAccount(req.user, req.params.id);
+    return sendSuccess(res, 200, "Restore staff success", user);
   }
 
   /**

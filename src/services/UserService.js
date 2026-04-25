@@ -405,10 +405,24 @@ async function buildUserListQuery(actor, filters = {}) {
 async function listUsers(actor, filters) {
   const query = await buildUserListQuery(actor, filters);
   const { page, limit, skip } = resolvePagination(filters);
-  const [users, totalItems] = await Promise.all([
-    User.find(query).sort({ createdAt: -1, id: 1 }).skip(skip).limit(limit),
-    User.countDocuments(query),
-  ]);
+
+  // Owner/Admin can see deleted users
+  const roleName = (await getUserRoleName(actor) || "").toUpperCase();
+  const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.includeDeleted === "true";
+
+  let users, totalItems;
+
+  if (canSeeDeleted) {
+    [users, totalItems] = await Promise.all([
+      User.findWithDeleted(query).sort({ createdAt: -1, id: 1 }).skip(skip).limit(limit),
+      User.countWithDeleted(query),
+    ]);
+  } else {
+    [users, totalItems] = await Promise.all([
+      User.find(query).sort({ createdAt: -1, id: 1 }).skip(skip).limit(limit),
+      User.countDocuments(query),
+    ]);
+  }
 
   return buildPaginatedResponse(
     users.map(serializeUser),
@@ -967,11 +981,33 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   await targetUser.softDelete();
 }
 
+async function restoreUserAccount(actor, userId) {
+  const actorRole = await getUserRoleWithPermissions(actor);
+  const actorRoleName = actorRole?.name || null;
+
+  // Only OWNER/ADMIN can restore
+  if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+    throw createHttpError(403, "You do not have permission to restore users");
+  }
+
+  const targetUser = await User.findOneWithDeleted({ id: userId });
+  if (!targetUser) {
+    throw createHttpError(404, "User not found");
+  }
+  if (!targetUser.isDeleted) {
+    throw createHttpError(400, "User is not deleted");
+  }
+
+  await targetUser.restore();
+  return serializeUser(targetUser);
+}
+
 module.exports = {
   createUserAccount,
   deleteUserAccount,
   getUserForStaffApi,
   listUsers,
+  restoreUserAccount,
   serializeUser,
   updateUserAccount,
   updateOwnProfile,

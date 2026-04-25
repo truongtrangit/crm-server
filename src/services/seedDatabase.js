@@ -132,7 +132,7 @@ async function syncUserOrganizationReferences() {
 
     if (
       JSON.stringify(user.departmentAliases || []) !==
-        JSON.stringify(departmentAliases) ||
+      JSON.stringify(departmentAliases) ||
       JSON.stringify(user.groupAliases || []) !== JSON.stringify(groupAliases)
     ) {
       user.departmentAliases = departmentAliases;
@@ -152,10 +152,10 @@ async function seedDatabase() {
   await syncOrganizationAliases();
   await seedUsers();
   await syncUserOrganizationReferences();
-  await seedCollection(Customer, seedData.customers, "customers");
-  await seedCollection(Lead, seedData.leads, "leads");
-  await seedCollection(Task, seedData.tasks, "tasks");
-  await seedCollection(Event, seedData.events, "events");
+  // await seedCollection(Customer, seedData.customers, "customers");
+  // await seedCollection(Lead, seedData.leads, "leads");
+  // await seedCollection(Task, seedData.tasks, "tasks");
+  // await seedCollection(Event, seedData.events, "events");
   await seedCollection(StaffFunction, seedData.staffFunctions, "staff functions");
 
   // ── Action config — thứ tự: Reason → Result → Action → ActionChain ──────
@@ -182,11 +182,11 @@ async function seedCounters() {
   const prefixConfigs = [
     { prefix: "USER", items: seedData.users },
     { prefix: "CUST", items: seedData.customers },
-    { prefix: "EVT",  items: seedData.events },
-    { prefix: "RES",  items: seedData.results },
-    { prefix: "RSN",  items: seedData.reasons },
-    { prefix: "ACT",  items: seedData.actions },
-    { prefix: "CHN",  items: seedData.actionChains },
+    { prefix: "EVT", items: seedData.events },
+    { prefix: "RES", items: seedData.results },
+    { prefix: "RSN", items: seedData.reasons },
+    { prefix: "ACT", items: seedData.actions },
+    { prefix: "CHN", items: seedData.actionChains },
     { prefix: "FUNC", items: seedData.staffFunctions },
     { prefix: "LEAD", items: seedData.leads },
     { prefix: "TASK", items: seedData.tasks },

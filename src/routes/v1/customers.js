@@ -109,4 +109,14 @@ router.delete(
   asyncHandler(CustomerController.unassignCustomer)
 );
 
+/**
+ * PUT /api/customers/:id/restore
+ * Restore a soft-deleted customer - requires customers_delete permission
+ */
+router.put(
+  "/:id/restore",
+  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  asyncHandler(CustomerController.restoreCustomer)
+);
+
 module.exports = router;

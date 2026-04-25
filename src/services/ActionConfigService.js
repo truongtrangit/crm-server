@@ -35,7 +35,7 @@ class ActionConfigService {
   }
 
   async updateResult(id, body) {
-    const item = await Result.findOneAndUpdate({ id }, body, { new: true });
+    const item = await Result.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     if (!item) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
     return item;
   }
@@ -86,7 +86,7 @@ class ActionConfigService {
   }
 
   async updateReason(id, body) {
-    const item = await Reason.findOneAndUpdate({ id }, body, { new: true });
+    const item = await Reason.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     if (!item) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
     return item;
   }
@@ -137,7 +137,7 @@ class ActionConfigService {
   }
 
   async updateAction(id, body) {
-    const item = await Action.findOneAndUpdate({ id }, body, { new: true });
+    const item = await Action.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     if (!item) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
     return item;
   }
@@ -204,7 +204,7 @@ class ActionConfigService {
   }
 
   async updateActionChain(id, body) {
-    const item = await ActionChain.findOneAndUpdate({ id }, body, { new: true });
+    const item = await ActionChain.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     if (!item) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
     return item;
   }

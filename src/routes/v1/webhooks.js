@@ -18,6 +18,9 @@ router.use(checkIpAllowlist, verifyWebhookToken, asyncHandler(checkIdempotency))
 // ─── Webhook Endpoints — 1 API riêng cho mỗi loại event ────────────────────
 // Bên thứ 3 chỉ cần gọi đúng API + gửi payload, không cần gửi eventType.
 
+// POST /api/v1/webhooks/new-login                → User đăng nhập
+router.post("/new-login", asyncHandler(WebhookController.ingest));
+
 // POST /api/v1/webhooks/new-registration       → Khách hàng đăng ký mới
 router.post("/new-registration", asyncHandler(WebhookController.ingest));
 

@@ -19,8 +19,8 @@ const customerSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     avatar: { type: String, default: "" },
     type: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true },
-    phone: { type: String, default: "" },
+    email: { type: String, required: true, trim: true, lowercase: true, index: true, unique: true },
+    phone: { type: String, default: "", index: true, unique: true, sparse: true },
     biz: { type: [String], default: [] },
     platforms: { type: [String], default: [] },
     group: { type: String, default: "" },
@@ -28,6 +28,7 @@ const customerSchema = new mongoose.Schema(
     lastLoginAt: { type: String, default: "" },
     tags: { type: [String], default: [] },
     assignees: { type: [assigneeSchema], default: [] },
+    extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   {
     timestamps: true,
@@ -37,5 +38,4 @@ const customerSchema = new mongoose.Schema(
 );
 
 customerSchema.plugin(softDeletePlugin);
-
 module.exports = mongoose.model("Customer", customerSchema);

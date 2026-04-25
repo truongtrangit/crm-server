@@ -53,6 +53,7 @@ const listUsersQuerySchema = Joi.object({
   department: Joi.string().allow("").optional(),
   role: Joi.string().allow("").optional(),
   managerId: Joi.string().allow("").optional(),
+  includeDeleted: Joi.string().valid("true", "false").optional(),
   page: Joi.number().integer().min(1).optional(),
   limit: Joi.number().integer().min(1).max(100).optional(),
 });

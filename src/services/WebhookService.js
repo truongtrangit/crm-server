@@ -6,6 +6,7 @@ const { WEBHOOK_EVENT_TYPES } = require("../constants/webhookEvents");
 const { generateMonotonicId } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
+const { CUSTOMER_TYPES_MAPPING } = require("../constants/appData");
 
 /**
  * WebhookService — Strategy-based event processor.
@@ -25,6 +26,7 @@ class WebhookService {
   #processors = new Map();
 
   constructor() {
+    this.registerProcessor(WEBHOOK_EVENT_TYPES.USER_LOGIN, this.#processUserLogin.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_REGISTRATION, this.#processNewRegistration.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.NEW_BUSINESS, this.#processNewBiz.bind(this));
     this.registerProcessor(WEBHOOK_EVENT_TYPES.PLAN_EXPIRED, this.#processPlanExpired.bind(this));
@@ -143,6 +145,99 @@ class WebhookService {
   }
 
   // ─── Event Processors ────────────────────────────────────────────────────────
+
+  /**
+   * user_login — User đăng nhập.
+   * Kiểm tra Customer theo email/phone, tạo mới nếu chưa có.
+   * Cập nhật lastLoginAt và extraInfo.
+   * Không tạo Event — chỉ sync dữ liệu Customer.
+   */
+  async #processUserLogin(payload) {
+    const email = (payload.email || "").trim().toLowerCase();
+    const phone = (payload.phone || "").trim();
+    const name = payload.name || [payload.first_name, payload.last_name].filter(Boolean).join(" ") || "";
+    const avatar = payload.picture || "";
+
+    // Build extraInfo from third-party data
+    const extraInfo = {
+      thirdPartyId: payload.id || null,
+      roles: Array.isArray(payload.roles) ? payload.roles : [],
+      country: payload.country || null,
+    };
+
+    // Format dates — third-party sends ISO strings
+    const registeredAt = payload.created_at
+      ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+      : "";
+    const lastLoginAt = payload.updated_at
+      ? new Date(payload.updated_at).toLocaleDateString("vi-VN")
+      : new Date().toLocaleDateString("vi-VN");
+
+    // Find existing customer by email or phone
+    const orConditions = [];
+    if (email) orConditions.push({ email });
+    if (phone) orConditions.push({ phone });
+
+    let customer = null;
+
+    if (orConditions.length > 0) {
+      customer = await Customer.findOneWithDeleted({ $or: orConditions });
+    }
+
+    // Customer đã bị xóa mềm — không tạo mới, chỉ log cảnh báo
+    if (customer?.isDeleted) {
+      logger.warn("User login — customer was soft-deleted, skipping", {
+        customerId: customer.id,
+        email,
+      });
+      return {
+        eventId: null,
+        customerId: customer.id,
+      };
+    }
+
+    if (customer) {
+      // Update existing customer
+      customer.lastLoginAt = lastLoginAt;
+      customer.extraInfo = extraInfo;
+      if (name && !customer.name) customer.name = name;
+      if (phone && !customer.phone) customer.phone = phone;
+      if (avatar && !customer.avatar) customer.avatar = avatar;
+      await customer.save();
+
+      logger.info("User login — existing customer updated", {
+        customerId: customer.id,
+        email,
+      });
+    } else {
+      // Create new customer
+      customer = await Customer.create({
+        id: await generateMonotonicId("CUST"),
+        name: name || "Unknown",
+        email: email || "",
+        phone: phone || "",
+        avatar: avatar,
+        type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+        biz: [],
+        platforms: ["SmaxAi"],
+        group: "",
+        registeredAt,
+        lastLoginAt,
+        tags: ["#Webhook"],
+        extraInfo,
+      });
+
+      logger.info("User login — new customer created", {
+        customerId: customer.id,
+        email,
+      });
+    }
+
+    return {
+      eventId: null,
+      customerId: customer.id,
+    };
+  }
 
   /**
    * user_moi — Khách hàng đăng ký mới.

@@ -4,7 +4,7 @@ const { buildPaginatedResponse } = require("../utils/pagination");
 
 class CustomerController {
   async getCustomers(req, res) {
-    const { customers, totalItems, page, limit } = await CustomerService.getCustomers(req.query);
+    const { customers, totalItems, page, limit } = await CustomerService.getCustomers(req.query, req.user);
     return sendSuccess(
       res,
       200,
@@ -49,6 +49,11 @@ class CustomerController {
     const { role } = req.query;
     const customer = await CustomerService.unassignCustomer(req.params.id, userId, role, req.user);
     return sendSuccess(res, 200, "Unassign staff success", customer);
+  }
+
+  async restoreCustomer(req, res) {
+    const customer = await CustomerService.restoreCustomer(req.params.id);
+    return sendSuccess(res, 200, "Restore customer success", customer);
   }
 }
 
