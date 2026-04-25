@@ -50,4 +50,10 @@ router.put(
   asyncHandler(UserController.restoreUser),
 );
 
+router.delete(
+  "/:id/permanent",
+  requirePermission(PERMISSIONS.USERS_DELETE),
+  asyncHandler(UserController.permanentDeleteUser),
+);
+
 module.exports = router;

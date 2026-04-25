@@ -119,4 +119,14 @@ router.put(
   asyncHandler(CustomerController.restoreCustomer)
 );
 
+/**
+ * DELETE /api/customers/:id/permanent
+ * Permanently delete a soft-deleted customer from DB
+ */
+router.delete(
+  "/:id/permanent",
+  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  asyncHandler(CustomerController.permanentDeleteCustomer)
+);
+
 module.exports = router;

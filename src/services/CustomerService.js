@@ -294,6 +294,41 @@ class CustomerService {
     await customer.restore();
     return customer;
   }
+
+  /**
+   * Xóa vĩnh viễn khách hàng đã bị soft-delete khỏi DB.
+   * Chỉ hoạt động trên bản ghi có isDeleted = true.
+   */
+  async permanentDeleteCustomer(id) {
+    const customer = await Customer.findOneWithDeleted({ id });
+    if (!customer) {
+      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
+    }
+    if (!customer.isDeleted) {
+      throw createHttpError(400, "Chỉ có thể xóa vĩnh viễn khách hàng đã bị xóa mềm", {
+        code: "CUSTOMER_NOT_SOFT_DELETED",
+      });
+    }
+
+    // Cascade: nullify references in Events
+    await Event.updateMany(
+      { customerId: id },
+      {
+        $set: {
+          customerId: null,
+          "customer.name": "(Đã xóa)",
+          "customer.avatar": "",
+          "customer.role": "",
+          "customer.email": "",
+          "customer.phone": "",
+          "customer.source": "",
+          "customer.address": "",
+        },
+      },
+    );
+
+    await customer.deleteOne();
+  }
 }
 
 module.exports = new CustomerService();

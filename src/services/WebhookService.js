@@ -216,7 +216,7 @@ class WebhookService {
         name: name || "Unknown",
         email: email || "",
         phone: phone || "",
-        avatar: avatar,
+        avatar: avatar || `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         biz: [],
         platforms: ["SmaxAi"],

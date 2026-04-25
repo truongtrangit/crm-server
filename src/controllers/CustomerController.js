@@ -49,6 +49,11 @@ class CustomerController {
     const customer = await CustomerService.restoreCustomer(req.params.id);
     return sendSuccess(res, 200, "Restore customer success", customer);
   }
+
+  async permanentDeleteCustomer(req, res) {
+    await CustomerService.permanentDeleteCustomer(req.params.id);
+    return sendSuccess(res, 200, "Permanent delete customer success", null);
+  }
 }
 
 module.exports = new CustomerController();

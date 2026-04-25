@@ -1002,11 +1002,56 @@ async function restoreUserAccount(actor, userId) {
   return serializeUser(targetUser);
 }
 
+/**
+ * Xóa vĩnh viễn user đã bị soft-delete khỏi DB.
+ * Chỉ OWNER/ADMIN được phép. Chỉ hoạt động trên bản ghi có isDeleted = true.
+ */
+async function permanentDeleteUserAccount(actor, userId) {
+  const actorRole = await getUserRoleWithPermissions(actor);
+  const actorRoleName = actorRole?.name || null;
+
+  // Only OWNER/ADMIN can permanently delete
+  if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+    throw createHttpError(403, "You do not have permission to permanently delete users");
+  }
+
+  const targetUser = await User.findOneWithDeleted({ id: userId });
+  if (!targetUser) {
+    throw createHttpError(404, "User not found");
+  }
+  if (!targetUser.isDeleted) {
+    throw createHttpError(400, "Chỉ có thể xóa vĩnh viễn nhân viên đã bị xóa mềm");
+  }
+
+  // Cannot permanently delete own account
+  if (targetUser.id === actor.id) {
+    throw createHttpError(400, "You cannot permanently delete your own account");
+  }
+
+  // Cascade: nullify references in Events
+  await Event.updateMany(
+    { assigneeId: targetUser.id },
+    {
+      $set: {
+        assigneeId: null,
+        "assignee.name": "(Đã xóa)",
+        "assignee.avatar": "",
+        "assignee.role": "",
+        "assignee.department": [],
+        "assignee.group": [],
+      },
+    },
+  );
+
+  await targetUser.deleteOne();
+}
+
 module.exports = {
   createUserAccount,
   deleteUserAccount,
   getUserForStaffApi,
   listUsers,
+  permanentDeleteUserAccount,
   restoreUserAccount,
   serializeUser,
   updateUserAccount,

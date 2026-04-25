@@ -3,6 +3,7 @@ const {
   deleteUserAccount,
   getUserForStaffApi,
   listUsers,
+  permanentDeleteUserAccount,
   restoreUserAccount,
   updateUserAccount,
 } = require("../services/UserService");
@@ -38,6 +39,11 @@ class UserController {
   async restoreUser(req, res) {
     const user = await restoreUserAccount(req.user, req.params.id);
     return sendSuccess(res, 200, "Restore staff success", user);
+  }
+
+  async permanentDeleteUser(req, res) {
+    await permanentDeleteUserAccount(req.user, req.params.id);
+    return sendSuccess(res, 200, "Permanent delete staff success", null);
   }
 
   /**
