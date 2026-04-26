@@ -60,7 +60,7 @@ describe("Webhook Endpoints", () => {
 
     it("should accept valid request without delivery ID → 201", async () => {
       const res = await webhookPost("new-registration", {
-        customer: { name: "Test User", email: `no-id-${Date.now()}@test.com` },
+        id: "ext-auth-001", name: "Test User", email: `no-id-${Date.now()}@test.com`,
       });
       expect(res.status).toBe(201);
       expect(res.body.data).toHaveProperty("deliveryId");
@@ -70,7 +70,7 @@ describe("Webhook Endpoints", () => {
     it("should accept valid request with delivery ID → 201", async () => {
       const deliveryId = crypto.randomUUID();
       const res = await webhookPost("new-registration", {
-        customer: { name: "Test User", email: `with-id-${Date.now()}@test.com` },
+        id: "ext-auth-002", name: "Test User", email: `with-id-${Date.now()}@test.com`,
       }, { deliveryId });
       expect(res.status).toBe(201);
       expect(res.body.data.deliveryId).toBe(deliveryId);
@@ -84,7 +84,7 @@ describe("Webhook Endpoints", () => {
   describe("Idempotency", () => {
     it("should reject duplicate deliveryId → 409", async () => {
       const deliveryId = crypto.randomUUID();
-      const body = { customer: { name: "Dup Test", email: `dup-${Date.now()}@test.com` } };
+      const body = { id: "ext-dup-001", name: "Dup Test", email: `dup-${Date.now()}@test.com` };
       const res1 = await webhookPost("new-registration", body, { deliveryId });
       expect(res1.status).toBe(201);
       const res2 = await webhookPost("new-registration", body, { deliveryId });
@@ -93,7 +93,7 @@ describe("Webhook Endpoints", () => {
     });
 
     it("should allow same payload with different deliveryId", async () => {
-      const body = { customer: { name: "Same", email: `same-${Date.now()}@test.com` } };
+      const body = { id: "ext-same-001", name: "Same", email: `same-${Date.now()}@test.com` };
       const res1 = await webhookPost("new-registration", body, { deliveryId: crypto.randomUUID() });
       const res2 = await webhookPost("new-registration", body, { deliveryId: crypto.randomUUID() });
       expect(res1.status).toBe(201);
@@ -101,7 +101,7 @@ describe("Webhook Endpoints", () => {
     });
 
     it("should allow requests without deliveryId (no duplicate check)", async () => {
-      const body = { customer: { name: "No ID", email: `noid-${Date.now()}@test.com` } };
+      const body = { id: "ext-noid-001", name: "No ID", email: `noid-${Date.now()}@test.com` };
       const res1 = await webhookPost("new-registration", body);
       const res2 = await webhookPost("new-registration", body);
       expect(res1.status).toBe(201);
@@ -114,10 +114,13 @@ describe("Webhook Endpoints", () => {
   // POST /webhooks/new-registration
   // ═══════════════════════════════════════════════════════════════════════════
 
-  describe("POST /webhooks/new-registration", () => {
+  describe("POST /webhooks/new-registration (SmaxAi flat payload)", () => {
     it("should create Event with group=user_moi", async () => {
       const res = await webhookPost("new-registration", {
-        customer: { name: "New User", email: `new-reg-${Date.now()}@test.com` },
+        id: "ext-user-001",
+        name: "New User",
+        email: `new-reg-${Date.now()}@test.com`,
+        roles: ["USER"],
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
@@ -129,18 +132,40 @@ describe("Webhook Endpoints", () => {
     it("should create new Customer if not found", async () => {
       const email = `webhook-new-${Date.now()}@test.com`;
       const res = await webhookPost("new-registration", {
-        customer: { name: "New Webhook Customer", email, phone: "0909 888 777" },
+        id: "ext-user-002",
+        name: "New Webhook Customer",
+        email,
+        phone: "0909 888 777",
+        roles: ["USER"],
+        created_at: "2026-01-01T00:00:00Z",
       });
       expect(res.status).toBe(201);
       const customer = await Customer.findOne({ email });
       expect(customer).toBeTruthy();
       expect(customer.name).toBe("New Webhook Customer");
       expect(customer.tags).toContain("#Webhook");
+      expect(customer.extraInfo.thirdPartyId).toBe("ext-user-002");
+    });
+
+    it("should build name from first_name + last_name", async () => {
+      const email = `fname-${Date.now()}@test.com`;
+      const res = await webhookPost("new-registration", {
+        id: "ext-user-003",
+        first_name: "John",
+        last_name: "Doe",
+        email,
+        roles: ["USER"],
+      });
+      expect(res.status).toBe(201);
+      const event = await Event.findOne({ id: res.body.data.eventId });
+      expect(event.customer.name).toBe("John Doe");
     });
 
     it("should link existing Customer by email", async () => {
       const res = await webhookPost("new-registration", {
-        customer: { name: "Should Match VIP", email: "vip@test.com" },
+        id: "ext-user-004",
+        name: "Should Match VIP",
+        email: "vip@test.com",
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
@@ -150,7 +175,9 @@ describe("Webhook Endpoints", () => {
     it("should create WebhookLog with status=processed", async () => {
       const deliveryId = crypto.randomUUID();
       await webhookPost("new-registration", {
-        customer: { name: "Log Test", email: `log-${Date.now()}@test.com` },
+        id: "ext-user-005",
+        name: "Log Test",
+        email: `log-${Date.now()}@test.com`,
       }, { deliveryId });
       const log = await WebhookLog.findOne({ deliveryId });
       expect(log).toBeTruthy();
@@ -249,27 +276,25 @@ describe("Webhook Endpoints", () => {
   // Flexible payload structure
   // ═══════════════════════════════════════════════════════════════════════════
 
-  describe("Flexible Payload Handling", () => {
-    it("should handle flat customer fields in payload", async () => {
-      const res = await webhookPost("new-registration", {
+  describe("Flexible Payload Handling (expiring-subscription)", () => {
+    it("should handle nested customer fields", async () => {
+      const res = await webhookPost("expiring-subscription", {
+        customer: { name: "Nested Customer", email: `nested-${Date.now()}@test.com` },
+        plan: { name: "PRO", daysLeft: 3 },
+      });
+      expect(res.status).toBe(201);
+      const event = await Event.findOne({ id: res.body.data.eventId });
+      expect(event.customer.name).toBe("Nested Customer");
+    });
+
+    it("should handle flat customerName/customerEmail", async () => {
+      const res = await webhookPost("expiring-subscription", {
         customerName: "Flat Customer",
         customerEmail: `flat-${Date.now()}@test.com`,
-        customerPhone: "0999 111 222",
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
       expect(event.customer.name).toBe("Flat Customer");
-    });
-
-    it("should handle direct name/email in payload (fallback)", async () => {
-      const res = await webhookPost("new-registration", {
-        name: "Direct Customer",
-        email: `direct-${Date.now()}@test.com`,
-        phone: "0999 333 444",
-      });
-      expect(res.status).toBe(201);
-      const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.customer.name).toBe("Direct Customer");
     });
   });
 
@@ -280,7 +305,9 @@ describe("Webhook Endpoints", () => {
   describe("Assignee Resolution", () => {
     it("should resolve assignee by assigneeId", async () => {
       const res = await webhookPost("new-registration", {
-        customer: { name: "Cust A", email: `assignee-id-${Date.now()}@test.com` },
+        id: "ext-asgn-001",
+        name: "Cust A",
+        email: `assignee-id-${Date.now()}@test.com`,
         assigneeId: "TEST-USER004",
       });
       expect(res.status).toBe(201);
@@ -324,7 +351,9 @@ describe("Webhook Endpoints", () => {
 
     it("should default to empty assignee when not provided", async () => {
       const res = await webhookPost("new-registration", {
-        customer: { name: "No Assignee", email: `no-asgn-${Date.now()}@test.com` },
+        id: "ext-asgn-none",
+        name: "No Assignee",
+        email: `no-asgn-${Date.now()}@test.com`,
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
