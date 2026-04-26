@@ -244,50 +244,132 @@ class WebhookService {
   }
 
   /**
-   * user_moi — Khách hàng đăng ký mới.
-   * Tạo Event group 'user_moi' và upsert Customer by email/phone.
+   * user_moi — Khách hàng đăng ký mới (SmaxAi payload).
+   * Payload là flat user object: { id, email, name, first_name, last_name, phone, ... }
+   * Tạo/cập nhật Customer + tạo Event group 'user_moi'.
    */
   async #processNewRegistration(payload) {
-    const customerData = this.#extractCustomerData(payload);
-    const customer = await this.#upsertCustomer(customerData);
+    // ─── 1. Extract user info ─────────────────────────────────────────────
+    const email = (payload.email || "").trim().toLowerCase();
+    const phone = (payload.phone || "").trim();
+    const name =
+      payload.name ||
+      [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
+      "";
+    const avatar = payload.picture || "";
+
+    const extraInfo = {
+      thirdPartyId: payload.id || null,
+      roles: Array.isArray(payload.roles) ? payload.roles : [],
+      verified: payload.verified || null,
+      country: payload.country || null,
+    };
+
+    const registeredAt = payload.created_at
+      ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+      : "";
+
+    // ─── 2. Upsert Customer ───────────────────────────────────────────────
+    const orConditions = [];
+    if (email) orConditions.push({ email });
+    if (phone) orConditions.push({ phone });
+
+    let customer = null;
+
+    if (orConditions.length > 0) {
+      customer = await Customer.findOneWithDeleted({ $or: orConditions });
+    }
+
+    if (customer?.isDeleted) {
+      logger.warn("New registration — customer was soft-deleted, skipping customer link", {
+        customerId: customer.id,
+        email,
+      });
+      customer = null;
+    }
+
+    if (customer) {
+      // Update existing
+      customer.extraInfo = extraInfo;
+      if (name && !customer.name) customer.name = name;
+      if (phone && !customer.phone) customer.phone = phone;
+      if (avatar && !customer.avatar) customer.avatar = avatar;
+      if (registeredAt) customer.registeredAt = registeredAt;
+      if (!customer.platforms?.includes("SmaxAi")) {
+        customer.platforms = [...(customer.platforms || []), "SmaxAi"];
+      }
+      await customer.save();
+
+      logger.info("New registration — existing customer updated", {
+        customerId: customer.id,
+        email,
+      });
+    } else if (email || phone) {
+      customer = await Customer.create({
+        id: await generateMonotonicId("CUST"),
+        name: name || "Unknown",
+        email: email || "",
+        phone: phone || "",
+        avatar:
+          avatar ||
+          `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
+        type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+        biz: [],
+        platforms: ["SmaxAi"],
+        group: "",
+        registeredAt,
+        tags: ["#Webhook"],
+        extraInfo,
+      });
+
+      logger.info("New registration — customer created", {
+        customerId: customer.id,
+        email,
+      });
+    }
+
+    // ─── 3. Resolve assignee ──────────────────────────────────────────────
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
+    // ─── 4. Create Event ──────────────────────────────────────────────────
     const event = await Event.create({
       id: await generateMonotonicId("EVT"),
-      name: payload.name || `User mới: ${customerData.name || "N/A"}`,
-      sub: payload.sub || "",
+      name: `User mới: ${name || email || "N/A"}`,
+      sub: "",
       group: WEBHOOK_EVENT_TYPES.NEW_REGISTRATION,
       customerId: customer?.id || null,
       customer: {
-        name: customerData.name || "Unknown",
-        avatar: customerData.avatar || "",
-        role: customerData.role || "",
-        email: customerData.email || "",
-        phone: customerData.phone || "",
-        source: customerData.source || "Webhook",
-        address: customerData.address || "",
+        name: name || "Unknown",
+        avatar:
+          avatar ||
+          `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
+        role: (payload.roles || []).join(", "),
+        email: email || "",
+        phone: phone || "",
+        source: "SmaxAi",
+        address: "",
       },
       assigneeId,
       assignee,
-      biz: payload.biz || { id: "", tags: [] },
-      stage: payload.stage || "",
+      biz: { id: "", tags: [] },
+      stage: "",
       source: "Webhook",
-      tags: payload.tags || [],
-      plan: payload.plan || {
+      tags: [],
+      plan: {
         name: "TRIAL",
         cycle: "Thanh toán theo tháng",
         price: "0 đ",
         daysLeft: 30,
         expiryDate: "",
       },
-      services: payload.services || [],
-      quotas: payload.quotas || [],
+      services: [],
+      quotas: [],
       timeline: [
         {
           type: "event",
           title: "Sự kiện tạo tự động từ Webhook",
           time: new Date().toLocaleString("vi-VN"),
-          content: `Khách hàng đăng ký mới: ${customerData.name || "N/A"}`,
+          content: `Khách hàng đăng ký mới: ${name || email || "N/A"}`,
           createdBy: "Webhook System",
         },
       ],
@@ -915,7 +997,7 @@ class WebhookService {
     if (payloadAssignee.name) staffQuery.push({ name: payloadAssignee.name });
     if (payloadAssignee.phone) staffQuery.push({ phone: payloadAssignee.phone });
 
-    const staff = await User.findOne({ $or: staffQuery });
+    const staff = await User.findOneWithDeleted({ $or: staffQuery });
 
     if (!staff) {
       // Staff not found — keep info from payload but no link
@@ -929,8 +1011,20 @@ class WebhookService {
           group: [],
         },
       };
+    } else {
+      if (staff.isDeleted) {
+        logger.warn("Staff found — staff was soft-deleted, skipping", {
+          staffId: staff.id,
+        });
+        return { assigneeId: null, assignee: defaultAssignee };
+      }
+      if (staff.isActive === false) {
+        logger.warn("Staff found — staff was inactive, skipping", {
+          staffId: staff.id,
+        });
+        return { assigneeId: null, assignee: defaultAssignee };
+      }
     }
-
     return {
       assigneeId: staff.id,
       assignee: {
@@ -969,8 +1063,8 @@ class WebhookService {
       phone: customerData.phone || "",
       avatar:
         customerData.avatar ||
-        `https://i.pravatar.cc/150?u=${encodeURIComponent(customerData.email || customerData.name || "unknown")}`,
-      type: "New",
+        `https://ui-avatars.com/api/?name=${customerData.name?.split(" ")?.join("+")}&background=random`,
+      type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
       biz: [],
       platforms: [],
       group: "",
