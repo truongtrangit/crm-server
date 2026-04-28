@@ -97,6 +97,16 @@ const eventChainStepSchema = new mongoose.Schema(
      * Lưu lại để hiển thị đúng "Bước tiếp theo" kể cả khi user đã override.
      */
     activatedNextStepOrder: { type: Number, default: null },
+
+    // ─── Block Automation execution result ───
+    blockAutomationResult: {
+      success:   { type: Boolean, default: null },
+      status:    { type: Number,  default: null },  // HTTP status code
+      message:   { type: String,  default: "" },     // human-readable summary
+      attempts:  { type: Number,  default: 0 },      // how many times executed
+      lastExecutedAt: { type: Date, default: null },
+      responseData:   { type: mongoose.Schema.Types.Mixed, default: null },
+    },
   },
   { _id: false }
 );

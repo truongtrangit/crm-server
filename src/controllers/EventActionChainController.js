@@ -634,6 +634,26 @@ class EventActionChainController {
     }
 
     const result = await executeBlockAutomation(eventId, currentStep.actionId);
+
+    // Persist result on the step
+    const prevAttempts = currentStep.blockAutomationResult?.attempts || 0;
+    currentStep.blockAutomationResult = {
+      success: result.success,
+      status: result.status,
+      message: result.success
+        ? `Thành công — HTTP ${result.status}`
+        : (result.error || `Thất bại — HTTP ${result.status}`),
+      attempts: prevAttempts + 1,
+      lastExecutedAt: new Date(),
+      // Store truncated response for audit (avoid storing huge payloads)
+      responseData: result.responseData
+        ? JSON.parse(JSON.stringify(result.responseData).substring(0, 2000))
+        : null,
+    };
+
+    chain.markModified("steps");
+    await chain.save();
+
     return sendSuccess(res, 200, "Thực thi Block Automation hoàn tất", result);
   }
 
