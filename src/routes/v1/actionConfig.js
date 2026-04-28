@@ -14,6 +14,8 @@ const {
   createActionChainSchema,
   updateActionChainSchema,
   saveChainRuleSchema,
+  createBlockAutomationSchema,
+  updateBlockAutomationSchema,
   listQuerySchema,
 } = require("../../validations/actions");
 
@@ -130,6 +132,44 @@ router.put(
   requirePermission(PERMISSIONS.ACTIONS_CFG_UPDATE),
   validate(saveChainRuleSchema),
   asyncHandler(ctrl.saveChainRule),
+);
+
+// ─── Block Automations ───
+// Only owner/admin can create, update, delete (ACTIONS_CFG_MANAGE)
+router.get(
+  "/block-automations",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
+  validate(listQuerySchema, "query"),
+  asyncHandler(ctrl.listBlockAutomations),
+);
+router.get(
+  "/block-automations/:id",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
+  asyncHandler(ctrl.getBlockAutomation),
+);
+router.post(
+  "/block-automations",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_MANAGE),
+  validate(createBlockAutomationSchema),
+  asyncHandler(ctrl.createBlockAutomation),
+);
+router.put(
+  "/block-automations/:id",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_MANAGE),
+  validate(updateBlockAutomationSchema),
+  asyncHandler(ctrl.updateBlockAutomation),
+);
+router.delete(
+  "/block-automations/:id",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_MANAGE),
+  asyncHandler(ctrl.deleteBlockAutomation),
+);
+
+// ─── Event Schema Fields (for field mapping picker) ───
+router.get(
+  "/event-schema-fields",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
+  asyncHandler(ctrl.getEventSchemaFields),
 );
 
 module.exports = router;

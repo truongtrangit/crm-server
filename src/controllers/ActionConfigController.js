@@ -102,6 +102,38 @@ class ActionConfigController {
     const chain = await ActionConfigService.saveChainRule(req.params.id, req.body);
     return sendSuccess(res, 200, "Save chain rule success", chain);
   }
+
+  // ─── Block Automations ───
+  async listBlockAutomations(req, res) {
+    const result = await ActionConfigService.listBlockAutomations(req.query);
+    return sendSuccess(res, 200, "Get block automations success", result);
+  }
+
+  async getBlockAutomation(req, res) {
+    const item = await ActionConfigService.getBlockAutomation(req.params.id);
+    return sendSuccess(res, 200, "Get block automation detail success", item);
+  }
+
+  async createBlockAutomation(req, res) {
+    const item = await ActionConfigService.createBlockAutomation(req.body);
+    return sendSuccess(res, 201, "Create block automation success", item);
+  }
+
+  async updateBlockAutomation(req, res) {
+    const item = await ActionConfigService.updateBlockAutomation(req.params.id, req.body);
+    return sendSuccess(res, 200, "Update block automation success", item);
+  }
+
+  async deleteBlockAutomation(req, res) {
+    await ActionConfigService.deleteBlockAutomation(req.params.id);
+    return sendSuccess(res, 200, "Delete block automation success", null);
+  }
+
+  // ─── Event Schema Fields (for field mapping) ───
+  async getEventSchemaFields(_req, res) {
+    const fields = ActionConfigService.getEventSchemaFields();
+    return sendSuccess(res, 200, "Get event schema fields success", fields);
+  }
 }
 
 module.exports = new ActionConfigController();

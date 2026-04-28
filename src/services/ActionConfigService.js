@@ -3,6 +3,8 @@ const Reason = require("../models/Reason");
 const Action = require("../models/Action");
 const ActionChain = require("../models/ActionChain");
 const EventActionChain = require("../models/EventActionChain");
+const BlockAutomation = require("../models/BlockAutomation");
+const Event = require("../models/Event");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
@@ -237,6 +239,81 @@ class ActionConfigService {
     chain.steps = steps;
     await chain.save();
     return chain;
+  }
+
+  // ─── Block Automation CRUD ───
+
+  async listBlockAutomations(queryParams) {
+    const { search = "" } = queryParams;
+    const searchRegex = buildSearchRegex(search);
+    const { page, limit, skip } = resolvePagination(queryParams);
+    const query = {};
+
+    if (searchRegex) {
+      query.$or = [{ name: searchRegex }, { id: searchRegex }, { url: searchRegex }];
+    }
+
+    const [items, totalItems] = await Promise.all([
+      BlockAutomation.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      BlockAutomation.countDocuments(query),
+    ]);
+
+    return buildPaginatedResponse(items, totalItems, page, limit);
+  }
+
+  async getBlockAutomation(id) {
+    const item = await BlockAutomation.findOne({ id }).lean();
+    if (!item) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
+    return item;
+  }
+
+  async createBlockAutomation(body) {
+    const id = await generateMonotonicId("BLK");
+    return BlockAutomation.create({ ...body, id });
+  }
+
+  async updateBlockAutomation(id, body) {
+    const item = await BlockAutomation.findOneAndUpdate({ id }, body, { returnDocument: "after" });
+    if (!item) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
+    return item;
+  }
+
+  async deleteBlockAutomation(id) {
+    const deleted = await BlockAutomation.findOneAndDelete({ id });
+    if (!deleted) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
+  }
+
+  /**
+   * Introspect the Event Mongoose schema and return a flat list of field paths.
+   * This helps the frontend render a picker so users can map Event fields
+   * to third-party payload fields.
+   */
+  getEventSchemaFields() {
+    const paths = Event.schema.paths;
+    const fields = [];
+
+    for (const [path, schemaType] of Object.entries(paths)) {
+      // Skip internal Mongoose/Mongo fields
+      if (["_id", "__v", "deleted", "deletedAt"].includes(path)) continue;
+
+      // Skip the `timeline` embedded subdocument array (too complex for mapping)
+      if (path.startsWith("timeline")) continue;
+
+      let type = schemaType.instance; // String, Number, Boolean, Array, ...
+
+      // For arrays, try to get the caster type
+      if (type === "Array" && schemaType.caster) {
+        type = `Array<${schemaType.caster.instance || "Mixed"}>`;
+      }
+
+      fields.push({
+        path,
+        type,
+        required: !!schemaType.isRequired,
+      });
+    }
+
+    return fields;
   }
 }
 
