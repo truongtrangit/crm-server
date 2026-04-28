@@ -39,11 +39,10 @@ const customerSchema = new mongoose.Schema(
 );
 
 // Normalize empty phone to null so sparse unique index works correctly
-customerSchema.pre("save", function (next) {
+customerSchema.pre("save", function () {
   if (this.phone !== undefined && !this.phone) {
     this.phone = null;
   }
-  next();
 });
 
 customerSchema.plugin(softDeletePlugin);
