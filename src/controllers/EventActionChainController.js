@@ -5,6 +5,7 @@ const Event = require("../models/Event");
 const User = require("../models/User");
 const { createHttpError, sendSuccess } = require("../utils/http");
 const { ACTION_TYPE_CATEGORY_MAP } = require("../constants/actionConfig");
+const { executeBlockAutomation } = require("../services/BlockAutomationExecutor");
 
 // ─── Helpers ───
 
@@ -607,6 +608,33 @@ class EventActionChainController {
     chain.markModified("steps");
     await chain.save();
     return sendSuccess(res, 200, "Xóa kết quả khỏi bước thành công", chain);
+  }
+
+  /**
+   * POST /api/events/:eventId/chains/:chainId/steps/current/execute-block-automation
+   *
+   * Executes the block automation linked to the active step's action:
+   * 1. Loads the step's Action → blockAutomationId
+   * 2. Loads BlockAutomation config (URL, token, payloadTemplate)
+   * 3. Loads Event data and resolves {{placeholders}} in the template
+   * 4. Sends HTTP request to the third-party API
+   * 5. Returns the result (success/error, response data, resolved payload)
+   */
+  async executeBlockAutomationStep(req, res) {
+    const { eventId, chainId } = req.params;
+
+    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
+    if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
+
+    const currentStep = chain.steps[chain.currentStepIndex];
+    if (!currentStep) throw createHttpError(400, "Không có step nào đang active");
+    if (currentStep.actionType !== "send_block_automation") {
+      throw createHttpError(400, "Step hiện tại không phải loại Block Automation");
+    }
+
+    const result = await executeBlockAutomation(eventId, currentStep.actionId);
+    return sendSuccess(res, 200, "Thực thi Block Automation hoàn tất", result);
   }
 
 }

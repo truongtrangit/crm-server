@@ -83,6 +83,14 @@ router.delete(
   asyncHandler(EventActionChainController.deleteStepBranch)
 );
 
+// ─── POST /api/events/:eventId/chains/:chainId/steps/current/execute-block-automation ───
+// Thực thi Block Automation (resolve payload template + gọi API bên thứ 3)
+router.post(
+  "/:chainId/steps/current/execute-block-automation",
+  requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  asyncHandler(EventActionChainController.executeBlockAutomationStep)
+);
+
 // ─── PUT /api/events/:eventId/chains/:chainId/close ───
 router.put(
   "/:chainId/close",

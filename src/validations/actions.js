@@ -54,6 +54,7 @@ const createActionSchema = Joi.object({
     .valid(...Object.values(ACTION_CATEGORY_VALUES))
     .optional(), // Sẽ được tự động suy ra từ type ở pre-save hook nếu không truyền
   reasonIds: Joi.array().items(Joi.string()).optional().default([]),
+  blockAutomationId: Joi.string().allow(null, "").optional().default(null),
   description: Joi.string().allow("").optional(),
 });
 
@@ -62,6 +63,7 @@ const updateActionSchema = Joi.object({
   type: Joi.string().valid(...ALL_ACTION_TYPES).optional(),
   category: Joi.string().valid(...Object.values(ACTION_CATEGORY_VALUES)).optional(),
   reasonIds: Joi.array().items(Joi.string()).optional(),
+  blockAutomationId: Joi.string().allow(null, "").optional(),
   description: Joi.string().allow("").optional(),
 }).min(1);
 

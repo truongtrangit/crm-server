@@ -20,6 +20,8 @@ const actionSchema = new mongoose.Schema(
       default: ACTION_CATEGORY_VALUES.PRIMARY,
     },
     reasonIds: [{ type: String, ref: "Reason", default: [] }],
+    // When type = "send_block_automation", links to the BlockAutomation to execute
+    blockAutomationId: { type: String, ref: "BlockAutomation", default: null },
     description: { type: String, default: "" },
   },
   {
