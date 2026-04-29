@@ -214,24 +214,22 @@ class WebhookService {
         email,
       });
     } else {
-      // Create new customer
-      customer = await Customer.create({
-        id: await generateMonotonicId("CUST"),
+      // Create new customer (dedup by email/phone)
+      const { customer: created, existed } = await this.#findOrCreateCustomer({
+        email,
+        phone,
         name: name || "Unknown",
-        email: email || "",
-        phone: phone || "",
         avatar: avatar || `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
-        biz: [],
         platforms: ["SmaxAi"],
-        group: "",
         registeredAt,
         lastLoginAt,
         tags: ["#Webhook"],
         extraInfo,
       });
+      customer = created;
 
-      logger.info("User login — new customer created", {
+      logger.info(`User login — customer ${existed ? "found (dedup)" : "created"}`, {
         customerId: customer.id,
         email,
       });
@@ -305,24 +303,22 @@ class WebhookService {
         email,
       });
     } else if (email || phone) {
-      customer = await Customer.create({
-        id: await generateMonotonicId("CUST"),
+      const { customer: created, existed } = await this.#findOrCreateCustomer({
+        email,
+        phone,
         name: name || "Unknown",
-        email: email || "",
-        phone: phone || "",
         avatar:
           avatar ||
           `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
-        biz: [],
         platforms: ["SmaxAi"],
-        group: "",
         registeredAt,
         tags: ["#Webhook"],
         extraInfo,
       });
+      customer = created;
 
-      logger.info("New registration — customer created", {
+      logger.info(`New registration — customer ${existed ? "found (dedup)" : "created"}`, {
         customerId: customer.id,
         email,
       });
@@ -417,17 +413,15 @@ class WebhookService {
     }
 
     if (!customer && (userEmail || userPhone)) {
-      // Tạo customer mới từ user
-      customer = await Customer.create({
-        id: await generateMonotonicId("CUST"),
+      // Tạo customer mới từ user (dedup by email/phone)
+      const { customer: created, existed } = await this.#findOrCreateCustomer({
+        email: userEmail,
+        phone: userPhone,
         name: userName || "Unknown",
-        email: userEmail || "",
-        phone: userPhone || "",
         avatar: userAvatar || `https://ui-avatars.com/api/?name=${userName?.split(" ")?.join("+")}&background=random`,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         biz: [payload.name || ""],
         platforms: ["SmaxAi"],
-        group: "",
         registeredAt: payload.created_at
           ? new Date(payload.created_at).toLocaleDateString("vi-VN")
           : "",
@@ -441,8 +435,9 @@ class WebhookService {
           country: payload.country || null,
         },
       });
+      customer = created;
 
-      logger.info("Biz create — new customer created from users[]", {
+      logger.info(`Biz create — customer ${existed ? "found (dedup)" : "created"} from users[]`, {
         customerId: customer.id,
         email: userEmail,
       });
@@ -970,6 +965,71 @@ class WebhookService {
   }
 
   /**
+   * Find existing Customer by email/phone, or create a new one.
+   * Prevents E11000 duplicate key errors by checking first, with a
+   * safety try-catch for race conditions (concurrent webhook calls).
+   *
+   * @param {object} data — { email, phone, name, avatar, type, ... }
+   * @returns {{ customer: object, existed: boolean }}
+   */
+  async #findOrCreateCustomer(data) {
+    const { email, phone } = data;
+
+    // ─── 1. Check existing by email or phone ────────────────────────────
+    const orConditions = [];
+    if (email) orConditions.push({ email });
+    if (phone) orConditions.push({ phone });
+
+    if (orConditions.length > 0) {
+      const existing = await Customer.findOne({ $or: orConditions });
+      if (existing) {
+        logger.info("Customer dedup — existing customer found, skipping create", {
+          customerId: existing.id,
+          matchedEmail: email,
+          matchedPhone: phone,
+        });
+        return { customer: existing, existed: true };
+      }
+    }
+
+    // ─── 2. Create new ──────────────────────────────────────────────────
+    try {
+      const customer = await Customer.create({
+        id: await generateMonotonicId("CUST"),
+        name: data.name || "Unknown",
+        email: email || "",
+        phone: phone || "",
+        avatar:
+          data.avatar ||
+          `https://ui-avatars.com/api/?name=${data.name?.split(" ")?.join("+")}&background=random`,
+        type: data.type || CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+        biz: data.biz || [],
+        platforms: data.platforms || [],
+        group: data.group || "",
+        registeredAt: data.registeredAt || "",
+        lastLoginAt: data.lastLoginAt || "",
+        tags: data.tags || ["#Webhook"],
+        extraInfo: data.extraInfo || {},
+      });
+      return { customer, existed: false };
+    } catch (err) {
+      // ─── 3. Race condition safety: E11000 → find and return ──────────
+      if (err.code === 11000) {
+        logger.warn("Customer dedup — E11000 caught, finding existing", {
+          email,
+          phone,
+          keyPattern: err.keyPattern,
+        });
+        const fallback = await Customer.findOne(
+          orConditions.length > 0 ? { $or: orConditions } : { email },
+        );
+        if (fallback) return { customer: fallback, existed: true };
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Resolve assignee from webhook payload.
    * Looks up User by assigneeId, email, or name — follows same pattern as EventService.
    *
@@ -1055,21 +1115,13 @@ class WebhookService {
       return existing;
     }
 
-    // Create new Customer
-    const customer = await Customer.create({
-      id: await generateMonotonicId("CUST"),
-      name: customerData.name || "Unknown",
-      email: customerData.email || "",
-      phone: customerData.phone || "",
-      avatar:
-        customerData.avatar ||
-        `https://ui-avatars.com/api/?name=${customerData.name?.split(" ")?.join("+")}&background=random`,
-      type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
-      biz: [],
-      platforms: [],
-      group: "",
+    // Create new Customer via dedup helper
+    const { customer } = await this.#findOrCreateCustomer({
+      email: customerData.email,
+      phone: customerData.phone,
+      name: customerData.name,
+      avatar: customerData.avatar,
       registeredAt: new Date().toLocaleDateString("vi-VN"),
-      tags: ["#Webhook"],
     });
 
     return customer;
