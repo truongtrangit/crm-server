@@ -20,7 +20,7 @@ const customerSchema = new mongoose.Schema(
     avatar: { type: String, default: "" },
     type: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true, lowercase: true, index: true, unique: true },
-    phone: { type: String, default: null, index: true, unique: true, sparse: true },
+    phone: { type: String, index: true, unique: true, sparse: true },
     biz: { type: [String], default: [] },
     platforms: { type: [String], default: [] },
     group: { type: String, default: "" },
@@ -38,10 +38,10 @@ const customerSchema = new mongoose.Schema(
   },
 );
 
-// Normalize empty phone to null so sparse unique index works correctly
+// Remove empty/null phone entirely so sparse unique index skips the document
 customerSchema.pre("save", function () {
-  if (this.phone !== undefined && !this.phone) {
-    this.phone = null;
+  if (!this.phone) {
+    this.phone = undefined;
   }
 });
 
