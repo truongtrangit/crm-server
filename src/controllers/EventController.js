@@ -77,6 +77,20 @@ class EventController {
 
     return sendSuccess(res, 201, "Add timeline entry success", event);
   }
+  async deleteEventTimeline(req, res) {
+    const roleId = (req.user?.roleId || '').toUpperCase();
+    if (roleId !== 'OWNER' && roleId !== 'ADMIN') {
+      return sendError(res, 403, "Chỉ Owner và Admin mới có quyền xoá bình luận/lịch sử");
+    }
+
+    const { id, timelineId } = req.params;
+    const event = await EventService.deleteEventTimeline(id, timelineId);
+
+    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Xoá mục lịch sử/bình luận khỏi sự kiện "${event.name}"`, req });
+
+    return sendSuccess(res, 200, "Xoá bình luận thành công", event);
+  }
+
 
   /**
    * Unassign người phụ trách khỏi event.

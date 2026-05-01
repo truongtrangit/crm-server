@@ -358,6 +358,23 @@ class EventService {
     return event;
   }
 
+  async deleteEventTimeline(eventId, timelineId) {
+    const event = await Event.findOne({ id: eventId });
+    if (!event) {
+      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+    }
+
+    const initialLength = event.timeline.length;
+    event.timeline = event.timeline.filter((entry) => entry._id.toString() !== timelineId);
+
+    if (event.timeline.length === initialLength) {
+      throw createHttpError(404, "Timeline entry not found");
+    }
+
+    await event.save();
+    return event;
+  }
+
   async deleteEvent(id) {
     const event = await Event.findOne({ id });
     if (!event) {

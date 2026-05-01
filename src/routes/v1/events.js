@@ -54,6 +54,12 @@ router.post(
 );
 
 router.delete(
+  "/:id/timeline/:timelineId",
+  requirePermission(PERMISSIONS.EVENTS_UPDATE), // UPDATE vì permission xóa comment nằm trong thao tác chỉnh sửa event (với RBAC check riêng ở controller)
+  asyncHandler(EventController.deleteEventTimeline)
+);
+
+router.delete(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_DELETE),
   asyncHandler(EventController.deleteEvent)
