@@ -44,6 +44,7 @@ class AutomationLogService {
     status,
     error = null,
     duration = 0,
+    attemptCount = 1,
     req = null,
     performedBy = null,
   }) {
@@ -77,6 +78,7 @@ class AutomationLogService {
       status,
       error,
       duration,
+      attemptCount,
     }).catch((err) => {
       logger.error("[AutomationLog] Failed to write log", {
         eventId,

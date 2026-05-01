@@ -56,6 +56,9 @@ const automationLogSchema = new mongoose.Schema(
 
     /** Execution duration in milliseconds */
     duration: { type: Number, default: 0 },
+
+    /** The attempt number for this block automation */
+    attemptCount: { type: Number, default: 1 },
   },
   {
     timestamps: true,

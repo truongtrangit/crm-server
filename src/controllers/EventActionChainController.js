@@ -684,6 +684,7 @@ class EventActionChainController {
       status: result.success ? "success" : "failed",
       error: result.error,
       duration,
+      attemptCount: currentStep.blockAutomationResult.attempts,
       req,
     });
 
