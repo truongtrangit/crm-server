@@ -69,7 +69,12 @@ class EventController {
   async addEventTimeline(req, res) {
     const allowed = await checkEventOwnership(req, res);
     if (!allowed) return;
-    const event = await EventService.addEventTimeline(req.params.id, req.body || {}, req.user);
+    const payload = req.body || {};
+    const event = await EventService.addEventTimeline(req.params.id, payload, req.user);
+    
+    const typeLabel = payload.type === 'note' ? 'ghi chú' : payload.type === 'email' ? 'email' : payload.type === 'phone' ? 'cuộc gọi' : 'mục lịch sử';
+    SystemLogService.log({ action: "create", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Thêm ${typeLabel} "${payload.title}" vào sự kiện "${event.name}"`, req });
+
     return sendSuccess(res, 201, "Add timeline entry success", event);
   }
 
