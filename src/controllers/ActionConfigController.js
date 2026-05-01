@@ -1,5 +1,7 @@
 const ActionConfigService = require("../services/ActionConfigService");
 const { sendSuccess } = require("../utils/http");
+const SystemLogService = require("../services/SystemLogService");
+const { RESOURCES } = require("../constants/rbac");
 
 class ActionConfigController {
   // ─── Results ───
@@ -10,6 +12,7 @@ class ActionConfigController {
 
   async createResult(req, res) {
     const item = await ActionConfigService.createResult(req.body);
+    SystemLogService.log({ action: "create", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Tạo kết quả "${item.name}"`, req });
     return sendSuccess(res, 201, "Create result success", item);
   }
 
@@ -21,6 +24,7 @@ class ActionConfigController {
   async deleteResult(req, res) {
     const force = req.query.force === 'true';
     await ActionConfigService.deleteResult(req.params.id, { force });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, description: `Xóa kết quả ${req.params.id}`, req });
     return sendSuccess(res, 200, "Delete result success", null);
   }
 
@@ -32,6 +36,7 @@ class ActionConfigController {
 
   async createReason(req, res) {
     const item = await ActionConfigService.createReason(req.body);
+    SystemLogService.log({ action: "create", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Tạo lý do "${item.name}"`, req });
     return sendSuccess(res, 201, "Create reason success", item);
   }
 
@@ -54,6 +59,7 @@ class ActionConfigController {
 
   async createAction(req, res) {
     const item = await ActionConfigService.createAction(req.body);
+    SystemLogService.log({ action: "create", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Tạo hành động "${item.name}"`, req });
     return sendSuccess(res, 201, "Create action success", item);
   }
 
@@ -81,6 +87,7 @@ class ActionConfigController {
 
   async createActionChain(req, res) {
     const item = await ActionConfigService.createActionChain(req.body);
+    SystemLogService.log({ action: "create", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Tạo chuỗi hành động "${item.name}"`, req });
     return sendSuccess(res, 201, "Create action chain success", item);
   }
 
@@ -116,6 +123,7 @@ class ActionConfigController {
 
   async createBlockAutomation(req, res) {
     const item = await ActionConfigService.createBlockAutomation(req.body);
+    SystemLogService.log({ action: "create", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Tạo Block Automation "${item.name}"`, req });
     return sendSuccess(res, 201, "Create block automation success", item);
   }
 
@@ -126,6 +134,7 @@ class ActionConfigController {
 
   async deleteBlockAutomation(req, res) {
     await ActionConfigService.deleteBlockAutomation(req.params.id);
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, description: `Xóa Block Automation ${req.params.id}`, req });
     return sendSuccess(res, 200, "Delete block automation success", null);
   }
 

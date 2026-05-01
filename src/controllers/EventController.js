@@ -1,6 +1,8 @@
 const EventService = require("../services/EventService");
 const Event = require("../models/Event");
 const { sendSuccess, sendError } = require("../utils/http");
+const SystemLogService = require("../services/SystemLogService");
+const { RESOURCES } = require("../constants/rbac");
 
 // Roles that bypass ownership check (can update any event)
 const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
@@ -44,6 +46,7 @@ class EventController {
 
   async createEvent(req, res) {
     const event = await EventService.createEvent(req.body || {}, req.user);
+    SystemLogService.log({ action: "create", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tạo sự kiện "${event.name}"`, req });
     return sendSuccess(res, 201, "Create event success", event);
   }
 
@@ -51,6 +54,7 @@ class EventController {
     const allowed = await checkEventOwnership(req, res);
     if (!allowed) return;
     const event = await EventService.updateEvent(req.params.id, req.body || {});
+    SystemLogService.log({ action: "update", resource: RESOURCES.EVENTS, resourceId: req.params.id, resourceName: event.name, description: `Cập nhật sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, "Update event success", event);
   }
 
@@ -98,9 +102,11 @@ class EventController {
     }
 
     // Thực hiện unassign
+    const prevAssigneeName = event.assignee?.name || event.assigneeId;
     event.assigneeId = null;
     event.assignee = { name: '', avatar: '', role: '', department: [], group: [] };
     await event.save();
+    SystemLogService.log({ action: "unassign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Bỏ phân công "${prevAssigneeName}" khỏi sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Unassign thành công', event);
   }
 
@@ -127,11 +133,13 @@ class EventController {
       group: actor.group || [],
     };
     await event.save();
+    SystemLogService.log({ action: "assign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tự nhận sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Tự nhận sự kiện thành công', event);
   }
 
   async deleteEvent(req, res) {
     await EventService.deleteEvent(req.params.id);
+    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENTS, resourceId: req.params.id, description: `Xóa sự kiện ${req.params.id}`, req });
     return sendSuccess(res, 200, "Delete event success", null);
   }
 

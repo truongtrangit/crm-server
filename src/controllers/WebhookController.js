@@ -49,15 +49,6 @@ class WebhookController {
       subscriptionId: result.webhookLog.createdSubscriptionId || null,
     });
   }
-
-  /**
-   * GET /api/v1/webhooks/logs
-   * Xem lịch sử webhook — chỉ dành cho authenticated admin/owner.
-   */
-  async getLogs(req, res) {
-    const result = await WebhookService.getLogs(req.query);
-    return sendSuccess(res, 200, "Webhook logs retrieved", result);
-  }
 }
 
 module.exports = new WebhookController();

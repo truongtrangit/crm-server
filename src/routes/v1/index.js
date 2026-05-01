@@ -13,6 +13,7 @@ const rbacRouter = require("./rbac");
 const actionConfigRouter = require("./actionConfig");
 const eventChainsRouter = require("./eventChains");
 const webhooksRouter = require("./webhooks");
+const logsRouter = require("./logs");
 
 const { authenticateRequest, requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
@@ -39,20 +40,12 @@ v1Router.get("/", (_req, res) =>
       "action-config",
       "event-chains",
       "webhooks",
+      "logs",
     ],
   }),
 );
 
 v1Router.use("/auth", authRouter);
-
-// ─── Webhook logs — CRM session auth (specific route MUST come before catch-all) ─
-const WebhookController = require("../../controllers/WebhookController");
-v1Router.get(
-  "/webhooks/logs",
-  authenticateRequest,
-  requirePermission(PERMISSIONS.EVENTS_READ),
-  asyncHandler(WebhookController.getLogs),
-);
 
 // ─── Webhook ingestion (own auth — bearer token, not CRM session) ───────────
 v1Router.use("/webhooks", webhooksRouter);
@@ -70,6 +63,7 @@ v1Router.use("/metadata", metadataRouter);
 v1Router.use("/functions", functionsRouter);
 v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
+v1Router.use("/logs", logsRouter);
 
 // Nested: chuỗi hành động trong sự kiện
 v1Router.use("/events/:eventId/chains", eventChainsRouter);

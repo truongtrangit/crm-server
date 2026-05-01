@@ -6,6 +6,9 @@ const User = require("../models/User");
 const { createHttpError, sendSuccess } = require("../utils/http");
 const { ACTION_TYPE_CATEGORY_MAP } = require("../constants/actionConfig");
 const { executeBlockAutomation } = require("../services/BlockAutomationExecutor");
+const SystemLogService = require("../services/SystemLogService");
+const AutomationLogService = require("../services/AutomationLogService");
+const { RESOURCES } = require("../constants/rbac");
 
 // ─── Helpers ───
 
@@ -111,6 +114,7 @@ class EventActionChainController {
     });
 
     await chain.save();
+    SystemLogService.log({ action: "create", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Thêm chuỗi hành động "${chain.name}" vào sự kiện ${eventId}`, req });
     return sendSuccess(res, 201, "Thêm chuỗi hành động thành công", chain);
   }
 
@@ -352,6 +356,7 @@ class EventActionChainController {
     if (current && !current.isLocked) current.status = "skipped";
     chain.markModified("steps");
     await chain.save();
+    SystemLogService.log({ action: "update", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Đóng chuỗi hành động "${chain.name}"`, req });
     return sendSuccess(res, 200, "Đóng chuỗi hành động thành công", chain);
   }
 
@@ -369,6 +374,7 @@ class EventActionChainController {
     }
 
     await EventActionChain.deleteOne({ id: chainId, eventId });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENT_CHAINS, resourceId: chainId, resourceName: chain.name, description: `Xóa chuỗi hành động "${chain.name}" khỏi sự kiện ${eventId}`, req });
     return sendSuccess(res, 200, "Xóa chuỗi hành động thành công", null);
   }
 
@@ -633,7 +639,12 @@ class EventActionChainController {
       throw createHttpError(400, "Step hiện tại không phải loại Block Automation");
     }
 
+    // Load event + block automation names for logging context
+    const event = await Event.findOne({ id: eventId }).select("name").lean();
+
+    const startTime = Date.now();
     const result = await executeBlockAutomation(eventId, currentStep.actionId);
+    const duration = Date.now() - startTime;
 
     // Persist result on the step
     const prevAttempts = currentStep.blockAutomationResult?.attempts || 0;
@@ -653,6 +664,40 @@ class EventActionChainController {
 
     chain.markModified("steps");
     await chain.save();
+
+    // Log automation execution
+    AutomationLogService.log({
+      eventId,
+      eventName: event?.name || "",
+      chainId,
+      chainName: chain.name,
+      actionId: currentStep.actionId,
+      actionName: currentStep.actionName,
+      blockAutomationId: result.blockAutomationName ? undefined : null,
+      blockAutomationName: result.blockAutomationName || "",
+      url: result.url || "",
+      method: result.method || "POST",
+      resolvedPayload: result.resolvedPayload,
+      responseStatus: result.status,
+      responseStatusText: result.statusText,
+      responseData: result.responseData,
+      status: result.success ? "success" : "failed",
+      error: result.error,
+      duration,
+      req,
+    });
+
+    // Also log as system activity
+    SystemLogService.log({
+      action: "other",
+      resource: RESOURCES.EVENT_CHAINS,
+      resourceId: chainId,
+      resourceName: chain.name,
+      description: `Thực thi Block Automation "${result.blockAutomationName || ''}" cho sự kiện "${event?.name || eventId}" — ${result.success ? 'Thành công' : 'Thất bại'}`,
+      req,
+      status: result.success ? "success" : "failed",
+      error: result.error,
+    });
 
     return sendSuccess(res, 200, "Thực thi Block Automation hoàn tất", result);
   }

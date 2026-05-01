@@ -17,6 +17,7 @@ const RESOURCES = {
   PERMISSIONS: "permissions",
   METADATA: "metadata",
   FUNCTIONS: "functions",
+  LOGS: "logs",                   // System / Automation / Webhook logs (read-only)
 };
 
 // Actions
@@ -104,6 +105,9 @@ const PERMISSIONS = {
   ACTIONS_CFG_UPDATE: `${RESOURCES.ACTIONS_CFG}_${ACTIONS.UPDATE}`,
   ACTIONS_CFG_DELETE: `${RESOURCES.ACTIONS_CFG}_${ACTIONS.DELETE}`,
   ACTIONS_CFG_MANAGE: `${RESOURCES.ACTIONS_CFG}_${ACTIONS.MANAGE}`,
+
+  // Logs (read-only — append-only audit trail, no create/update/delete via API)
+  LOGS_READ: `${RESOURCES.LOGS}_${ACTIONS.READ}`,
 };
 
 // Role definitions with their permissions
@@ -131,6 +135,7 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.METADATA_READ,
       PERMISSIONS.FUNCTIONS_MANAGE,
       PERMISSIONS.ACTIONS_CFG_MANAGE,
+      PERMISSIONS.LOGS_READ,
     ],
   },
   MANAGER: {
