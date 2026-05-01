@@ -17,7 +17,8 @@ class ActionConfigController {
   }
 
   async updateResult(req, res) {
-    const item = await ActionConfigService.updateResult(req.params.id, req.body);
+    const { result: item, changes } = await ActionConfigService.updateResult(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Cập nhật kết quả "${item.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update result success", item);
   }
 
@@ -41,7 +42,8 @@ class ActionConfigController {
   }
 
   async updateReason(req, res) {
-    const item = await ActionConfigService.updateReason(req.params.id, req.body);
+    const { reason: item, changes } = await ActionConfigService.updateReason(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Cập nhật lý do "${item.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update reason success", item);
   }
 
@@ -64,7 +66,8 @@ class ActionConfigController {
   }
 
   async updateAction(req, res) {
-    const item = await ActionConfigService.updateAction(req.params.id, req.body);
+    const { action: item, changes } = await ActionConfigService.updateAction(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Cập nhật hành động "${item.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update action success", item);
   }
 
@@ -92,7 +95,8 @@ class ActionConfigController {
   }
 
   async updateActionChain(req, res) {
-    const item = await ActionConfigService.updateActionChain(req.params.id, req.body);
+    const { actionChain: item, changes } = await ActionConfigService.updateActionChain(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Cập nhật chuỗi hành động "${item.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update action chain success", item);
   }
 
@@ -106,7 +110,8 @@ class ActionConfigController {
    * PUT /chains/:id/rule — Save rule configuration (steps + branches) for a chain.
    */
   async saveChainRule(req, res) {
-    const chain = await ActionConfigService.saveChainRule(req.params.id, req.body);
+    const { actionChain: chain, changes } = await ActionConfigService.saveChainRule(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCES.ACTIONS_CFG, resourceId: chain.id, resourceName: chain.name, description: `Cập nhật cấu hình rule chuỗi "${chain.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Save chain rule success", chain);
   }
 
@@ -128,7 +133,8 @@ class ActionConfigController {
   }
 
   async updateBlockAutomation(req, res) {
-    const item = await ActionConfigService.updateBlockAutomation(req.params.id, req.body);
+    const { blockAutomation: item, changes } = await ActionConfigService.updateBlockAutomation(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCES.ACTIONS_CFG, resourceId: item.id, resourceName: item.name, description: `Cập nhật Block Automation "${item.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update block automation success", item);
   }
 

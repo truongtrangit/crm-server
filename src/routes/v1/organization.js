@@ -13,6 +13,7 @@ const {
   buildDepartmentAlias,
   buildGroupAlias,
 } = require("../../utils/organization");
+const SystemLogService = require("../../services/SystemLogService");
 const {
   createDepartmentSchema,
   createGroupSchema,
@@ -72,6 +73,7 @@ router.post(
     });
 
     await CacheService.del("system:metadata");
+    SystemLogService.log({ action: "create", resource: RESOURCES.ORGANIZATION, resourceId: department.id, resourceName: name, description: `Tạo phòng ban "${name}"`, req });
     return sendSuccess(res, 201, "Create department success", department);
   },
 );
@@ -123,6 +125,7 @@ router.post(
     await department.save();
 
     await CacheService.del("system:metadata");
+    SystemLogService.log({ action: "create", resource: RESOURCES.ORGANIZATION, resourceId: alias, resourceName: name, description: `Tạo nhóm "${name}" trong phòng "${department.parent}"`, req });
     return sendSuccess(res, 201, "Create group success", {
       alias,
       name,

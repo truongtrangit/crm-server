@@ -53,8 +53,16 @@ class EventController {
   async updateEvent(req, res) {
     const allowed = await checkEventOwnership(req, res);
     if (!allowed) return;
-    const event = await EventService.updateEvent(req.params.id, req.body || {});
-    SystemLogService.log({ action: "update", resource: RESOURCES.EVENTS, resourceId: req.params.id, resourceName: event.name, description: `Cập nhật sự kiện "${event.name}"`, req });
+    const { event, changes } = await EventService.updateEvent(req.params.id, req.body || {});
+    SystemLogService.log({ 
+      action: "update", 
+      resource: RESOURCES.EVENTS, 
+      resourceId: req.params.id, 
+      resourceName: event.name, 
+      description: `Cập nhật sự kiện "${event.name}"`, 
+      metadata: { changes },
+      req 
+    });
     return sendSuccess(res, 200, "Update event success", event);
   }
 

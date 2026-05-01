@@ -28,8 +28,8 @@ class UserController {
 
   async updateUser(req, res) {
     const user = await getUserForStaffApi(req.user, req.params.id);
-    const staff = await updateUserAccount(req.user, user, req.body || {});
-    SystemLogService.log({ action: "update", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: staff.name, description: `Cập nhật nhân viên "${staff.name}"`, req });
+    const { user: staff, changes } = await updateUserAccount(req.user, user, req.body || {});
+    SystemLogService.log({ action: "update", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: staff.name, description: `Cập nhật nhân viên "${staff.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update staff success", staff);
   }
 

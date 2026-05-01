@@ -6,6 +6,7 @@ const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
+const { computeChanges } = require("../utils/diff");
 
 class EventService {
   async getEvents(queryParams, currentUser) {
@@ -229,6 +230,9 @@ class EventService {
       throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
     }
 
+    // Capture old state for diffing
+    const oldState = event.toObject();
+
     const body = payload;
 
     if (body.name !== undefined) event.name = body.name;
@@ -325,7 +329,13 @@ class EventService {
     if (body.quotas !== undefined) event.quotas = body.quotas;
 
     await event.save();
-    return event;
+
+    // Compute diff
+    const newState = event.toObject();
+    const keysToCheck = ["name", "sub", "group", "stage", "source", "tags", "customer", "biz", "assignee", "plan", "services", "quotas"];
+    const changes = computeChanges(oldState, newState, keysToCheck);
+
+    return { event, changes };
   }
 
   async addEventTimeline(id, entryData, currentUser) {

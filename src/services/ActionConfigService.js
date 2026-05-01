@@ -9,6 +9,7 @@ const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
+const { computeChanges } = require("../utils/diff");
 
 class ActionConfigService {
   // ─── Result CRUD ───
@@ -37,9 +38,11 @@ class ActionConfigService {
   }
 
   async updateResult(id, body) {
+    const oldItem = await Result.findOne({ id }).lean();
+    if (!oldItem) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
     const item = await Result.findOneAndUpdate({ id }, body, { returnDocument: "after" });
-    if (!item) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
-    return item;
+    const changes = computeChanges(oldItem, item, Object.keys(body));
+    return { result: item, changes };
   }
 
   async deleteResult(id, { force = false } = {}) {
@@ -88,9 +91,11 @@ class ActionConfigService {
   }
 
   async updateReason(id, body) {
+    const oldItem = await Reason.findOne({ id }).lean();
+    if (!oldItem) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
     const item = await Reason.findOneAndUpdate({ id }, body, { returnDocument: "after" });
-    if (!item) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
-    return item;
+    const changes = computeChanges(oldItem, item, Object.keys(body));
+    return { reason: item, changes };
   }
 
   async deleteReason(id, { force = false } = {}) {
@@ -139,9 +144,11 @@ class ActionConfigService {
   }
 
   async updateAction(id, body) {
+    const oldItem = await Action.findOne({ id }).lean();
+    if (!oldItem) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
     const item = await Action.findOneAndUpdate({ id }, body, { returnDocument: "after" });
-    if (!item) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
-    return item;
+    const changes = computeChanges(oldItem, item, Object.keys(body));
+    return { action: item, changes };
   }
 
   async deleteAction(id, { force = false } = {}) {
@@ -206,9 +213,11 @@ class ActionConfigService {
   }
 
   async updateActionChain(id, body) {
+    const oldItem = await ActionChain.findOne({ id }).lean();
+    if (!oldItem) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
     const item = await ActionChain.findOneAndUpdate({ id }, body, { returnDocument: "after" });
-    if (!item) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
-    return item;
+    const changes = computeChanges(oldItem, item, Object.keys(body));
+    return { actionChain: item, changes };
   }
 
   async deleteActionChain(id, { force = false } = {}) {
@@ -236,9 +245,11 @@ class ActionConfigService {
   async saveChainRule(id, { steps }) {
     const chain = await ActionChain.findOne({ id });
     if (!chain) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
+    const oldItem = chain.toObject();
     chain.steps = steps;
     await chain.save();
-    return chain;
+    const changes = computeChanges(oldItem, chain, ['steps']);
+    return { actionChain: chain, changes };
   }
 
   // ─── Block Automation CRUD ───
@@ -273,9 +284,11 @@ class ActionConfigService {
   }
 
   async updateBlockAutomation(id, body) {
+    const oldItem = await BlockAutomation.findOne({ id }).lean();
+    if (!oldItem) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
     const item = await BlockAutomation.findOneAndUpdate({ id }, body, { returnDocument: "after" });
-    if (!item) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
-    return item;
+    const changes = computeChanges(oldItem, item, Object.keys(body));
+    return { blockAutomation: item, changes };
   }
 
   async deleteBlockAutomation(id) {

@@ -10,8 +10,12 @@ const { requirePermission } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const { createFunctionSchema } = require("../../validations/functions");
+const SystemLogService = require("../../services/SystemLogService");
+const { RESOURCES } = require("../../constants/rbac");
 
 const router = express.Router();
+
+// ... existing get route ...
 
 router.get(
   "/",
@@ -49,6 +53,7 @@ router.post(
       type,
     });
 
+    SystemLogService.log({ action: "create", resource: RESOURCES.FUNCTIONS, resourceId: item.id, resourceName: title, description: `Tạo chức năng "${title}"`, req });
     return sendSuccess(res, 201, "Create function success", item);
   },
 );

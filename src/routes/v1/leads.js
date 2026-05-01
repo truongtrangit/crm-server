@@ -16,6 +16,8 @@ const {
   updateLeadStatusSchema,
   listLeadsQuerySchema,
 } = require("../../validations/leads");
+const SystemLogService = require("../../services/SystemLogService");
+const { computeChanges } = require("../../utils/diff");
 
 const router = express.Router();
 
@@ -84,6 +86,7 @@ router.post(
       address: payload.address || "",
     });
 
+    SystemLogService.log({ action: "create", resource: RESOURCES.LEADS, resourceId: lead.id, resourceName: lead.name, description: `Tạo cơ hội "${lead.name}"`, req });
     return sendSuccess(res, 201, "Create lead success", lead);
   },
 );
@@ -94,12 +97,13 @@ router.put(
   validate(updateLeadSchema),
   async (req, res) => {
     const lead = await Lead.findOne({ id: req.params.id });
-
     if (!lead) {
       return sendError(res, 404, "Lead not found", {
         code: "LEAD_NOT_FOUND",
       });
     }
+
+    const oldState = lead.toObject();
 
     Object.assign(lead, {
       name: req.body.name ?? lead.name,
@@ -117,6 +121,11 @@ router.put(
     });
 
     await lead.save();
+    
+    const newState = lead.toObject();
+    const changes = computeChanges(oldState, newState, ["name", "avatar", "timeAgo", "tags", "assignee", "status", "actionNeeded", "actionType", "email", "phone", "source", "address"]);
+    SystemLogService.log({ action: "update", resource: RESOURCES.LEADS, resourceId: lead.id, resourceName: lead.name, description: `Cập nhật cơ hội "${lead.name}"`, metadata: { changes }, req });
+
     return sendSuccess(res, 200, "Update lead success", lead);
   },
 );
@@ -134,8 +143,13 @@ router.patch(
       });
     }
 
+    const oldState = lead.toObject();
     lead.status = req.body.status;
     await lead.save();
+
+    const newState = lead.toObject();
+    const changes = computeChanges(oldState, newState, ["status"]);
+    SystemLogService.log({ action: "update", resource: RESOURCES.LEADS, resourceId: lead.id, resourceName: lead.name, description: `Cập nhật trạng thái cơ hội "${lead.name}"`, metadata: { changes }, req });
 
     return sendSuccess(res, 200, "Update lead status success", lead);
   },
@@ -154,6 +168,7 @@ router.delete(
     }
 
     await lead.softDelete();
+    SystemLogService.log({ action: "delete", resource: RESOURCES.LEADS, resourceId: lead.id, description: `Xóa cơ hội ${lead.id}`, req });
     return sendSuccess(res, 200, "Delete lead success", null);
   },
 );

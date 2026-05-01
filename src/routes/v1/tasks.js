@@ -15,6 +15,8 @@ const {
   updateTaskSchema,
   listTasksQuerySchema,
 } = require("../../validations/tasks");
+const SystemLogService = require("../../services/SystemLogService");
+const { computeChanges } = require("../../utils/diff");
 
 const router = express.Router();
 
@@ -90,6 +92,7 @@ router.post(
       status: payload.status || "Đang thực hiện",
     });
 
+    SystemLogService.log({ action: "create", resource: RESOURCES.TASKS, resourceId: task.id, resourceName: action, description: `Tạo công việc "${action}"`, req });
     return sendSuccess(res, 201, "Create task success", task);
   },
 );
@@ -106,6 +109,8 @@ router.put(
         code: "TASK_NOT_FOUND",
       });
     }
+
+    const oldState = task.toObject();
 
     Object.assign(task, {
       action: req.body.action ?? req.body.name ?? task.action,
@@ -125,6 +130,11 @@ router.put(
     });
 
     await task.save();
+    
+    const newState = task.toObject();
+    const changes = computeChanges(oldState, newState, ["action", "time", "timeType", "customer", "platform", "assignee", "status"]);
+    SystemLogService.log({ action: "update", resource: RESOURCES.TASKS, resourceId: task.id, resourceName: task.action, description: `Cập nhật công việc "${task.action}"`, metadata: { changes }, req });
+
     return sendSuccess(res, 200, "Update task success", task);
   },
 );
@@ -142,6 +152,7 @@ router.delete(
     }
 
     await task.softDelete();
+    SystemLogService.log({ action: "delete", resource: RESOURCES.TASKS, resourceId: task.id, description: `Xóa công việc ${task.id}`, req });
     return sendSuccess(res, 200, "Delete task success", null);
   },
 );

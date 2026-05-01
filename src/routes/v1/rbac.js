@@ -12,6 +12,8 @@ const { sendSuccess, sendError } = require("../../utils/http");
 const logger = require("../../utils/logger");
 const { createRoleSchema, updateRoleSchema } = require("../../validations/rbac");
 const CacheService = require("../../services/CacheService");
+const SystemLogService = require("../../services/SystemLogService");
+const { computeChanges } = require("../../utils/diff");
 
 const router = express.Router();
 
@@ -124,6 +126,7 @@ router.post(
     await role.save();
     await CacheService.del("system:metadata");
     logger.info("Role created", { roleId: id, roleName: name, createdBy: req.user.id });
+    SystemLogService.log({ action: "create", resource: RESOURCES.ROLES, resourceId: id, resourceName: name, description: `Tạo vai trò "${name}"`, req });
     return sendSuccess(res, 201, "Create role success", role);
   },
 );
@@ -151,6 +154,7 @@ router.put(
       });
     }
 
+    const oldState = role.toObject();
     const { name, description, permissions, level } = req.body;
 
     if (name) role.name = name;
@@ -159,10 +163,14 @@ router.put(
     if (level !== undefined) role.level = level;
 
     await role.save();
+    const newState = role.toObject();
+    const changes = computeChanges(oldState, newState, ["name", "description", "permissions", "level"]);
+
     await CacheService.del(`rbac:role:${req.params.id}`);
     await CacheService.del("system:metadata");
 
     logger.info("Role updated", { roleId: req.params.id, updatedBy: req.user.id });
+    SystemLogService.log({ action: "update", resource: RESOURCES.ROLES, resourceId: req.params.id, resourceName: role.name, description: `Cập nhật vai trò "${role.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update role success", role);
   },
 );
@@ -211,6 +219,7 @@ router.delete(
     await CacheService.del("system:metadata");
 
     logger.info("Role deleted", { roleId: req.params.id, deletedBy: req.user.id });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ROLES, resourceId: req.params.id, description: `Xóa vai trò ${req.params.id}`, req });
     return sendSuccess(res, 200, "Delete role success", null);
   },
 );

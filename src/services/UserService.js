@@ -29,6 +29,7 @@ const {
   resolveDepartmentReference,
   resolveGroupReference,
 } = require("../utils/organization");
+const { computeChanges } = require("../utils/diff");
 
 const DEFAULT_ROLE_NAME = "STAFF";
 const OWNER_ROLE_NAME = "OWNER";
@@ -720,6 +721,8 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
+  const oldState = targetUser.toObject();
+
   if (payload.password !== undefined) {
     ensurePasswordStrength(payload.password);
     targetUser.passwordHash = await hashPassword(payload.password);
@@ -768,7 +771,12 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   }
 
   await targetUser.save();
-  return serializeUser(targetUser);
+
+  const newState = targetUser.toObject();
+  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "phone", "roleId", "isActive", "managerId"];
+  const changes = computeChanges(oldState, newState, keysToCheck);
+
+  return { user: serializeUser(targetUser), changes };
 }
 
 async function updateOwnProfile(actor, payload = {}) {

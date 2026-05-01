@@ -7,6 +7,7 @@ const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../u
 const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
 const { createHttpError } = require("../utils/http");
 const { getUserRoleName } = require("../utils/rbac");
+const { computeChanges } = require("../utils/diff");
 
 class CustomerService {
   async getCustomers(queryParams, currentUser) {
@@ -101,6 +102,8 @@ class CustomerService {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
     }
 
+    const oldState = existing.toObject();
+
     Object.assign(existing, {
       name: payload.name ?? existing.name,
       avatar: payload.avatar ?? existing.avatar,
@@ -120,7 +123,12 @@ class CustomerService {
     });
 
     await existing.save();
-    return existing;
+
+    const newState = existing.toObject();
+    const keysToCheck = ["name", "avatar", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "lastLoginAt", "tags", "extraInfo", "isActive"];
+    const changes = computeChanges(oldState, newState, keysToCheck);
+
+    return { customer: existing, changes };
   }
 
   async deleteCustomer(id, currentUserId, { force = false } = {}) {
