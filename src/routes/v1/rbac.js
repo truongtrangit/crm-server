@@ -1,19 +1,11 @@
 const express = require("express");
-const Role = require("../../models/Role");
-const User = require("../../models/User");
-const Permission = require("../../models/Permission");
 const {
-  authenticateRequest,
   requirePermission,
 } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
-const { sendSuccess, sendError } = require("../../utils/http");
-const logger = require("../../utils/logger");
 const { createRoleSchema, updateRoleSchema } = require("../../validations/rbac");
-const CacheService = require("../../services/CacheService");
-const SystemLogService = require("../../services/SystemLogService");
-const { computeChanges } = require("../../utils/diff");
+const RbacController = require("../../controllers/RbacController");
 
 const router = express.Router();
 
@@ -26,202 +18,45 @@ const router = express.Router();
 router.get(
   "/roles",
   requirePermission(PERMISSIONS.ROLES_READ),
-  async (req, res) => {
-    const roles = await Role.find();
-    return sendSuccess(res, 200, "Get roles success", roles);
-  },
+  RbacController.getRoles
 );
 
-/**
- * GET /api/rbac/roles/:id
- * Get role by ID with permissions
- */
 router.get(
   "/roles/:id",
   requirePermission(PERMISSIONS.ROLES_READ),
-  async (req, res) => {
-    const role = await Role.findOne({ id: req.params.id });
-
-    if (!role) {
-      return sendError(res, 404, "Role not found", {
-        code: "ROLE_NOT_FOUND",
-      });
-    }
-
-    // Populate permissions
-    const permissions = await Permission.find({
-      id: { $in: role.permissions },
-    });
-    const roleWithPermissions = {
-      ...role.toObject(),
-      permissionsDetails: permissions,
-    };
-
-    return sendSuccess(res, 200, "Get role success", roleWithPermissions);
-  },
+  RbacController.getRoleById
 );
 
-// ==================== PERMISSIONS ROUTES ====================
-
-/**
- * GET /api/permissions
- * Get all permissions (requires PERMISSIONS_READ or OWNER)
- */
 router.get(
   "/",
   requirePermission(PERMISSIONS.PERMISSIONS_READ),
-  async (req, res) => {
-    const permissions = await Permission.find().select("-createdBy");
-    return sendSuccess(res, 200, "Get permissions success", permissions);
-  },
+  RbacController.getPermissions
 );
 
-/**
- * GET /api/permissions/:id
- * Get permission by ID
- */
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.PERMISSIONS_READ),
-  async (req, res) => {
-    const permission = await Permission.findOne({ id: req.params.id });
-
-    if (!permission) {
-      return sendError(res, 404, "Permission not found", {
-        code: "PERMISSION_NOT_FOUND",
-      });
-    }
-
-    return sendSuccess(res, 200, "Get permission success", permission);
-  },
+  RbacController.getPermissionById
 );
 
-/**
- * POST /api/rbac/roles
- * Create new role (requires ROLES_MANAGE)
- */
 router.post(
   "/roles",
   requirePermission(PERMISSIONS.ROLES_MANAGE),
   validate(createRoleSchema),
-  async (req, res) => {
-    const { id, name, description, permissions, level } = req.body;
-
-    const existingRole = await Role.findOne({ id });
-    if (existingRole) {
-      return sendError(res, 409, "Role already exists", {
-        code: "ROLE_ALREADY_EXISTS",
-      });
-    }
-
-    const role = new Role({
-      id,
-      name,
-      description: description || "",
-      permissions: permissions || [],
-      level: level || 0,
-      createdBy: req.user.id,
-    });
-
-    await role.save();
-    await CacheService.del("system:metadata");
-    logger.info("Role created", { roleId: id, roleName: name, createdBy: req.user.id });
-    SystemLogService.log({ action: "create", resource: RESOURCES.ROLES, resourceId: id, resourceName: name, description: `Tạo vai trò "${name}"`, req });
-    return sendSuccess(res, 201, "Create role success", role);
-  },
+  RbacController.createRole
 );
 
-/**
- * PUT /api/rbac/roles/:id
- * Update role (requires ROLES_MANAGE)
- */
 router.put(
   "/roles/:id",
   requirePermission(PERMISSIONS.ROLES_MANAGE),
   validate(updateRoleSchema),
-  async (req, res) => {
-    const role = await Role.findOne({ id: req.params.id });
-
-    if (!role) {
-      return sendError(res, 404, "Role not found", {
-        code: "ROLE_NOT_FOUND",
-      });
-    }
-
-    if (role.isSystem) {
-      return sendError(res, 403, "System roles cannot be modified", {
-        code: "FORBIDDEN",
-      });
-    }
-
-    const oldState = role.toObject();
-    const { name, description, permissions, level } = req.body;
-
-    if (name) role.name = name;
-    if (description !== undefined) role.description = description;
-    if (Array.isArray(permissions)) role.permissions = permissions;
-    if (level !== undefined) role.level = level;
-
-    await role.save();
-    const newState = role.toObject();
-    const changes = computeChanges(oldState, newState, ["name", "description", "permissions", "level"]);
-
-    await CacheService.del(`rbac:role:${req.params.id}`);
-    await CacheService.del("system:metadata");
-
-    logger.info("Role updated", { roleId: req.params.id, updatedBy: req.user.id });
-    SystemLogService.log({ action: "update", resource: RESOURCES.ROLES, resourceId: req.params.id, resourceName: role.name, description: `Cập nhật vai trò "${role.name}"`, metadata: { changes }, req });
-    return sendSuccess(res, 200, "Update role success", role);
-  },
+  RbacController.updateRole
 );
 
-/**
- * DELETE /api/rbac/roles/:id
- * Delete role (requires ROLES_MANAGE)
- */
 router.delete(
   "/roles/:id",
   requirePermission(PERMISSIONS.ROLES_MANAGE),
-  async (req, res) => {
-    const role = await Role.findOne({ id: req.params.id });
-
-    if (!role) {
-      return sendError(res, 404, "Role not found", {
-        code: "ROLE_NOT_FOUND",
-      });
-    }
-
-    if (role.isSystem) {
-      return sendError(res, 403, "System roles cannot be deleted", {
-        code: "FORBIDDEN",
-      });
-    }
-
-    const force = req.query.force === 'true';
-    if (!force) {
-      const usersWithRole = await User.find({ roleId: req.params.id }, { id: 1, name: 1 }).lean();
-      if (usersWithRole.length > 0) {
-        return sendError(res, 409, `Vai trò đang được gán cho ${usersWithRole.length} người dùng`, {
-          code: "RESOURCE_IN_USE",
-          references: usersWithRole.map(u => ({ type: "User", id: u.id, name: u.name })),
-        });
-      }
-    } else {
-      // Force delete: nullify roleId for all users with this role
-      await User.updateMany(
-        { roleId: req.params.id },
-        { $set: { roleId: null } },
-      );
-    }
-
-    await Role.deleteOne({ id: req.params.id });
-    await CacheService.del(`rbac:role:${req.params.id}`);
-    await CacheService.del("system:metadata");
-
-    logger.info("Role deleted", { roleId: req.params.id, deletedBy: req.user.id });
-    SystemLogService.log({ action: "delete", resource: RESOURCES.ROLES, resourceId: req.params.id, description: `Xóa vai trò ${req.params.id}`, req });
-    return sendSuccess(res, 200, "Delete role success", null);
-  },
+  RbacController.deleteRole
 );
 
 module.exports = router;
