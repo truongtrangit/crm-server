@@ -1,5 +1,4 @@
 const { Router } = require("express");
-const asyncHandler = require("../../utils/asyncHandler");
 const {
   verifyWebhookToken,
   checkIpAllowlist,
@@ -13,30 +12,30 @@ const router = Router();
 // 1. IP allowlist check (optional)
 // 2. Bearer token verification
 // 3. Idempotency check (optional delivery ID — auto-generate if missing)
-router.use(checkIpAllowlist, verifyWebhookToken, asyncHandler(checkIdempotency));
+router.use(checkIpAllowlist, verifyWebhookToken, checkIdempotency);
 
 // ─── Webhook Endpoints — 1 API riêng cho mỗi loại event ────────────────────
 // Bên thứ 3 chỉ cần gọi đúng API + gửi payload, không cần gửi eventType.
 
 // POST /api/v1/webhooks/new-login                → User đăng nhập
-router.post("/new-login", asyncHandler(WebhookController.ingest));
+router.post("/new-login", WebhookController.ingest);
 
 // POST /api/v1/webhooks/new-registration       → Khách hàng đăng ký mới
-router.post("/new-registration", asyncHandler(WebhookController.ingest));
+router.post("/new-registration", WebhookController.ingest);
 
 // POST /api/v1/webhooks/new-business            → Khách hàng tạo biz mới
-router.post("/new-business", asyncHandler(WebhookController.ingest));
+router.post("/new-business", WebhookController.ingest);
 
 // POST /api/v1/webhooks/expiring-subscription   → Biz cần gia hạn
-router.post("/expiring-subscription", asyncHandler(WebhookController.ingest));
+router.post("/expiring-subscription", WebhookController.ingest);
 
 // POST /api/v1/webhooks/order-create             → Đơn hàng / subscription mới
-router.post("/order-create", asyncHandler(WebhookController.ingest));
+router.post("/order-create", WebhookController.ingest);
 
 // POST /api/v1/webhooks/order-active             → Kích hoạt đơn hàng (PAID)
-router.post("/order-active", asyncHandler(WebhookController.ingest));
+router.post("/order-active", WebhookController.ingest);
 
 // POST /api/v1/webhooks/upgrade-required        → Biz cần nâng cấp
-router.post("/upgrade-required", asyncHandler(WebhookController.ingest));
+router.post("/upgrade-required", WebhookController.ingest);
 
 module.exports = router;

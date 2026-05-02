@@ -1,5 +1,4 @@
 const { Router } = require("express");
-const asyncHandler = require("../../utils/asyncHandler");
 const LogController = require("../../controllers/LogController");
 const { requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
@@ -10,19 +9,19 @@ const router = Router();
 router.get(
   "/webhook",
   requirePermission(PERMISSIONS.LOGS_READ),
-  asyncHandler(LogController.getWebhookLogs),
+  LogController.getWebhookLogs,
 );
 
 router.get(
   "/system",
   requirePermission(PERMISSIONS.LOGS_READ),
-  asyncHandler(LogController.getSystemLogs),
+  LogController.getSystemLogs,
 );
 
 router.get(
   "/automation",
   requirePermission(PERMISSIONS.LOGS_READ),
-  asyncHandler(LogController.getAutomationLogs),
+  LogController.getAutomationLogs,
 );
 
 module.exports = router;
