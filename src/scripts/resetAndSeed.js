@@ -14,12 +14,12 @@ const mongoose = require("mongoose");
 
 // ─── Models ───
 const Customer        = require("../models/Customer");
-const Lead            = require("../models/Lead");
+
 const Event           = require("../models/Event");
 const Organization    = require("../models/Organization");
 const User            = require("../models/User");
 const StaffFunction   = require("../models/StaffFunction");
-const Task            = require("../models/Task");
+
 const Action          = require("../models/Action");
 const Result          = require("../models/Result");
 const Reason          = require("../models/Reason");
@@ -44,8 +44,7 @@ const MODELS_TO_RESET = [
   { model: EventActionChain, name: "EventActionChain" },
   { model: Event,            name: "Event" },
   { model: Customer,         name: "Customer" },
-  { model: Lead,             name: "Lead" },
-  { model: Task,             name: "Task" },
+
   { model: ActionChain,      name: "ActionChain" },
   { model: Action,           name: "Action" },
   { model: Result,           name: "Result" },
@@ -88,8 +87,7 @@ async function seedCounters() {
     { _id: "ACT",  seq: seedData.actions.length },
     { _id: "CHN",  seq: seedData.actionChains.length },
     { _id: "FUNC", seq: seedData.staffFunctions.length },
-    { _id: "LEAD", seq: seedData.leads.length },
-    { _id: "TASK", seq: seedData.tasks.length },
+
   ];
 
   await Counter.insertMany(counterSeeds);

@@ -3,8 +3,7 @@ const { Router } = require("express");
 const authRouter = require("./auth");
 const customersRouter = require("./customers");
 const usersRouter = require("./users");
-const leadsRouter = require("./leads");
-const tasksRouter = require("./tasks");
+
 const eventsRouter = require("./events");
 const organizationRouter = require("./organization");
 const metadataRouter = require("./metadata");
@@ -29,8 +28,7 @@ v1Router.get("/", (_req, res) =>
       "auth",
       "customers",
       "users",
-      "leads",
-      "tasks",
+
       "events",
       "organization",
       "metadata",
@@ -54,8 +52,7 @@ v1Router.use(authenticateRequest);
 
 v1Router.use("/customers", customersRouter);
 v1Router.use("/users", usersRouter);
-v1Router.use("/leads", leadsRouter);
-v1Router.use("/tasks", tasksRouter);
+
 v1Router.use("/events", eventsRouter);
 v1Router.use("/organization", organizationRouter);
 v1Router.use("/metadata", metadataRouter);
