@@ -7,7 +7,12 @@ const { WEBHOOK_EVENT_TYPES } = require("../constants/webhookEvents");
 const { generateMonotonicId } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
-const { CUSTOMER_TYPES_MAPPING } = require("../constants/appData");
+const {
+  CUSTOMER_TYPES_MAPPING,
+  CUSTOMER_MAIN_TYPES,
+  BIZ_SUB_TYPES,
+  classifyBizSubType,
+} = require("../constants/appData");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 
 /**
@@ -380,82 +385,183 @@ class WebhookService {
 
   /**
    * biz_moi — Khách hàng tạo biz mới.
-   * Tạo Event group 'biz_moi', link tới Customer nếu tìm thấy.
+   *
+   * Logic mới:
+   *   1. Tạo/cập nhật Customer có mainType = 'biz' từ thông tin root payload
+   *      (name, phone, email, alias). subType được suy ra từ order.
+   *   2. Upsert từng user trong payload.users[] thành Customer có mainType = 'user'.
+   *      subType mặc định trống — OWNER/ADMIN/MANAGER sẽ cập nhật sau.
+   *   3. Tạo Subscription từ order (nếu có).
+   *   4. Tạo Event group 'biz_moi' liên kết với biz customer.
    */
   async #processNewBiz(payload) {
-    // ─── 1. Resolve Customer from users array ─────────────────────────────
+    const order = payload.order || {};
     const users = Array.isArray(payload.users) ? payload.users : [];
-    // Ưu tiên user trùng author_id, fallback lấy user đầu tiên
-    const primaryUser =
-      users.find((u) => u.id === payload.author_id) || users[0] || {};
 
-    const userEmail = (primaryUser.email || "").trim().toLowerCase();
-    const userPhone = (primaryUser.phone || "").trim();
-    const userName = primaryUser.name || "";
-    const userAvatar = primaryUser.picture || "";
+    // ─── 1. Upsert BIZ customer ───────────────────────────────────────────
+    const bizEmail = (payload.email || "").trim().toLowerCase();
+    const bizPhone = (payload.phone || "").trim();
+    const bizName = (payload.name || "").trim();
+    const bizAlias = (payload.alias || "").trim();
+    const bizAvatar = payload.picture || "";
+    const subType = classifyBizSubType(order);
 
-    let customer = null;
-    const orConditions = [];
-    if (userEmail) orConditions.push({ email: userEmail });
-    if (userPhone) orConditions.push({ phone: userPhone });
+    let bizCustomer = null;
 
-    if (orConditions.length > 0) {
-      customer = await Customer.findOneWithDeleted({ $or: orConditions });
+    // Dedup biz: prefer alias match, then email/phone
+    if (bizAlias) {
+      bizCustomer = await Customer.findOneWithDeleted({ alias: bizAlias, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+    }
+    if (!bizCustomer && (bizEmail || bizPhone)) {
+      const orConds = [];
+      if (bizEmail) orConds.push({ email: bizEmail, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+      if (bizPhone) orConds.push({ phone: bizPhone, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+      bizCustomer = await Customer.findOneWithDeleted({ $or: orConds });
     }
 
-    // Nếu customer đã bị soft-delete, chỉ log
-    if (customer?.isDeleted) {
-      logger.warn("Biz create — customer was soft-deleted, skipping customer link", {
-        customerId: customer.id,
-        email: userEmail,
+    if (bizCustomer?.isDeleted) {
+      logger.warn("Biz create — biz customer soft-deleted, skipping link", {
+        customerId: bizCustomer.id,
+        alias: bizAlias,
       });
-      customer = null;
+      bizCustomer = null;
     }
 
-    if (!customer && (userEmail || userPhone)) {
-      // Tạo customer mới từ user (dedup by email/phone)
-      const { customer: created, existed } = await this.#findOrCreateCustomer({
-        email: userEmail,
-        phone: userPhone,
-        name: userName || "Unknown",
-        avatar: userAvatar || `https://ui-avatars.com/api/?name=${userName?.split(" ")?.join("+")}&background=random`,
+    if (bizCustomer) {
+      // Update existing biz customer
+      bizCustomer.subType = subType;
+      if (bizName && !bizCustomer.name) bizCustomer.name = bizName;
+      if (bizPhone && !bizCustomer.phone) bizCustomer.phone = bizPhone;
+      if (bizAvatar && !bizCustomer.avatar) bizCustomer.avatar = bizAvatar;
+      bizCustomer.extraInfo = {
+        ...bizCustomer.extraInfo,
+        thirdPartyBizId: payload.id || null,
+        country: payload.country || null,
+        orderType: order.type || null,
+        orderCode: order.code || null,
+        timeEnd: order.time_end || null,
+      };
+      await bizCustomer.save();
+
+      logger.info("Biz create — existing biz customer updated", {
+        customerId: bizCustomer.id,
+        alias: bizAlias,
+        subType,
+      });
+    } else {
+      // Create new biz customer
+      const { customer: created } = await this.#findOrCreateBizCustomer({
+        email: bizEmail,
+        phone: bizPhone,
+        name: bizName || "Unknown Biz",
+        alias: bizAlias,
+        avatar: bizAvatar || `https://ui-avatars.com/api/?name=${bizName?.split(" ")?.join("+")}&background=random`,
+        mainType: CUSTOMER_MAIN_TYPES.BIZ,
+        subType,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
-        biz: [payload.name || ""],
         platforms: ["SmaxAi"],
         registeredAt: payload.created_at
           ? new Date(payload.created_at).toLocaleDateString("vi-VN")
           : "",
-        lastLoginAt: payload.updated_at
-          ? new Date(payload.updated_at).toLocaleDateString("vi-VN")
-          : "",
-        tags: ["#Webhook"],
+        tags: ["#Webhook", `#${order.type || "FREE"}`],
         extraInfo: {
-          thirdPartyId: primaryUser.id || null,
-          roles: primaryUser.role ? [primaryUser.role] : [],
+          thirdPartyBizId: payload.id || null,
           country: payload.country || null,
+          orderType: order.type || null,
+          orderCode: order.code || null,
+          timeEnd: order.time_end || null,
         },
       });
-      customer = created;
+      bizCustomer = created;
 
-      logger.info(`Biz create — customer ${existed ? "found (dedup)" : "created"} from users[]`, {
-        customerId: customer.id,
-        email: userEmail,
+      logger.info("Biz create — new biz customer created", {
+        customerId: bizCustomer.id,
+        alias: bizAlias,
+        subType,
       });
-    } else if (customer) {
-      // Cập nhật biz list cho customer đã tồn tại
-      const bizName = payload.name || "";
-      if (bizName && !customer.biz.includes(bizName)) {
-        customer.biz.push(bizName);
-        await customer.save();
+    }
+
+    // ─── 2. Upsert USER customers from payload.users[] ───────────────────
+    for (const u of users) {
+      const userEmail = (u.email || "").trim().toLowerCase();
+      const userPhone = (u.phone || "").trim();
+      const userName = u.name || "";
+      const userAvatar = u.picture || "";
+
+      if (!userEmail && !userPhone) continue;
+
+      try {
+        const orConds = [];
+        if (userEmail) orConds.push({ email: userEmail });
+        if (userPhone) orConds.push({ phone: userPhone });
+        let userCustomer = await Customer.findOneWithDeleted({ $or: orConds });
+
+        if (userCustomer?.isDeleted) {
+          logger.warn("Biz create — user customer soft-deleted, skipping", {
+            email: userEmail,
+          });
+          continue;
+        }
+
+        if (userCustomer) {
+          // Update: link biz name if not already linked
+          const bizLabel = bizName || bizAlias || "";
+          if (bizLabel && !userCustomer.biz.includes(bizLabel)) {
+            userCustomer.biz.push(bizLabel);
+          }
+          if (!userCustomer.platforms?.includes("SmaxAi")) {
+            userCustomer.platforms = [...(userCustomer.platforms || []), "SmaxAi"];
+          }
+          // Ensure mainType = user (backfill legacy records)
+          if (!userCustomer.mainType || userCustomer.mainType === CUSTOMER_MAIN_TYPES.USER) {
+            userCustomer.mainType = CUSTOMER_MAIN_TYPES.USER;
+          }
+          await userCustomer.save();
+
+          logger.info("Biz create — existing user customer updated", {
+            customerId: userCustomer.id,
+            email: userEmail,
+          });
+        } else {
+          // Create new user customer
+          const { customer: created } = await this.#findOrCreateCustomer({
+            email: userEmail,
+            phone: userPhone,
+            name: userName || "Unknown",
+            avatar: userAvatar || `https://ui-avatars.com/api/?name=${userName?.split(" ")?.join("+")}&background=random`,
+            mainType: CUSTOMER_MAIN_TYPES.USER,
+            subType: "", // default empty — set by staff later
+            type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+            biz: bizName ? [bizName] : [],
+            platforms: ["SmaxAi"],
+            registeredAt: payload.created_at
+              ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+              : "",
+            tags: ["#Webhook"],
+            extraInfo: {
+              thirdPartyId: u.id || null,
+              roles: u.role ? [u.role] : [],
+              country: payload.country || null,
+            },
+          });
+
+          logger.info("Biz create — new user customer created", {
+            customerId: created.id,
+            email: userEmail,
+          });
+        }
+      } catch (err) {
+        logger.error("Biz create — failed to upsert user customer", {
+          email: userEmail,
+          error: err.message,
+        });
       }
     }
 
-    // ─── 2. Resolve Subscription from order ───────────────────────────────
-    const order = payload.order || {};
+    // ─── 3. Resolve Subscription from order ───────────────────────────────
     let subscription = null;
 
     if (order.id) {
-      // Tìm subscription đã tồn tại theo externalId
       subscription = await Subscription.findOne({ externalId: order.id });
 
       if (!subscription) {
@@ -481,7 +587,7 @@ class WebhookService {
           totalCustomers: order.total_customers || 0,
           botAvailable: order.bot_available || false,
           chatAvailable: order.chat_available || false,
-          customerId: customer?.id || null,
+          customerId: bizCustomer?.id || null,
           status,
           metadata: order,
         });
@@ -491,16 +597,13 @@ class WebhookService {
           externalId: order.id,
           planType: order.type,
         });
-      } else {
-        // Nếu đã có, cập nhật customerId nếu chưa link
-        if (!subscription.customerId && customer) {
-          subscription.customerId = customer.id;
-          await subscription.save();
-        }
+      } else if (!subscription.customerId && bizCustomer) {
+        subscription.customerId = bizCustomer.id;
+        await subscription.save();
       }
     }
 
-    // ─── 3. Build plan snapshot cho Event ──────────────────────────────────
+    // ─── 4. Build plan snapshot ────────────────────────────────────────────
     const endDate = order.time_end ? new Date(order.time_end) : null;
     const daysLeft = endDate
       ? Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -514,43 +617,38 @@ class WebhookService {
       expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
     };
 
-    // ─── 4. Build services & quotas ───────────────────────────────────────
+    // ─── 5. Build services & quotas ───────────────────────────────────────
     const services = [
       { name: "Bot", active: order.bot_available || false },
       { name: "Chat", active: order.chat_available || false },
     ];
-    // Thêm modules từ payload
-    // if (Array.isArray(payload.modules)) {
-    //   for (const mod of payload.modules) {
-    //     if (mod.alias) services.push({ name: mod.alias, active: true });
-    //   }
-    // }
 
     const quotas = [
-      { name: "Members", used: (payload.users || []).length, total: order.members || 0, color: "blue" },
+      { name: "Members", used: users.length, total: order.members || 0, color: "blue" },
       { name: "Pages", used: (payload.page_pids || []).length, total: order.pages || 0, color: "green" },
       { name: "Customers", used: order.total_customers || 0, total: order.customers || 0, color: "purple" },
       { name: "Cards", used: order.used_cards || 0, total: order.cards || 0, color: "orange" },
     ];
 
-    // ─── 5. Create Event ──────────────────────────────────────────────────
+    // ─── 6. Create Event ──────────────────────────────────────────────────
+    const primaryUser = users.find((u) => u.id === payload.author_id) || users[0] || {};
     const event = await Event.create({
       id: await generateMonotonicId("EVT"),
-      name: payload.name || payload.alias || "Biz mới",
+      name: bizName || bizAlias || "Biz mới",
       sub: payload.desc || "",
       group: WEBHOOK_EVENT_TYPES.NEW_BUSINESS,
-      customerId: customer?.id || null,
+      customerId: bizCustomer?.id || null,
       customer: {
-        name: customer?.name || userName || "Unknown",
-        avatar: customer?.avatar || userAvatar || "",
+        name: bizCustomer?.name || bizName || "Unknown",
+        avatar: bizCustomer?.avatar || bizAvatar || "",
         role: "",
-        email: customer?.email || userEmail || "",
-        phone: customer?.phone || userPhone || "",
+        email: bizCustomer?.email || bizEmail || "",
+        phone: bizCustomer?.phone || bizPhone || "",
         source: "SmaxAi",
         address: "",
       },
       biz: {
-        id: payload.name || payload.alias || "",
+        id: bizAlias || bizName || "",
         tags: [],
       },
       assigneeId: null,
@@ -567,7 +665,7 @@ class WebhookService {
           type: "event",
           title: "Biz mới tạo từ Webhook",
           time: new Date().toLocaleString("vi-VN"),
-          content: `Biz "${payload.name || payload.alias || "N/A"}" được tạo bởi ${userName || "N/A"} — Gói: ${order.type || "FREE"} (${order.code || "N/A"})`,
+          content: `Biz "${bizName || bizAlias || "N/A"}" được tạo bởi ${primaryUser.name || "N/A"} — Gói: ${order.type || "FREE"} (${order.code || "N/A"}) — Loại: ${subType}`,
           createdBy: "Webhook System",
         },
       ],
@@ -575,7 +673,7 @@ class WebhookService {
 
     return {
       eventId: event.id,
-      customerId: customer?.id || null,
+      customerId: bizCustomer?.id || null,
       event,
     };
   }
@@ -1002,6 +1100,9 @@ class WebhookService {
         avatar:
           data.avatar ||
           `https://ui-avatars.com/api/?name=${data.name?.split(" ")?.join("+")}&background=random`,
+        mainType: data.mainType || CUSTOMER_MAIN_TYPES.USER,
+        subType: data.subType || "",
+        alias: data.alias || "",
         type: data.type || CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         biz: data.biz || [],
         platforms: data.platforms || [],
@@ -1023,6 +1124,81 @@ class WebhookService {
         const fallback = await Customer.findOne(
           orConditions.length > 0 ? { $or: orConditions } : { email },
         );
+        if (fallback) return { customer: fallback, existed: true };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Find-or-create for BIZ customers.
+   * Biz dedup: alias takes priority (biz may share email/phone across accounts).
+   * Falls back to email/phone within mainType=biz scope if no alias.
+   *
+   * @param {object} data — { alias, email, phone, name, mainType, subType, ... }
+   * @returns {{ customer: object, existed: boolean }}
+   */
+  async #findOrCreateBizCustomer(data) {
+    const { alias, email, phone } = data;
+
+    // ─── 1. Try alias first ──────────────────────────────────────────────
+    if (alias) {
+      const byAlias = await Customer.findOne({ alias, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+      if (byAlias) {
+        logger.info("Biz customer dedup — found by alias", { customerId: byAlias.id, alias });
+        return { customer: byAlias, existed: true };
+      }
+    }
+
+    // ─── 2. Try email/phone scoped to biz mainType ───────────────────────
+    const orConditions = [];
+    if (email) orConditions.push({ email, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+    if (phone) orConditions.push({ phone, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+
+    if (orConditions.length > 0) {
+      const existing = await Customer.findOne({ $or: orConditions });
+      if (existing) {
+        logger.info("Biz customer dedup — found by email/phone", { customerId: existing.id });
+        return { customer: existing, existed: true };
+      }
+    }
+
+    // ─── 3. Create new biz customer ──────────────────────────────────────
+    try {
+      const customer = await Customer.create({
+        id: await generateMonotonicId("CUST"),
+        name: data.name || "Unknown Biz",
+        email: email || "",
+        phone: phone || "",
+        avatar:
+          data.avatar ||
+          `https://ui-avatars.com/api/?name=${data.name?.split(" ")?.join("+")}&background=random`,
+        mainType: CUSTOMER_MAIN_TYPES.BIZ,
+        subType: data.subType || "",
+        alias: alias || "",
+        type: data.type || CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+        biz: data.biz || [],
+        platforms: data.platforms || [],
+        group: data.group || "",
+        registeredAt: data.registeredAt || "",
+        lastLoginAt: data.lastLoginAt || "",
+        tags: data.tags || ["#Webhook"],
+        extraInfo: data.extraInfo || {},
+      });
+      return { customer, existed: false };
+    } catch (err) {
+      if (err.code === 11000) {
+        logger.warn("Biz customer dedup — E11000 caught, finding existing", {
+          alias,
+          email,
+          keyPattern: err.keyPattern,
+        });
+        // Try alias first, then email
+        const fallback = alias
+          ? await Customer.findOne({ alias, mainType: CUSTOMER_MAIN_TYPES.BIZ })
+          : orConditions.length > 0
+            ? await Customer.findOne({ $or: orConditions })
+            : null;
         if (fallback) return { customer: fallback, existed: true };
       }
       throw err;

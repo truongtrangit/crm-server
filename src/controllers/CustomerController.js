@@ -26,7 +26,7 @@ class CustomerController {
   }
 
   async updateCustomer(req, res) {
-    const { customer, changes } = await CustomerService.updateCustomer(req.params.id, req.body || {});
+    const { customer, changes } = await CustomerService.updateCustomer(req.params.id, req.body || {}, req.user);
     SystemLogService.log({ action: "update", resource: RESOURCES.CUSTOMERS, resourceId: req.params.id, resourceName: customer.name, description: `Cập nhật khách hàng "${customer.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update customer success", customer);
   }

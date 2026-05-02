@@ -8,10 +8,15 @@ const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assig
 const { createHttpError } = require("../utils/http");
 const { getUserRoleName } = require("../utils/rbac");
 const { computeChanges } = require("../utils/diff");
+const {
+  BIZ_SUB_TYPE_LIST,
+  USER_SUB_TYPE_LIST,
+  CUSTOMER_MAIN_TYPES,
+} = require("../constants/appData");
 
 class CustomerService {
   async getCustomers(queryParams, currentUser) {
-    const { search = "", type, group, platform, includeDeleted } = queryParams;
+    const { search = "", type, group, platform, includeDeleted, mainType, subType } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
     const query = {};
@@ -26,6 +31,14 @@ class CustomerService {
 
     if (type && type !== "All") {
       query.type = type;
+    }
+
+    if (mainType && mainType !== "all") {
+      query.mainType = mainType;
+    }
+
+    if (subType && subType !== "all") {
+      query.subType = subType;
     }
 
     if (group) {
@@ -78,6 +91,9 @@ class CustomerService {
       avatar:
         payload.avatar ||
         `https://i.pravatar.cc/150?u=${encodeURIComponent(payload.email)}`,
+      mainType: payload.mainType || CUSTOMER_MAIN_TYPES.USER,
+      subType: payload.subType || "",
+      alias: payload.alias || "",
       type: payload.type || "Standard Customer",
       email: payload.email,
       phone: payload.phone || "",
@@ -96,10 +112,32 @@ class CustomerService {
     return customer;
   }
 
-  async updateCustomer(id, payload) {
+  async updateCustomer(id, payload, currentUser) {
     const existing = await Customer.findOne({ id });
     if (!existing) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
+    }
+
+    // Only OWNER/ADMIN may change the subType field
+    if (payload.subType !== undefined && payload.subType !== existing.subType) {
+      const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
+      if (!["OWNER", "ADMIN"].includes(roleName)) {
+        throw createHttpError(403, "Chỉ Owner hoặc Admin mới có thể thay đổi phân loại này", {
+          code: "FORBIDDEN_SUBTYPE_UPDATE",
+        });
+      }
+
+      // Validate allowed subType values
+      if (payload.subType !== "") {
+        const isBiz = (payload.mainType || existing.mainType) === CUSTOMER_MAIN_TYPES.BIZ;
+        const allowed = isBiz ? BIZ_SUB_TYPE_LIST : USER_SUB_TYPE_LIST;
+        if (!allowed.includes(payload.subType)) {
+          throw createHttpError(400, `subType không hợp lệ: ${payload.subType}`, {
+            code: "INVALID_SUBTYPE",
+            allowed,
+          });
+        }
+      }
     }
 
     const oldState = existing.toObject();
@@ -107,6 +145,9 @@ class CustomerService {
     Object.assign(existing, {
       name: payload.name ?? existing.name,
       avatar: payload.avatar ?? existing.avatar,
+      mainType: payload.mainType ?? existing.mainType,
+      subType: payload.subType !== undefined ? payload.subType : existing.subType,
+      alias: payload.alias !== undefined ? payload.alias : existing.alias,
       type: payload.type ?? existing.type,
       email: payload.email ?? existing.email,
       phone: payload.phone ?? existing.phone,
@@ -125,7 +166,7 @@ class CustomerService {
     await existing.save();
 
     const newState = existing.toObject();
-    const keysToCheck = ["name", "avatar", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "lastLoginAt", "tags", "extraInfo", "isActive"];
+    const keysToCheck = ["name", "avatar", "mainType", "subType", "alias", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "lastLoginAt", "tags", "extraInfo", "isActive"];
     const changes = computeChanges(oldState, newState, keysToCheck);
 
     return { customer: existing, changes };
