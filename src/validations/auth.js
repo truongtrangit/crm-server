@@ -61,6 +61,7 @@ const updateProfileSchema = Joi.object({
   group: Joi.array().items(Joi.string()).optional(),
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
+  preferences: Joi.object().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
 });

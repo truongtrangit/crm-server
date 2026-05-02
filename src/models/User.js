@@ -57,6 +57,7 @@ const userSchema = new mongoose.Schema(
     passwordReset: { type: passwordResetSchema, default: () => ({}) },
     sessions: { type: [sessionSchema], default: [] },
     isActive: { type: Boolean, default: true },
+    preferences: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   {
     timestamps: true,

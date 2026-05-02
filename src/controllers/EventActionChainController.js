@@ -4,6 +4,7 @@ const Action = require("../models/Action");
 const Event = require("../models/Event");
 const User = require("../models/User");
 const { createHttpError, sendSuccess } = require("../utils/http");
+const { normalizeOrganizationKey } = require("../utils/organization");
 const { ACTION_TYPE_CATEGORY_MAP } = require("../constants/actionConfig");
 const { executeBlockAutomation } = require("../services/BlockAutomationExecutor");
 const SystemLogService = require("../services/SystemLogService");
@@ -423,6 +424,7 @@ class EventActionChainController {
       group,       // nhóm trong phòng ban
       eventGroup,  // nhóm sự kiện (Event.group: user_moi, biz_moi, ...)
       search,      // tìm theo tên KH / NV / sự kiện
+      assignee,    // nhân viên được phân công
     } = req.query;
 
     const now = new Date();
@@ -482,9 +484,16 @@ class EventActionChainController {
     if (department && !isAdminOrOwner && !isManager) {
       // staff không được filter dept → bỏ qua
     } else if (department) {
-      // Tìm users thuộc phòng ban đó, rồi filter events của họ
       const depts = typeof department === "string" ? department.split(',').map(s => s.trim()).filter(Boolean) : department;
-      const deptUsers = await User.find({ department: { $in: Array.isArray(depts) ? depts : [depts] } }).select("id");
+      const deptsArray = Array.isArray(depts) ? depts : [depts];
+      const deptAliases = deptsArray.map(normalizeOrganizationKey);
+
+      const deptUsers = await User.find({
+        $or: [
+          { department: { $in: deptsArray } },
+          { departmentAliases: { $in: deptAliases } }
+        ]
+      }).select("id");
       const deptUserIds = deptUsers.map((u) => u.id);
       eventQuery.assigneeId = { $in: deptUserIds };
     }
@@ -492,15 +501,36 @@ class EventActionChainController {
     // Filter group (nhóm trong phòng ban — chỉ owner/admin/manager)
     if (group && (isAdminOrOwner || isManager)) {
       const grps = typeof group === "string" ? group.split(',').map(s => s.trim()).filter(Boolean) : group;
-      const groupUsers = await User.find({ group: { $in: Array.isArray(grps) ? grps : [grps] } }).select("id");
+      const grpsArray = Array.isArray(grps) ? grps : [grps];
+      const grpAliasesRegex = grpsArray.map(g => new RegExp(normalizeOrganizationKey(g) + "$", "i"));
+
+      const groupUsers = await User.find({
+        $or: [
+          { group: { $in: grpsArray } },
+          { groupAliases: { $in: grpAliasesRegex } }
+        ]
+      }).select("id");
       const groupUserIds = groupUsers.map((u) => u.id);
       // Nếu đã filter dept, giao nhau với assigneeId.$in
-      if (eventQuery.assigneeId) {
+      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
         eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
           groupUserIds.includes(id)
         );
       } else {
         eventQuery.assigneeId = { $in: groupUserIds };
+      }
+    }
+
+    // Filter assignee
+    if (assignee) {
+      const assignees = typeof assignee === "string" ? assignee.split(',').map(s => s.trim()).filter(Boolean) : assignee;
+      const assigneeIds = Array.isArray(assignees) ? assignees : [assignees];
+      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
+        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
+          assigneeIds.includes(id)
+        );
+      } else {
+        eventQuery.assigneeId = { $in: assigneeIds };
       }
     }
 

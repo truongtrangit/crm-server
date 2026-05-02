@@ -307,6 +307,7 @@ function serializeUser(user) {
     roleLabel: formatRoleLabel(item.roleId),
     departmentAliases: item.departmentAliases || [],
     groupAliases: item.groupAliases || [],
+    preferences: item.preferences || {},
   };
 }
 
@@ -807,6 +808,10 @@ async function updateOwnProfile(actor, payload = {}) {
     safePayload.phone !== undefined
       ? normalizeString(safePayload.phone)
       : actor.phone;
+  actor.preferences =
+    safePayload.preferences !== undefined
+      ? safePayload.preferences
+      : actor.preferences;
 
   if ([OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
     const hasDeptPayload =
