@@ -37,7 +37,7 @@ class UserController {
     const user = await getUserForStaffApi(req.user, req.params.id);
     const force = req.query.force === 'true';
     await deleteUserAccount(req.user, user, { force });
-    SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: user.name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} nhân viên "${user.name}"`, req });
+    SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: user.name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} nhân viên "${user.name}"`, metadata: { deletedItem: user }, req });
     return sendSuccess(res, 200, "Delete staff success", null);
   }
 
@@ -48,7 +48,10 @@ class UserController {
   }
 
   async permanentDeleteUser(req, res) {
+    const user = await User.findOne({ id: req.params.id });
+    const name = user ? user.name : req.params.id;
     await permanentDeleteUserAccount(req.user, req.params.id);
+    SystemLogService.log({ action: "force_delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: name, description: `Xóa vĩnh viễn nhân viên "${name}"`, metadata: { deletedItem: user }, req });
     return sendSuccess(res, 200, "Permanent delete staff success", null);
   }
 

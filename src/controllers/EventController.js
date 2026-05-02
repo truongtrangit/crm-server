@@ -84,9 +84,20 @@ class EventController {
     }
 
     const { id, timelineId } = req.params;
-    const event = await EventService.deleteEventTimeline(id, timelineId);
+    const { event, timelineEntry } = await EventService.deleteEventTimeline(id, timelineId);
 
-    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Xoá mục lịch sử/bình luận khỏi sự kiện "${event.name}"`, req });
+    const title = timelineEntry?.title ? `"${timelineEntry.title}"` : "mục lịch sử";
+    const content = timelineEntry?.content ? ` (Nội dung: "${timelineEntry.content.substring(0, 50)}${timelineEntry.content.length > 50 ? '...' : ''}")` : '';
+
+    SystemLogService.log({ 
+      action: "delete", 
+      resource: RESOURCES.EVENTS, 
+      resourceId: event.id, 
+      resourceName: event.name, 
+      description: `Xoá ${title}${content} khỏi sự kiện "${event.name}"`, 
+      metadata: { deletedTimeline: timelineEntry },
+      req 
+    });
 
     return sendSuccess(res, 200, "Xoá bình luận thành công", event);
   }
@@ -165,8 +176,10 @@ class EventController {
   }
 
   async deleteEvent(req, res) {
+    const event = await Event.findOne({ id: req.params.id });
+    const name = event ? event.name : req.params.id;
     await EventService.deleteEvent(req.params.id);
-    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENTS, resourceId: req.params.id, description: `Xóa sự kiện ${req.params.id}`, req });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENTS, resourceId: req.params.id, resourceName: name, description: `Xóa sự kiện "${name}"`, metadata: { deletedItem: event }, req });
     return sendSuccess(res, 200, "Delete event success", null);
   }
 

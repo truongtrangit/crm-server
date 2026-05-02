@@ -63,6 +63,7 @@ class ActionConfigService {
     }
     const deleted = await Result.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
+    return deleted;
   }
 
   // ─── Reason CRUD ───
@@ -116,6 +117,7 @@ class ActionConfigService {
     }
     const deleted = await Reason.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
+    return deleted;
   }
 
   // ─── Action CRUD ───
@@ -179,6 +181,7 @@ class ActionConfigService {
     }
     const deleted = await Action.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
+    return deleted;
   }
 
   // ─── ActionChain CRUD ───
@@ -235,6 +238,7 @@ class ActionConfigService {
     }
     const deleted = await ActionChain.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "ActionChain not found", { code: "CHAIN_NOT_FOUND" });
+    return deleted;
   }
 
   /**
@@ -294,6 +298,7 @@ class ActionConfigService {
   async deleteBlockAutomation(id) {
     const deleted = await BlockAutomation.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
+    return deleted;
   }
 
   /**

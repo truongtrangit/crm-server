@@ -24,8 +24,8 @@ class ActionConfigController {
 
   async deleteResult(req, res) {
     const force = req.query.force === 'true';
-    await ActionConfigService.deleteResult(req.params.id, { force });
-    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, description: `Xóa kết quả ${req.params.id}`, req });
+    const deleted = await ActionConfigService.deleteResult(req.params.id, { force });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, resourceName: deleted.name, description: `Xóa kết quả "${deleted.name}"`, metadata: { deletedItem: deleted }, req });
     return sendSuccess(res, 200, "Delete result success", null);
   }
 
@@ -49,7 +49,8 @@ class ActionConfigController {
 
   async deleteReason(req, res) {
     const force = req.query.force === 'true';
-    await ActionConfigService.deleteReason(req.params.id, { force });
+    const deleted = await ActionConfigService.deleteReason(req.params.id, { force });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, resourceName: deleted.name, description: `Xóa lý do "${deleted.name}"`, metadata: { deletedItem: deleted }, req });
     return sendSuccess(res, 200, "Delete reason success", null);
   }
 
@@ -73,7 +74,8 @@ class ActionConfigController {
 
   async deleteAction(req, res) {
     const force = req.query.force === 'true';
-    await ActionConfigService.deleteAction(req.params.id, { force });
+    const deleted = await ActionConfigService.deleteAction(req.params.id, { force });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, resourceName: deleted.name, description: `Xóa hành động "${deleted.name}"`, metadata: { deletedItem: deleted }, req });
     return sendSuccess(res, 200, "Delete action success", null);
   }
 
@@ -102,7 +104,8 @@ class ActionConfigController {
 
   async deleteActionChain(req, res) {
     const force = req.query.force === 'true';
-    await ActionConfigService.deleteActionChain(req.params.id, { force });
+    const deleted = await ActionConfigService.deleteActionChain(req.params.id, { force });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, resourceName: deleted.name, description: `Xóa chuỗi hành động "${deleted.name}"`, metadata: { deletedItem: deleted }, req });
     return sendSuccess(res, 200, "Delete action chain success", null);
   }
 
@@ -139,8 +142,8 @@ class ActionConfigController {
   }
 
   async deleteBlockAutomation(req, res) {
-    await ActionConfigService.deleteBlockAutomation(req.params.id);
-    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, description: `Xóa Block Automation ${req.params.id}`, req });
+    const deleted = await ActionConfigService.deleteBlockAutomation(req.params.id);
+    SystemLogService.log({ action: "delete", resource: RESOURCES.ACTIONS_CFG, resourceId: req.params.id, resourceName: deleted.name, description: `Xóa Block Automation "${deleted.name}"`, metadata: { deletedItem: deleted }, req });
     return sendSuccess(res, 200, "Delete block automation success", null);
   }
 

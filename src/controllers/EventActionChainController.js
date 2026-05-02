@@ -404,7 +404,7 @@ class EventActionChainController {
     }
 
     await EventActionChain.deleteOne({ id: chainId, eventId });
-    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENT_CHAINS, resourceId: chainId, resourceName: chain.name, description: `Xóa chuỗi hành động "${chain.name}" khỏi sự kiện ${eventId}`, req });
+    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENT_CHAINS, resourceId: chainId, resourceName: chain.name, description: `Xóa chuỗi hành động "${chain.name}" khỏi sự kiện ${eventId}`, metadata: { deletedItem: chain }, req });
     return sendSuccess(res, 200, "Xóa chuỗi hành động thành công", null);
   }
 

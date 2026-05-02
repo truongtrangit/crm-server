@@ -365,6 +365,8 @@ class EventService {
     }
 
     const initialLength = event.timeline.length;
+    const timelineEntry = event.timeline.find((entry) => entry._id.toString() === timelineId);
+    
     event.timeline = event.timeline.filter((entry) => entry._id.toString() !== timelineId);
 
     if (event.timeline.length === initialLength) {
@@ -372,7 +374,7 @@ class EventService {
     }
 
     await event.save();
-    return event;
+    return { event, timelineEntry };
   }
 
   async deleteEvent(id) {
