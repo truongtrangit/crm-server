@@ -15,6 +15,27 @@ const evtId    = IDS.EVT1;
 const chainUrl = (extId = IDS.CHAIN1) => `${BASE_EVT}/${evtId}/chains/${extId}`;
 let clonedChainId = null; // ID of the EventActionChain created by POST
 
+const Event = require("../../src/models/Event");
+const EventActionChain = require("../../src/models/EventActionChain");
+const { clearTokenCache } = require("../utils/testHelpers");
+
+beforeAll(async () => {
+  clearTokenCache();
+  // Restore EVT1 to its pristine state in case other test files mutated or deleted it
+  await Event.deleteOne({ id: IDS.EVT1 });
+  await EventActionChain.deleteMany({ eventId: IDS.EVT1 });
+  await Event.create({
+    id: IDS.EVT1,
+    name: "Test Event Assigned",
+    group: "user_moi",
+    stage: "Tiếp cận",
+    customer: { name: "Test Customer VIP", email: "vip@test.com", phone: "0901 000 111" },
+    customerId: IDS.CUST1,
+    assigneeId: IDS.USER_STAFF1,
+    assignee: { name: "Test Staff One", avatar: "", role: "Nhân viên" },
+  });
+});
+
 // ─── Add Chain to Event ───────────────────────────────────────────────────────
 describe("POST /events/:id/chains (add chain to event)", () => {
   it("✅ MANAGER adds active chain to event → 201", async () => {
