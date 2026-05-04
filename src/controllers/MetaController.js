@@ -127,6 +127,32 @@ class MetaController {
     return sendSuccess(res, 201, "Cập nhật tiến độ thành công", program);
   }
 
+  async updateMilestone(req, res) {
+    const program = await MetaService.updateMilestone(req.params.id, req.params.milestoneId, req.body, req.user);
+    SystemLogService.log({
+      action: "update",
+      resource: RESOURCES.META,
+      resourceId: req.params.id,
+      resourceName: req.params.id,
+      description: `Cập nhật tiến độ "${req.params.id}"`,
+      req,
+    });
+    return sendSuccess(res, 200, "Cập nhật tiến độ thành công", program);
+  }
+
+  async deleteMilestone(req, res) {
+    const program = await MetaService.deleteMilestone(req.params.id, req.params.milestoneId, req.user);
+    SystemLogService.log({
+      action: "delete",
+      resource: RESOURCES.META,
+      resourceId: req.params.id,
+      resourceName: req.params.id,
+      description: `Xóa tiến độ "${req.params.id}"`,
+      req,
+    });
+    return sendSuccess(res, 200, "Xóa tiến độ thành công", program);
+  }
+
   // ─── Tasks ──────────────────────────────────────────────────────────────────
 
   async addTask(req, res) {

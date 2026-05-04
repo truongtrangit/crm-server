@@ -11,6 +11,7 @@ const {
   updateMetaProgramSchema,
   listMetaProgramsQuerySchema,
   addMilestoneSchema,
+  updateMilestoneSchema,
   createTaskSchema,
   updateTaskSchema,
   addAttachmentSchema,
@@ -88,6 +89,19 @@ router.post(
   requirePermission(PERMISSIONS.META_UPDATE),
   validate(addMilestoneSchema),
   asyncHandler(MetaController.addMilestone),
+);
+
+router.put(
+  "/programs/:id/milestones/:milestoneId",
+  requirePermission(PERMISSIONS.META_UPDATE),
+  validate(updateMilestoneSchema),
+  asyncHandler(MetaController.updateMilestone),
+);
+
+router.delete(
+  "/programs/:id/milestones/:milestoneId",
+  requirePermission(PERMISSIONS.META_UPDATE),
+  asyncHandler(MetaController.deleteMilestone),
 );
 
 // ─── Task routes ─────────────────────────────────────────────────────────────

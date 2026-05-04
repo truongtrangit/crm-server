@@ -59,6 +59,7 @@ const createMetaProgramSchema = Joi.object({
     "date.min": "Ngày kết thúc phải sau ngày bắt đầu",
   }),
   picIds: Joi.array().items(Joi.string()).optional(),
+  description: Joi.string().allow("").optional(),
   descriptionHtml: Joi.string().allow("").optional(),
   kpiTargets: Joi.array().items(kpiTargetSchema).optional(),
 });
@@ -73,6 +74,7 @@ const updateMetaProgramSchema = Joi.object({
   startDate: Joi.date().iso().optional(),
   endDate: Joi.date().iso().optional(),
   picIds: Joi.array().items(Joi.string()).optional(),
+  description: Joi.string().allow("").optional(),
   descriptionHtml: Joi.string().allow("").optional(),
   kpiTargets: Joi.array().items(kpiTargetSchema).optional(),
 })
@@ -92,10 +94,20 @@ const listMetaProgramsQuerySchema = Joi.object({
 // ─── Milestone ────────────────────────────────────────────────────────────────
 
 const addMilestoneSchema = Joi.object({
+  name: Joi.string().trim().allow("").optional(),
   metricName: Joi.string().trim().required(),
-  valueAdded: Joi.number().min(0).required(),
+  valueAdded: Joi.number().required(),
+  date: Joi.date().iso().optional(),
   note: Joi.string().allow("").optional(),
 });
+
+const updateMilestoneSchema = Joi.object({
+  name: Joi.string().trim().allow("").optional(),
+  valueAdded: Joi.number().optional(),
+  totalCurrent: Joi.number().optional(),
+  date: Joi.date().iso().optional(),
+  note: Joi.string().allow("").optional(),
+}).min(1).messages({ "object.min": "Cần ít nhất 1 trường để cập nhật" });
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
 
@@ -105,6 +117,7 @@ const createTaskSchema = Joi.object({
   }),
   picId: Joi.string().allow("", null).optional(),
   picName: Joi.string().allow("").optional(),
+  description: Joi.string().allow("").optional(),
   deadline: Joi.date().iso().allow(null).optional(),
 });
 
@@ -112,6 +125,7 @@ const updateTaskSchema = Joi.object({
   title: Joi.string().trim().optional(),
   picId: Joi.string().allow("", null).optional(),
   picName: Joi.string().allow("").optional(),
+  description: Joi.string().allow("").optional(),
   deadline: Joi.date().iso().allow(null).optional(),
   isCompleted: Joi.boolean().optional(),
 })
@@ -137,6 +151,7 @@ module.exports = {
   updateMetaProgramSchema,
   listMetaProgramsQuerySchema,
   addMilestoneSchema,
+  updateMilestoneSchema,
   createTaskSchema,
   updateTaskSchema,
   addAttachmentSchema,

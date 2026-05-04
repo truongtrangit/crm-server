@@ -13,9 +13,11 @@ const kpiTargetSchema = new mongoose.Schema(
 
 const milestoneSchema = new mongoose.Schema(
   {
+    name: { type: String, default: "" },
     metricName: { type: String, required: true },
     valueAdded: { type: Number, default: 0 },
     totalCurrent: { type: Number, default: 0 },
+    date: { type: Date, default: Date.now },
     note: { type: String, default: "" },
     createdBy: { type: String, default: "" },
   },
@@ -27,6 +29,7 @@ const taskSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     picId: { type: String, default: null },
     picName: { type: String, default: "" },
+    description: { type: String, default: "" },
     deadline: { type: Date, default: null },
     isCompleted: { type: Boolean, default: false },
     completedAt: { type: Date, default: null },
@@ -60,11 +63,12 @@ const metaProgramSchema = new mongoose.Schema(
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     picIds: { type: [String], default: [] },
+    description: { type: String, default: "" },
     descriptionHtml: { type: String, default: "" },
     /** KPI targets — only used when the linked MetaConfig.kpiType = 'metric' */
     kpiTargets: { type: [kpiTargetSchema], default: [] },
-    /** Computed progress percentage (0–100) */
-    progressPercent: { type: Number, default: 0, min: 0, max: 100 },
+    /** Computed progress percentage (0–100+) */
+    progressPercent: { type: Number, default: 0, min: 0 },
     /** Milestone history for metric updates */
     milestones: { type: [milestoneSchema], default: [] },
     /** Checklist tasks */

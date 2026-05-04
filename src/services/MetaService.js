@@ -192,6 +192,7 @@ class MetaService {
       startDate: payload.startDate,
       endDate: payload.endDate,
       picIds: payload.picIds || [],
+      description: payload.description || "",
       descriptionHtml: payload.descriptionHtml || "",
       kpiTargets: payload.kpiTargets || [],
       progressPercent: 0,
@@ -230,6 +231,7 @@ class MetaService {
       "startDate",
       "endDate",
       "picIds",
+      "description",
       "descriptionHtml",
     ];
     for (const f of fields) {
@@ -304,12 +306,85 @@ class MetaService {
     target.current = (target.current || 0) + payload.valueAdded;
 
     program.milestones.unshift({
+      name: payload.name || "",
       metricName: payload.metricName,
       valueAdded: payload.valueAdded,
       totalCurrent: target.current,
+      date: payload.date || new Date(),
       note: payload.note || "",
       createdBy: currentUser?.name || "",
     });
+
+    this._recalculateProgress(program);
+    await program.save();
+    return program;
+  }
+
+  async updateMilestone(programId, milestoneId, payload, currentUser) {
+    const program = await MetaProgram.findOne({ id: programId });
+    if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });
+    this._checkAccess(program, currentUser);
+
+    const role = (currentUser.roleId || "").toUpperCase();
+    if (!["OWNER", "ADMIN"].includes(role)) {
+      throw createHttpError(403, "Chỉ Owner/Admin mới có quyền sửa/xoá tiến độ", { code: "META_FORBIDDEN" });
+    }
+
+    const milestone = program.milestones.id(milestoneId);
+    if (!milestone) throw createHttpError(404, "Cột mốc không tồn tại", { code: "META_MILESTONE_NOT_FOUND" });
+
+    if (payload.name !== undefined) milestone.name = payload.name;
+    if (payload.date !== undefined) milestone.date = payload.date;
+    if (payload.note !== undefined) milestone.note = payload.note;
+    if (payload.totalCurrent !== undefined) milestone.totalCurrent = payload.totalCurrent;
+    if (payload.valueAdded !== undefined) milestone.valueAdded = payload.valueAdded;
+
+    const target = program.kpiTargets.find(t => t.metricName === milestone.metricName);
+    if (target) {
+      const sortedMilestones = program.milestones
+        .filter(m => m.metricName === milestone.metricName)
+        .sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+      
+      if (sortedMilestones.length > 0) {
+        target.current = sortedMilestones[0].totalCurrent;
+      } else {
+        target.current = 0;
+      }
+    }
+
+    this._recalculateProgress(program);
+    await program.save();
+    return program;
+  }
+
+  async deleteMilestone(programId, milestoneId, currentUser) {
+    const program = await MetaProgram.findOne({ id: programId });
+    if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });
+    this._checkAccess(program, currentUser);
+
+    const role = (currentUser.roleId || "").toUpperCase();
+    if (!["OWNER", "ADMIN"].includes(role)) {
+      throw createHttpError(403, "Chỉ Owner/Admin mới có quyền sửa/xoá tiến độ", { code: "META_FORBIDDEN" });
+    }
+
+    const milestone = program.milestones.id(milestoneId);
+    if (!milestone) throw createHttpError(404, "Cột mốc không tồn tại", { code: "META_MILESTONE_NOT_FOUND" });
+
+    const metricName = milestone.metricName;
+    program.milestones.pull({ _id: milestoneId });
+
+    const target = program.kpiTargets.find(t => t.metricName === metricName);
+    if (target) {
+      const sortedMilestones = program.milestones
+        .filter(m => m.metricName === metricName)
+        .sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+      
+      if (sortedMilestones.length > 0) {
+        target.current = sortedMilestones[0].totalCurrent;
+      } else {
+        target.current = 0;
+      }
+    }
 
     this._recalculateProgress(program);
     await program.save();
@@ -332,6 +407,7 @@ class MetaService {
       title: payload.title,
       picId: payload.picId || null,
       picName: payload.picName || "",
+      description: payload.description || "",
       deadline: payload.deadline || null,
       isCompleted: false,
     });
@@ -361,6 +437,7 @@ class MetaService {
     if (payload.title !== undefined) task.title = payload.title;
     if (payload.picId !== undefined) task.picId = payload.picId;
     if (payload.picName !== undefined) task.picName = payload.picName;
+    if (payload.description !== undefined) task.description = payload.description;
     if (payload.deadline !== undefined) task.deadline = payload.deadline;
     if (payload.isCompleted !== undefined) {
       task.isCompleted = payload.isCompleted;
@@ -470,7 +547,7 @@ class MetaService {
       }
       const total = program.kpiTargets.reduce((sum, t) => {
         if (t.target <= 0) return sum;
-        return sum + Math.min((t.current / t.target) * 100, 100);
+        return sum + (t.current / t.target) * 100;
       }, 0);
       program.progressPercent = Math.round(
         total / program.kpiTargets.length,
