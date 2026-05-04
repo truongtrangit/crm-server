@@ -18,6 +18,7 @@ const RESOURCES = {
   METADATA: "metadata",
   FUNCTIONS: "functions",
   LOGS: "logs",                   // System / Automation / Webhook logs (read-only)
+  META: "meta",                    // Meta integration programs
 };
 
 // Actions
@@ -108,6 +109,13 @@ const PERMISSIONS = {
 
   // Logs (read-only — append-only audit trail, no create/update/delete via API)
   LOGS_READ: `${RESOURCES.LOGS}_${ACTIONS.READ}`,
+
+  // Meta integration
+  META_CREATE: `${RESOURCES.META}_${ACTIONS.CREATE}`,
+  META_READ:   `${RESOURCES.META}_${ACTIONS.READ}`,
+  META_UPDATE: `${RESOURCES.META}_${ACTIONS.UPDATE}`,
+  META_DELETE: `${RESOURCES.META}_${ACTIONS.DELETE}`,
+  META_MANAGE: `${RESOURCES.META}_${ACTIONS.MANAGE}`,
 };
 
 // Role definitions with their permissions
@@ -136,6 +144,7 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.FUNCTIONS_MANAGE,
       PERMISSIONS.ACTIONS_CFG_MANAGE,
       PERMISSIONS.LOGS_READ,
+      PERMISSIONS.META_MANAGE,
     ],
   },
   MANAGER: {
@@ -167,9 +176,12 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.ORGANIZATION_READ,
       PERMISSIONS.METADATA_READ,
       PERMISSIONS.FUNCTIONS_READ,
-      PERMISSIONS.ACTIONS_CFG_CREATE,
       PERMISSIONS.ACTIONS_CFG_READ,
       PERMISSIONS.ACTIONS_CFG_UPDATE,
+      PERMISSIONS.META_CREATE,
+      PERMISSIONS.META_READ,
+      PERMISSIONS.META_UPDATE,
+      PERMISSIONS.META_DELETE,
     ],
   },
   STAFF: {
@@ -194,6 +206,10 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.EVENT_CHAINS_DELETE,
       PERMISSIONS.METADATA_READ,
       PERMISSIONS.ACTIONS_CFG_READ,
+      PERMISSIONS.ACTIONS_CFG_UPDATE,
+      PERMISSIONS.META_READ,
+      PERMISSIONS.META_CREATE,
+      PERMISSIONS.META_UPDATE,
     ],
   },
 };
