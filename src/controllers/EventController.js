@@ -4,29 +4,7 @@ const { sendSuccess, sendError } = require("../utils/http");
 const SystemLogService = require("../services/SystemLogService");
 const { RESOURCES } = require("../constants/rbac");
 
-// Roles that bypass ownership check (can update any event)
-const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
-
-/**
- * Check if the current user is a STAFF and the event is NOT assigned to them.
- * Returns the event doc so it can be reused. Throws/returns null on not-found.
- */
-async function checkEventOwnership(req, res) {
-  const roleId = (req.user?.roleId || '').toUpperCase();
-  if (ELEVATED_ROLES.includes(roleId)) return true; // bypass
-
-  // STAFF: phải là người được assign
-  const event = await Event.findOne({ id: req.params.id });
-  if (!event) {
-    sendError(res, 404, "Event not found");
-    return false;
-  }
-  if (event.assigneeId !== req.user.id) {
-    sendError(res, 403, "Bạn chỉ có thể cập nhật sự kiện được giao cho bạn");
-    return false;
-  }
-  return true;
-}
+// Ownership check is now handled in EventService
 
 class EventController {
   async getEvents(req, res) {
@@ -51,8 +29,7 @@ class EventController {
   }
 
   async updateEvent(req, res) {
-    const allowed = await checkEventOwnership(req, res);
-    if (!allowed) return;
+    await EventService.checkEventOwnership(req.params.id, req.user);
     const { event, changes } = await EventService.updateEvent(req.params.id, req.body || {});
     SystemLogService.log({ 
       action: "update", 
@@ -67,8 +44,7 @@ class EventController {
   }
 
   async addEventTimeline(req, res) {
-    const allowed = await checkEventOwnership(req, res);
-    if (!allowed) return;
+    await EventService.checkEventOwnership(req.params.id, req.user);
     const payload = req.body || {};
     const event = await EventService.addEventTimeline(req.params.id, payload, req.user);
     
@@ -103,48 +79,9 @@ class EventController {
   }
 
 
-  /**
-   * Unassign người phụ trách khỏi event.
-   * - OWNER / ADMIN : unassign bất kỳ ai
-   * - MANAGER       : unassign chính mình hoặc staff trực thuộc
-   * - STAFF         : chỉ unassign chính mình (event.assigneeId === req.user.id)
-   */
   async unassignEvent(req, res) {
-    const actorRole = (req.user?.roleId || '').toUpperCase();
-
-    const event = await Event.findOne({ id: req.params.id });
-    if (!event) return sendError(res, 404, 'Event not found');
-
-    if (!event.assigneeId) {
-      return sendError(res, 400, 'Sự kiện này chưa có người phụ trách');
-    }
-
-    // STAFF: chỉ được bỏ chính mình
-    if (actorRole === 'STAFF') {
-      if (event.assigneeId !== req.user.id) {
-        return sendError(res, 403, 'Bạn chỉ có thể bỏ nhận sự kiện của chính mình');
-      }
-    }
-
-    // MANAGER: chỉ bỏ được chính mình hoặc staff trực thuộc
-    if (actorRole === 'MANAGER') {
-      const isSelf = event.assigneeId === req.user.id;
-      if (!isSelf) {
-        const User = require('../models/User');
-        const assigneeUser = await User.findOne({ id: event.assigneeId });
-        const isDirectStaff = assigneeUser?.managerId === req.user.id;
-        if (!isDirectStaff) {
-          return sendError(res, 403, 'Bạn chỉ có thể bỏ phân công của chính bạn hoặc nhân viên trực thuộc');
-        }
-      }
-    }
-
-    // Thực hiện unassign
-    const prevAssigneeName = event.assignee?.name || event.assigneeId;
-    event.assigneeId = null;
-    event.assignee = { name: '', avatar: '', role: '', department: [], group: [] };
-    await event.save();
-    SystemLogService.log({ action: "unassign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Bỏ phân công "${prevAssigneeName}" khỏi sự kiện "${event.name}"`, req });
+    const event = await EventService.unassignEvent(req.params.id, req.user);
+    SystemLogService.log({ action: "unassign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Bỏ phân công khỏi sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Unassign thành công', event);
   }
 
@@ -154,23 +91,7 @@ class EventController {
    * - Chỉ cho phép khi event.assigneeId === null
    */
   async selfAssignEvent(req, res) {
-    const event = await Event.findOne({ id: req.params.id });
-    if (!event) return sendError(res, 404, 'Event not found');
-
-    if (event.assigneeId) {
-      return sendError(res, 409, 'Sự kiện này đã có người phụ trách');
-    }
-
-    const actor = req.user;
-    event.assigneeId = actor.id;
-    event.assignee = {
-      name: actor.name || '',
-      avatar: actor.avatar || '',
-      role: actor.roleId || '',
-      department: actor.department || [],
-      group: actor.group || [],
-    };
-    await event.save();
+    const event = await EventService.selfAssignEvent(req.params.id, req.user);
     SystemLogService.log({ action: "assign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tự nhận sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Tự nhận sự kiện thành công', event);
   }

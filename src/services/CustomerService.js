@@ -229,6 +229,7 @@ class CustomerService {
     }
 
     await customer.softDelete();
+    return customer;
   }
 
   async assignCustomer(customerId, assignData, currentUser) {
@@ -380,6 +381,7 @@ class CustomerService {
     );
 
     await customer.deleteOne();
+    return customer;
   }
 }
 

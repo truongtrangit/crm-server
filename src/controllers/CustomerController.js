@@ -33,10 +33,8 @@ class CustomerController {
 
   async deleteCustomer(req, res) {
     const force = req.query.force === 'true';
-    const Customer = require("../models/Customer");
-    const customer = await Customer.findOne({ id: req.params.id });
+    const customer = await CustomerService.deleteCustomer(req.params.id, req.user?.id, { force });
     const name = customer ? customer.name : req.params.id;
-    await CustomerService.deleteCustomer(req.params.id, req.user?.id, { force });
     SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.CUSTOMERS, resourceId: req.params.id, resourceName: name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} khách hàng "${name}"`, metadata: { deletedItem: customer }, req });
     return sendSuccess(res, 200, "Delete customer success", null);
   }
@@ -61,10 +59,8 @@ class CustomerController {
   }
 
   async permanentDeleteCustomer(req, res) {
-    const Customer = require("../models/Customer");
-    const customer = await Customer.findOne({ id: req.params.id });
+    const customer = await CustomerService.permanentDeleteCustomer(req.params.id);
     const name = customer ? customer.name : req.params.id;
-    await CustomerService.permanentDeleteCustomer(req.params.id);
     SystemLogService.log({ action: "force_delete", resource: RESOURCES.CUSTOMERS, resourceId: req.params.id, resourceName: name, description: `Xóa vĩnh viễn khách hàng "${name}"`, metadata: { deletedItem: customer }, req });
     return sendSuccess(res, 200, "Permanent delete customer success", null);
   }
