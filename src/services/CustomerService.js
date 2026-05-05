@@ -97,7 +97,9 @@ class CustomerService {
       type: payload.type || "Standard Customer",
       email: payload.email,
       phone: payload.phone || "",
-      biz: Array.isArray(payload.biz) ? payload.biz.filter(Boolean) : [],
+      biz: (payload.mainType || CUSTOMER_MAIN_TYPES.USER) === CUSTOMER_MAIN_TYPES.BIZ 
+        ? [] 
+        : (Array.isArray(payload.biz) ? payload.biz.filter(Boolean) : []),
       platforms: Array.isArray(payload.platforms)
         ? payload.platforms.filter(Boolean)
         : [],
@@ -151,7 +153,9 @@ class CustomerService {
       type: payload.type ?? existing.type,
       email: payload.email ?? existing.email,
       phone: payload.phone ?? existing.phone,
-      biz: Array.isArray(payload.biz) ? payload.biz : existing.biz,
+      biz: (payload.mainType ?? existing.mainType) === CUSTOMER_MAIN_TYPES.BIZ 
+        ? [] 
+        : (Array.isArray(payload.biz) ? payload.biz : existing.biz),
       platforms: Array.isArray(payload.platforms)
         ? payload.platforms
         : existing.platforms,
