@@ -333,11 +333,24 @@ class MetaService {
     const milestone = program.milestones.id(milestoneId);
     if (!milestone) throw createHttpError(404, "Cột mốc không tồn tại", { code: "META_MILESTONE_NOT_FOUND" });
 
-    if (payload.name !== undefined) milestone.name = payload.name;
-    if (payload.date !== undefined) milestone.date = payload.date;
-    if (payload.note !== undefined) milestone.note = payload.note;
-    if (payload.totalCurrent !== undefined) milestone.totalCurrent = payload.totalCurrent;
-    if (payload.valueAdded !== undefined) milestone.valueAdded = payload.valueAdded;
+    const changes = {};
+    const fields = ["name", "date", "note", "totalCurrent", "valueAdded"];
+    for (const f of fields) {
+      if (payload[f] !== undefined) {
+        let changed = false;
+        const oldVal = milestone[f];
+        const newVal = payload[f];
+        if (oldVal instanceof Date) {
+          if (new Date(newVal).getTime() !== new Date(oldVal).getTime()) changed = true;
+        } else {
+          if (oldVal !== newVal) changed = true;
+        }
+        if (changed) {
+          changes[f] = { old: oldVal, new: newVal };
+          milestone[f] = newVal;
+        }
+      }
+    }
 
     const target = program.kpiTargets.find(t => t.metricName === milestone.metricName);
     if (target) {
@@ -354,7 +367,7 @@ class MetaService {
 
     this._recalculateProgress(program);
     await program.save();
-    return program;
+    return { program, changes };
   }
 
   async deleteMilestone(programId, milestoneId, currentUser) {
@@ -434,19 +447,33 @@ class MetaService {
       });
     }
 
-    if (payload.title !== undefined) task.title = payload.title;
-    if (payload.picId !== undefined) task.picId = payload.picId;
-    if (payload.picName !== undefined) task.picName = payload.picName;
-    if (payload.description !== undefined) task.description = payload.description;
-    if (payload.deadline !== undefined) task.deadline = payload.deadline;
+    const changes = {};
+    const fields = ["title", "picId", "picName", "description", "deadline", "isCompleted"];
+    for (const f of fields) {
+      if (payload[f] !== undefined) {
+        let changed = false;
+        const oldVal = task[f];
+        const newVal = payload[f];
+        if (oldVal instanceof Date) {
+          if (newVal === null) changed = true;
+          else if (new Date(newVal).getTime() !== new Date(oldVal).getTime()) changed = true;
+        } else {
+          if (oldVal !== newVal) changed = true;
+        }
+        if (changed) {
+          changes[f] = { old: oldVal, new: newVal };
+          task[f] = newVal;
+        }
+      }
+    }
+    
     if (payload.isCompleted !== undefined) {
-      task.isCompleted = payload.isCompleted;
       task.completedAt = payload.isCompleted ? new Date() : null;
     }
 
     this._recalculateProgress(program);
     await program.save();
-    return program;
+    return { program, changes };
   }
 
   async deleteTask(programId, taskId, currentUser) {

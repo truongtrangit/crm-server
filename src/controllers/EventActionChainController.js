@@ -119,7 +119,7 @@ class EventActionChainController {
     });
 
     await chain.save();
-    SystemLogService.log({ action: "create", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Thêm chuỗi hành động "${chain.name}" vào sự kiện ${eventId}`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Thêm chuỗi hành động "${chain.name}" vào sự kiện ${eventId}`, metadata: { newItem: chain }, req });
     return sendSuccess(res, 201, "Thêm chuỗi hành động thành công", chain);
   }
 
@@ -366,7 +366,7 @@ class EventActionChainController {
     if (current && !current.isLocked) current.status = "skipped";
     chain.markModified("steps");
     await chain.save();
-    SystemLogService.log({ action: "update", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Đóng chuỗi hành động "${chain.name}"`, req });
+    SystemLogService.log({ action: "update", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Đóng chuỗi hành động "${chain.name}"`, metadata: { changes: { status: { from: "open", to: "closed" } } }, req });
     return sendSuccess(res, 200, "Đóng chuỗi hành động thành công", chain);
   }
 

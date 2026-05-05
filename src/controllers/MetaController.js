@@ -20,6 +20,7 @@ class MetaController {
       resourceId: config.id,
       resourceName: config.name,
       description: `Tạo loại chương trình "${config.name}"`,
+      metadata: { newItem: config },
       req,
     });
     return sendSuccess(res, 201, "Tạo cấu hình thành công", config);
@@ -74,6 +75,7 @@ class MetaController {
       resourceId: program.id,
       resourceName: program.name,
       description: `Tạo chương trình "${program.name}"`,
+      metadata: { newItem: program },
       req,
     });
     return sendSuccess(res, 201, "Tạo chương trình thành công", program);
@@ -128,13 +130,14 @@ class MetaController {
   }
 
   async updateMilestone(req, res) {
-    const program = await MetaService.updateMilestone(req.params.id, req.params.milestoneId, req.body, req.user);
+    const { program, changes } = await MetaService.updateMilestone(req.params.id, req.params.milestoneId, req.body, req.user);
     SystemLogService.log({
       action: "update",
       resource: RESOURCES.META,
       resourceId: req.params.id,
       resourceName: req.params.id,
       description: `Cập nhật tiến độ "${req.params.id}"`,
+      metadata: { changes },
       req,
     });
     return sendSuccess(res, 200, "Cập nhật tiến độ thành công", program);
@@ -169,7 +172,7 @@ class MetaController {
   }
 
   async updateTask(req, res) {
-    const program = await MetaService.updateTask(
+    const { program, changes } = await MetaService.updateTask(
       req.params.id,
       req.params.taskId,
       req.body,
@@ -181,6 +184,7 @@ class MetaController {
       resourceId: req.params.id,
       resourceName: req.params.id,
       description: `Cập nhật công việc "${req.params.id}"`,
+      metadata: { changes },
       req,
     });
     return sendSuccess(res, 200, "Cập nhật công việc thành công", program);

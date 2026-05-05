@@ -21,7 +21,7 @@ class UserController {
 
   async createUser(req, res) {
     const staff = await createUserAccount(req.user, req.body || {});
-    SystemLogService.log({ action: "create", resource: RESOURCES.USERS, resourceId: staff.id, resourceName: staff.name, description: `Tạo nhân viên "${staff.name}"`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.USERS, resourceId: staff.id, resourceName: staff.name, description: `Tạo nhân viên "${staff.name}"`, metadata: { newItem: staff }, req });
     return sendSuccess(res, 201, "Create staff success", staff);
   }
 

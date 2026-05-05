@@ -21,7 +21,7 @@ class CustomerController {
 
   async createCustomer(req, res) {
     const customer = await CustomerService.createCustomer(req.body || {});
-    SystemLogService.log({ action: "create", resource: RESOURCES.CUSTOMERS, resourceId: customer.id, resourceName: customer.name, description: `Tạo khách hàng "${customer.name}"`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.CUSTOMERS, resourceId: customer.id, resourceName: customer.name, description: `Tạo khách hàng "${customer.name}"`, metadata: { newItem: customer }, req });
     return sendSuccess(res, 201, "Create customer success", customer);
   }
 

@@ -24,7 +24,7 @@ class EventController {
 
   async createEvent(req, res) {
     const event = await EventService.createEvent(req.body || {}, req.user);
-    SystemLogService.log({ action: "create", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tạo sự kiện "${event.name}"`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tạo sự kiện "${event.name}"`, metadata: { newItem: event }, req });
     return sendSuccess(res, 201, "Create event success", event);
   }
 
@@ -49,7 +49,7 @@ class EventController {
     const event = await EventService.addEventTimeline(req.params.id, payload, req.user);
     
     const typeLabel = payload.type === 'note' ? 'ghi chú' : payload.type === 'email' ? 'email' : payload.type === 'phone' ? 'cuộc gọi' : 'mục lịch sử';
-    SystemLogService.log({ action: "create", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Thêm ${typeLabel} "${payload.title}" vào sự kiện "${event.name}"`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Thêm ${typeLabel} "${payload.title}" vào sự kiện "${event.name}"`, metadata: { newItem: event }, req });
 
     return sendSuccess(res, 201, "Add timeline entry success", event);
   }

@@ -16,7 +16,7 @@ class OrganizationController {
   async createDepartment(req, res) {
     try {
       const department = await OrganizationService.createDepartment(req.body || {});
-      SystemLogService.log({ action: "create", resource: RESOURCES.ORGANIZATION, resourceId: department.id, resourceName: department.parent, description: `Tạo phòng ban "${department.parent}"`, req });
+      SystemLogService.log({ action: "create", resource: RESOURCES.ORGANIZATION, resourceId: department.id, resourceName: department.parent, description: `Tạo phòng ban "${department.parent}"`, metadata: { newItem: department }, req });
       return sendSuccess(res, 201, "Create department success", department);
     } catch (error) {
       return sendError(res, error.status || 500, error.message, { code: error.code });
@@ -26,7 +26,7 @@ class OrganizationController {
   async createGroup(req, res) {
     try {
       const group = await OrganizationService.createGroup(req.body || {});
-      SystemLogService.log({ action: "create", resource: RESOURCES.ORGANIZATION, resourceId: group.alias, resourceName: group.name, description: `Tạo nhóm "${group.name}"`, req });
+      SystemLogService.log({ action: "create", resource: RESOURCES.ORGANIZATION, resourceId: group.alias, resourceName: group.name, description: `Tạo nhóm "${group.name}"`, metadata: { newItem: group }, req });
       return sendSuccess(res, 201, "Create group success", group);
     } catch (error) {
       return sendError(res, error.status || 500, error.message, { code: error.code });
