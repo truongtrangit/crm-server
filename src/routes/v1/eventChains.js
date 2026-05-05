@@ -2,7 +2,6 @@ const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
-const asyncHandler = require("../../utils/asyncHandler");
 const EventActionChainController = require("../../controllers/EventActionChainController");
 const {
   addChainToEventSchema,
@@ -19,7 +18,7 @@ const router = express.Router({ mergeParams: true });
 router.get(
   "/",
   requirePermission(PERMISSIONS.EVENT_CHAINS_READ),
-  asyncHandler(EventActionChainController.getChains)
+  EventActionChainController.getChains
 );
 
 // ─── POST /api/events/:eventId/chains ───
@@ -27,7 +26,7 @@ router.post(
   "/",
   requirePermission(PERMISSIONS.EVENT_CHAINS_CREATE),
   validate(addChainToEventSchema),
-  asyncHandler(EventActionChainController.addChain)
+  EventActionChainController.addChain
 );
 
 // ─── POST /api/events/:eventId/chains/:chainId/steps ───
@@ -36,7 +35,7 @@ router.post(
   "/:chainId/steps",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
   validate(injectStepSchema),
-  asyncHandler(EventActionChainController.injectStep)
+  EventActionChainController.injectStep
 );
 
 // ─── PUT /api/events/:eventId/chains/:chainId/steps/current ───
@@ -45,7 +44,7 @@ router.put(
   "/:chainId/steps/current",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
   validate(saveStepSchema),
-  asyncHandler(EventActionChainController.saveCurrentStep)
+  EventActionChainController.saveCurrentStep
 );
 
 // ─── PATCH /api/events/:eventId/chains/:chainId/steps/current/delay ───
@@ -54,7 +53,7 @@ router.patch(
   "/:chainId/steps/current/delay",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
   validate(updateStepDelaySchema),
-  asyncHandler(EventActionChainController.updateCurrentStepDelay)
+  EventActionChainController.updateCurrentStepDelay
 );
 
 // ─── PATCH /api/events/:eventId/chains/:chainId/steps/:stepOrder/note ───
@@ -63,7 +62,7 @@ router.patch(
   "/:chainId/steps/:stepOrder/note",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
   validate(updateStepNoteSchema),
-  asyncHandler(EventActionChainController.updateStepNote)
+  EventActionChainController.updateStepNote
 );
 
 // ─── PUT /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches ───
@@ -72,7 +71,7 @@ router.put(
   "/:chainId/steps/:stepOrder/branches",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
   validate(upsertStepBranchSchema),
-  asyncHandler(EventActionChainController.upsertStepBranch)
+  EventActionChainController.upsertStepBranch
 );
 
 // ─── DELETE /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches/:resultId ───
@@ -80,7 +79,7 @@ router.put(
 router.delete(
   "/:chainId/steps/:stepOrder/branches/:resultId",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
-  asyncHandler(EventActionChainController.deleteStepBranch)
+  EventActionChainController.deleteStepBranch
 );
 
 // ─── POST /api/events/:eventId/chains/:chainId/steps/current/execute-block-automation ───
@@ -88,21 +87,21 @@ router.delete(
 router.post(
   "/:chainId/steps/current/execute-block-automation",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
-  asyncHandler(EventActionChainController.executeBlockAutomationStep)
+  EventActionChainController.executeBlockAutomationStep
 );
 
 // ─── PUT /api/events/:eventId/chains/:chainId/close ───
 router.put(
   "/:chainId/close",
   requirePermission(PERMISSIONS.EVENT_CHAINS_CLOSE),
-  asyncHandler(EventActionChainController.closeChain)
+  EventActionChainController.closeChain
 );
 
 // ─── DELETE /api/events/:eventId/chains/:chainId ───
 router.delete(
   "/:chainId",
   requirePermission(PERMISSIONS.EVENT_CHAINS_DELETE),
-  asyncHandler(EventActionChainController.deleteChain)
+  EventActionChainController.deleteChain
 );
 
 module.exports = router;

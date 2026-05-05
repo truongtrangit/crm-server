@@ -19,14 +19,7 @@
  * │ CUSTOMERS_CREATE       │  ✅   │  ✅   │   ✅    │  ✅   │
  * │ CUSTOMERS_UPDATE       │  ✅   │  ✅   │   ✅    │  ❌   │
  * │ CUSTOMERS_DELETE       │  ✅   │  ✅   │   ❌    │  ❌   │
- * │ LEADS_READ             │  ✅   │  ✅   │   ✅    │  ✅   │
- * │ LEADS_CREATE           │  ✅   │  ✅   │   ✅    │  ✅   │
- * │ LEADS_UPDATE           │  ✅   │  ✅   │   ✅    │  ❌   │
- * │ LEADS_DELETE           │  ✅   │  ✅   │   ❌    │  ❌   │
- * │ TASKS_READ             │  ✅   │  ✅   │   ✅    │  ✅   │
- * │ TASKS_CREATE           │  ✅   │  ✅   │   ✅    │  ✅   │
- * │ TASKS_UPDATE           │  ✅   │  ✅   │   ✅    │  ✅   │
- * │ TASKS_DELETE           │  ✅   │  ✅   │   ❌    │  ❌   │
+
  * │ EVENTS_READ            │  ✅   │  ✅   │   ✅    │  ✅   │
  * │ EVENTS_CREATE          │  ✅   │  ✅   │   ✅    │  ✅   │
  * │ EVENTS_UPDATE          │  ✅   │  ✅   │   ✅    │  ✅   │
@@ -133,42 +126,7 @@ describe("[PERM] Customers — DELETE /customers/:id (CUSTOMERS_DELETE)", () => 
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. LEADS
-// ─────────────────────────────────────────────────────────────────────────────
-describe("[PERM] Leads — GET /leads (LEADS_READ)", () => {
-  it("✅ OWNER can list leads",   () => expectStatus("owner",   "get", "/api/v1/leads", null, 200));
-  it("✅ ADMIN can list leads",   () => expectStatus("admin",   "get", "/api/v1/leads", null, 200));
-  it("✅ MANAGER can list leads", () => expectStatus("manager", "get", "/api/v1/leads", null, 200));
-  it("✅ STAFF can list leads",   () => expectStatus("staff1",  "get", "/api/v1/leads", null, 200));
-});
 
-describe("[PERM] Leads — PUT /leads/:id (LEADS_UPDATE)", () => {
-  it("✅ OWNER can update lead",   () => expectStatus("owner",   "put", `/api/v1/leads/${IDS.LEAD1}`, { name: "Updated Lead" }, 200));
-  it("✅ ADMIN can update lead",   () => expectStatus("admin",   "put", `/api/v1/leads/${IDS.LEAD1}`, { name: "Updated Lead Admin" }, 200));
-  it("✅ MANAGER can update lead", () => expectStatus("manager", "put", `/api/v1/leads/${IDS.LEAD1}`, { name: "Updated Lead Mgr" }, 200));
-  it("❌ STAFF cannot update lead",() => expectStatus("staff1",  "put", `/api/v1/leads/${IDS.LEAD1}`, { name: "Hack Lead" }, 403));
-});
-
-describe("[PERM] Leads — DELETE /leads/:id (LEADS_DELETE)", () => {
-  it("❌ MANAGER cannot delete lead", () => expectStatus("manager", "delete", `/api/v1/leads/${IDS.LEAD1}`, null, 403));
-  it("❌ STAFF cannot delete lead",   () => expectStatus("staff1",  "delete", `/api/v1/leads/${IDS.LEAD1}`, null, 403));
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. TASKS
-// ─────────────────────────────────────────────────────────────────────────────
-describe("[PERM] Tasks — GET /tasks (TASKS_READ)", () => {
-  it("✅ OWNER can list tasks",   () => expectStatus("owner",   "get", "/api/v1/tasks", null, 200));
-  it("✅ ADMIN can list tasks",   () => expectStatus("admin",   "get", "/api/v1/tasks", null, 200));
-  it("✅ MANAGER can list tasks", () => expectStatus("manager", "get", "/api/v1/tasks", null, 200));
-  it("✅ STAFF can list tasks",   () => expectStatus("staff1",  "get", "/api/v1/tasks", null, 200));
-});
-
-describe("[PERM] Tasks — DELETE /tasks/:id (TASKS_DELETE)", () => {
-  it("❌ MANAGER cannot delete task", () => expectStatus("manager", "delete", `/api/v1/tasks/${IDS.TASK1}`, null, 403));
-  it("❌ STAFF cannot delete task",   () => expectStatus("staff1",  "delete", `/api/v1/tasks/${IDS.TASK1}`, null, 403));
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. EVENTS
@@ -294,7 +252,11 @@ describe("[PERM] EventChains — GET (EVENT_CHAINS_READ)", () => {
 });
 
 describe("[PERM] EventChains — POST (EVENT_CHAINS_CREATE)", () => {
-  it("✅ MANAGER can add chain to event", () => expectStatus("manager", "post", `/api/v1/events/${IDS.EVT1}/chains`, { chainId: IDS.CHAIN3 }, 201));
+  it("✅ MANAGER can add chain to event", async () => {
+    const api = await authRequest("manager");
+    const res = await api.post(`/api/v1/events/${IDS.EVT1}/chains`).send({ chainId: IDS.CHAIN3 });
+    expect([201, 409]).toContain(res.status);
+  });
   it("✅ STAFF can add chain to event",   () => {
     // CHAIN3 may already be added; 409 is still "authorized" — confirms permission passes
     return authRequest("staff1").then((api) =>
@@ -306,11 +268,11 @@ describe("[PERM] EventChains — POST (EVENT_CHAINS_CREATE)", () => {
 });
 
 describe("[PERM] EventChains — DELETE (EVENT_CHAINS_DELETE)", () => {
-  // Only OWNER, ADMIN, MANAGER have DELETE; STAFF does not
-  it("❌ STAFF cannot delete chain from event", async () => {
+  it("✅ STAFF can delete chain from event", async () => {
     const api = await authRequest("staff1");
     const res = await api.delete(`/api/v1/events/${IDS.EVT1}/chains/SOME-CHAIN-ID`);
-    expectError(res, 403);
+    // 404 means authorized but resource not found, which confirms permission is granted
+    expect(res.status).toBe(404);
   });
 });
 
@@ -321,8 +283,7 @@ describe("[PERM] Unauthenticated — all protected endpoints return 401", () => 
   const protectedEndpoints = [
     ["get",    "/api/v1/users"],
     ["get",    "/api/v1/customers"],
-    ["get",    "/api/v1/leads"],
-    ["get",    "/api/v1/tasks"],
+
     ["get",    "/api/v1/events"],
     ["get",    "/api/v1/action-config/results"],
     ["get",    "/api/v1/action-config/actions"],

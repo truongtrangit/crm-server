@@ -1,10 +1,10 @@
 const Customer = require("../models/Customer");
-const Lead = require("../models/Lead");
+
 const Event = require("../models/Event");
 const Organization = require("../models/Organization");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
-const Task = require("../models/Task");
+
 const Action = require("../models/Action");
 const Result = require("../models/Result");
 const Reason = require("../models/Reason");
@@ -153,8 +153,7 @@ async function seedDatabase() {
   await seedUsers();
   await syncUserOrganizationReferences();
   // await seedCollection(Customer, seedData.customers, "customers");
-  // await seedCollection(Lead, seedData.leads, "leads");
-  // await seedCollection(Task, seedData.tasks, "tasks");
+
   // await seedCollection(Event, seedData.events, "events");
   await seedCollection(StaffFunction, seedData.staffFunctions, "staff functions");
 
@@ -188,8 +187,7 @@ async function seedCounters() {
     { prefix: "ACT", items: seedData.actions },
     { prefix: "CHN", items: seedData.actionChains },
     { prefix: "FUNC", items: seedData.staffFunctions },
-    { prefix: "LEAD", items: seedData.leads },
-    { prefix: "TASK", items: seedData.tasks },
+
   ];
 
   let seeded = 0;

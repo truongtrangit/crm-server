@@ -3,8 +3,7 @@ const { Router } = require("express");
 const authRouter = require("./auth");
 const customersRouter = require("./customers");
 const usersRouter = require("./users");
-const leadsRouter = require("./leads");
-const tasksRouter = require("./tasks");
+
 const eventsRouter = require("./events");
 const organizationRouter = require("./organization");
 const metadataRouter = require("./metadata");
@@ -19,7 +18,6 @@ const metaRouter = require("./meta");
 const { authenticateRequest, requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
 const { sendSuccess } = require("../../utils/http");
-const asyncHandler = require("../../utils/asyncHandler");
 
 const v1Router = Router();
 
@@ -31,8 +29,7 @@ v1Router.get("/", (_req, res) =>
       "auth",
       "customers",
       "users",
-      "leads",
-      "tasks",
+
       "events",
       "organization",
       "metadata",
@@ -57,8 +54,7 @@ v1Router.use(authenticateRequest);
 
 v1Router.use("/customers", customersRouter);
 v1Router.use("/users", usersRouter);
-v1Router.use("/leads", leadsRouter);
-v1Router.use("/tasks", tasksRouter);
+
 v1Router.use("/events", eventsRouter);
 v1Router.use("/organization", organizationRouter);
 v1Router.use("/metadata", metadataRouter);
@@ -76,7 +72,7 @@ const EventActionChainController = require("../../controllers/EventActionChainCo
 v1Router.get(
   "/event-chains/queue",
   requirePermission(PERMISSIONS.EVENT_CHAINS_READ),
-  asyncHandler(EventActionChainController.getTaskQueue),
+  EventActionChainController.getTaskQueue,
 );
 
 module.exports = v1Router;

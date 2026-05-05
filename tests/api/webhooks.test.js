@@ -197,6 +197,8 @@ describe("Webhook Endpoints", () => {
     const bizPayload = {
       name: "Test Business",
       alias: "test-business",
+      email: "biz-company@test.com",
+      phone: "0123456789",
       author_id: "ext-author-001",
       country: "VN",
       users: [
@@ -233,8 +235,9 @@ describe("Webhook Endpoints", () => {
       };
       const res = await webhookPost("new-business", payload);
       expect(res.status).toBe(201);
-      const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.customerId).toBe("TEST-CUST001");
+      
+      const userCustomer = await Customer.findOne({ email: "vip@test.com" });
+      expect(userCustomer.biz).toContain("Test Business");
     });
   });
 
