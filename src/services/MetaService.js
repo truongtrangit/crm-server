@@ -194,7 +194,7 @@ class MetaService {
       picIds: payload.picIds || [],
       description: payload.description || "",
       descriptionHtml: payload.descriptionHtml || "",
-      kpiTargets: payload.kpiTargets || [],
+      kpiTargets: config.kpiType === 'task' ? [] : (payload.kpiTargets || []),
       progressPercent: 0,
     });
     return program;
@@ -256,9 +256,15 @@ class MetaService {
       }
     }
 
+    const targetConfig = await MetaConfig.findOne({ id: payload.typeId || program.typeId });
+
     if (payload.kpiTargets !== undefined) {
-      changes.kpiTargets = { old: program.kpiTargets, new: payload.kpiTargets };
-      program.kpiTargets = payload.kpiTargets;
+      const newKpiTargets = targetConfig?.kpiType === 'task' ? [] : payload.kpiTargets;
+      changes.kpiTargets = { old: program.kpiTargets, new: newKpiTargets };
+      program.kpiTargets = newKpiTargets;
+    } else if (targetConfig?.kpiType === 'task' && program.kpiTargets.length > 0) {
+      changes.kpiTargets = { old: program.kpiTargets, new: [] };
+      program.kpiTargets = [];
     }
 
     // Recalculate progress
@@ -292,6 +298,13 @@ class MetaService {
     }
 
     this._checkAccess(program, currentUser);
+
+    const config = await MetaConfig.findOne({ id: program.typeId });
+    if (config?.kpiType === 'task') {
+      throw createHttpError(400, "Chương trình theo công việc không thể thêm KPI/Tiến độ", {
+        code: "META_INVALID_ACTION",
+      });
+    }
 
     // Find the matching KPI target and update its current value
     const target = program.kpiTargets.find(
