@@ -7,8 +7,7 @@
 const RESOURCES = {
   USERS: "users",
   CUSTOMERS: "customers",
-  LEADS: "leads",
-  TASKS: "tasks",
+
   EVENTS: "events",
   EVENT_CHAINS: "event_chains",   // Chuỗi hành động trong sự kiện
   ACTIONS_CFG: "actions_cfg",
@@ -45,19 +44,7 @@ const PERMISSIONS = {
   CUSTOMERS_DELETE: `${RESOURCES.CUSTOMERS}_${ACTIONS.DELETE}`,
   CUSTOMERS_MANAGE: `${RESOURCES.CUSTOMERS}_${ACTIONS.MANAGE}`,
 
-  // Leads
-  LEADS_CREATE: `${RESOURCES.LEADS}_${ACTIONS.CREATE}`,
-  LEADS_READ: `${RESOURCES.LEADS}_${ACTIONS.READ}`,
-  LEADS_UPDATE: `${RESOURCES.LEADS}_${ACTIONS.UPDATE}`,
-  LEADS_DELETE: `${RESOURCES.LEADS}_${ACTIONS.DELETE}`,
-  LEADS_MANAGE: `${RESOURCES.LEADS}_${ACTIONS.MANAGE}`,
 
-  // Tasks
-  TASKS_CREATE: `${RESOURCES.TASKS}_${ACTIONS.CREATE}`,
-  TASKS_READ: `${RESOURCES.TASKS}_${ACTIONS.READ}`,
-  TASKS_UPDATE: `${RESOURCES.TASKS}_${ACTIONS.UPDATE}`,
-  TASKS_DELETE: `${RESOURCES.TASKS}_${ACTIONS.DELETE}`,
-  TASKS_MANAGE: `${RESOURCES.TASKS}_${ACTIONS.MANAGE}`,
 
   // Events
   EVENTS_CREATE: `${RESOURCES.EVENTS}_${ACTIONS.CREATE}`,
@@ -68,10 +55,10 @@ const PERMISSIONS = {
 
   // Event Action Chains (chuỗi hành động trong sự kiện)
   EVENT_CHAINS_CREATE: `${RESOURCES.EVENT_CHAINS}_${ACTIONS.CREATE}`,
-  EVENT_CHAINS_READ:   `${RESOURCES.EVENT_CHAINS}_${ACTIONS.READ}`,
+  EVENT_CHAINS_READ: `${RESOURCES.EVENT_CHAINS}_${ACTIONS.READ}`,
   EVENT_CHAINS_UPDATE: `${RESOURCES.EVENT_CHAINS}_${ACTIONS.UPDATE}`,
   EVENT_CHAINS_DELETE: `${RESOURCES.EVENT_CHAINS}_${ACTIONS.DELETE}`,
-  EVENT_CHAINS_CLOSE:  `${RESOURCES.EVENT_CHAINS}_close`,
+  EVENT_CHAINS_CLOSE: `${RESOURCES.EVENT_CHAINS}_close`,
   EVENT_CHAINS_MANAGE: `${RESOURCES.EVENT_CHAINS}_${ACTIONS.MANAGE}`,
 
   // Organization
@@ -120,13 +107,12 @@ const ROLE_DEFINITIONS = {
   },
   ADMIN: {
     name: "ADMIN",
-    description: "Administrator - Can manage users, customers, leads, tasks",
+    description: "Administrator - Can manage users, customers",
     level: 3,
     permissions: [
       PERMISSIONS.USERS_MANAGE,
       PERMISSIONS.CUSTOMERS_MANAGE,
-      PERMISSIONS.LEADS_MANAGE,
-      PERMISSIONS.TASKS_MANAGE,
+
       PERMISSIONS.EVENTS_MANAGE,
       PERMISSIONS.EVENT_CHAINS_MANAGE,
       PERMISSIONS.ORGANIZATION_READ,
@@ -141,7 +127,7 @@ const ROLE_DEFINITIONS = {
   MANAGER: {
     name: "MANAGER",
     description:
-      "Manager - Can create and manage staff, view customers and leads",
+      "Manager - Can create and manage staff, view customers",
     level: 2,
     permissions: [
       PERMISSIONS.USERS_CREATE,
@@ -150,12 +136,7 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.CUSTOMERS_READ,
       PERMISSIONS.CUSTOMERS_CREATE,
       PERMISSIONS.CUSTOMERS_UPDATE,
-      PERMISSIONS.LEADS_CREATE,
-      PERMISSIONS.LEADS_READ,
-      PERMISSIONS.LEADS_UPDATE,
-      PERMISSIONS.TASKS_CREATE,
-      PERMISSIONS.TASKS_READ,
-      PERMISSIONS.TASKS_UPDATE,
+
       PERMISSIONS.EVENTS_CREATE,
       PERMISSIONS.EVENTS_READ,
       PERMISSIONS.EVENTS_UPDATE,
@@ -174,16 +155,12 @@ const ROLE_DEFINITIONS = {
   },
   STAFF: {
     name: "STAFF",
-    description: "Staff - Can view and create customers, leads, tasks",
+    description: "Staff - Can view and create customers",
     level: 1,
     permissions: [
       PERMISSIONS.CUSTOMERS_READ,
       PERMISSIONS.CUSTOMERS_CREATE,
-      PERMISSIONS.LEADS_READ,
-      PERMISSIONS.LEADS_CREATE,
-      PERMISSIONS.TASKS_READ,
-      PERMISSIONS.TASKS_CREATE,
-      PERMISSIONS.TASKS_UPDATE,
+
       PERMISSIONS.EVENTS_READ,
       PERMISSIONS.EVENTS_CREATE,
       PERMISSIONS.EVENTS_UPDATE,      // Có thể update event được assign cho mình

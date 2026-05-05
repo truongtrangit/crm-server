@@ -13,8 +13,7 @@ const Result = require("../../src/models/Result");
 const Reason = require("../../src/models/Reason");
 const ActionChain = require("../../src/models/ActionChain");
 const Organization = require("../../src/models/Organization");
-const Lead = require("../../src/models/Lead");
-const Task = require("../../src/models/Task");
+
 const StaffFunction = require("../../src/models/StaffFunction");
 const { hashPassword } = require("../../src/utils/auth");
 
@@ -54,9 +53,7 @@ const IDS = {
   // Organization
   ORG1: "TEST-ORG001",
 
-  // Leads & Tasks
-  LEAD1: "TEST-LEAD001",
-  TASK1: "TEST-TASK001",
+
 
   // Functions
   FUNC1: "TEST-FUNC001",
@@ -296,36 +293,7 @@ async function seedTestFixtures() {
     },
   ]);
 
-  // ── Leads ─────────────────────────────────────────────────────────────────────
-  await Lead.insertMany([
-    {
-      id: IDS.LEAD1,
-      name: "Test Lead",
-      email: "lead@test.com",
-      phone: "0901 000 333",
-      status: "Biz tạo mới",
-      tags: ["#TestLead"],
-      source: "Test",
-    },
-  ]);
 
-  // ── Tasks ─────────────────────────────────────────────────────────────────────
-  await Task.insertMany([
-    {
-      id: IDS.TASK1,
-      action: "Gọi điện test",
-      time: "09:00",
-      timeType: "future",
-      customer: {
-        name: "Test Customer VIP",
-        email: "vip@test.com",
-        phone: "0901 000 111",
-      },
-      platform: "SmaxAi",
-      assignee: { name: "Test Staff One", avatar: "" },
-      status: "Đang thực hiện",
-    },
-  ]);
 
   // ── Staff Functions ────────────────────────────────────────────────────────────
   await StaffFunction.insertMany([

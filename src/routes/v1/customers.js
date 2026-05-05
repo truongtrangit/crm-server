@@ -2,7 +2,6 @@ const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
-const asyncHandler = require("../../utils/asyncHandler");
 const CustomerController = require("../../controllers/CustomerController");
 
 const {
@@ -23,7 +22,7 @@ router.get(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
   validate(listCustomersQuerySchema, "query"),
-  asyncHandler(CustomerController.getCustomers)
+  CustomerController.getCustomers
 );
 
 /**
@@ -33,7 +32,7 @@ router.get(
 router.get(
   "/meta/assignment-roles",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
-  asyncHandler(CustomerController.getAssignmentRoles)
+  CustomerController.getAssignmentRoles
 );
 
 /**
@@ -43,7 +42,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
-  asyncHandler(CustomerController.getCustomerById)
+  CustomerController.getCustomerById
 );
 
 /**
@@ -54,7 +53,7 @@ router.post(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_CREATE),
   validate(createCustomerSchema),
-  asyncHandler(CustomerController.createCustomer)
+  CustomerController.createCustomer
 );
 
 /**
@@ -65,7 +64,7 @@ router.put(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
   validate(updateCustomerSchema),
-  asyncHandler(CustomerController.updateCustomer)
+  CustomerController.updateCustomer
 );
 
 /**
@@ -78,7 +77,7 @@ router.delete(
     [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_READ],
     "any",
   ),
-  asyncHandler(CustomerController.deleteCustomer)
+  CustomerController.deleteCustomer
 );
 
 /**
@@ -92,7 +91,7 @@ router.post(
     "any",
   ),
   validate(assignCustomerSchema),
-  asyncHandler(CustomerController.assignCustomer)
+  CustomerController.assignCustomer
 );
 
 /**
@@ -106,7 +105,7 @@ router.delete(
     "any",
   ),
   validate(unassignCustomerQuerySchema, "query"),
-  asyncHandler(CustomerController.unassignCustomer)
+  CustomerController.unassignCustomer
 );
 
 /**
@@ -116,7 +115,7 @@ router.delete(
 router.put(
   "/:id/restore",
   requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
-  asyncHandler(CustomerController.restoreCustomer)
+  CustomerController.restoreCustomer
 );
 
 /**
@@ -126,7 +125,7 @@ router.put(
 router.delete(
   "/:id/permanent",
   requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
-  asyncHandler(CustomerController.permanentDeleteCustomer)
+  CustomerController.permanentDeleteCustomer
 );
 
 module.exports = router;

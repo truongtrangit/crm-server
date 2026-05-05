@@ -263,11 +263,7 @@ const customers = [
   },
 ];
 
-// ─── Leads (legacy, giữ lại để không phá seedDatabase) ──────────────────────
-const leads = [];
 
-// ─── Tasks (legacy) ───────────────────────────────────────────────────────────
-const tasks = [];
 
 // ─── StaffFunctions ──────────────────────────────────────────────────────────
 const staffFunctions = [
@@ -1687,8 +1683,7 @@ module.exports = {
   organizations,
   users,
   customers,
-  leads,
-  tasks,
+
   staffFunctions,
   events,
   results,

@@ -2,7 +2,6 @@ const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
-const asyncHandler = require("../../utils/asyncHandler");
 const UserController = require("../../controllers/UserController");
 const {
   createUserSchema,
@@ -14,46 +13,46 @@ const router = express.Router();
 
 router.get(
   "/org-options",
-  asyncHandler(UserController.getOrgOptions),
+  UserController.getOrgOptions,
 );
 
 router.get(
   "/",
   requirePermission(PERMISSIONS.USERS_READ),
   validate(listUsersQuerySchema, "query"),
-  asyncHandler(UserController.listUsers),
+  UserController.listUsers,
 );
 
 router.post(
   "/",
   requirePermission(PERMISSIONS.USERS_CREATE),
   validate(createUserSchema),
-  asyncHandler(UserController.createUser),
+  UserController.createUser,
 );
 
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.USERS_UPDATE),
   validate(updateUserSchema),
-  asyncHandler(UserController.updateUser),
+  UserController.updateUser,
 );
 
 router.delete(
   "/:id",
   requirePermission(PERMISSIONS.USERS_DELETE),
-  asyncHandler(UserController.deleteUser),
+  UserController.deleteUser,
 );
 
 router.put(
   "/:id/restore",
   requirePermission(PERMISSIONS.USERS_DELETE),
-  asyncHandler(UserController.restoreUser),
+  UserController.restoreUser,
 );
 
 router.delete(
   "/:id/permanent",
   requirePermission(PERMISSIONS.USERS_DELETE),
-  asyncHandler(UserController.permanentDeleteUser),
+  UserController.permanentDeleteUser,
 );
 
 module.exports = router;

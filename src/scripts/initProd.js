@@ -53,8 +53,7 @@ const INITIAL_COUNTERS = [
   { _id: "ACT",  seq: 0 },
   { _id: "CHN",  seq: 0 },
   { _id: "FUNC", seq: STAFF_FUNCTIONS.length },
-  { _id: "LEAD", seq: 0 },
-  { _id: "TASK", seq: 0 },
+
 ];
 
 // ─── Validate Env ─────────────────────────────────────────────────────────────
