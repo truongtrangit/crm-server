@@ -6,10 +6,9 @@ const {
   permanentDeleteUserAccount,
   restoreUserAccount,
   updateUserAccount,
+  getOrgOptions,
 } = require("../services/UserService");
 const User = require("../models/User");
-const Organization = require("../models/Organization");
-const { getUserRoleName } = require("../utils/rbac");
 const { sendSuccess } = require("../utils/http");
 const SystemLogService = require("../services/SystemLogService");
 const { RESOURCES } = require("../constants/rbac");
@@ -22,7 +21,7 @@ class UserController {
 
   async createUser(req, res) {
     const staff = await createUserAccount(req.user, req.body || {});
-    SystemLogService.log({ action: "create", resource: RESOURCES.USERS, resourceId: staff.id, resourceName: staff.name, description: `Tạo nhân viên "${staff.name}"`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.USERS, resourceId: staff.id, resourceName: staff.name, description: `Tạo nhân viên "${staff.name}"`, metadata: { newItem: staff }, req });
     return sendSuccess(res, 201, "Create staff success", staff);
   }
 
@@ -36,8 +35,8 @@ class UserController {
   async deleteUser(req, res) {
     const user = await getUserForStaffApi(req.user, req.params.id);
     const force = req.query.force === 'true';
-    await deleteUserAccount(req.user, user, { force });
-    SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: user.name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} nhân viên "${user.name}"`, metadata: { deletedItem: user }, req });
+    const deletedUser = await deleteUserAccount(req.user, user, { force });
+    SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: deletedUser.name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} nhân viên "${deletedUser.name}"`, metadata: { deletedItem: deletedUser }, req });
     return sendSuccess(res, 200, "Delete staff success", null);
   }
 
@@ -48,10 +47,8 @@ class UserController {
   }
 
   async permanentDeleteUser(req, res) {
-    const user = await User.findOne({ id: req.params.id });
-    const name = user ? user.name : req.params.id;
-    await permanentDeleteUserAccount(req.user, req.params.id);
-    SystemLogService.log({ action: "force_delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: name, description: `Xóa vĩnh viễn nhân viên "${name}"`, metadata: { deletedItem: user }, req });
+    const deletedUser = await permanentDeleteUserAccount(req.user, req.params.id);
+    SystemLogService.log({ action: "force_delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: deletedUser.name, description: `Xóa vĩnh viễn nhân viên "${deletedUser.name}"`, metadata: { deletedItem: deletedUser }, req });
     return sendSuccess(res, 200, "Permanent delete staff success", null);
   }
 
@@ -66,27 +63,8 @@ class UserController {
    * Organization schema: { parent: "Phòng Sale", children: [{ name: "Nhóm Sale HN" }] }
    */
   async getOrgOptions(req, res) {
-    const roleName = await getUserRoleName(req.user);
-    const isAdminOrOwner = ["OWNER", "ADMIN"].includes(roleName);
-    const isManager = roleName === "MANAGER";
-
-    if (!isAdminOrOwner && !isManager) {
-      return sendSuccess(res, 200, "Org options", { departments: [], groups: [] });
-    }
-
-    if (isAdminOrOwner) {
-      // Lấy toàn bộ org structure từ DB
-      const orgs = await Organization.find({}).select("parent children");
-      const departments = orgs.map((o) => o.parent).sort();
-      const groups = orgs.flatMap((o) => o.children.map((c) => c.name)).sort();
-      return sendSuccess(res, 200, "Org options", { departments, groups });
-    }
-
-    // Manager: chỉ trả về phòng ban/nhóm mà họ thực sự thuộc vào
-    const self = await User.findOne({ id: req.user.id }).select("department group");
-    const departments = (self?.department || []).sort();
-    const groups = (self?.group || []).sort();
-    return sendSuccess(res, 200, "Org options", { departments, groups });
+    const options = await getOrgOptions(req.user);
+    return sendSuccess(res, 200, "Org options", options);
   }
 }
 

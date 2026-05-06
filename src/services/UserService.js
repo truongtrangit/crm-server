@@ -999,6 +999,7 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   }
 
   await targetUser.softDelete();
+  return targetUser;
 }
 
 async function restoreUserAccount(actor, userId) {
@@ -1064,11 +1065,35 @@ async function permanentDeleteUserAccount(actor, userId) {
   );
 
   await targetUser.deleteOne();
+  return targetUser;
+}
+
+async function getOrgOptions(actor) {
+  const roleName = await getUserRoleName(actor);
+  const isAdminOrOwner = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName);
+  const isManager = roleName === MANAGER_ROLE_NAME;
+
+  if (!isAdminOrOwner && !isManager) {
+    return { departments: [], groups: [] };
+  }
+
+  if (isAdminOrOwner) {
+    const orgs = await Organization.find({}).select("parent children");
+    const departments = orgs.map((o) => o.parent).sort();
+    const groups = orgs.flatMap((o) => o.children.map((c) => c.name)).sort();
+    return { departments, groups };
+  }
+
+  const self = await User.findOne({ id: actor.id }).select("department group");
+  const departments = (self?.department || []).sort();
+  const groups = (self?.group || []).sort();
+  return { departments, groups };
 }
 
 module.exports = {
   createUserAccount,
   deleteUserAccount,
+  getOrgOptions,
   getUserForStaffApi,
   listUsers,
   permanentDeleteUserAccount,

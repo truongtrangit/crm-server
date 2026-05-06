@@ -53,7 +53,7 @@ router.post(
       type,
     });
 
-    SystemLogService.log({ action: "create", resource: RESOURCES.FUNCTIONS, resourceId: item.id, resourceName: title, description: `Tạo chức năng "${title}"`, req });
+    SystemLogService.log({ action: "create", resource: RESOURCES.FUNCTIONS, resourceId: item.id, resourceName: title, description: `Tạo chức năng "${title}"`, metadata: { newItem: item }, req });
     return sendSuccess(res, 201, "Create function success", item);
   },
 );

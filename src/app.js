@@ -22,28 +22,40 @@ app.use(helmet());
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 /** Strict limiter for auth routes – chống brute-force login */
 const authLimiter = rateLimit({
-  windowMs: 60 * 1000, // 15 giây
-  max: 50, // tối đa 500 requests / 15 giây / IP
+  windowMs: 60 * 1000, // 60 giây
+  max: 30, // tối đa 30 requests / 60 giây / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
     success: false,
     message:
-      "Too many requests from this IP, please try again after 15 seconds.",
+      "Too many requests from this IP, please try again after 60 seconds.",
     code: "TOO_MANY_REQUESTS",
   },
 });
 
 /** General limiter cho toàn bộ API */
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 15 phút
-  max: 500, // tối đa 200 requests / 15 phút / IP
+  windowMs: 60 * 1000, // 1 phút
+  max: 100, // tối đa 100 requests / 1 phút / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
     success: false,
     message:
       "Too many requests from this IP, please try again after 15 minutes.",
+    code: "TOO_MANY_REQUESTS",
+  },
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 phút
+  max: 200, // tối đa 100 webhook requests / phút / IP
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many webhook requests, please try again later.",
     code: "TOO_MANY_REQUESTS",
   },
 });
@@ -92,25 +104,15 @@ app.get("/api", (_req, res) =>
 );
 
 // ─── API Versioning ───────────────────────────────────────────────────────────
-// Áp dụng rate limiter chung cho toàn bộ /api/v1
-app.use("/api/v1", apiLimiter);
 
 // Auth limiter cho riêng /api/v1/auth
 app.use("/api/v1/auth", authLimiter);
 
 // Webhook limiter — tách riêng cho webhook endpoint
-const webhookLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 phút
-  max: 100, // tối đa 100 webhook requests / phút / IP
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many webhook requests, please try again later.",
-    code: "TOO_MANY_REQUESTS",
-  },
-});
 app.use("/api/v1/webhooks", webhookLimiter);
+
+// Áp dụng rate limiter chung cho toàn bộ /api/v1
+app.use("/api/v1", apiLimiter);
 
 // Mount versioned router
 app.use("/api/v1", v1Router);

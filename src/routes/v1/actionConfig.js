@@ -154,7 +154,7 @@ router.post(
 );
 router.put(
   "/block-automations/:id",
-  requirePermission(PERMISSIONS.ACTIONS_CFG_MANAGE),
+  requirePermission([PERMISSIONS.ACTIONS_CFG_MANAGE, PERMISSIONS.ACTIONS_CFG_CREATE], "any"),
   validate(updateBlockAutomationSchema),
   ctrl.updateBlockAutomation,
 );

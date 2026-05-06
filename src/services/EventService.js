@@ -425,6 +425,74 @@ class EventService {
     await event.save();
     return event;
   }
+
+  async checkEventOwnership(id, currentUser) {
+    const roleId = (currentUser?.roleId || '').toUpperCase();
+    const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
+    if (ELEVATED_ROLES.includes(roleId)) return true;
+
+    const event = await Event.findOne({ id });
+    if (!event) {
+      throw createHttpError(404, "Event not found");
+    }
+    if (event.assigneeId !== currentUser.id) {
+      throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện được giao cho bạn");
+    }
+    return true;
+  }
+
+  async unassignEvent(id, currentUser) {
+    const actorRole = (currentUser?.roleId || '').toUpperCase();
+
+    const event = await Event.findOne({ id });
+    if (!event) throw createHttpError(404, 'Event not found');
+
+    if (!event.assigneeId) {
+      throw createHttpError(400, 'Sự kiện này chưa có người phụ trách');
+    }
+
+    if (actorRole === 'STAFF') {
+      if (event.assigneeId !== currentUser.id) {
+        throw createHttpError(403, 'Bạn chỉ có thể bỏ nhận sự kiện của chính mình');
+      }
+    }
+
+    if (actorRole === 'MANAGER') {
+      const isSelf = event.assigneeId === currentUser.id;
+      if (!isSelf) {
+        const assigneeUser = await User.findOne({ id: event.assigneeId });
+        const isDirectStaff = assigneeUser?.managerId === currentUser.id;
+        if (!isDirectStaff) {
+          throw createHttpError(403, 'Bạn chỉ có thể bỏ phân công của chính bạn hoặc nhân viên trực thuộc');
+        }
+      }
+    }
+
+    event.assigneeId = null;
+    event.assignee = { name: '', avatar: '', role: '', department: [], group: [] };
+    await event.save();
+    return event;
+  }
+
+  async selfAssignEvent(id, currentUser) {
+    const event = await Event.findOne({ id });
+    if (!event) throw createHttpError(404, 'Event not found');
+
+    if (event.assigneeId) {
+      throw createHttpError(409, 'Sự kiện này đã có người phụ trách');
+    }
+
+    event.assigneeId = currentUser.id;
+    event.assignee = {
+      name: currentUser.name || '',
+      avatar: currentUser.avatar || '',
+      role: currentUser.roleId || '',
+      department: currentUser.department || [],
+      group: currentUser.group || [],
+    };
+    await event.save();
+    return event;
+  }
 }
 
 module.exports = new EventService();
