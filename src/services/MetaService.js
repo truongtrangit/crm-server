@@ -9,6 +9,7 @@ const {
   resolveSort,
 } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
+const { computeChanges } = require("../utils/diff");
 
 class MetaService {
   // ─── Config CRUD ────────────────────────────────────────────────────────────
@@ -39,22 +40,12 @@ class MetaService {
       });
     }
 
-    const changes = {};
+    const oldState = config.toObject();
 
-    if (payload.name !== undefined && payload.name !== config.name) {
-      changes.name = { old: config.name, new: payload.name };
-      config.name = payload.name;
-    }
-    if (payload.badgeColor !== undefined && payload.badgeColor !== config.badgeColor) {
-      changes.badgeColor = { old: config.badgeColor, new: payload.badgeColor };
-      config.badgeColor = payload.badgeColor;
-    }
-    if (payload.icon !== undefined && payload.icon !== config.icon) {
-      changes.icon = { old: config.icon, new: payload.icon };
-      config.icon = payload.icon;
-    }
-    if (payload.kpiType !== undefined && payload.kpiType !== config.kpiType) {
-      changes.kpiType = { old: config.kpiType, new: payload.kpiType };
+    if (payload.name !== undefined) config.name = payload.name;
+    if (payload.badgeColor !== undefined) config.badgeColor = payload.badgeColor;
+    if (payload.icon !== undefined) config.icon = payload.icon;
+    if (payload.kpiType !== undefined) {
       config.kpiType = payload.kpiType;
       // Clear metrics if switching to task mode
       if (payload.kpiType === "task") {
@@ -62,19 +53,16 @@ class MetaService {
       }
     }
     if (payload.metrics !== undefined && config.kpiType === "metric") {
-      changes.metrics = { old: config.metrics, new: payload.metrics };
       config.metrics = payload.metrics;
     }
-    if (payload.description !== undefined && payload.description !== config.description) {
-      changes.description = { old: config.description, new: payload.description };
-      config.description = payload.description;
-    }
-    if (payload.order !== undefined && payload.order !== config.order) {
-      changes.order = { old: config.order, new: payload.order };
-      config.order = payload.order;
-    }
+    if (payload.description !== undefined) config.description = payload.description;
+    if (payload.order !== undefined) config.order = payload.order;
 
     await config.save();
+    
+    const newState = config.toObject();
+    const changes = computeChanges(oldState, newState, ["name", "badgeColor", "icon", "kpiType", "metrics", "description", "order"]);
+    
     return { config, changes };
   }
 
@@ -219,7 +207,7 @@ class MetaService {
       }
     }
 
-    const changes = {};
+    const oldState = program.toObject();
 
     const fields = [
       "name",
@@ -236,40 +224,25 @@ class MetaService {
     ];
     for (const f of fields) {
       if (payload[f] !== undefined) {
-        // Basic check for changes
-        const oldVal = program[f];
-        const newVal = payload[f];
-
-        let changed = false;
-        if (Array.isArray(oldVal)) {
-          if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) changed = true;
-        } else if (oldVal instanceof Date) {
-          if (new Date(newVal).getTime() !== oldVal.getTime()) changed = true;
-        } else {
-          if (oldVal !== newVal) changed = true;
-        }
-
-        if (changed) {
-          changes[f] = { old: oldVal, new: newVal };
-          program[f] = newVal;
-        }
+        program[f] = payload[f];
       }
     }
 
     const targetConfig = await MetaConfig.findOne({ id: payload.typeId || program.typeId });
 
     if (payload.kpiTargets !== undefined) {
-      const newKpiTargets = targetConfig?.kpiType === 'task' ? [] : payload.kpiTargets;
-      changes.kpiTargets = { old: program.kpiTargets, new: newKpiTargets };
-      program.kpiTargets = newKpiTargets;
+      program.kpiTargets = targetConfig?.kpiType === 'task' ? [] : payload.kpiTargets;
     } else if (targetConfig?.kpiType === 'task' && program.kpiTargets.length > 0) {
-      changes.kpiTargets = { old: program.kpiTargets, new: [] };
       program.kpiTargets = [];
     }
 
     // Recalculate progress
     await this._recalculateProgress(program);
     await program.save();
+
+    const newState = program.toObject();
+    const changes = computeChanges(oldState, newState, [...fields, "kpiTargets"]);
+    
     return { program, changes };
   }
 
@@ -346,22 +319,12 @@ class MetaService {
     const milestone = program.milestones.id(milestoneId);
     if (!milestone) throw createHttpError(404, "Cột mốc không tồn tại", { code: "META_MILESTONE_NOT_FOUND" });
 
-    const changes = {};
+    const oldState = milestone.toObject();
+
     const fields = ["name", "date", "note", "totalCurrent", "valueAdded"];
     for (const f of fields) {
       if (payload[f] !== undefined) {
-        let changed = false;
-        const oldVal = milestone[f];
-        const newVal = payload[f];
-        if (oldVal instanceof Date) {
-          if (new Date(newVal).getTime() !== new Date(oldVal).getTime()) changed = true;
-        } else {
-          if (oldVal !== newVal) changed = true;
-        }
-        if (changed) {
-          changes[f] = { old: oldVal, new: newVal };
-          milestone[f] = newVal;
-        }
+        milestone[f] = payload[f];
       }
     }
 
@@ -380,6 +343,10 @@ class MetaService {
 
     this._recalculateProgress(program);
     await program.save();
+
+    const newState = program.milestones.id(milestoneId).toObject();
+    const changes = computeChanges(oldState, newState, fields);
+
     return { program, changes };
   }
 
@@ -460,23 +427,12 @@ class MetaService {
       });
     }
 
-    const changes = {};
+    const oldState = task.toObject();
+    
     const fields = ["title", "picId", "picName", "description", "deadline", "isCompleted"];
     for (const f of fields) {
       if (payload[f] !== undefined) {
-        let changed = false;
-        const oldVal = task[f];
-        const newVal = payload[f];
-        if (oldVal instanceof Date) {
-          if (newVal === null) changed = true;
-          else if (new Date(newVal).getTime() !== new Date(oldVal).getTime()) changed = true;
-        } else {
-          if (oldVal !== newVal) changed = true;
-        }
-        if (changed) {
-          changes[f] = { old: oldVal, new: newVal };
-          task[f] = newVal;
-        }
+        task[f] = payload[f];
       }
     }
     
@@ -486,6 +442,10 @@ class MetaService {
 
     this._recalculateProgress(program);
     await program.save();
+    
+    const newState = program.tasks.id(taskId).toObject();
+    const changes = computeChanges(oldState, newState, fields);
+
     return { program, changes };
   }
 
