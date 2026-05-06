@@ -25,6 +25,7 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "joi": "^18.1.2",
+    "microdiff": "^1.5.0",
     "mongoose": "^9.3.3",
     "winston": "^3.19.0"
   },
