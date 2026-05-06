@@ -306,6 +306,71 @@ class MetaService {
     return program;
   }
 
+  /**
+   * Batch-update milestones for ALL KPI metrics in a single operation.
+   * @param {string} programId
+   * @param {{ name?: string, date?: string, note?: string, updates: Array<{ metricName: string, newCurrent: number }> }} payload
+   * @param {object} currentUser
+   * @returns {Promise<object>} updated program
+   */
+  async addBatchMilestones(programId, payload, currentUser) {
+    const program = await MetaProgram.findOne({ id: programId });
+    if (!program) {
+      throw createHttpError(404, "Chương trình không tồn tại", {
+        code: "META_PROGRAM_NOT_FOUND",
+      });
+    }
+
+    this._checkAccess(program, currentUser);
+
+    const config = await MetaConfig.findOne({ id: program.typeId });
+    if (config?.kpiType === "task") {
+      throw createHttpError(400, "Chương trình theo công việc không thể thêm KPI/Tiến độ", {
+        code: "META_INVALID_ACTION",
+      });
+    }
+
+    const milestoneDate = payload.date || new Date();
+    const milestoneName = payload.name || "";
+    const milestoneNote = payload.note || "";
+    const createdBy = currentUser?.name || "";
+
+    for (const update of payload.updates) {
+      const target = program.kpiTargets.find(
+        (t) => t.metricName === update.metricName,
+      );
+      if (!target) {
+        throw createHttpError(
+          400,
+          `Chỉ số "${update.metricName}" không tồn tại trong chương trình`,
+          { code: "META_METRIC_NOT_FOUND" },
+        );
+      }
+
+      const oldCurrent = target.current || 0;
+      const valueAdded = update.newCurrent - oldCurrent;
+
+      // Skip metrics that haven't changed
+      if (valueAdded === 0) continue;
+
+      target.current = update.newCurrent;
+
+      program.milestones.unshift({
+        name: milestoneName,
+        metricName: update.metricName,
+        valueAdded,
+        totalCurrent: update.newCurrent,
+        date: milestoneDate,
+        note: milestoneNote,
+        createdBy,
+      });
+    }
+
+    this._recalculateProgress(program);
+    await program.save();
+    return program;
+  }
+
   async updateMilestone(programId, milestoneId, payload, currentUser) {
     const program = await MetaProgram.findOne({ id: programId });
     if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });

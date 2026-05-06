@@ -73,12 +73,12 @@ class WebhookService {
     });
 
     // Always log the raw payload for inspection
-    logger.info("Webhook received — raw payload logged", {
-      deliveryId,
-      eventType,
-      ipAddress,
-      payload: JSON.stringify(payload, null, 2),
-    });
+    // logger.info("Webhook received — raw payload logged", {
+    //   deliveryId,
+    //   eventType,
+    //   ipAddress,
+    //   payload: JSON.stringify(payload, null, 2),
+    // });
 
     // 2. Find processor — if none registered, just log and return
     const processor = this.#processors.get(eventType);

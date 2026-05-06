@@ -18,6 +18,7 @@ const metaRouter = require("./meta");
 const { authenticateRequest, requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
 const { sendSuccess } = require("../../utils/http");
+const EventActionChainController = require("../../controllers/EventActionChainController");
 
 const v1Router = Router();
 
@@ -29,7 +30,6 @@ v1Router.get("/", (_req, res) =>
       "auth",
       "customers",
       "users",
-
       "events",
       "organization",
       "metadata",
@@ -54,7 +54,6 @@ v1Router.use(authenticateRequest);
 
 v1Router.use("/customers", customersRouter);
 v1Router.use("/users", usersRouter);
-
 v1Router.use("/events", eventsRouter);
 v1Router.use("/organization", organizationRouter);
 v1Router.use("/metadata", metadataRouter);
@@ -68,7 +67,6 @@ v1Router.use("/meta", metaRouter);
 v1Router.use("/events/:eventId/chains", eventChainsRouter);
 
 // Task Queue: lấy tất cả steps cần làm (cross-event)
-const EventActionChainController = require("../../controllers/EventActionChainController");
 v1Router.get(
   "/event-chains/queue",
   requirePermission(PERMISSIONS.EVENT_CHAINS_READ),

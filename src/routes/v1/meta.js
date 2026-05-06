@@ -10,6 +10,7 @@ const {
   updateMetaProgramSchema,
   listMetaProgramsQuerySchema,
   addMilestoneSchema,
+  addBatchMilestonesSchema,
   updateMilestoneSchema,
   createTaskSchema,
   updateTaskSchema,
@@ -88,6 +89,13 @@ router.post(
   requirePermission(PERMISSIONS.META_UPDATE),
   validate(addMilestoneSchema),
   MetaController.addMilestone,
+);
+
+router.post(
+  "/programs/:id/milestones/batch",
+  requirePermission(PERMISSIONS.META_UPDATE),
+  validate(addBatchMilestonesSchema),
+  MetaController.addBatchMilestones,
 );
 
 router.put(

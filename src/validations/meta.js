@@ -101,6 +101,25 @@ const addMilestoneSchema = Joi.object({
   note: Joi.string().allow("").optional(),
 });
 
+const addBatchMilestonesSchema = Joi.object({
+  name: Joi.string().trim().allow("").optional(),
+  date: Joi.date().iso().optional(),
+  note: Joi.string().allow("").optional(),
+  updates: Joi.array()
+    .items(
+      Joi.object({
+        metricName: Joi.string().trim().required(),
+        newCurrent: Joi.number().min(0).required(),
+      }),
+    )
+    .min(1)
+    .required()
+    .messages({
+      "array.min": "Cần ít nhất 1 chỉ số để cập nhật",
+      "any.required": "Danh sách cập nhật chỉ số là bắt buộc",
+    }),
+});
+
 const updateMilestoneSchema = Joi.object({
   name: Joi.string().trim().allow("").optional(),
   valueAdded: Joi.number().optional(),
@@ -151,6 +170,7 @@ module.exports = {
   updateMetaProgramSchema,
   listMetaProgramsQuerySchema,
   addMilestoneSchema,
+  addBatchMilestonesSchema,
   updateMilestoneSchema,
   createTaskSchema,
   updateTaskSchema,

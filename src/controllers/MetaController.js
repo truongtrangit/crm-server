@@ -129,6 +129,25 @@ class MetaController {
     return sendSuccess(res, 201, "Cập nhật tiến độ thành công", program);
   }
 
+  async addBatchMilestones(req, res) {
+    const program = await MetaService.addBatchMilestones(
+      req.params.id,
+      req.body,
+      req.user,
+    );
+    const updatedMetrics = (req.body.updates || []).map((u) => u.metricName).join(", ");
+    SystemLogService.log({
+      action: "create",
+      resource: RESOURCES.META,
+      resourceId: req.params.id,
+      resourceName: req.params.id,
+      description: `Cập nhật hàng loạt tiến độ "${req.params.id}" — [${updatedMetrics}]`,
+      metadata: { updates: req.body.updates },
+      req,
+    });
+    return sendSuccess(res, 201, "Cập nhật tiến độ hàng loạt thành công", program);
+  }
+
   async updateMilestone(req, res) {
     const { program, changes } = await MetaService.updateMilestone(req.params.id, req.params.milestoneId, req.body, req.user);
     SystemLogService.log({
