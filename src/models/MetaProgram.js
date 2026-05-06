@@ -46,6 +46,15 @@ const attachmentSchema = new mongoose.Schema(
   { _id: true, timestamps: true },
 );
 
+const commentSchema = new mongoose.Schema(
+  {
+    content: { type: String, required: true, trim: true },
+    userId: { type: String, default: "" },
+    displayName: { type: String, default: "" },
+  },
+  { _id: true, timestamps: true },
+);
+
 const metaProgramSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -75,6 +84,8 @@ const metaProgramSchema = new mongoose.Schema(
     tasks: { type: [taskSchema], default: [] },
     /** Attached links */
     attachments: { type: [attachmentSchema], default: [] },
+    /** Discussion comments */
+    comments: { type: [commentSchema], default: [] },
   },
   {
     timestamps: true,

@@ -629,6 +629,57 @@ class MetaService {
       );
     }
   }
+  // ─── Comments ────────────────────────────────────────────────────────────────
+
+  async addComment(programId, payload, currentUser) {
+    const program = await MetaProgram.findOne({ id: programId });
+    if (!program) {
+      throw createHttpError(404, "Chương trình không tồn tại", {
+        code: "META_PROGRAM_NOT_FOUND",
+      });
+    }
+
+    this._checkAccess(program, currentUser);
+
+    program.comments.push({
+      content: payload.content,
+      userId: currentUser.id || "",
+      displayName: currentUser.displayName || currentUser.name || "",
+    });
+
+    await program.save();
+    return program;
+  }
+
+  async deleteComment(programId, commentId, currentUser) {
+    const program = await MetaProgram.findOne({ id: programId });
+    if (!program) {
+      throw createHttpError(404, "Chương trình không tồn tại", {
+        code: "META_PROGRAM_NOT_FOUND",
+      });
+    }
+
+    this._checkAccess(program, currentUser);
+
+    const role = (currentUser.roleId || "").toUpperCase();
+    const comment = program.comments.id(commentId);
+    if (!comment) {
+      throw createHttpError(404, "Bình luận không tồn tại", {
+        code: "META_COMMENT_NOT_FOUND",
+      });
+    }
+
+    // Only Owner/Admin or the comment author can delete
+    if (!["OWNER", "ADMIN"].includes(role) && comment.userId !== currentUser.id) {
+      throw createHttpError(403, "Bạn không có quyền xóa bình luận này", {
+        code: "META_FORBIDDEN",
+      });
+    }
+
+    comment.deleteOne();
+    await program.save();
+    return program;
+  }
 }
 
 module.exports = new MetaService();

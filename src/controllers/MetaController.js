@@ -261,6 +261,42 @@ class MetaController {
     });
     return sendSuccess(res, 200, "Xóa tài liệu thành công", program);
   }
+
+  // ─── Comments ──────────────────────────────────────────────────────────────
+
+  async addComment(req, res) {
+    const program = await MetaService.addComment(
+      req.params.id,
+      req.body,
+      req.user,
+    );
+    SystemLogService.log({
+      action: "create",
+      resource: RESOURCES.META,
+      resourceId: req.params.id,
+      resourceName: req.params.id,
+      description: `Thêm bình luận vào chương trình "${req.params.id}"`,
+      req,
+    });
+    return sendSuccess(res, 201, "Thêm bình luận thành công", program);
+  }
+
+  async deleteComment(req, res) {
+    const program = await MetaService.deleteComment(
+      req.params.id,
+      req.params.commentId,
+      req.user,
+    );
+    SystemLogService.log({
+      action: "delete",
+      resource: RESOURCES.META,
+      resourceId: req.params.id,
+      resourceName: req.params.id,
+      description: `Xóa bình luận khỏi chương trình "${req.params.id}"`,
+      req,
+    });
+    return sendSuccess(res, 200, "Xóa bình luận thành công", program);
+  }
 }
 
 module.exports = new MetaController();

@@ -163,6 +163,15 @@ const addAttachmentSchema = Joi.object({
   }),
 });
 
+// ─── Comment ──────────────────────────────────────────────────────────────────
+
+const addCommentSchema = Joi.object({
+  content: Joi.string().trim().min(1).required().messages({
+    "any.required": "Nội dung bình luận là bắt buộc",
+    "string.empty": "Nội dung bình luận không được để trống",
+  }),
+});
+
 module.exports = {
   createMetaConfigSchema,
   updateMetaConfigSchema,
@@ -175,4 +184,5 @@ module.exports = {
   createTaskSchema,
   updateTaskSchema,
   addAttachmentSchema,
+  addCommentSchema,
 };

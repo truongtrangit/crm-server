@@ -15,6 +15,7 @@ const {
   createTaskSchema,
   updateTaskSchema,
   addAttachmentSchema,
+  addCommentSchema,
 } = require("../../validations/meta");
 
 const router = express.Router();
@@ -146,6 +147,21 @@ router.delete(
   "/programs/:id/attachments/:attachmentId",
   requirePermission(PERMISSIONS.META_UPDATE),
   MetaController.deleteAttachment,
+);
+
+// ─── Comment routes ──────────────────────────────────────────────────────────
+
+router.post(
+  "/programs/:id/comments",
+  requirePermission(PERMISSIONS.META_UPDATE),
+  validate(addCommentSchema),
+  MetaController.addComment,
+);
+
+router.delete(
+  "/programs/:id/comments/:commentId",
+  requirePermission(PERMISSIONS.META_UPDATE),
+  MetaController.deleteComment,
 );
 
 module.exports = router;
