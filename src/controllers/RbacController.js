@@ -45,7 +45,7 @@ class RbacController {
     try {
       const role = await RbacService.createRole(req.body, req.user);
       logger.info("Role created", { roleId: role.id, roleName: role.name, createdBy: req.user.id });
-      SystemLogService.log({ action: "create", resource: RESOURCES.ROLES, resourceId: role.id, resourceName: role.name, description: `Tạo vai trò "${role.name}"`, req });
+      SystemLogService.log({ action: "create", resource: RESOURCES.ROLES, resourceId: role.id, resourceName: role.name, description: `Tạo vai trò "${role.name}"`, metadata: { newItem: role }, req });
       return sendSuccess(res, 201, "Create role success", role);
     } catch (error) {
       return sendError(res, error.status || 500, error.message, { code: error.code });
@@ -66,9 +66,9 @@ class RbacController {
   async deleteRole(req, res) {
     try {
       const force = req.query.force === 'true';
-      await RbacService.deleteRole(req.params.id, force);
+      const deletedRole = await RbacService.deleteRole(req.params.id, force);
       logger.info("Role deleted", { roleId: req.params.id, deletedBy: req.user.id });
-      SystemLogService.log({ action: "delete", resource: RESOURCES.ROLES, resourceId: req.params.id, description: `Xóa vai trò ${req.params.id}`, req });
+      SystemLogService.log({ action: "delete", resource: RESOURCES.ROLES, resourceId: req.params.id, description: `Xóa vai trò ${req.params.id}`, metadata: { deletedItem: deletedRole }, req });
       return sendSuccess(res, 200, "Delete role success", null);
     } catch (error) {
       return sendError(res, error.status || 500, error.message, {

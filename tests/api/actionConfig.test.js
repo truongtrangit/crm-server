@@ -412,3 +412,68 @@ describe("ActionChains — DELETE /action-config/chains/:id", () => {
     expectError(res, 403);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCK AUTOMATIONS
+// ═══════════════════════════════════════════════════════════════
+describe("BlockAutomations — GET /action-config/block-automations", () => {
+  it("✅ returns paginated block automations", async () => {
+    const api = await authRequest("owner");
+    const res = await api.get(`${BASE}/block-automations`);
+    expectPaginated(res);
+  });
+});
+
+describe("BlockAutomations — POST /action-config/block-automations", () => {
+  let createdBlockId = null;
+
+  it("✅ OWNER creates a block automation → 201", async () => {
+    const api = await authRequest("owner");
+    const res = await api.post(`${BASE}/block-automations`).send({
+      name: "Integration Block",
+      url: "https://example.com/webhook",
+      method: "POST",
+      payloadTemplate: '{"test":"{{customer.name}}"}',
+      description: "Test description",
+    });
+    expectSuccess(res, 201);
+    createdBlockId = res.body.data.id;
+  });
+
+  it("✅ OWNER gets a block automation", async () => {
+    if (!createdBlockId) return;
+    const api = await authRequest("owner");
+    const res = await api.get(`${BASE}/block-automations/${createdBlockId}`);
+    expectSuccess(res, 200);
+  });
+
+  it("✅ OWNER updates a block automation", async () => {
+    if (!createdBlockId) return;
+    const api = await authRequest("owner");
+    const res = await api.put(`${BASE}/block-automations/${createdBlockId}`).send({
+      name: "Updated Block Name",
+    });
+    expectSuccess(res, 200);
+    expect(res.body.data.name).toBe("Updated Block Name");
+  });
+
+  it("✅ OWNER deletes a block automation", async () => {
+    if (!createdBlockId) return;
+    const api = await authRequest("owner");
+    const res = await api.delete(`${BASE}/block-automations/${createdBlockId}`);
+    expectSuccess(res, 200);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT SCHEMA FIELDS
+// ═══════════════════════════════════════════════════════════════
+describe("EventSchemaFields — GET /action-config/event-schema-fields", () => {
+  it("✅ returns event schema fields", async () => {
+    const api = await authRequest("owner");
+    const res = await api.get(`${BASE}/event-schema-fields`);
+    expectSuccess(res, 200);
+    expect(res.body.data).toBeInstanceOf(Array);
+    expect(res.body.data.length).toBeGreaterThan(0);
+  });
+});
