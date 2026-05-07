@@ -312,20 +312,17 @@ function serializeUser(user) {
 }
 
 async function buildUserListQuery(actor, filters = {}) {
-  if (
-    !(await hasAnyPermission(actor, [
-      PERMISSIONS.USERS_READ,
-      PERMISSIONS.USERS_MANAGE,
-      PERMISSIONS.USERS_CREATE,
-      PERMISSIONS.USERS_UPDATE,
-      PERMISSIONS.USERS_DELETE,
-    ]))
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to access staff APIs",
-    );
-  }
+  const hasReadPermission = await hasAnyPermission(actor, [
+    PERMISSIONS.USERS_READ,
+    PERMISSIONS.USERS_MANAGE,
+    PERMISSIONS.USERS_CREATE,
+    PERMISSIONS.USERS_UPDATE,
+    PERMISSIONS.USERS_DELETE,
+  ]);
+
+  // Staff without any user-management permission can still list users,
+  // but will receive only basic fields (handled in listUsers).
+  // We still build the query normally so pagination works.
 
   const { search = "", department, role, managerId } = filters;
   const searchRegex = buildSearchRegex(search);
@@ -375,38 +372,54 @@ async function buildUserListQuery(actor, filters = {}) {
     query.roleId = resolvedRole.id;
   }
 
-  const actorRoleName = await getUserRoleName(actor);
+  if (hasReadPermission) {
+    const actorRoleName = await getUserRoleName(actor);
 
-  if (actorRoleName === MANAGER_ROLE_NAME) {
-    const managerDeptAliases = Array.isArray(actor.departmentAliases)
-      ? actor.departmentAliases
-      : Array.isArray(actor.department)
-        ? actor.department
-        : [];
+    if (actorRoleName === MANAGER_ROLE_NAME) {
+      const managerDeptAliases = Array.isArray(actor.departmentAliases)
+        ? actor.departmentAliases
+        : Array.isArray(actor.department)
+          ? actor.department
+          : [];
 
-    if (managerDeptAliases.length > 0) {
-      query.$and = [
-        ...(query.$and || []),
-        {
-          $or: [
-            { departmentAliases: { $in: managerDeptAliases } },
-            { department: { $in: managerDeptAliases } },
-          ],
-        },
-      ];
-    } else {
-      // Manager has no departments assigned — return nothing
-      query._id = null;
+      if (managerDeptAliases.length > 0) {
+        query.$and = [
+          ...(query.$and || []),
+          {
+            $or: [
+              { departmentAliases: { $in: managerDeptAliases } },
+              { department: { $in: managerDeptAliases } },
+            ],
+          },
+        ];
+      } else {
+        // Manager has no departments assigned — return nothing
+        query._id = null;
+      }
+    } else if (managerId) {
+      query.managerId = normalizeString(managerId);
     }
-  } else if (managerId) {
-    query.managerId = normalizeString(managerId);
   }
 
-  return query;
+  return { query, hasReadPermission };
+}
+
+/**
+ * Serialize user to basic public fields only (id, name, avatar).
+ * Used when the requesting actor doesn't have USERS_READ permission.
+ */
+function serializeUserBasic(user) {
+  const item =
+    typeof user.toObject === "function" ? user.toObject() : { ...user };
+  return {
+    id: item.id,
+    name: item.name,
+    avatar: item.avatar || "",
+  };
 }
 
 async function listUsers(actor, filters) {
-  const query = await buildUserListQuery(actor, filters);
+  const { query, hasReadPermission } = await buildUserListQuery(actor, filters);
   const { page, limit, skip } = resolvePagination(filters);
 
   // Owner/Admin can see deleted users
@@ -429,8 +442,11 @@ async function listUsers(actor, filters) {
     ]);
   }
 
+  // Staff (no USERS_READ) gets only basic info; others get full data
+  const serializer = hasReadPermission ? serializeUser : serializeUserBasic;
+
   return buildPaginatedResponse(
-    users.map(serializeUser),
+    users.map(serializer),
     totalItems,
     page,
     limit,

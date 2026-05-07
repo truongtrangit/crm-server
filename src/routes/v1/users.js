@@ -18,7 +18,6 @@ router.get(
 
 router.get(
   "/",
-  requirePermission(PERMISSIONS.USERS_READ),
   validate(listUsersQuerySchema, "query"),
   UserController.listUsers,
 );

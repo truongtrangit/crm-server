@@ -51,6 +51,7 @@ const createMetaProgramSchema = Joi.object({
   budget: Joi.number().min(0).optional(),
   budgetMin: Joi.number().min(0).optional(),
   budgetMax: Joi.number().min(0).optional(),
+  approvedBudget: Joi.number().min(0).optional(),
   startDate: Joi.date().iso().required().messages({
     "any.required": "Ngày bắt đầu là bắt buộc",
   }),
@@ -71,6 +72,7 @@ const updateMetaProgramSchema = Joi.object({
   budget: Joi.number().min(0).optional(),
   budgetMin: Joi.number().min(0).optional(),
   budgetMax: Joi.number().min(0).optional(),
+  approvedBudget: Joi.number().min(0).optional(),
   startDate: Joi.date().iso().optional(),
   endDate: Joi.date().iso().optional(),
   picIds: Joi.array().items(Joi.string()).optional(),

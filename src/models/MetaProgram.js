@@ -69,6 +69,8 @@ const metaProgramSchema = new mongoose.Schema(
     budget: { type: Number, default: 0, min: 0 },
     budgetMin: { type: Number, default: 0, min: 0 },
     budgetMax: { type: Number, default: 0, min: 0 },
+    /** Approved budget — the amount actually approved by management */
+    approvedBudget: { type: Number, default: 0, min: 0 },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     picIds: { type: [String], default: [] },

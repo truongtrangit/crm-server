@@ -216,6 +216,7 @@ class MetaService {
       "budget",
       "budgetMin",
       "budgetMax",
+      "approvedBudget",
       "startDate",
       "endDate",
       "picIds",
