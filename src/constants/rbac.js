@@ -18,6 +18,7 @@ const RESOURCES = {
   FUNCTIONS: "functions",
   LOGS: "logs",                   // System / Automation / Webhook logs (read-only)
   META: "meta",                    // Meta integration programs
+  LEADS_CFG: "leads_cfg",         // Cấu hình trạng thái Lead
 };
 
 // Actions
@@ -103,6 +104,9 @@ const PERMISSIONS = {
   META_UPDATE: `${RESOURCES.META}_${ACTIONS.UPDATE}`,
   META_DELETE: `${RESOURCES.META}_${ACTIONS.DELETE}`,
   META_MANAGE: `${RESOURCES.META}_${ACTIONS.MANAGE}`,
+
+  // Leads Config
+  LEADS_CFG_MANAGE: `${RESOURCES.LEADS_CFG}_${ACTIONS.MANAGE}`,
 };
 
 // Role definitions with their permissions
@@ -131,6 +135,7 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.ACTIONS_CFG_MANAGE,
       PERMISSIONS.LOGS_READ,
       PERMISSIONS.META_MANAGE,
+      PERMISSIONS.LEADS_CFG_MANAGE,
     ],
   },
   MANAGER: {
