@@ -1,4 +1,5 @@
 const PLATFORMS = ["SmaxAi", "Botvn", "Appvn"];
+const COMPANIES = ["SmaxAi", "Appvn"]; // Danh sách công ty cho nhân viên
 const CUSTOMER_GROUPS = ["Mới", "Tiềm năng", "Thân thiết", "Rời bỏ", "VIP"];
 const CUSTOMER_TYPES_MAPPING = {
   NEW_CUSTOMER: "New Customer",
@@ -82,6 +83,7 @@ const DEFAULT_PASSWORD_STRENGTH = 8;
 
 module.exports = {
   PLATFORMS,
+  COMPANIES,
   CUSTOMER_GROUPS,
   CUSTOMER_TYPES,
   CUSTOMER_TYPES_MAPPING,

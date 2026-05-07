@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { DEFAULT_PASSWORD_STRENGTH } = require("../constants/appData");
+const { DEFAULT_PASSWORD_STRENGTH, COMPANIES } = require("../constants/appData");
 
 const createUserSchema = Joi.object({
   name: Joi.string().trim().required().messages({
@@ -16,6 +16,7 @@ const createUserSchema = Joi.object({
   phone: Joi.string().allow("").optional(),
   role: Joi.string().optional(),
   roleId: Joi.string().optional(),
+  companies: Joi.array().items(Joi.string().valid(...COMPANIES)).optional(),
   department: Joi.array().items(Joi.string()).optional(),
   departmentAliases: Joi.array().items(Joi.string()).optional(),
   departmentIds: Joi.array().items(Joi.string()).optional(),
@@ -38,6 +39,7 @@ const updateUserSchema = Joi.object({
   phone: Joi.string().allow("").optional(),
   role: Joi.string().optional(),
   roleId: Joi.string().optional(),
+  companies: Joi.array().items(Joi.string()).optional(),
   department: Joi.array().items(Joi.string()).optional(),
   departmentAliases: Joi.array().items(Joi.string()).optional(),
   departmentIds: Joi.array().items(Joi.string()).optional(),

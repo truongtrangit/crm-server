@@ -49,6 +49,7 @@ const userSchema = new mongoose.Schema(
     group: { type: [String], default: [] },
     groupAliases: { type: [String], default: [] },
     phone: { type: String, default: "" },
+    companies: { type: [String], default: [] },
     roleId: { type: String, default: null }, // Reference to Role model for RBAC
     permissions: { type: [String], default: [] }, // Additional custom permissions
     managerId: { type: String, default: null },

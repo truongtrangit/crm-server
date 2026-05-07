@@ -22,7 +22,7 @@ const {
   getUserRoleWithPermissions,
 } = require("../utils/rbac");
 const { PERMISSIONS } = require("../constants/rbac");
-const { DEFAULT_PASSWORD_STRENGTH } = require("../constants/appData");
+const { DEFAULT_PASSWORD_STRENGTH, COMPANIES } = require("../constants/appData");
 const env = require("../config/env");
 const {
   buildOrganizationDirectory,
@@ -570,6 +570,7 @@ async function createUserAccount(actor, payload = {}) {
     departmentAliases: organizationAssignments.departmentAliases,
     group,
     groupAliases: organizationAssignments.groupAliases,
+    companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
     managerId,
@@ -761,6 +762,10 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   targetUser.departmentAliases = organizationAssignments.departmentAliases;
   targetUser.group = organizationAssignments.groups;
   targetUser.groupAliases = organizationAssignments.groupAliases;
+  targetUser.companies = 
+    payload.companies !== undefined && Array.isArray(payload.companies)
+      ? payload.companies.filter(c => COMPANIES.includes(c))
+      : targetUser.companies;
   targetUser.phone =
     payload.phone !== undefined
       ? normalizeString(payload.phone)
@@ -790,7 +795,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   await targetUser.save();
 
   const newState = targetUser.toObject();
-  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "phone", "roleId", "isActive", "managerId"];
+  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive", "managerId"];
   const changes = computeChanges(oldState, newState, keysToCheck);
 
   return { user: serializeUser(targetUser), changes };
@@ -824,6 +829,10 @@ async function updateOwnProfile(actor, payload = {}) {
     safePayload.phone !== undefined
       ? normalizeString(safePayload.phone)
       : actor.phone;
+  actor.companies =
+    safePayload.companies !== undefined && Array.isArray(safePayload.companies)
+      ? safePayload.companies.filter(c => COMPANIES.includes(c))
+      : actor.companies;
   actor.preferences =
     safePayload.preferences !== undefined
       ? safePayload.preferences
