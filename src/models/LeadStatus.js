@@ -22,17 +22,16 @@ const leadStatusSchema = new mongoose.Schema(
 );
 
 // Middleware to ensure only one active default status exists
-leadStatusSchema.pre("save", async function (next) {
+leadStatusSchema.pre("save", async function () {
   if (this.isDefault) {
     await this.constructor.updateMany(
       { _id: { $ne: this._id } },
       { $set: { isDefault: false } }
     );
   }
-  next();
 });
 
-leadStatusSchema.pre("findOneAndUpdate", async function (next) {
+leadStatusSchema.pre("findOneAndUpdate", async function () {
   const update = this.getUpdate();
   if (update.isDefault || (update.$set && update.$set.isDefault)) {
     const docToUpdate = await this.model.findOne(this.getQuery());
@@ -41,7 +40,6 @@ leadStatusSchema.pre("findOneAndUpdate", async function (next) {
       { $set: { isDefault: false } }
     );
   }
-  next();
 });
 
 module.exports = mongoose.model("LeadStatus", leadStatusSchema);

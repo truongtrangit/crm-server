@@ -16,17 +16,16 @@ const leadStatusGroupSchema = new mongoose.Schema(
 );
 
 // Middleware to ensure only one active default group exists
-leadStatusGroupSchema.pre("save", async function (next) {
+leadStatusGroupSchema.pre("save", async function () {
   if (this.isDefault) {
     await this.constructor.updateMany(
       { _id: { $ne: this._id } },
       { $set: { isDefault: false } }
     );
   }
-  next();
 });
 
-leadStatusGroupSchema.pre("findOneAndUpdate", async function (next) {
+leadStatusGroupSchema.pre("findOneAndUpdate", async function () {
   const update = this.getUpdate();
   if (update.isDefault || (update.$set && update.$set.isDefault)) {
     const docToUpdate = await this.model.findOne(this.getQuery());
@@ -35,7 +34,6 @@ leadStatusGroupSchema.pre("findOneAndUpdate", async function (next) {
       { $set: { isDefault: false } }
     );
   }
-  next();
 });
 
 module.exports = mongoose.model("LeadStatusGroup", leadStatusGroupSchema);
