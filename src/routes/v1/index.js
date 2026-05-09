@@ -14,6 +14,8 @@ const eventChainsRouter = require("./eventChains");
 const webhooksRouter = require("./webhooks");
 const logsRouter = require("./logs");
 const metaRouter = require("./meta");
+const leadConfigRouter = require("./leadConfig");
+const leadRouter = require("./leads");
 
 const { authenticateRequest, requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
@@ -62,6 +64,8 @@ v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
 v1Router.use("/logs", logsRouter);
 v1Router.use("/meta", metaRouter);
+v1Router.use("/lead-config", leadConfigRouter);
+v1Router.use("/leads", leadRouter);
 
 // Nested: chuỗi hành động trong sự kiện
 v1Router.use("/events/:eventId/chains", eventChainsRouter);

@@ -1,6 +1,7 @@
 const Event = require("../models/Event");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
+const Lead = require("../models/Lead");
 const EventActionChain = require("../models/EventActionChain");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
@@ -52,8 +53,8 @@ class EventService {
 
     const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
-    if (group)    query.group = group;
-    if (stage)    query.stage = stage;
+    if (group) query.group = group;
+    if (stage) query.stage = stage;
     if (assignee) query["assignee.name"] = assignee;
 
     const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "assignee.name", "stage"]);
@@ -144,9 +145,9 @@ class EventService {
     const custSearch = {};
     if (mappedCustomer.email) custSearch.email = mappedCustomer.email;
     else if (mappedCustomer.phone) custSearch.phone = mappedCustomer.phone;
-    
+
     if (Object.keys(custSearch).length > 0) {
-      const existingCustomer = await Customer.findOne({ $or: [ { email: mappedCustomer.email }, { phone: mappedCustomer.phone } ].filter(c => Object.values(c)[0]) });
+      const existingCustomer = await Customer.findOne({ $or: [{ email: mappedCustomer.email }, { phone: mappedCustomer.phone }].filter(c => Object.values(c)[0]) });
       if (existingCustomer) {
         customerId = existingCustomer.id;
         mappedCustomer.name = existingCustomer.name || mappedCustomer.name;
@@ -256,9 +257,9 @@ class EventService {
       const custSearch = {};
       if (event.customer.email) custSearch.email = event.customer.email;
       else if (event.customer.phone) custSearch.phone = event.customer.phone;
-      
+
       if (Object.keys(custSearch).length > 0) {
-        const existingCustomer = await Customer.findOne({ $or: [ { email: event.customer.email }, { phone: event.customer.phone } ].filter(c => Object.values(c)[0]) });
+        const existingCustomer = await Customer.findOne({ $or: [{ email: event.customer.email }, { phone: event.customer.phone }].filter(c => Object.values(c)[0]) });
         if (existingCustomer) {
           event.customerId = existingCustomer.id;
           event.customer.name = existingCustomer.name || event.customer.name;
@@ -366,7 +367,7 @@ class EventService {
 
     const initialLength = event.timeline.length;
     const timelineEntry = event.timeline.find((entry) => entry._id.toString() === timelineId);
-    
+
     event.timeline = event.timeline.filter((entry) => entry._id.toString() !== timelineId);
 
     if (event.timeline.length === initialLength) {
@@ -421,7 +422,7 @@ class EventService {
     event.customer.phone = existingCustomer.phone || event.customer.phone;
     event.customer.source = event.customer.source || existingCustomer.source || "CRM";
     event.customer.address = existingCustomer.address || event.customer.address;
-    
+
     await event.save();
     return event;
   }
@@ -433,7 +434,9 @@ class EventService {
 
     const event = await Event.findOne({ id });
     if (!event) {
-      throw createHttpError(404, "Event not found");
+      const lead = await Lead.findOne({ id });
+      if (lead.assignees.some(a => a.userId === currentUser.id)) return true;
+      throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện/lead được giao cho bạn");
     }
     if (event.assigneeId !== currentUser.id) {
       throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện được giao cho bạn");

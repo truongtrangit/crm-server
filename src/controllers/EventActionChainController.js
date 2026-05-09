@@ -3,6 +3,7 @@ const ActionChain = require("../models/ActionChain");
 const Action = require("../models/Action");
 const Event = require("../models/Event");
 const User = require("../models/User");
+const Lead = require("../models/Lead");
 const { createHttpError, sendSuccess } = require("../utils/http");
 const { normalizeOrganizationKey } = require("../utils/organization");
 const { ACTION_TYPE_CATEGORY_MAP } = require("../constants/actionConfig");
@@ -241,6 +242,33 @@ class EventActionChainController {
 
     chain.markModified("steps");
     await chain.save();
+
+    try {
+      const lead = await Lead.findOne({ id: eventId });
+      if (lead) {
+        lead.activityLogs.push({
+          action: "update",
+          description: `Hoàn thành bước "${currentStep.actionName || currentStep.actionId}" trong chuỗi "${chain.name}"`,
+          performedBy: {
+            userId: req.user.id,
+            userName: req.user.name,
+            userAvatar: req.user.avatar || ""
+          },
+          metadata: {
+            chainId: chain.id,
+            stepOrder: currentStep.order,
+            resultId: selectedResultId,
+            reasonId: selectedReasonId,
+            note: note,
+            changes: {}
+          }
+        });
+        await lead.save();
+      }
+    } catch (err) {
+      console.error("Error logging action step to lead", err);
+    }
+
     return sendSuccess(res, 200, "Lưu bước thành công", chain);
   }
 
