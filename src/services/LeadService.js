@@ -316,12 +316,7 @@ class LeadService {
       createdBy: performer,
     });
 
-    // Push activity log
-    lead.activityLogs.push({
-      action: "add_discussion",
-      description: `Thêm bình luận`,
-      performedBy: performer,
-    });
+
 
     await lead.save();
     return lead;
