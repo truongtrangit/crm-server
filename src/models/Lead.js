@@ -30,6 +30,38 @@ const assigneeSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/** Lịch sử thao tác nội bộ — thay thế SystemLog cho lead */
+const activityLogSchema = new mongoose.Schema(
+  {
+    action: {
+      type: String,
+      enum: ["create", "update", "delete", "stage_change", "assign", "unassign", "add_tag", "remove_tag", "add_discussion", "add_timeline"],
+      required: true,
+    },
+    description: { type: String, required: true, trim: true },
+    performedBy: {
+      userId: { type: String, default: null },
+      userName: { type: String, default: "System" },
+      userAvatar: { type: String, default: "" },
+    },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
+  },
+  { _id: true, timestamps: true },
+);
+
+/** Bình luận / thảo luận trong lead */
+const discussionSchema = new mongoose.Schema(
+  {
+    content: { type: String, required: true, trim: true },
+    createdBy: {
+      userId: { type: String, required: true },
+      userName: { type: String, default: "" },
+      userAvatar: { type: String, default: "" },
+    },
+  },
+  { _id: true, timestamps: true },
+);
+
 const leadSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -69,6 +101,12 @@ const leadSchema = new mongoose.Schema(
     groupId: { type: String, default: null },
 
     timeline: [timelineEntrySchema],
+
+    /** Lịch sử thao tác nội bộ — thay thế SystemLog cho lead */
+    activityLogs: [activityLogSchema],
+
+    /** Bình luận / thảo luận */
+    discussions: [discussionSchema],
   },
   {
     timestamps: true,

@@ -126,7 +126,7 @@ class LeadService {
   /**
    * Tạo lead mới — auto-map customer, resolve assignees.
    */
-  async createLead(data) {
+  async createLead(data, currentUser) {
     const id = await generateMonotonicId("LEAD");
 
     // Auto-map customer nếu email/phone khớp
@@ -156,13 +156,18 @@ class LeadService {
       source: data.source || "CRM",
       tags: data.tags || [],
       note: data.note || "",
+      activityLogs: [{
+        action: "create",
+        description: `Tạo lead "${data.name}"`,
+        performedBy: this._extractPerformer(currentUser),
+      }],
     });
 
     return lead;
   }
 
   /**
-   * Cập nhật lead — ownership check + changelog.
+   * Cập nhật lead — ownership check + changelog + activity log.
    */
   async updateLead(id, updates, currentUser) {
     const lead = await this.getLeadById(id);
@@ -199,6 +204,16 @@ class LeadService {
     }
 
     Object.assign(lead, $set);
+
+    // Push activity log
+    const performer = this._extractPerformer(currentUser);
+    lead.activityLogs.push({
+      action: "update",
+      description: `Cập nhật lead "${lead.name}"`,
+      performedBy: performer,
+      metadata: { updatedFields: Object.keys($set) },
+    });
+
     await lead.save();
 
     const changes = computeChanges(before, lead.toObject());
@@ -220,6 +235,7 @@ class LeadService {
     }
 
     const before = lead.toObject();
+    const previousStageLabel = LEAD_STAGE_MAP[lead.stage]?.label || lead.stage;
     lead.stage = nextStage.id;
 
     // Auto-add timeline entry
@@ -227,6 +243,15 @@ class LeadService {
       type: "event",
       title: `Chuyển sang: ${nextStage.label}`,
       createdBy: currentUser?.name || currentUser?.id || "",
+    });
+
+    // Push activity log
+    const performer = this._extractPerformer(currentUser);
+    lead.activityLogs.push({
+      action: "stage_change",
+      description: `Chuyển từ "${previousStageLabel}" sang "${nextStage.label}"`,
+      performedBy: performer,
+      metadata: { from: before.stage, to: nextStage.id },
     });
 
     await lead.save();
@@ -241,6 +266,16 @@ class LeadService {
   async deleteLead(id, currentUser) {
     const lead = await this.getLeadById(id);
     this._checkOwnership(lead, currentUser);
+
+    // Push activity log before soft delete
+    const performer = this._extractPerformer(currentUser);
+    lead.activityLogs.push({
+      action: "delete",
+      description: `Xóa lead "${lead.name}"`,
+      performedBy: performer,
+    });
+    await lead.save();
+
     await lead.softDelete();
     return lead;
   }
@@ -254,8 +289,65 @@ class LeadService {
       ...entryData,
       createdBy: currentUser?.name || currentUser?.id || "",
     });
+
+    // Push activity log
+    const performer = this._extractPerformer(currentUser);
+    lead.activityLogs.push({
+      action: "add_timeline",
+      description: `Thêm ${entryData.type === "phone" ? "cuộc gọi" : entryData.type === "email" ? "email" : "ghi chú"}: "${entryData.title}"`,
+      performedBy: performer,
+    });
+
     await lead.save();
     return lead;
+  }
+
+  // ─── Discussion (Thảo luận) ───
+
+  /**
+   * Thêm bình luận/thảo luận vào lead.
+   * RBAC: Chỉ staff được assign, hoặc manager/admin/owner mới được bình luận.
+   */
+  async addDiscussion(id, content, currentUser) {
+    const lead = await this.getLeadById(id);
+    this._checkDiscussionPermission(lead, currentUser);
+
+    const performer = this._extractPerformer(currentUser);
+
+    lead.discussions.push({
+      content: content.trim(),
+      createdBy: performer,
+    });
+
+    // Push activity log
+    lead.activityLogs.push({
+      action: "add_discussion",
+      description: `Thêm bình luận`,
+      performedBy: performer,
+    });
+
+    await lead.save();
+    return lead;
+  }
+
+  /**
+   * Lấy lịch sử thao tác của lead (paginated, newest first).
+   */
+  async getActivityLogs(id, queryParams = {}) {
+    const lead = await this.getLeadById(id);
+    const { limit: rawLimit = 50, skip: rawSkip = 0 } = queryParams;
+    const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 50, 1), 200);
+    const skip = Math.max(parseInt(rawSkip, 10) || 0, 0);
+
+    // Sort newest first
+    const logs = [...(lead.activityLogs || [])]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(skip, skip + limit);
+
+    return {
+      items: logs,
+      total: (lead.activityLogs || []).length,
+    };
   }
 
   // ─── Private Helpers ───
@@ -316,6 +408,38 @@ class LeadService {
         code: "LEAD_FORBIDDEN",
       });
     }
+  }
+
+  /**
+   * Discussion permission check:
+   * - ADMIN/OWNER: always allowed
+   * - MANAGER: always allowed
+   * - STAFF: only if assigned to this lead
+   */
+  _checkDiscussionPermission(lead, currentUser) {
+    const role = (currentUser?.roleId || "").toUpperCase();
+    if (["OWNER", "ADMIN", "MANAGER"].includes(role)) return;
+
+    const isAssignee = lead.assignees.some((a) => a.userId === currentUser?.id);
+    if (!isAssignee) {
+      throw createHttpError(403, "Chỉ nhân sự được gán mới có thể bình luận.", {
+        code: "LEAD_DISCUSSION_FORBIDDEN",
+      });
+    }
+  }
+
+  /**
+   * Extract performer info from currentUser.
+   */
+  _extractPerformer(currentUser) {
+    if (!currentUser) {
+      return { userId: null, userName: "System", userAvatar: "" };
+    }
+    return {
+      userId: currentUser.id || null,
+      userName: currentUser.name || "Unknown",
+      userAvatar: currentUser.avatar || "",
+    };
   }
 }
 

@@ -1,7 +1,5 @@
 const LeadService = require("../services/LeadService");
-const SystemLogService = require("../services/SystemLogService");
 const { sendSuccess } = require("../utils/http");
-const { RESOURCES } = require("../constants/rbac");
 
 class LeadController {
   async getLeads(req, res) {
@@ -20,70 +18,26 @@ class LeadController {
   }
 
   async createLead(req, res) {
-    const lead = await LeadService.createLead(req.body);
-
-    SystemLogService.log({
-      action: "create",
-      resource: RESOURCES.LEADS,
-      resourceId: lead.id,
-      resourceName: lead.name,
-      description: `Tạo lead "${lead.name}"`,
-      metadata: { newItem: lead },
-      req,
-    });
-
+    const lead = await LeadService.createLead(req.body, req.user);
     return sendSuccess(res, 201, "Create lead success", lead);
   }
 
   async updateLead(req, res) {
-    const { lead, changes } = await LeadService.updateLead(
+    const { lead } = await LeadService.updateLead(
       req.params.id,
       req.body,
       req.user,
     );
-
-    SystemLogService.log({
-      action: "update",
-      resource: RESOURCES.LEADS,
-      resourceId: lead.id,
-      resourceName: lead.name,
-      description: `Cập nhật lead "${lead.name}"`,
-      metadata: { changes },
-      req,
-    });
-
     return sendSuccess(res, 200, "Update lead success", lead);
   }
 
   async confirmStage(req, res) {
-    const { lead, changes, previousStage, newStage } =
-      await LeadService.confirmStage(req.params.id, req.user);
-
-    SystemLogService.log({
-      action: "update",
-      resource: RESOURCES.LEADS,
-      resourceId: lead.id,
-      resourceName: lead.name,
-      description: `Chuyển lead "${lead.name}" từ "${previousStage}" sang "${newStage}"`,
-      metadata: { changes },
-      req,
-    });
-
+    const { lead } = await LeadService.confirmStage(req.params.id, req.user);
     return sendSuccess(res, 200, "Confirm stage success", lead);
   }
 
   async deleteLead(req, res) {
     const lead = await LeadService.deleteLead(req.params.id, req.user);
-
-    SystemLogService.log({
-      action: "delete",
-      resource: RESOURCES.LEADS,
-      resourceId: lead.id,
-      resourceName: lead.name,
-      description: `Xóa lead "${lead.name}"`,
-      req,
-    });
-
     return sendSuccess(res, 200, "Delete lead success", { id: lead.id });
   }
 
@@ -93,17 +47,28 @@ class LeadController {
       req.body,
       req.user,
     );
-
-    SystemLogService.log({
-      action: "update",
-      resource: RESOURCES.LEADS,
-      resourceId: lead.id,
-      resourceName: lead.name,
-      description: `Thêm timeline cho lead "${lead.name}"`,
-      req,
-    });
-
     return sendSuccess(res, 200, "Add timeline success", lead);
+  }
+
+  // ─── Discussion ───
+
+  async addDiscussion(req, res) {
+    const lead = await LeadService.addDiscussion(
+      req.params.id,
+      req.body.content,
+      req.user,
+    );
+    return sendSuccess(res, 200, "Add discussion success", lead);
+  }
+
+  // ─── Activity Logs ───
+
+  async getActivityLogs(req, res) {
+    const result = await LeadService.getActivityLogs(
+      req.params.id,
+      req.query,
+    );
+    return sendSuccess(res, 200, "Get activity logs success", result);
   }
 }
 

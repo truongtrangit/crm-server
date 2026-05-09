@@ -72,4 +72,18 @@ router.post(
   LeadController.addLeadTimeline,
 );
 
+// Discussion (Thảo luận)
+router.post(
+  "/:id/discussions",
+  requirePermission(PERMISSIONS.LEADS_READ),
+  LeadController.addDiscussion,
+);
+
+// Activity Logs (Lịch sử thao tác)
+router.get(
+  "/:id/activity-logs",
+  requirePermission(PERMISSIONS.LEADS_READ),
+  LeadController.getActivityLogs,
+);
+
 module.exports = router;
