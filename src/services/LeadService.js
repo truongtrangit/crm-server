@@ -28,24 +28,7 @@ class LeadService {
     const andClauses = [];
 
     // ── RBAC Scoping ──
-    const role = (currentUser?.roleId || "").toUpperCase();
-    const isAdminOrOwner = ["OWNER", "ADMIN"].includes(role);
-    const isManager = role === "MANAGER";
-
-    if (!isAdminOrOwner) {
-      const allowedUserIds = [currentUser?.id];
-      if (isManager && currentUser?.id) {
-        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
-        allowedUserIds.push(...subordinates.map((u) => u.id));
-      }
-
-      andClauses.push({
-        $or: [
-          { "assignees.userId": { $in: allowedUserIds } },
-          { assignees: { $size: 0 } },
-        ],
-      });
-    }
+    // Staff can see all leads, so no restriction on read.
 
     // ── Search ──
     if (searchRegex) {
@@ -90,22 +73,8 @@ class LeadService {
    * Get lead counts per stage — cho Kanban header.
    */
   async getStageCounts(currentUser) {
-    const role = (currentUser?.roleId || "").toUpperCase();
-    const isAdminOrOwner = ["OWNER", "ADMIN"].includes(role);
-    const isManager = role === "MANAGER";
-
+    // Staff can see all leads, so no restriction on read.
     const matchStage = {};
-    if (!isAdminOrOwner) {
-      const allowedUserIds = [currentUser?.id];
-      if (isManager && currentUser?.id) {
-        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
-        allowedUserIds.push(...subordinates.map((u) => u.id));
-      }
-      matchStage.$or = [
-        { "assignees.userId": { $in: allowedUserIds } },
-        { assignees: { $size: 0 } },
-      ];
-    }
 
     const counts = await Lead.aggregate([
       { $match: matchStage },
@@ -177,6 +146,12 @@ class LeadService {
 
     // Resolve assignees nếu có gửi lên
     if (updates.assignees) {
+      const role = (currentUser?.roleId || "").toUpperCase();
+      if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) {
+        throw createHttpError(403, "Chỉ Manager, Admin hoặc Owner mới có quyền phân công lead.", {
+          code: "ASSIGN_LEAD_FORBIDDEN"
+        });
+      }
       updates.assignees = await this._resolveAssignees(updates.assignees);
     }
 
@@ -205,18 +180,40 @@ class LeadService {
 
     Object.assign(lead, $set);
 
+    const updatedKeys = Object.keys($set);
+    let desc = `Cập nhật lead "${lead.name}"`;
+    if (updatedKeys.length > 0) {
+      const fieldNames = {
+        name: 'tên',
+        avatar: 'ảnh đại diện',
+        email: 'email',
+        phone: 'SĐT',
+        stage: 'trạng thái',
+        assignees: 'người phụ trách',
+        address: 'khu vực',
+        street: 'địa chỉ',
+        source: 'nguồn',
+        tags: 'tags',
+        note: 'ghi chú',
+        customerId: 'khách hàng'
+      };
+      const names = updatedKeys.map(k => fieldNames[k] || k);
+      desc = `Cập nhật ${names.join(', ')}`;
+    }
+
+    const changes = computeChanges(before, lead.toObject());
+
     // Push activity log
     const performer = this._extractPerformer(currentUser);
     lead.activityLogs.push({
       action: "update",
-      description: `Cập nhật lead "${lead.name}"`,
+      description: desc,
       performedBy: performer,
-      metadata: { updatedFields: Object.keys($set) },
+      metadata: { updatedFields: updatedKeys, changes },
     });
 
     await lead.save();
 
-    const changes = computeChanges(before, lead.toObject());
     return { lead, changes };
   }
 
