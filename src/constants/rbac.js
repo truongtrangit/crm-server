@@ -19,6 +19,7 @@ const RESOURCES = {
   LOGS: "logs",                   // System / Automation / Webhook logs (read-only)
   META: "meta",                    // Meta integration programs
   LEADS_CFG: "leads_cfg",         // Cấu hình trạng thái Lead
+  LEADS: "leads",                  // Quản lý Lead
 };
 
 // Actions
@@ -107,6 +108,13 @@ const PERMISSIONS = {
 
   // Leads Config
   LEADS_CFG_MANAGE: `${RESOURCES.LEADS_CFG}_${ACTIONS.MANAGE}`,
+
+  // Leads
+  LEADS_CREATE: `${RESOURCES.LEADS}_${ACTIONS.CREATE}`,
+  LEADS_READ: `${RESOURCES.LEADS}_${ACTIONS.READ}`,
+  LEADS_UPDATE: `${RESOURCES.LEADS}_${ACTIONS.UPDATE}`,
+  LEADS_DELETE: `${RESOURCES.LEADS}_${ACTIONS.DELETE}`,
+  LEADS_MANAGE: `${RESOURCES.LEADS}_${ACTIONS.MANAGE}`,
 };
 
 // Role definitions with their permissions
@@ -136,6 +144,7 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.LOGS_READ,
       PERMISSIONS.META_MANAGE,
       PERMISSIONS.LEADS_CFG_MANAGE,
+      PERMISSIONS.LEADS_MANAGE,
     ],
   },
   MANAGER: {
@@ -169,6 +178,10 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.META_READ,
       PERMISSIONS.META_UPDATE,
       PERMISSIONS.META_DELETE,
+      PERMISSIONS.LEADS_CREATE,
+      PERMISSIONS.LEADS_READ,
+      PERMISSIONS.LEADS_UPDATE,
+      PERMISSIONS.LEADS_DELETE,
     ],
   },
   STAFF: {
@@ -193,6 +206,9 @@ const ROLE_DEFINITIONS = {
       PERMISSIONS.META_READ,
       PERMISSIONS.META_CREATE,
       PERMISSIONS.META_UPDATE,
+      PERMISSIONS.LEADS_READ,
+      PERMISSIONS.LEADS_CREATE,
+      PERMISSIONS.LEADS_UPDATE,      // Có thể update lead được assign cho mình
     ],
   },
 };
