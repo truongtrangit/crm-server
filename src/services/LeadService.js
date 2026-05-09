@@ -270,7 +270,7 @@ class LeadService {
     const funcIds = rawAssignees.map((a) => a.functionId).filter(Boolean);
 
     const [users, funcs] = await Promise.all([
-      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: true }).select("id name avatar") : [],
+      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar") : [],
       funcIds.length > 0 ? StaffFunction.find({ id: { $in: funcIds } }).select("id title") : [],
     ]);
 
