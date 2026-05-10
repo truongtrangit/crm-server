@@ -8,6 +8,10 @@ const EVENT_GROUPS = [
   "chuyen_khoan",
 ];
 
+const assigneeItemSchema = Joi.object({
+  userId: Joi.string().required(),
+  functionId: Joi.string().allow(null, "").optional(),
+});
 const createEventSchema = Joi.object({
   name: Joi.string().trim().required().messages({
     "any.required": "name is required",
@@ -39,14 +43,8 @@ const createEventSchema = Joi.object({
     id: Joi.string().allow("").optional(),
     tags: Joi.array().items(Joi.string()).optional(),
   }).optional(),
-  assignee: Joi.object({
-    name: Joi.string().allow("").optional(),
-    email: Joi.string().allow("").optional(),
-    avatar: Joi.string().allow("").optional(),
-    role: Joi.string().allow("").optional(),
-  }).optional(),
+  assignees: Joi.array().items(assigneeItemSchema).max(10).optional(),
   customerId: Joi.string().allow("").optional(),
-  assigneeId: Joi.string().allow("").optional(),
   stage: Joi.string().allow("").optional(),
   source: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),
@@ -98,14 +96,8 @@ const updateEventSchema = Joi.object({
     id: Joi.string().allow("").optional(),
     tags: Joi.array().items(Joi.string()).optional(),
   }).optional(),
-  assignee: Joi.object({
-    name: Joi.string().allow("").optional(),
-    email: Joi.string().allow("").optional(),
-    avatar: Joi.string().allow("").optional(),
-    role: Joi.string().allow("").optional(),
-  }).optional(),
+  assignees: Joi.array().items(assigneeItemSchema).max(10).optional(),
   customerId: Joi.string().allow("").optional(),
-  assigneeId: Joi.string().allow("").optional(),
   stage: Joi.string().allow("").optional(),
   source: Joi.string().allow("").optional(),
   tags: Joi.array().items(Joi.string()).optional(),

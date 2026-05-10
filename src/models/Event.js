@@ -18,6 +18,18 @@ const timelineEntrySchema = new mongoose.Schema(
   { _id: true, timestamps: true },
 );
 
+/** Mỗi nhân sự phụ trách — gắn 1 chức năng (StaffFunction). Đồng bộ với Lead. */
+const assigneeSchema = new mongoose.Schema(
+  {
+    userId: { type: String, ref: "User", required: true },
+    userName: { type: String, default: "" },
+    userAvatar: { type: String, default: "" },
+    functionId: { type: String, ref: "StaffFunction", default: null },
+    functionTitle: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
 const eventSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -42,14 +54,8 @@ const eventSchema = new mongoose.Schema(
       id: { type: String, default: "" },
       tags: [{ type: String }],
     },
-    assigneeId: { type: String, ref: "User", default: null },
-    assignee: {
-      name: { type: String, default: "" },
-      avatar: { type: String, default: "" },
-      role: { type: String, default: "" },
-      department: [{ type: String }],
-      group: [{ type: String }],
-    },
+    /** Nhiều nhân sự phụ trách, mỗi người 1 chức năng — đồng bộ schema với Lead */
+    assignees: [assigneeSchema],
     stage: { type: String, default: "" },
     source: { type: String, default: "CRM" },
     subscriptionId: { type: String, ref: "Subscription", default: null },

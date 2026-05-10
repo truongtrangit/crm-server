@@ -1,6 +1,7 @@
 const Event = require("../models/Event");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
+const StaffFunction = require("../models/StaffFunction");
 const Lead = require("../models/Lead");
 const EventActionChain = require("../models/EventActionChain");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
@@ -11,7 +12,7 @@ const { computeChanges } = require("../utils/diff");
 
 class EventService {
   async getEvents(queryParams, currentUser) {
-    const { search = "", group, stage, assignee } = queryParams;
+    const { search = "", group, stage } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
 
@@ -32,8 +33,8 @@ class EventService {
 
       andClauses.push({
         $or: [
-          { assigneeId: { $in: allowedUserIds } },
-          { assigneeId: null },
+          { "assignees.userId": { $in: allowedUserIds } },
+          { assignees: { $size: 0 } },
         ],
       });
     }
@@ -47,17 +48,18 @@ class EventService {
           { "customer.name": searchRegex },
           { "biz.id": searchRegex },
           { stage: searchRegex },
+          { "assignees.userName": searchRegex },
         ],
       });
     }
 
     const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
-    if (group) query.group = group;
-    if (stage) query.stage = stage;
+    if (group)    query.group = group;
+    if (stage)    query.stage = stage;
     if (assignee) query["assignee.name"] = assignee;
 
-    const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "assignee.name", "stage"]);
+    const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "stage"]);
 
     const [events, totalItems] = await Promise.all([
       Event.find(query).sort(sortObj).skip(skip).limit(limit),
@@ -90,8 +92,8 @@ class EventService {
       }
       matchStage = {
         $or: [
-          { assigneeId: { $in: allowedUserIds } },
-          { assigneeId: null }
+          { "assignees.userId": { $in: allowedUserIds } },
+          { assignees: { $size: 0 } }
         ]
       };
     }
@@ -102,8 +104,8 @@ class EventService {
     ]);
 
     const countMap = {};
-    for (const item of counts) {
-      countMap[item._id] = item.count;
+    for (const c of counts) {
+      if (c._id) countMap[c._id] = c.count;
     }
 
     const stats = {};
@@ -127,7 +129,6 @@ class EventService {
 
   async createEvent(payload, currentUser) {
     let customerId = null;
-    let assigneeId = null;
 
     // Build the mapped customer subdocument
     const payloadCust = payload.customer || {};
@@ -155,39 +156,8 @@ class EventService {
       }
     }
 
-    // Build the mapped assignee subdocument
-    const payloadAssignee = payload.assignee || {};
-    const mappedAssignee = {
-      name: payloadAssignee.name || "",
-      avatar: payloadAssignee.avatar || "",
-      role: payloadAssignee.role || "",
-      department: "",
-      group: "",
-    };
-
-    // 2. Try to map Staff by assigneeId first, then email/name
-    const staffLookupId = payload.assigneeId || null;
-    if (staffLookupId || payloadAssignee.email || payloadAssignee.name) {
-      const staffQuery = [];
-      if (staffLookupId) staffQuery.push({ id: staffLookupId });
-      if (payloadAssignee.email) staffQuery.push({ email: payloadAssignee.email });
-      if (payloadAssignee.name) staffQuery.push({ name: payloadAssignee.name });
-
-      const existingStaff = await User.findOne({ $or: staffQuery });
-      if (existingStaff) {
-        if (existingStaff.isActive === false) {
-          throw createHttpError(400, "Không thể phân công nhân viên đã ngừng hoạt động", {
-            code: "STAFF_INACTIVE",
-          });
-        }
-        assigneeId = existingStaff.id;
-        mappedAssignee.name = existingStaff.name;
-        mappedAssignee.avatar = existingStaff.avatar || mappedAssignee.avatar;
-        mappedAssignee.role = existingStaff.role || mappedAssignee.role;
-        mappedAssignee.department = existingStaff.department || [];
-        mappedAssignee.group = existingStaff.group || [];
-      }
-    }
+    // 2. Resolve assignees — enrich from DB (same pattern as LeadService)
+    const assignees = await this._resolveAssignees(payload.assignees || []);
 
     const event = await Event.create({
       id: await generateMonotonicId(ID_PREFIXES.EVENT),
@@ -196,8 +166,7 @@ class EventService {
       group: payload.group,
       customerId,
       customer: mappedCustomer,
-      assigneeId,
-      assignee: mappedAssignee,
+      assignees,
       biz: payload.biz || { id: "", tags: [] },
       stage: payload.stage || "",
       source: payload.source || "CRM",
@@ -277,43 +246,9 @@ class EventService {
       };
     }
 
-    if (body.assignee !== undefined || body.assigneeId !== undefined) {
-      const incomingAssignee = body.assignee || {};
-      event.assignee = {
-        name: incomingAssignee.name ?? event.assignee.name,
-        avatar: incomingAssignee.avatar ?? event.assignee.avatar,
-        role: incomingAssignee.role ?? event.assignee.role,
-        department: event.assignee.department || "",
-        group: event.assignee.group || "",
-      };
-
-      // Lookup by assigneeId first, then email/name
-      const lookupId = body.assigneeId || null;
-      if (lookupId || incomingAssignee.email || event.assignee.name) {
-        const staffQuery = [];
-        if (lookupId) staffQuery.push({ id: lookupId });
-        if (incomingAssignee.email) staffQuery.push({ email: incomingAssignee.email });
-        if (event.assignee.name) staffQuery.push({ name: event.assignee.name });
-
-        const existingStaff = await User.findOne({ $or: staffQuery });
-        if (existingStaff) {
-          if (existingStaff.isActive === false) {
-            throw createHttpError(400, "Không thể phân công nhân viên đã ngừng hoạt động", {
-              code: "STAFF_INACTIVE",
-            });
-          }
-          event.assigneeId = existingStaff.id;
-          event.assignee.name = existingStaff.name;
-          event.assignee.avatar = existingStaff.avatar || event.assignee.avatar;
-          event.assignee.role = existingStaff.role || event.assignee.role;
-          event.assignee.department = existingStaff.department || [];
-          event.assignee.group = existingStaff.group || [];
-        } else {
-          event.assigneeId = null;
-          event.assignee.department = [];
-          event.assignee.group = [];
-        }
-      }
+    // Resolve assignees nếu có gửi lên
+    if (body.assignees !== undefined) {
+      event.assignees = await this._resolveAssignees(body.assignees || []);
     }
 
     if (body.plan) {
@@ -333,7 +268,7 @@ class EventService {
 
     // Compute diff
     const newState = event.toObject();
-    const keysToCheck = ["name", "sub", "group", "stage", "source", "tags", "customer", "biz", "assignee", "plan", "services", "quotas"];
+    const keysToCheck = ["name", "sub", "group", "stage", "source", "tags", "customer", "biz", "assignees", "plan", "services", "quotas"];
     const changes = computeChanges(oldState, newState, keysToCheck);
 
     return { event, changes };
@@ -438,32 +373,42 @@ class EventService {
       if (lead.assignees.some(a => a.userId === currentUser.id)) return true;
       throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện/lead được giao cho bạn");
     }
-    if (event.assigneeId !== currentUser.id) {
+    const isAssignee = event.assignees.some(a => a.userId === currentUser.id);
+    if (!isAssignee) {
       throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện được giao cho bạn");
     }
     return true;
   }
 
-  async unassignEvent(id, currentUser) {
+  /**
+   * Bỏ phân công 1 user khỏi event.
+   * - STAFF: chỉ bỏ chính mình
+   * - MANAGER: bỏ mình hoặc nhân viên trực thuộc
+   * - ADMIN/OWNER: bỏ bất kỳ ai
+   * Nếu không truyền userId trong body, mặc định bỏ currentUser.
+   */
+  async unassignEvent(id, currentUser, targetUserId) {
     const actorRole = (currentUser?.roleId || '').toUpperCase();
+    const removeUserId = targetUserId || currentUser?.id;
 
     const event = await Event.findOne({ id });
     if (!event) throw createHttpError(404, 'Event not found');
 
-    if (!event.assigneeId) {
-      throw createHttpError(400, 'Sự kiện này chưa có người phụ trách');
+    const existingAssignee = event.assignees.find(a => a.userId === removeUserId);
+    if (!existingAssignee) {
+      throw createHttpError(400, 'Người này chưa được phân công trong sự kiện');
     }
 
     if (actorRole === 'STAFF') {
-      if (event.assigneeId !== currentUser.id) {
+      if (removeUserId !== currentUser.id) {
         throw createHttpError(403, 'Bạn chỉ có thể bỏ nhận sự kiện của chính mình');
       }
     }
 
     if (actorRole === 'MANAGER') {
-      const isSelf = event.assigneeId === currentUser.id;
+      const isSelf = removeUserId === currentUser.id;
       if (!isSelf) {
-        const assigneeUser = await User.findOne({ id: event.assigneeId });
+        const assigneeUser = await User.findOne({ id: removeUserId });
         const isDirectStaff = assigneeUser?.managerId === currentUser.id;
         if (!isDirectStaff) {
           throw createHttpError(403, 'Bạn chỉ có thể bỏ phân công của chính bạn hoặc nhân viên trực thuộc');
@@ -471,30 +416,73 @@ class EventService {
       }
     }
 
-    event.assigneeId = null;
-    event.assignee = { name: '', avatar: '', role: '', department: [], group: [] };
+    event.assignees = event.assignees.filter(a => a.userId !== removeUserId);
     await event.save();
     return event;
   }
 
+  /**
+   * Tự gán bản thân vào event.
+   * Cho phép nhiều người cùng assign vào 1 event (multi-assignee).
+   */
   async selfAssignEvent(id, currentUser) {
     const event = await Event.findOne({ id });
     if (!event) throw createHttpError(404, 'Event not found');
 
-    if (event.assigneeId) {
-      throw createHttpError(409, 'Sự kiện này đã có người phụ trách');
+    // Kiểm tra đã assign chưa
+    const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id);
+    if (alreadyAssigned) {
+      throw createHttpError(409, 'Bạn đã được phân công trong sự kiện này');
     }
 
-    event.assigneeId = currentUser.id;
-    event.assignee = {
-      name: currentUser.name || '',
-      avatar: currentUser.avatar || '',
-      role: currentUser.roleId || '',
-      department: currentUser.department || [],
-      group: currentUser.group || [],
-    };
+    // Resolve thông tin user
+    const resolved = await this._resolveAssignees([{ userId: currentUser.id }]);
+    if (resolved.length > 0) {
+      event.assignees.push(resolved[0]);
+    } else {
+      // Fallback nếu không tìm thấy trong DB (edge case)
+      event.assignees.push({
+        userId: currentUser.id,
+        userName: currentUser.name || '',
+        userAvatar: currentUser.avatar || '',
+        functionId: null,
+        functionTitle: '',
+      });
+    }
+
     await event.save();
     return event;
+  }
+
+  // ─── Private Helpers ───
+
+  /**
+   * Resolve raw assignees [{ userId, functionId }] → enrich from DB.
+   * Đồng bộ logic với LeadService._resolveAssignees().
+   */
+  async _resolveAssignees(rawAssignees) {
+    if (!rawAssignees || rawAssignees.length === 0) return [];
+
+    const userIds = rawAssignees.map((a) => a.userId).filter(Boolean);
+    const funcIds = rawAssignees.map((a) => a.functionId).filter(Boolean);
+
+    const [users, funcs] = await Promise.all([
+      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: true }).select("id name avatar") : [],
+      funcIds.length > 0 ? StaffFunction.find({ id: { $in: funcIds } }).select("id title") : [],
+    ]);
+
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    const funcMap = Object.fromEntries(funcs.map((f) => [f.id, f]));
+
+    return rawAssignees
+      .filter((a) => a.userId && userMap[a.userId]) // chỉ lấy user hợp lệ + active
+      .map((a) => ({
+        userId: a.userId,
+        userName: userMap[a.userId]?.name || "",
+        userAvatar: userMap[a.userId]?.avatar || "",
+        functionId: a.functionId || null,
+        functionTitle: a.functionId ? (funcMap[a.functionId]?.title || "") : "",
+      }));
   }
 }
 

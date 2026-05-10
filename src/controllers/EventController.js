@@ -80,15 +80,15 @@ class EventController {
 
 
   async unassignEvent(req, res) {
-    const event = await EventService.unassignEvent(req.params.id, req.user);
+    const targetUserId = req.body?.userId || null;
+    const event = await EventService.unassignEvent(req.params.id, req.user, targetUserId);
     SystemLogService.log({ action: "unassign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Bỏ phân công khỏi sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Unassign thành công', event);
   }
 
   /**
-   * Tự gán bản thân vào event chưa có người phụ trách.
-   * - Bất kỳ role nào có EVENTS_UPDATE đều có thể tự nhận
-   * - Chỉ cho phép khi event.assigneeId === null
+   * Tự gán bản thân vào event (multi-assignee).
+   * Cho phép nhiều người cùng assign vào 1 event.
    */
   async selfAssignEvent(req, res) {
     const event = await EventService.selfAssignEvent(req.params.id, req.user);
