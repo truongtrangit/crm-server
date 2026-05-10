@@ -12,7 +12,7 @@ const { computeChanges } = require("../utils/diff");
 
 class EventService {
   async getEvents(queryParams, currentUser) {
-    const { search = "", group, stage } = queryParams;
+    const { search = "", group, stage, assignee } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
 
@@ -57,7 +57,7 @@ class EventService {
 
     if (group)    query.group = group;
     if (stage)    query.stage = stage;
-    if (assignee) query["assignee.name"] = assignee;
+    if (assignee) query["assignees.userId"] = assignee;
 
     const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "stage"]);
 

@@ -104,7 +104,9 @@ class LeadService {
       const matchConditions = [];
       if (data.email) matchConditions.push({ email: data.email.toLowerCase() });
       if (data.phone) matchConditions.push({ phone: data.phone });
-      const customer = await Customer.findOne({ $or: matchConditions }).select("id");
+      const customer = await Customer.findOne({ $or: matchConditions }).select(
+        "id",
+      );
       if (customer) customerId = customer.id;
     }
 
@@ -127,11 +129,13 @@ class LeadService {
       source: data.source || "CRM",
       tags: data.tags || [],
       note: data.note || "",
-      activityLogs: [{
-        action: "create",
-        description: `Tạo lead "${data.name}"`,
-        performedBy: this._extractPerformer(currentUser),
-      }],
+      activityLogs: [
+        {
+          action: "create",
+          description: `Tạo lead "${data.name}"`,
+          performedBy: this._extractPerformer(currentUser),
+        },
+      ],
     });
 
     return lead;
@@ -150,9 +154,13 @@ class LeadService {
     if (updates.assignees) {
       const role = (currentUser?.roleId || "").toUpperCase();
       if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) {
-        throw createHttpError(403, "Chỉ Manager, Admin hoặc Owner mới có quyền phân công lead.", {
-          code: "ASSIGN_LEAD_FORBIDDEN"
-        });
+        throw createHttpError(
+          403,
+          "Chỉ Manager, Admin hoặc Owner mới có quyền phân công lead.",
+          {
+            code: "ASSIGN_LEAD_FORBIDDEN",
+          },
+        );
       }
       updates.assignees = await this._resolveAssignees(updates.assignees);
     }
@@ -165,21 +173,29 @@ class LeadService {
       if (email) matchConditions.push({ email: email.toLowerCase() });
       if (phone) matchConditions.push({ phone });
       if (matchConditions.length > 0) {
-        const customer = await Customer.findOne({ $or: matchConditions }).select("id");
+        const customer = await Customer.findOne({
+          $or: matchConditions,
+        }).select("id");
         if (customer) updates.customerId = customer.id;
       }
     }
 
     // Whitelist updatable fields
     const allowedFields = [
-      "name",      "avatar",
+      "name",
+      "avatar",
       "email",
       "phone",
       "stage",
       "funnelId",
       "statusId",
       "address",
-      "street", "source", "tags", "note", "customerId",
+      "street",
+      "source",
+      "tags",
+      "note",
+      "customerId",
+      "assignees",
     ];
     const $set = {};
     for (const key of allowedFields) {
@@ -192,21 +208,21 @@ class LeadService {
     let desc = `Cập nhật lead "${lead.name}"`;
     if (updatedKeys.length > 0) {
       const fieldNames = {
-        name: 'tên',
-        avatar: 'ảnh đại diện',
-        email: 'email',
-        phone: 'SĐT',
-        stage: 'trạng thái',
-        assignees: 'người phụ trách',
-        address: 'khu vực',
-        street: 'địa chỉ',
-        source: 'nguồn',
-        tags: 'tags',
-        note: 'ghi chú',
-        customerId: 'khách hàng'
+        name: "tên",
+        avatar: "ảnh đại diện",
+        email: "email",
+        phone: "SĐT",
+        stage: "trạng thái",
+        assignees: "người phụ trách",
+        address: "khu vực",
+        street: "địa chỉ",
+        source: "nguồn",
+        tags: "tags",
+        note: "ghi chú",
+        customerId: "khách hàng",
       };
-      const names = updatedKeys.map(k => fieldNames[k] || k);
-      desc = `Cập nhật ${names.join(', ')}`;
+      const names = updatedKeys.map((k) => fieldNames[k] || k);
+      desc = `Cập nhật ${names.join(", ")}`;
     }
 
     const changes = computeChanges(before, lead.toObject());
@@ -234,9 +250,13 @@ class LeadService {
 
     const nextStage = getNextStage(lead.stage);
     if (!nextStage) {
-      throw createHttpError(400, "Lead đã ở giai đoạn cuối, không thể chuyển tiếp.", {
-        code: "ALREADY_FINAL_STAGE",
-      });
+      throw createHttpError(
+        400,
+        "Lead đã ở giai đoạn cuối, không thể chuyển tiếp.",
+        {
+          code: "ALREADY_FINAL_STAGE",
+        },
+      );
     }
 
     const before = lead.toObject();
@@ -262,7 +282,12 @@ class LeadService {
     await lead.save();
 
     const changes = computeChanges(before, lead.toObject());
-    return { lead, changes, previousStage: before.stage, newStage: nextStage.id };
+    return {
+      lead,
+      changes,
+      previousStage: before.stage,
+      newStage: nextStage.id,
+    };
   }
 
   /**
@@ -324,8 +349,6 @@ class LeadService {
       createdBy: performer,
     });
 
-
-
     await lead.save();
     return lead;
   }
@@ -362,8 +385,14 @@ class LeadService {
     const funcIds = rawAssignees.map((a) => a.functionId).filter(Boolean);
 
     const [users, funcs] = await Promise.all([
-      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar") : [],
-      funcIds.length > 0 ? StaffFunction.find({ id: { $in: funcIds } }).select("id title") : [],
+      userIds.length > 0
+        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select(
+          "id name avatar",
+        )
+        : [],
+      funcIds.length > 0
+        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title")
+        : [],
     ]);
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
@@ -372,7 +401,9 @@ class LeadService {
     // If user is inactive, return error
     rawAssignees.forEach((a) => {
       if (!userMap[a.userId]) {
-        throw createHttpError(400, "User not found or inactive", { code: "USER_NOT_FOUND" });
+        throw createHttpError(400, "User not found or inactive", {
+          code: "USER_NOT_FOUND",
+        });
       }
     });
 
@@ -383,7 +414,7 @@ class LeadService {
         userName: userMap[a.userId]?.name || "",
         userAvatar: userMap[a.userId]?.avatar || "",
         functionId: a.functionId || null,
-        functionTitle: a.functionId ? (funcMap[a.functionId]?.title || "") : "",
+        functionTitle: a.functionId ? funcMap[a.functionId]?.title || "" : "",
       }));
   }
 
@@ -399,7 +430,9 @@ class LeadService {
     const isAssignee = lead.assignees.some((a) => a.userId === currentUser?.id);
 
     if (["MANAGER"].includes(role) && !isAssignee) {
-      const isManagerOfAssignee = lead.assignees.some((a) => a.userId === currentUser?.managerId);
+      const isManagerOfAssignee = lead.assignees.some(
+        (a) => a.userId === currentUser?.managerId,
+      );
       if (isManagerOfAssignee) return;
     }
 

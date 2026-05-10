@@ -89,6 +89,32 @@ class TaskService {
     // Resolve assignees — enrich userName, userAvatar, functionTitle
     const assignees = await this._resolveAssignees(data.assignees || []);
 
+    let linkedEvents = [];
+    if (data.linkedEvents && Array.isArray(data.linkedEvents)) {
+      const eventIds = data.linkedEvents.map((e) => e.eventId).filter(Boolean);
+      if (eventIds.length > 0) {
+        const events = await Event.find({ id: { $in: eventIds } }).select("id name");
+        linkedEvents = events.map((e) => ({ eventId: e.id, eventName: e.name }));
+      }
+    }
+    if (data.eventId && !linkedEvents.some((e) => e.eventId === data.eventId)) {
+      const event = await Event.findOne({ id: data.eventId }).select("id name");
+      if (event) linkedEvents.push({ eventId: event.id, eventName: event.name });
+    }
+
+    let linkedLeads = [];
+    if (data.linkedLeads && Array.isArray(data.linkedLeads)) {
+      const leadIds = data.linkedLeads.map((l) => l.leadId).filter(Boolean);
+      if (leadIds.length > 0) {
+        const leads = await Lead.find({ id: { $in: leadIds } }).select("id name");
+        linkedLeads = leads.map((l) => ({ leadId: l.id, leadName: l.name }));
+      }
+    }
+    if (data.leadId && !linkedLeads.some((l) => l.leadId === data.leadId)) {
+      const lead = await Lead.findOne({ id: data.leadId }).select("id name");
+      if (lead) linkedLeads.push({ leadId: lead.id, leadName: lead.name });
+    }
+
     const task = await Task.create({
       id,
       name: data.name,
@@ -96,8 +122,8 @@ class TaskService {
       assignees,
       tags: data.tags || [],
       note: data.note || "",
-      linkedEvents: [],
-      linkedLeads: [],
+      linkedEvents,
+      linkedLeads,
     });
 
     task.logs.push({
@@ -109,6 +135,34 @@ class TaskService {
         email: currentUser.email,
       },
     });
+
+    if (linkedEvents.length > 0) {
+      linkedEvents.forEach((e) => {
+        task.logs.push({
+          action: "link",
+          description: `Liên kết Sự kiện: ${e.eventName}`,
+          user: {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+          },
+        });
+      });
+    }
+
+    if (linkedLeads.length > 0) {
+      linkedLeads.forEach((l) => {
+        task.logs.push({
+          action: "link",
+          description: `Liên kết Lead: ${l.leadName}`,
+          user: {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+          },
+        });
+      });
+    }
 
     await task.save();
 
