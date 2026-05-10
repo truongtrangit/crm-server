@@ -13,6 +13,7 @@
 const BlockAutomation = require("../models/BlockAutomation");
 const Action = require("../models/Action");
 const Event = require("../models/Event");
+const Task = require("../models/Task");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
 
@@ -56,9 +57,10 @@ function resolveTemplate(templateString, eventData) {
  *
  * @param {string} eventId    - The Event ID to pull data from
  * @param {string} actionId   - The Action ID (which has blockAutomationId)
+ * @param {string} entityType - "event" or "task" (defaults to "event")
  * @returns {object} { success, status, responseData, error }
  */
-async function executeBlockAutomation(eventId, actionId) {
+async function executeBlockAutomation(eventId, actionId, entityType = "event") {
   // 1. Load Action → get blockAutomationId
   const action = await Action.findOne({ id: actionId }).lean();
   if (!action) throw createHttpError(404, "Action không tồn tại");
@@ -76,13 +78,19 @@ async function executeBlockAutomation(eventId, actionId) {
     throw createHttpError(400, `Block Automation "${blockAuto.name}" đã bị tắt`);
   }
 
-  // 3. Load Event data
-  const event = await Event.findOne({ id: eventId }).lean();
-  if (!event) throw createHttpError(404, `Event "${eventId}" không tồn tại`);
+  // 3. Load entity data
+  let entityData = null;
+  if (entityType === "task") {
+    entityData = await Task.findOne({ id: eventId }).lean();
+    if (!entityData) throw createHttpError(404, `Task "${eventId}" không tồn tại`);
+  } else {
+    entityData = await Event.findOne({ id: eventId }).lean();
+    if (!entityData) throw createHttpError(404, `Event "${eventId}" không tồn tại`);
+  }
 
   // 4. Resolve payload template
   const rawTemplate = blockAuto.payloadTemplate || "{}";
-  const resolvedString = resolveTemplate(rawTemplate, event);
+  const resolvedString = resolveTemplate(rawTemplate, entityData);
 
   let resolvedPayload;
   try {

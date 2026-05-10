@@ -1,7 +1,7 @@
 const MetaConfig = require("../models/MetaConfig");
 const MetaProgram = require("../models/MetaProgram");
 const User = require("../models/User");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const {
   resolvePagination,
@@ -20,7 +20,7 @@ class MetaService {
 
   async createConfig(payload) {
     const config = await MetaConfig.create({
-      id: await generateMonotonicId("MCFG"),
+      id: await generateMonotonicId(ID_PREFIXES.META_CONFIG),
       name: payload.name,
       badgeColor: payload.badgeColor || "#0668e1",
       icon: payload.icon || "Target",
@@ -170,7 +170,7 @@ class MetaService {
     }
 
     const program = await MetaProgram.create({
-      id: await generateMonotonicId("META"),
+      id: await generateMonotonicId(ID_PREFIXES.META_PROGRAM),
       name: payload.name,
       typeId: payload.typeId,
       budgetType: payload.budgetType || "fixed",

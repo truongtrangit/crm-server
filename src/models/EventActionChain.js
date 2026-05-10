@@ -116,8 +116,11 @@ const eventActionChainSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
 
-    // Reference tới event
-    eventId: { type: String, ref: "Event", required: true, index: true },
+    // Reference tới event (optional — có thể là task)
+    eventId: { type: String, ref: "Event", default: null, index: true },
+
+    // Reference tới task (optional — có thể là event)
+    taskId: { type: String, ref: "Task", default: null, index: true },
 
     // Reference tới template gốc (để trace / không cho duplicate)
     chainId: { type: String, ref: "ActionChain", required: true },
@@ -149,7 +152,16 @@ const eventActionChainSchema = new mongoose.Schema(
 );
 
 // ─── Compound index: không cho 2 chain cùng chainId trên 1 event ───
-eventActionChainSchema.index({ eventId: 1, chainId: 1 }, { unique: true });
+eventActionChainSchema.index(
+  { eventId: 1, chainId: 1 },
+  { unique: true, partialFilterExpression: { eventId: { $type: "string" } } }
+);
+
+// ─── Compound index: không cho 2 chain cùng chainId trên 1 task ───
+eventActionChainSchema.index(
+  { taskId: 1, chainId: 1 },
+  { unique: true, partialFilterExpression: { taskId: { $type: "string" } } }
+);
 
 // ─── Index cho Task Queue tab (query steps cần làm theo scheduledAt) ───
 eventActionChainSchema.index({ "steps.scheduledAt": 1, "steps.status": 1 });

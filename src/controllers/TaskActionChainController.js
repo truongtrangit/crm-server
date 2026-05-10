@@ -1,19 +1,19 @@
+/**
+ * TaskActionChainController — Chuỗi hành động trong Tác vụ (standalone).
+ *
+ * Tương tự EventActionChainController nhưng dùng taskId thay vì eventId.
+ * Không cần ownership check phức tạp vì tác vụ không gắn event.
+ */
 const EventActionChain = require("../models/EventActionChain");
 const ActionChain = require("../models/ActionChain");
 const Action = require("../models/Action");
-const Event = require("../models/Event");
-const User = require("../models/User");
-const Lead = require("../models/Lead");
+const Task = require("../models/Task");
+const TaskService = require("../services/TaskService");
 const { createHttpError, sendSuccess } = require("../utils/http");
-const { normalizeOrganizationKey } = require("../utils/organization");
 const { ACTION_TYPE_CATEGORY_MAP } = require("../constants/actionConfig");
 const { executeBlockAutomation } = require("../services/BlockAutomationExecutor");
 const SystemLogService = require("../services/SystemLogService");
 const AutomationLogService = require("../services/AutomationLogService");
-const { RESOURCES } = require("../constants/rbac");
-
-const EventService = require("../services/EventService");
-// Ownership check is now handled in EventService
 
 // ─── Helpers ───
 
@@ -57,27 +57,30 @@ async function buildStepSnapshot(templateStep, actionMap) {
   };
 }
 
-class EventActionChainController {
+class TaskActionChainController {
 
-  // ─── GET /api/events/:eventId/chains ───
+  // ─── GET /api/tasks/:taskId/chains ───
   async getChains(req, res) {
-    const { eventId } = req.params;
-    const chains = await EventActionChain.find({ eventId }).sort({ order: 1 });
-    return sendSuccess(res, 200, "Get event action chains success", chains);
+    const { taskId } = req.params;
+    const chains = await EventActionChain.find({ taskId }).sort({ order: 1 });
+    return sendSuccess(res, 200, "Get task action chains success", chains);
   }
 
-  // ─── POST /api/events/:eventId/chains ───
+  // ─── POST /api/tasks/:taskId/chains ───
   async addChain(req, res) {
-    const { eventId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId } = req.params;
     const { chainId } = req.body;
+
+    // Verify task exists
+    const task = await Task.findOne({ id: taskId });
+    if (!task) throw createHttpError(404, "Tác vụ không tồn tại");
 
     const template = await ActionChain.findOne({ id: chainId }).lean();
     if (!template) throw createHttpError(404, "ActionChain không tồn tại");
-    if (!template.active) throw createHttpError(422, "Chỉ có thể thêm chuỗi hành động đang kích hoạt (active) vào sự kiện");
+    if (!template.active) throw createHttpError(422, "Chỉ có thể thêm chuỗi hành động đang kích hoạt (active) vào tác vụ");
 
-    const exists = await EventActionChain.findOne({ eventId, chainId });
-    if (exists) throw createHttpError(409, "Chuỗi hành động này đã được thêm vào sự kiện");
+    const exists = await EventActionChain.findOne({ taskId, chainId });
+    if (exists) throw createHttpError(409, "Chuỗi hành động này đã được thêm vào tác vụ");
 
     const actionIds = template.steps.map(s => s.actionId);
     const actions = await Action.find({ id: { $in: actionIds } });
@@ -107,11 +110,14 @@ class EventActionChainController {
       }
     }
 
-    const chainCount = await EventActionChain.countDocuments({ eventId });
-    const id = `EAC-${eventId}-${chainId}-${Date.now()}`;
+    const chainCount = await EventActionChain.countDocuments({ taskId });
+    const id = `TAC-${taskId}-${chainId}-${Date.now()}`;
 
     const chain = new EventActionChain({
-      id, eventId, chainId,
+      id,
+      taskId,
+      eventId: null,
+      chainId,
       name: template.name,
       status: "active",
       order: chainCount + 1,
@@ -120,25 +126,36 @@ class EventActionChainController {
     });
 
     await chain.save();
-    SystemLogService.log({ action: "create", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Thêm chuỗi hành động "${chain.name}" vào sự kiện ${eventId}`, metadata: { newItem: chain }, req });
+    await Task.updateOne(
+      { id: taskId },
+      {
+        $push: {
+          logs: {
+            action: "add_chain",
+            description: `Thêm chuỗi hành động "${chain.name}"`,
+            user: { id: req.user.id, name: req.user.name, email: req.user.email },
+          }
+        }
+      }
+    );
     return sendSuccess(res, 201, "Thêm chuỗi hành động thành công", chain);
   }
 
-  // ─── PUT /api/events/:eventId/chains/:chainId/steps/current ───
+  // ─── PUT /api/tasks/:taskId/chains/:chainId/steps/current ───
   async saveCurrentStep(req, res) {
-    const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
     const {
       selectedResultId, selectedReasonId, note,
       nextStepDelay,
       /**
-       * nextStepOverride: user chủ động chọn action tiếp theo thay vì follow branch
-       * { targetStepOrder: number }  → activate step có order đó
-       */
+ * nextStepOverride: user chủ động chọn action tiếp theo thay vì follow branch
+ * { targetStepOrder: number }  → activate step có order đó
+ */
       nextStepOverride,
     } = req.body;
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
 
@@ -243,45 +260,19 @@ class EventActionChainController {
     chain.markModified("steps");
     await chain.save();
 
-    try {
-      const lead = await Lead.findOne({ id: eventId });
-      if (lead) {
-        lead.activityLogs.push({
-          action: "update",
-          description: `Hoàn thành bước "${currentStep.actionName || currentStep.actionId}" trong chuỗi "${chain.name}"`,
-          performedBy: {
-            userId: req.user.id,
-            userName: req.user.name,
-            userAvatar: req.user.avatar || ""
-          },
-          metadata: {
-            chainId: chain.id,
-            stepOrder: currentStep.order,
-            resultId: selectedResultId,
-            reasonId: selectedReasonId,
-            note: note,
-            changes: {}
-          }
-        });
-        await lead.save();
-      }
-    } catch (err) {
-      console.error("Error logging action step to lead", err);
-    }
-
     return sendSuccess(res, 200, "Lưu bước thành công", chain);
   }
 
-  // ─── POST /api/events/:eventId/chains/:chainId/steps ───
+  // ─── POST /api/tasks/:taskId/chains/:chainId/steps ───
   // Thêm mới một step vào chain (sau step hiện tại)
   async injectStep(req, res) {
-    const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
     const { actionId, delayUnit, delayValue, insertAfterOrder } = req.body;
 
     if (!actionId) throw createHttpError(400, "actionId là bắt buộc");
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
 
@@ -335,13 +326,13 @@ class EventActionChainController {
     return sendSuccess(res, 201, "Thêm hành động thành công", chain);
   }
 
-  // ─── PATCH /api/events/:eventId/chains/:chainId/steps/current/delay ───
+  // ─── PATCH delay ───
   async updateCurrentStepDelay(req, res) {
-    const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
     const { delayUnit, delayValue, editNote } = req.body;
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
 
@@ -352,7 +343,6 @@ class EventActionChainController {
     step.delayUnit = delayUnit ?? step.delayUnit;
     step.delayValue = delayValue ?? step.delayValue;
     step.delayEditNote = editNote || step.delayEditNote;
-
     // ── Bug fix: tính scheduledAt từ NOW (thời điểm user cập nhật),
     // không phải từ activatedAt (đã là quá khứ).
     // Nếu dùng activatedAt: delay 5p nhưng step đã active 2p → chỉ còn 3p.
@@ -363,13 +353,13 @@ class EventActionChainController {
     return sendSuccess(res, 200, "Cập nhật độ trễ thành công", chain);
   }
 
-  // ─── PATCH /api/events/:eventId/chains/:chainId/steps/:stepOrder/note ───
+  // ─── PATCH note ───
   async updateStepNote(req, res) {
-    const { eventId, chainId, stepOrder } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId, stepOrder } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
     const { note } = req.body;
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
     const step = chain.steps.find(s => s.order === Number(stepOrder));
@@ -381,11 +371,11 @@ class EventActionChainController {
     return sendSuccess(res, 200, "Cập nhật ghi chú thành công", chain);
   }
 
-  // ─── PUT /api/events/:eventId/chains/:chainId/close ───
+  // ─── PUT close ───
   async closeChain(req, res) {
-    const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const { taskId, chainId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng rồi");
 
@@ -394,15 +384,14 @@ class EventActionChainController {
     if (current && !current.isLocked) current.status = "skipped";
     chain.markModified("steps");
     await chain.save();
-    SystemLogService.log({ action: "update", resource: RESOURCES.EVENT_CHAINS, resourceId: chain.id, resourceName: chain.name, description: `Đóng chuỗi hành động "${chain.name}"`, metadata: { changes: { status: { from: "open", to: "closed" } } }, req });
     return sendSuccess(res, 200, "Đóng chuỗi hành động thành công", chain);
   }
 
-  // ─── DELETE /api/events/:eventId/chains/:chainId ───
+  // ─── DELETE ───
   async deleteChain(req, res) {
-    const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const { taskId, chainId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
     // Không cho xóa chuỗi đã đóng (trừ khi đang dev)
@@ -411,217 +400,20 @@ class EventActionChainController {
     if (chain.status === "closed" && !isDev) {
       throw createHttpError(403, "Không thể xóa chuỗi đã đóng");
     }
-
-    await EventActionChain.deleteOne({ id: chainId, eventId });
-    SystemLogService.log({ action: "delete", resource: RESOURCES.EVENT_CHAINS, resourceId: chainId, resourceName: chain.name, description: `Xóa chuỗi hành động "${chain.name}" khỏi sự kiện ${eventId}`, metadata: { deletedItem: chain }, req });
+    await EventActionChain.deleteOne({ id: chainId, taskId });
     return sendSuccess(res, 200, "Xóa chuỗi hành động thành công", null);
   }
 
-  // ─── GET /api/event-chains/queue ───
-  // Returns active event-chains with their active step, enriched with event info.
-  // Filtered by role (RBAC) + optional query params.
-  // Sorted by scheduledAt ASC (most urgent first); null scheduledAt goes last.
-  async getTaskQueue(req, res) {
-    const { getUserRoleName } = require("../utils/rbac");
-
-    const {
-      eventId,
-      overdueOnly,
-      limit = 200,
-      // Filters
-      department,  // phòng ban
-      group,       // nhóm trong phòng ban
-      eventGroup,  // nhóm sự kiện (Event.group: user_moi, biz_moi, ...)
-      search,      // tìm theo tên KH / NV / sự kiện
-      assignee,    // nhân viên được phân công
-    } = req.query;
-
-    const now = new Date();
-    const roleName = await getUserRoleName(req.user);
-    const isAdminOrOwner = ["OWNER", "ADMIN"].includes(roleName);
-    const isManager = roleName === "MANAGER";
-
-    // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────
-    let allowedEventIds = null; // null = không giới hạn (owner/admin)
-
-    if (!isAdminOrOwner) {
-      // Xây dựng danh sách assigneeId được phép
-      const allowedUserIds = new Set([req.user.id]);
-
-      if (isManager) {
-        // Manager thấy events của bản thân + nhân viên dưới quyền
-        const subordinates = await User.find({ managerId: req.user.id }).select("id");
-        subordinates.forEach((u) => allowedUserIds.add(u.id));
-      }
-      // staff: chỉ thấy event của chính mình (allowedUserIds = { req.user.id })
-
-      const allowedEvents = await Event.find({
-        assigneeId: { $in: [...allowedUserIds] },
-      }).select("id");
-      allowedEventIds = allowedEvents.map((e) => e.id);
-    }
-
-    // ── 2. Lọc EventActionChain theo eventId whitelist ───────────────────────
-    const chainFilter = { status: "active", "steps.status": "active" };
-    if (eventId) chainFilter.eventId = eventId;
-    if (allowedEventIds !== null) chainFilter.eventId = { $in: allowedEventIds };
-
-    // Nếu vừa có eventId vừa có whitelist → giao nhau
-    if (eventId && allowedEventIds !== null) {
-      chainFilter.eventId = allowedEventIds.includes(eventId) ? eventId : "__none__";
-    }
-
-    const chains = await EventActionChain.find(chainFilter)
-      .sort({ "steps.scheduledAt": 1 })
-      .limit(Number(limit));
-
-    if (chains.length === 0) {
-      return sendSuccess(res, 200, "Get task queue success", { items: [], total: 0 });
-    }
-
-    // ── 3. Batch-load events ─────────────────────────────────────────────────
-    const rawEventIds = [...new Set(chains.map((c) => c.eventId))];
-    const eventQuery = { id: { $in: rawEventIds } };
-
-    // Filter eventGroup (nhóm sự kiện)
-    if (eventGroup) {
-      const groups = typeof eventGroup === "string" ? eventGroup.split(',').map(s => s.trim()).filter(Boolean) : eventGroup;
-      eventQuery.group = { $in: Array.isArray(groups) ? groups : [groups] };
-    }
-
-    // Filter department (chỉ cho phép owner/admin/manager)
-    if (department && !isAdminOrOwner && !isManager) {
-      // staff không được filter dept → bỏ qua
-    } else if (department) {
-      const depts = typeof department === "string" ? department.split(',').map(s => s.trim()).filter(Boolean) : department;
-      const deptsArray = Array.isArray(depts) ? depts : [depts];
-      const deptAliases = deptsArray.map(normalizeOrganizationKey);
-
-      const deptUsers = await User.find({
-        $or: [
-          { department: { $in: deptsArray } },
-          { departmentAliases: { $in: deptAliases } }
-        ]
-      }).select("id");
-      const deptUserIds = deptUsers.map((u) => u.id);
-      eventQuery.assigneeId = { $in: deptUserIds };
-    }
-
-    // Filter group (nhóm trong phòng ban — chỉ owner/admin/manager)
-    if (group && (isAdminOrOwner || isManager)) {
-      const grps = typeof group === "string" ? group.split(',').map(s => s.trim()).filter(Boolean) : group;
-      const grpsArray = Array.isArray(grps) ? grps : [grps];
-      const grpAliasesRegex = grpsArray.map(g => new RegExp(normalizeOrganizationKey(g) + "$", "i"));
-
-      const groupUsers = await User.find({
-        $or: [
-          { group: { $in: grpsArray } },
-          { groupAliases: { $in: grpAliasesRegex } }
-        ]
-      }).select("id");
-      const groupUserIds = groupUsers.map((u) => u.id);
-      // Nếu đã filter dept, giao nhau với assigneeId.$in
-      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
-        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
-          groupUserIds.includes(id)
-        );
-      } else {
-        eventQuery.assigneeId = { $in: groupUserIds };
-      }
-    }
-
-    // Filter assignee
-    if (assignee) {
-      const assignees = typeof assignee === "string" ? assignee.split(',').map(s => s.trim()).filter(Boolean) : assignee;
-      const assigneeIds = Array.isArray(assignees) ? assignees : [assignees];
-      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
-        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
-          assigneeIds.includes(id)
-        );
-      } else {
-        eventQuery.assigneeId = { $in: assigneeIds };
-      }
-    }
-
-    // Search (tên KH, tên NV, tên sự kiện)
-    if (search && search.trim()) {
-      const s = search.trim();
-      const regex = new RegExp(s, "i");
-      eventQuery.$or = [
-        { name: regex },
-        { "customer.name": regex },
-        { "assignee.name": regex },
-      ];
-    }
-
-    const events = await Event.find(eventQuery)
-      .select("id name sub group stage customer assignee plan assigneeId");
-    const eventMap = Object.fromEntries(events.map((e) => [e.id, e]));
-
-    // ── 4. Build queue ───────────────────────────────────────────────────────
-    const queue = [];
-    for (const chain of chains) {
-      const activeStep = chain.steps.find((s) => s.status === "active");
-      if (!activeStep) continue;
-      if (overdueOnly === "true" && activeStep.scheduledAt && activeStep.scheduledAt > now) continue;
-
-      const evt = eventMap[chain.eventId];
-      if (!evt) continue; // orphan hoặc bị lọc ra bởi eventQuery
-
-      queue.push({
-        chainId: chain.id,
-        chainName: chain.name,
-        eventId: chain.eventId,
-        event: {
-          id: evt.id,
-          name: evt.name,
-          sub: evt.sub,
-          group: evt.group,
-          stage: evt.stage,
-          customer: evt.customer,
-          assignee: evt.assignee,
-          plan: evt.plan,
-        },
-        step: {
-          order: activeStep.order,
-          actionId: activeStep.actionId,
-          actionName: activeStep.actionName,
-          actionType: activeStep.actionType,
-          actionCategory: activeStep.actionCategory,
-          scheduledAt: activeStep.scheduledAt,
-          activatedAt: activeStep.activatedAt,
-          delayUnit: activeStep.delayUnit,
-          delayValue: activeStep.delayValue,
-          isOverdue: !!activeStep.scheduledAt && activeStep.scheduledAt < now,
-        },
-      });
-    }
-
-    // Sort: overdue first, then scheduledAt asc, null last
-    queue.sort((a, b) => {
-      const sa = a.step.scheduledAt ? new Date(a.step.scheduledAt).getTime() : Infinity;
-      const sb = b.step.scheduledAt ? new Date(b.step.scheduledAt).getTime() : Infinity;
-      return sa - sb;
-    });
-
-    return sendSuccess(res, 200, "Get task queue success", { items: queue, total: queue.length });
-  }
-  /**
-   * PUT /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches
-   *
-   * Adds or updates a branch on a specific step of an EventActionChain.
-   * Branches are stored directly on the event-chain step → template is NEVER touched.
-   * Works for both template-originated steps and manually-injected steps.
-   */
+  // ─── PUT branches ───
   async upsertStepBranch(req, res) {
-    const { eventId, chainId, stepOrder } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId, stepOrder } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
     const {
       resultId, nextStepType, nextActionId = null,
       closeOutcome = null, delayUnit = null, delayValue = null,
     } = req.body;
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
 
@@ -657,16 +449,13 @@ class EventActionChainController {
     return sendSuccess(res, 200, "Cập nhật cấu hình kết quả thành công", chain);
   }
 
-  /**
-   * DELETE /api/events/:eventId/chains/:chainId/steps/:stepOrder/branches/:resultId
-   *
-   * Removes a branch from a specific EventActionChain step.
-   */
+  // ─── DELETE branch ───
+  // Removes a branch from a specific EventActionChain step.
   async deleteStepBranch(req, res) {
-    const { eventId, chainId, stepOrder, resultId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId, stepOrder, resultId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
 
@@ -686,9 +475,8 @@ class EventActionChainController {
     return sendSuccess(res, 200, "Xóa kết quả khỏi bước thành công", chain);
   }
 
+  // ─── Execute Block Automation ───
   /**
-   * POST /api/events/:eventId/chains/:chainId/steps/current/execute-block-automation
-   *
    * Executes the block automation linked to the active step's action:
    * 1. Loads the step's Action → blockAutomationId
    * 2. Loads BlockAutomation config (URL, token, payloadTemplate)
@@ -697,13 +485,12 @@ class EventActionChainController {
    * 5. Returns the result (success/error, response data, resolved payload)
    */
   async executeBlockAutomationStep(req, res) {
-    const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+    const { taskId, chainId } = req.params;
+    await TaskService.checkTaskOwnership(taskId, req.user);
 
-    const chain = await EventActionChain.findOne({ id: chainId, eventId });
+    const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng");
-
     const currentStep = chain.steps[chain.currentStepIndex];
     if (!currentStep) throw createHttpError(400, "Không có step nào đang active");
     if (currentStep.actionType !== "send_block_automation") {
@@ -711,12 +498,10 @@ class EventActionChainController {
     }
 
     // Load event + block automation names for logging context
-    const event = await Event.findOne({ id: eventId }).select("name").lean();
-
+    const task = await Task.findOne({ id: taskId }).select("name").lean();
     const startTime = Date.now();
-    const result = await executeBlockAutomation(eventId, currentStep.actionId);
+    const result = await executeBlockAutomation(taskId, currentStep.actionId, "task");
     const duration = Date.now() - startTime;
-
     // Persist result on the step
     const prevAttempts = currentStep.blockAutomationResult?.attempts || 0;
     currentStep.blockAutomationResult = {
@@ -738,8 +523,8 @@ class EventActionChainController {
 
     // Log automation execution
     AutomationLogService.log({
-      eventId,
-      eventName: event?.name || "",
+      taskId,
+      eventName: task?.name || "",
       chainId,
       chainName: chain.name,
       actionId: currentStep.actionId,
@@ -759,21 +544,8 @@ class EventActionChainController {
       req,
     });
 
-    // Also log as system activity
-    SystemLogService.log({
-      action: "other",
-      resource: RESOURCES.EVENT_CHAINS,
-      resourceId: chainId,
-      resourceName: chain.name,
-      description: `Thực thi Block Automation "${result.blockAutomationName || ''}" cho sự kiện "${event?.name || eventId}" — ${result.success ? 'Thành công' : 'Thất bại'}`,
-      req,
-      status: result.success ? "success" : "failed",
-      error: result.error,
-    });
-
     return sendSuccess(res, 200, "Thực thi Block Automation hoàn tất", result);
   }
-
 }
 
-module.exports = new EventActionChainController();
+module.exports = new TaskActionChainController();

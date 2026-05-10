@@ -14,6 +14,11 @@ const eventChainsRouter = require("./eventChains");
 const webhooksRouter = require("./webhooks");
 const logsRouter = require("./logs");
 const metaRouter = require("./meta");
+const leadConfigRouter = require("./leadConfig");
+const leadRouter = require("./leads");
+const taskRouter = require("./tasks");
+const taskChainsRouter = require("./taskChains");
+const funnelsRouter = require("./funnels");
 
 const { authenticateRequest, requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
@@ -62,9 +67,16 @@ v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
 v1Router.use("/logs", logsRouter);
 v1Router.use("/meta", metaRouter);
+v1Router.use("/lead-config", leadConfigRouter);
+v1Router.use("/leads", leadRouter);
+v1Router.use("/tasks", taskRouter);
+v1Router.use("/funnels", funnelsRouter);
 
 // Nested: chuỗi hành động trong sự kiện
 v1Router.use("/events/:eventId/chains", eventChainsRouter);
+
+// Nested: chuỗi hành động trong tác vụ
+v1Router.use("/tasks/:taskId/chains", taskChainsRouter);
 
 // Task Queue: lấy tất cả steps cần làm (cross-event)
 v1Router.get(
