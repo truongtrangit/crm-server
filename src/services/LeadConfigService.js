@@ -1,14 +1,7 @@
 const LeadStatus = require("../models/LeadStatus");
 const LeadStatusGroup = require("../models/LeadStatusGroup");
-const crypto = require("crypto");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
-
-function generateId() {
-  return "ls_" + crypto.randomBytes(6).toString("hex");
-}
-function generateGroupId() {
-  return "lsg_" + crypto.randomBytes(6).toString("hex");
-}
 
 class LeadConfigService {
   async getStatuses() {
@@ -18,7 +11,7 @@ class LeadConfigService {
   async createStatus(data) {
     const newStatus = new LeadStatus({
       ...data,
-      id: generateId(),
+      id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS),
     });
     await newStatus.save();
     return newStatus;
@@ -52,7 +45,7 @@ class LeadConfigService {
   async createGroup(data) {
     const newGroup = new LeadStatusGroup({
       ...data,
-      id: generateGroupId(),
+      id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS_GROUP),
     });
     await newGroup.save();
     return newGroup;

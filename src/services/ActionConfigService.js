@@ -5,7 +5,7 @@ const ActionChain = require("../models/ActionChain");
 const EventActionChain = require("../models/EventActionChain");
 const BlockAutomation = require("../models/BlockAutomation");
 const Event = require("../models/Event");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -33,7 +33,7 @@ class ActionConfigService {
   }
 
   async createResult(body) {
-    const id = await generateMonotonicId("RES");
+    const id = await generateMonotonicId(ID_PREFIXES.RESULT);
     return Result.create({ ...body, id });
   }
 
@@ -87,7 +87,7 @@ class ActionConfigService {
   }
 
   async createReason(body) {
-    const id = await generateMonotonicId("RSN");
+    const id = await generateMonotonicId(ID_PREFIXES.REASON);
     return Reason.create({ ...body, id });
   }
 
@@ -141,7 +141,7 @@ class ActionConfigService {
   }
 
   async createAction(body) {
-    const id = await generateMonotonicId("ACT");
+    const id = await generateMonotonicId(ID_PREFIXES.ACTION);
     return Action.create({ ...body, id });
   }
 
@@ -211,7 +211,7 @@ class ActionConfigService {
   }
 
   async createActionChain(body) {
-    const id = await generateMonotonicId("CHN");
+    const id = await generateMonotonicId(ID_PREFIXES.CHAIN);
     return ActionChain.create({ ...body, id });
   }
 
@@ -283,7 +283,7 @@ class ActionConfigService {
   }
 
   async createBlockAutomation(body) {
-    const id = await generateMonotonicId("BLK");
+    const id = await generateMonotonicId(ID_PREFIXES.BLOCK_AUTOMATION);
     return BlockAutomation.create({ ...body, id });
   }
 

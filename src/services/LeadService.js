@@ -2,7 +2,7 @@ const Lead = require("../models/Lead");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -96,7 +96,7 @@ class LeadService {
    * Tạo lead mới — auto-map customer, resolve assignees.
    */
   async createLead(data, currentUser) {
-    const id = await generateMonotonicId("LEAD");
+    const id = await generateMonotonicId(ID_PREFIXES.LEAD);
 
     // Auto-map customer nếu email/phone khớp
     let customerId = null;

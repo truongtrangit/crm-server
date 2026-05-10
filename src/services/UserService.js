@@ -2,7 +2,7 @@ const User = require("../models/User");
 const Organization = require("../models/Organization");
 const Role = require("../models/Role");
 const Event = require("../models/Event");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
 const { createHttpError } = require("../utils/http");
@@ -559,7 +559,7 @@ async function createUserAccount(actor, payload = {}) {
   );
 
   const user = await User.create({
-    id: await generateMonotonicId("USER"),
+    id: await generateMonotonicId(ID_PREFIXES.USER),
     name,
     email,
     passwordHash: await hashPassword(password),
