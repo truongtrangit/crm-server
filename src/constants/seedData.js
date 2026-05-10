@@ -15,30 +15,30 @@
 // ─── Organizations ───────────────────────────────────────────────────────────
 const organizations = [
   {
-    id: "1",
+    id: "ORG1",
     parent: "Phòng Marketing",
     children: [
-      { name: "Nhóm Facebook Ads",  desc: "Chạy quảng cáo đa nền tảng" },
-      { name: "Nhóm Content",       desc: "Sản xuất nội dung media, bài viết" },
-      { name: "Nhóm Google Ads",    desc: "SEO & quảng cáo Google" },
+      { name: "Nhóm Facebook Ads", desc: "Chạy quảng cáo đa nền tảng" },
+      { name: "Nhóm Content", desc: "Sản xuất nội dung media, bài viết" },
+      { name: "Nhóm Google Ads", desc: "SEO & quảng cáo Google" },
     ],
   },
   {
-    id: "2",
+    id: "ORG2",
     parent: "Phòng Sale",
     children: [
       { name: "Nhóm Sale Hà Nội", desc: "Telesale & chốt đơn khu vực miền Bắc" },
-      { name: "Nhóm Sale HCM",    desc: "Telesale & chốt đơn khu vực miền Nam" },
+      { name: "Nhóm Sale HCM", desc: "Telesale & chốt đơn khu vực miền Nam" },
       { name: "Nhóm Sale Đà Nẵng", desc: "Telesale miền Trung" },
     ],
   },
   {
-    id: "3",
+    id: "ORG3",
     parent: "Phòng Kỹ Thuật",
     children: [
-      { name: "Nhóm Backend",   desc: "Phát triển API và xử lý dữ liệu" },
-      { name: "Nhóm Frontend",  desc: "Phát triển giao diện người dùng" },
-      { name: "Nhóm DevOps",    desc: "Hạ tầng và triển khai hệ thống" },
+      { name: "Nhóm Backend", desc: "Phát triển API và xử lý dữ liệu" },
+      { name: "Nhóm Frontend", desc: "Phát triển giao diện người dùng" },
+      { name: "Nhóm DevOps", desc: "Hạ tầng và triển khai hệ thống" },
     ],
   },
   {
@@ -296,38 +296,38 @@ const staffFunctions = [
 // ─── Results ─────────────────────────────────────────────────────────────────
 // type: "success" | "failure" | "neutral" | "skip"
 const results = [
-  { id: "RES1", name: "Đã liên hệ & quan tâm",    type: "success", description: "Khách hàng bắt máy và thể hiện sự quan tâm" },
-  { id: "RES2", name: "Không bắt máy",             type: "failure", description: "Gọi điện nhưng khách không nghe máy" },
-  { id: "RES3", name: "Hẹn gọi lại",               type: "neutral", description: "Khách hàng nhờ gọi lại sau" },
-  { id: "RES4", name: "Từ chối",                   type: "failure", description: "Khách hàng từ chối dịch vụ" },
-  { id: "RES5", name: "Đã gửi email giới thiệu",   type: "success", description: "Automation đã gửi email thành công" },
-  { id: "RES6", name: "Đã thanh toán",             type: "success", description: "Khách hàng xác nhận đã thanh toán" },
-  { id: "RES7", name: "Chưa thanh toán",           type: "failure", description: "Khách hàng chưa thực hiện thanh toán" },
-  { id: "RES8", name: "Đã gia hạn",                type: "success", description: "Khách hàng đã gia hạn gói dịch vụ" },
-  { id: "RES9", name: "Hứng thú - cần demo",       type: "neutral", description: "Khách hàng quan tâm nhưng muốn xem demo trước" },
-  { id: "RES10", name: "Đã gửi tài liệu",           type: "success", description: "Tài liệu/proposal đã được gửi thành công" },
-  { id: "RES11", name: "Đã tạo đơn hàng",           type: "success", description: "Đơn hàng được tạo thành công trong hệ thống" },
-  { id: "RES12", name: "Máy bận",                   type: "failure", description: "Gọi nhưng đường dây đang bận" },
-  { id: "RES13", name: "Sai số điện thoại",         type: "failure", description: "Số điện thoại không liên lạc được" },
-  { id: "RES14", name: "Đã demo thành công",        type: "success", description: "Buổi demo được khách hàng đánh giá tốt" },
-  { id: "RES15", name: "Cần thêm thời gian",        type: "neutral", description: "Khách hàng muốn suy nghĩ thêm" },
-  { id: "RES16", name: "Đã gửi hợp đồng",           type: "success", description: "Hợp đồng đã được gửi để ký duyệt" },
+  { id: "RES1", name: "Đã liên hệ & quan tâm", type: "success", description: "Khách hàng bắt máy và thể hiện sự quan tâm" },
+  { id: "RES2", name: "Không bắt máy", type: "failure", description: "Gọi điện nhưng khách không nghe máy" },
+  { id: "RES3", name: "Hẹn gọi lại", type: "neutral", description: "Khách hàng nhờ gọi lại sau" },
+  { id: "RES4", name: "Từ chối", type: "failure", description: "Khách hàng từ chối dịch vụ" },
+  { id: "RES5", name: "Đã gửi email giới thiệu", type: "success", description: "Automation đã gửi email thành công" },
+  { id: "RES6", name: "Đã thanh toán", type: "success", description: "Khách hàng xác nhận đã thanh toán" },
+  { id: "RES7", name: "Chưa thanh toán", type: "failure", description: "Khách hàng chưa thực hiện thanh toán" },
+  { id: "RES8", name: "Đã gia hạn", type: "success", description: "Khách hàng đã gia hạn gói dịch vụ" },
+  { id: "RES9", name: "Hứng thú - cần demo", type: "neutral", description: "Khách hàng quan tâm nhưng muốn xem demo trước" },
+  { id: "RES10", name: "Đã gửi tài liệu", type: "success", description: "Tài liệu/proposal đã được gửi thành công" },
+  { id: "RES11", name: "Đã tạo đơn hàng", type: "success", description: "Đơn hàng được tạo thành công trong hệ thống" },
+  { id: "RES12", name: "Máy bận", type: "failure", description: "Gọi nhưng đường dây đang bận" },
+  { id: "RES13", name: "Sai số điện thoại", type: "failure", description: "Số điện thoại không liên lạc được" },
+  { id: "RES14", name: "Đã demo thành công", type: "success", description: "Buổi demo được khách hàng đánh giá tốt" },
+  { id: "RES15", name: "Cần thêm thời gian", type: "neutral", description: "Khách hàng muốn suy nghĩ thêm" },
+  { id: "RES16", name: "Đã gửi hợp đồng", type: "success", description: "Hợp đồng đã được gửi để ký duyệt" },
 ];
 
 // ─── Reasons ─────────────────────────────────────────────────────────────────
 const reasons = [
-  { id: "REAS1", name: "Bận việc",             description: "Khách hàng bận, không tiếp chuyện được" },
-  { id: "REAS2", name: "Không có nhu cầu",     description: "Khách không có nhu cầu sử dụng dịch vụ" },
-  { id: "REAS3", name: "Giá cao",              description: "Khách hàng cho rằng giá dịch vụ quá cao" },
-  { id: "REAS4", name: "Cân nhắc thêm",        description: "Khách muốn suy nghĩ thêm trước khi quyết định" },
-  { id: "REAS5", name: "Dùng dịch vụ khác",    description: "Đang dùng sản phẩm/dịch vụ của đối thủ" },
-  { id: "REAS6", name: "Chưa có ngân sách",    description: "Khách hàng chưa có budget để thanh toán ngay" },
-  { id: "REAS7", name: "Cần thêm thông tin",   description: "Khách cần tài liệu/demo trước khi quyết định" },
-  { id: "REAS8", name: "Sai số tài khoản",     description: "Thông tin thanh toán không chính xác" },
-  { id: "REAS9", name: "Hết hạn thẻ",          description: "Thẻ thanh toán đã hết hạn" },
-  { id: "REAS10", name: "Khó khăn kỹ thuật",    description: "Gặp vấn đề kỹ thuật khi triển khai" },
+  { id: "REAS1", name: "Bận việc", description: "Khách hàng bận, không tiếp chuyện được" },
+  { id: "REAS2", name: "Không có nhu cầu", description: "Khách không có nhu cầu sử dụng dịch vụ" },
+  { id: "REAS3", name: "Giá cao", description: "Khách hàng cho rằng giá dịch vụ quá cao" },
+  { id: "REAS4", name: "Cân nhắc thêm", description: "Khách muốn suy nghĩ thêm trước khi quyết định" },
+  { id: "REAS5", name: "Dùng dịch vụ khác", description: "Đang dùng sản phẩm/dịch vụ của đối thủ" },
+  { id: "REAS6", name: "Chưa có ngân sách", description: "Khách hàng chưa có budget để thanh toán ngay" },
+  { id: "REAS7", name: "Cần thêm thông tin", description: "Khách cần tài liệu/demo trước khi quyết định" },
+  { id: "REAS8", name: "Sai số tài khoản", description: "Thông tin thanh toán không chính xác" },
+  { id: "REAS9", name: "Hết hạn thẻ", description: "Thẻ thanh toán đã hết hạn" },
+  { id: "REAS10", name: "Khó khăn kỹ thuật", description: "Gặp vấn đề kỹ thuật khi triển khai" },
   { id: "REAS11", name: "Nhân sự chưa sẵn sàng", description: "Chưa có nhân sự vận hành hệ thống" },
-  { id: "REAS12", name: "Cần duyệt nội bộ",     description: "Phải chờ cấp trên duyệt ngân sách/hợp đồng" },
+  { id: "REAS12", name: "Cần duyệt nội bộ", description: "Phải chờ cấp trên duyệt ngân sách/hợp đồng" },
 ];
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -477,7 +477,7 @@ const actionChains = [
     id: "CHAIN1",
     name: "Chăm sóc khách hàng mới",
     description: "Chuỗi chăm sóc tự động khi có user/biz mới đăng ký: gửi email → gọi điện lần 1 → dự phòng gọi lần 2",
-    delayUnit:  "immediate",
+    delayUnit: "immediate",
     delayValue: null,
     active: true,
     steps: [
@@ -486,13 +486,13 @@ const actionChains = [
         actionId: "ACT4", // Gửi email giới thiệu tự động
         branches: [
           {
-            resultId:     "RES5", // Đã gửi email
-            order:        1,
+            resultId: "RES5", // Đã gửi email
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT1", // → Gọi điện lần 1
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   2,
+            delayUnit: "hour",
+            delayValue: 2,
           },
         ],
       },
@@ -501,40 +501,40 @@ const actionChains = [
         actionId: "ACT1", // Gọi điện lần 1
         branches: [
           {
-            resultId:     "RES1", // Đã liên hệ & quan tâm
-            order:        1,
+            resultId: "RES1", // Đã liên hệ & quan tâm
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES2", // Không bắt máy
-            order:        2,
+            resultId: "RES2", // Không bắt máy
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT2", // → Gọi điện lần 2
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
           {
-            resultId:     "RES12", // Máy bận
-            order:        3,
+            resultId: "RES12", // Máy bận
+            order: 3,
             nextStepType: "next_in_chain",
             nextActionId: "ACT2",
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   3,
+            delayUnit: "hour",
+            delayValue: 3,
           },
           {
-            resultId:     "RES4", // Từ chối
-            order:        4,
+            resultId: "RES4", // Từ chối
+            order: 4,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -543,40 +543,40 @@ const actionChains = [
         actionId: "ACT2", // Gọi điện lần 2
         branches: [
           {
-            resultId:     "RES1", // Đã liên hệ & quan tâm
-            order:        1,
+            resultId: "RES1", // Đã liên hệ & quan tâm
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES2", // Không bắt máy
-            order:        2,
+            resultId: "RES2", // Không bắt máy
+            order: 2,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES13", // Sai số điện thoại
-            order:        3,
+            resultId: "RES13", // Sai số điện thoại
+            order: 3,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES3", // Hẹn gọi lại
-            order:        4,
+            resultId: "RES3", // Hẹn gọi lại
+            order: 4,
             nextStepType: "close_chain",
             nextActionId: null,
             closeOutcome: null,
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -588,7 +588,7 @@ const actionChains = [
     id: "CHAIN2",
     name: "Xử lý chuyển khoản",
     description: "Xác nhận và xử lý khi nhận thanh toán chuyển khoản: gọi xác nhận → gọi lại nếu thất bại",
-    delayUnit:  "immediate",
+    delayUnit: "immediate",
     delayValue: null,
     active: true,
     steps: [
@@ -597,40 +597,40 @@ const actionChains = [
         actionId: "ACT6", // Gọi điện xác nhận thanh toán
         branches: [
           {
-            resultId:     "RES6", // Đã thanh toán
-            order:        1,
+            resultId: "RES6", // Đã thanh toán
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES7", // Chưa thanh toán
-            order:        2,
+            resultId: "RES7", // Chưa thanh toán
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT6", // → Gọi lại
             closeOutcome: null,
-            delayUnit:    "minute",
-            delayValue:   30,
+            delayUnit: "minute",
+            delayValue: 30,
           },
           {
-            resultId:     "RES2", // Không bắt máy
-            order:        3,
+            resultId: "RES2", // Không bắt máy
+            order: 3,
             nextStepType: "next_in_chain",
             nextActionId: "ACT6", // → Gọi lại
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   1,
+            delayUnit: "hour",
+            delayValue: 1,
           },
           {
-            resultId:     "RES8", // Sai số tài khoản (dùng chung REAS008)
-            order:        4,
+            resultId: "RES8", // Sai số tài khoản (dùng chung REAS008)
+            order: 4,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -642,7 +642,7 @@ const actionChains = [
     id: "CHAIN3",
     name: "Nhắc gia hạn gói cước",
     description: "Tự động nhắc gia hạn khi gói cước sắp hết hạn: gửi email → gọi tư vấn → gọi lại nếu hẹn",
-    delayUnit:  "immediate",
+    delayUnit: "immediate",
     delayValue: null,
     active: true,
     steps: [
@@ -651,13 +651,13 @@ const actionChains = [
         actionId: "ACT5", // Gửi email nhắc gia hạn
         branches: [
           {
-            resultId:     "RES5", // Đã gửi email
-            order:        1,
+            resultId: "RES5", // Đã gửi email
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT3", // → Gọi tư vấn nâng cấp
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
         ],
       },
@@ -666,40 +666,40 @@ const actionChains = [
         actionId: "ACT3", // Gọi điện tư vấn nâng cấp
         branches: [
           {
-            resultId:     "RES8", // Đã gia hạn
-            order:        1,
+            resultId: "RES8", // Đã gia hạn
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES1", // Quan tâm, hỏi thêm
-            order:        2,
+            resultId: "RES1", // Quan tâm, hỏi thêm
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT11", // → Gọi lần 3 (khẩn)
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
           {
-            resultId:     "RES4", // Từ chối
-            order:        3,
+            resultId: "RES4", // Từ chối
+            order: 3,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES3", // Hẹn gọi lại
-            order:        4,
+            resultId: "RES3", // Hẹn gọi lại
+            order: 4,
             nextStepType: "next_in_chain",
             nextActionId: "ACT3",
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   2,
+            delayUnit: "day",
+            delayValue: 2,
           },
         ],
       },
@@ -708,31 +708,31 @@ const actionChains = [
         actionId: "ACT11", // Gọi điện lần 3 (khẩn)
         branches: [
           {
-            resultId:     "RES8", // Đã gia hạn
-            order:        1,
+            resultId: "RES8", // Đã gia hạn
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES2", // Không bắt máy
-            order:        2,
+            resultId: "RES2", // Không bắt máy
+            order: 2,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES4", // Từ chối
-            order:        3,
+            resultId: "RES4", // Từ chối
+            order: 3,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -744,7 +744,7 @@ const actionChains = [
     id: "CHAIN4",
     name: "Chuyển đổi Trial → Trả phí",
     description: "Chuỗi 5 bước chuyển đổi khách hàng từ Trial sang trả phí: gửi tài liệu → gọi tư vấn → gọi chốt deal → tạo đơn → xác nhận",
-    delayUnit:  "day",
+    delayUnit: "day",
     delayValue: 1,
     active: true,
     steps: [
@@ -753,13 +753,13 @@ const actionChains = [
         actionId: "ACT8", // Gửi tài liệu & proposal
         branches: [
           {
-            resultId:     "RES10", // Đã gửi tài liệu
-            order:        1,
+            resultId: "RES10", // Đã gửi tài liệu
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT1", // → Gọi điện lần 1
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   4,
+            delayUnit: "hour",
+            delayValue: 4,
           },
         ],
       },
@@ -768,40 +768,40 @@ const actionChains = [
         actionId: "ACT1", // Gọi điện lần 1
         branches: [
           {
-            resultId:     "RES9", // Hứng thú - cần demo
-            order:        1,
+            resultId: "RES9", // Hứng thú - cần demo
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT13", // → Gọi demo
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
           {
-            resultId:     "RES1", // Đã liên hệ & quan tâm
-            order:        2,
+            resultId: "RES1", // Đã liên hệ & quan tâm
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT10", // → Gọi chốt deal
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   2,
+            delayUnit: "day",
+            delayValue: 2,
           },
           {
-            resultId:     "RES2", // Không bắt máy
-            order:        3,
+            resultId: "RES2", // Không bắt máy
+            order: 3,
             nextStepType: "next_in_chain",
             nextActionId: "ACT2", // → Gọi điện lần 2
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   3,
+            delayUnit: "hour",
+            delayValue: 3,
           },
           {
-            resultId:     "RES4", // Từ chối
-            order:        4,
+            resultId: "RES4", // Từ chối
+            order: 4,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -810,31 +810,31 @@ const actionChains = [
         actionId: "ACT13", // Gọi demo sản phẩm
         branches: [
           {
-            resultId:     "RES14", // Đã demo thành công
-            order:        1,
+            resultId: "RES14", // Đã demo thành công
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT10", // → Gọi chốt deal
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
           {
-            resultId:     "RES15", // Cần thêm thời gian
-            order:        2,
+            resultId: "RES15", // Cần thêm thời gian
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT10",
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   3,
+            delayUnit: "day",
+            delayValue: 3,
           },
           {
-            resultId:     "RES4", // Từ chối sau demo
-            order:        3,
+            resultId: "RES4", // Từ chối sau demo
+            order: 3,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -843,31 +843,31 @@ const actionChains = [
         actionId: "ACT10", // Gọi chốt deal
         branches: [
           {
-            resultId:     "RES6", // Đã thanh toán (chốt thành công)
-            order:        1,
+            resultId: "RES6", // Đã thanh toán (chốt thành công)
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT9", // → Tạo đơn hàng thủ công
             closeOutcome: null,
-            delayUnit:    "immediate",
-            delayValue:   0,
+            delayUnit: "immediate",
+            delayValue: 0,
           },
           {
-            resultId:     "RES3", // Hẹn gọi lại
-            order:        2,
+            resultId: "RES3", // Hẹn gọi lại
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT10", // → Gọi lại chốt deal
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   2,
+            delayUnit: "day",
+            delayValue: 2,
           },
           {
-            resultId:     "RES4", // Từ chối
-            order:        3,
+            resultId: "RES4", // Từ chối
+            order: 3,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -876,13 +876,13 @@ const actionChains = [
         actionId: "ACT9", // Tạo đơn hàng thủ công
         branches: [
           {
-            resultId:     "RES11", // Đã tạo đơn hàng
-            order:        1,
+            resultId: "RES11", // Đã tạo đơn hàng
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -894,7 +894,7 @@ const actionChains = [
     id: "CHAIN5",
     name: "Hỗ trợ doanh nghiệp mới",
     description: "Chuỗi hỗ trợ onboarding doanh nghiệp mới: gửi SMS/email → gọi hỗ trợ → tạo booking demo",
-    delayUnit:  "immediate",
+    delayUnit: "immediate",
     delayValue: null,
     active: true,
     steps: [
@@ -903,13 +903,13 @@ const actionChains = [
         actionId: "ACT12", // Gửi SMS nhắc nhở
         branches: [
           {
-            resultId:     "RES5", // Đã gửi
-            order:        1,
+            resultId: "RES5", // Đã gửi
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT16", // → Gọi hỗ trợ kỹ thuật
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   1,
+            delayUnit: "hour",
+            delayValue: 1,
           },
         ],
       },
@@ -918,31 +918,31 @@ const actionChains = [
         actionId: "ACT16", // Gọi điện hỗ trợ kỹ thuật
         branches: [
           {
-            resultId:     "RES1", // Đã liên hệ
-            order:        1,
+            resultId: "RES1", // Đã liên hệ
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT14", // → Tạo booking demo
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
           {
-            resultId:     "RES2", // Không bắt máy
-            order:        2,
+            resultId: "RES2", // Không bắt máy
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT1", // → Gọi điện lần 1
             closeOutcome: null,
-            delayUnit:    "hour",
-            delayValue:   2,
+            delayUnit: "hour",
+            delayValue: 2,
           },
           {
-            resultId:     "RES4", // Từ chối
-            order:        3,
+            resultId: "RES4", // Từ chối
+            order: 3,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -951,22 +951,22 @@ const actionChains = [
         actionId: "ACT14", // Tạo booking demo
         branches: [
           {
-            resultId:     "RES14", // Đã demo thành công
-            order:        1,
+            resultId: "RES14", // Đã demo thành công
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
           {
-            resultId:     "RES3", // Hẹn lại
-            order:        2,
+            resultId: "RES3", // Hẹn lại
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT14",
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   2,
+            delayUnit: "day",
+            delayValue: 2,
           },
         ],
       },
@@ -978,7 +978,7 @@ const actionChains = [
     id: "CHAIN6",
     name: "Nâng cấp Enterprise",
     description: "Chuỗi tư vấn và chốt deal nâng cấp lên gói Enterprise (hiện tắt - đang review)",
-    delayUnit:  "day",
+    delayUnit: "day",
     delayValue: 2,
     active: false,  // ← INACTIVE chain (dùng để test filter)
     steps: [
@@ -987,13 +987,13 @@ const actionChains = [
         actionId: "ACT8", // Gửi tài liệu Enterprise
         branches: [
           {
-            resultId:     "RES10",
-            order:        1,
+            resultId: "RES10",
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT3",
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
         ],
       },
@@ -1002,22 +1002,22 @@ const actionChains = [
         actionId: "ACT3", // Gọi tư vấn nâng cấp
         branches: [
           {
-            resultId:     "RES1",
-            order:        1,
+            resultId: "RES1",
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT15", // → Gửi hợp đồng
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
           {
-            resultId:     "RES4",
-            order:        2,
+            resultId: "RES4",
+            order: 2,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "failure",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -1026,13 +1026,13 @@ const actionChains = [
         actionId: "ACT15", // Gửi hợp đồng điện tử
         branches: [
           {
-            resultId:     "RES16", // Đã gửi hợp đồng
-            order:        1,
+            resultId: "RES16", // Đã gửi hợp đồng
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT6", // → Xác nhận thanh toán
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   2,
+            delayUnit: "day",
+            delayValue: 2,
           },
         ],
       },
@@ -1041,22 +1041,22 @@ const actionChains = [
         actionId: "ACT6", // Gọi xác nhận thanh toán
         branches: [
           {
-            resultId:     "RES6", // Đã thanh toán
-            order:        1,
+            resultId: "RES6", // Đã thanh toán
+            order: 1,
             nextStepType: "next_in_chain",
             nextActionId: "ACT9",
             closeOutcome: null,
-            delayUnit:    "immediate",
-            delayValue:   null,
+            delayUnit: "immediate",
+            delayValue: null,
           },
           {
-            resultId:     "RES7", // Chưa thanh toán
-            order:        2,
+            resultId: "RES7", // Chưa thanh toán
+            order: 2,
             nextStepType: "next_in_chain",
             nextActionId: "ACT6",
             closeOutcome: null,
-            delayUnit:    "day",
-            delayValue:   1,
+            delayUnit: "day",
+            delayValue: 1,
           },
         ],
       },
@@ -1065,13 +1065,13 @@ const actionChains = [
         actionId: "ACT9", // Tạo đơn hàng
         branches: [
           {
-            resultId:     "RES11",
-            order:        1,
+            resultId: "RES11",
+            order: 1,
             nextStepType: "close_task",
             nextActionId: null,
             closeOutcome: "success",
-            delayUnit:    null,
-            delayValue:   null,
+            delayUnit: null,
+            delayValue: null,
           },
         ],
       },
@@ -1158,11 +1158,11 @@ const events = [
     services: [],
     quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
     timeline: [
-      { type: "event",  title: "Hồ sơ cá nhân hoàn tất",         time: daysAgo(3), content: null, duration: null, createdBy: "System" },
-      { type: "email",  title: "Email chào mừng đã gửi",          time: daysAgo(3), content: "Automation gửi email giới thiệu dịch vụ thành công", duration: null, createdBy: "System" },
-      { type: "phone",  title: "Gọi điện lần 1",                  time: daysAgo(2), content: "Không bắt máy — thử lại sau", duration: null, createdBy: "Lê Văn Hùng" },
-      { type: "phone",  title: "Gọi điện lần 2",                  time: daysAgo(1), content: "Bắt máy, khách hàng hỏi về gói Basic", duration: "3 phút", createdBy: "Lê Văn Hùng" },
-      { type: "note",   title: "Ghi chú: cần gửi bảng giá",       time: hoursAgo(5), content: "Khách muốn so sánh các gói, cần gửi file bảng giá 2026", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "event", title: "Hồ sơ cá nhân hoàn tất", time: daysAgo(3), content: null, duration: null, createdBy: "System" },
+      { type: "email", title: "Email chào mừng đã gửi", time: daysAgo(3), content: "Automation gửi email giới thiệu dịch vụ thành công", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi điện lần 1", time: daysAgo(2), content: "Không bắt máy — thử lại sau", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "phone", title: "Gọi điện lần 2", time: daysAgo(1), content: "Bắt máy, khách hàng hỏi về gói Basic", duration: "3 phút", createdBy: "Lê Văn Hùng" },
+      { type: "note", title: "Ghi chú: cần gửi bảng giá", time: hoursAgo(5), content: "Khách muốn so sánh các gói, cần gửi file bảng giá 2026", duration: null, createdBy: "Lê Văn Hùng" },
     ],
   },
 
@@ -1293,7 +1293,7 @@ const events = [
     timeline: [
       { type: "event", title: "Kết nối Zalo OA thành công", time: daysAgo(2), content: null, duration: null, createdBy: "System" },
       { type: "phone", title: "Gọi điện chào mừng Doanh nghiệp", time: daysAgo(1), content: "CEO bắt máy, muốn nâng cấp lên Premium", duration: "12 phút", createdBy: "Phạm Thanh Sơn" },
-      { type: "note",  title: "Tiềm năng Enterprise",  time: hoursAgo(2), content: "Khách đang dùng SmaxAi + Botvn, muốn thêm Appvn, đề xuất gói Bundle", duration: null, createdBy: "Phạm Thanh Sơn" },
+      { type: "note", title: "Tiềm năng Enterprise", time: hoursAgo(2), content: "Khách đang dùng SmaxAi + Botvn, muốn thêm Appvn, đề xuất gói Bundle", duration: null, createdBy: "Phạm Thanh Sơn" },
     ],
   },
 
@@ -1359,15 +1359,15 @@ const events = [
       { name: "Zalo OA Integration", active: false },
     ],
     quotas: [
-      { name: "Truy cập User",        used: 4,   total: 5,    color: "orange" },
-      { name: "Dung lượng lưu trữ",   used: 920, total: 1000, color: "red" },
-      { name: "Bot Message / tháng",  used: 4800, total: 5000, color: "red" },
+      { name: "Truy cập User", used: 4, total: 5, color: "orange" },
+      { name: "Dung lượng lưu trữ", used: 920, total: 1000, color: "red" },
+      { name: "Bot Message / tháng", used: 4800, total: 5000, color: "red" },
     ],
     timeline: [
-      { type: "event", title: "Cảnh báo dung lượng đạt 92%",            time: daysAgo(3), content: null, duration: null, createdBy: "System" },
-      { type: "phone", title: "Gọi tư vấn nâng cấp",                    time: daysAgo(2), content: "Khách hàng đang cân nhắc nâng lên Premium", duration: "8 phút", createdBy: "Phạm Thanh Sơn" },
-      { type: "email", title: "Email bảng so sánh gói",                  time: daysAgo(1), content: "Đã gửi email so sánh gói Basic vs Premium vs Enterprise", duration: null, createdBy: "System" },
-      { type: "note",  title: "Khách muốn biết thêm về gói Enterprise",  time: hoursAgo(2), content: "CEO Vy hỏi về batch processing và API rate limit của gói cao nhất", duration: null, createdBy: "Phạm Thanh Sơn" },
+      { type: "event", title: "Cảnh báo dung lượng đạt 92%", time: daysAgo(3), content: null, duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi tư vấn nâng cấp", time: daysAgo(2), content: "Khách hàng đang cân nhắc nâng lên Premium", duration: "8 phút", createdBy: "Phạm Thanh Sơn" },
+      { type: "email", title: "Email bảng so sánh gói", time: daysAgo(1), content: "Đã gửi email so sánh gói Basic vs Premium vs Enterprise", duration: null, createdBy: "System" },
+      { type: "note", title: "Khách muốn biết thêm về gói Enterprise", time: hoursAgo(2), content: "CEO Vy hỏi về batch processing và API rate limit của gói cao nhất", duration: null, createdBy: "Phạm Thanh Sơn" },
     ],
   },
 
@@ -1397,11 +1397,11 @@ const events = [
     services: [],
     quotas: [{ name: "Truy cập User", used: 3, total: 3, color: "red" }],
     timeline: [
-      { type: "event", title: "Gói Trial đã hết hạn",        time: daysAgo(8), content: null, duration: null, createdBy: "System" },
-      { type: "email", title: "Email nhắc nâng cấp lần 1",   time: daysAgo(7), content: "Gửi email tự động — reminder lần 1", duration: null, createdBy: "System" },
-      { type: "phone", title: "Gọi tư vấn nâng cấp",         time: daysAgo(5), content: "Không bắt máy", duration: null, createdBy: "Vũ Thu Phương" },
-      { type: "phone", title: "Gọi tư vấn lần 2",            time: daysAgo(3), content: "Khách hẹn gọi lại cuối tuần", duration: "2 phút", createdBy: "Vũ Thu Phương" },
-      { type: "note",  title: "Theo dõi cuối tuần",          time: daysAgo(3), content: "Khách nói có ngân sách Q2, sẽ call lại thứ Hai", duration: null, createdBy: "Vũ Thu Phương" },
+      { type: "event", title: "Gói Trial đã hết hạn", time: daysAgo(8), content: null, duration: null, createdBy: "System" },
+      { type: "email", title: "Email nhắc nâng cấp lần 1", time: daysAgo(7), content: "Gửi email tự động — reminder lần 1", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi tư vấn nâng cấp", time: daysAgo(5), content: "Không bắt máy", duration: null, createdBy: "Vũ Thu Phương" },
+      { type: "phone", title: "Gọi tư vấn lần 2", time: daysAgo(3), content: "Khách hẹn gọi lại cuối tuần", duration: "2 phút", createdBy: "Vũ Thu Phương" },
+      { type: "note", title: "Theo dõi cuối tuần", time: daysAgo(3), content: "Khách nói có ngân sách Q2, sẽ call lại thứ Hai", duration: null, createdBy: "Vũ Thu Phương" },
     ],
   },
 
@@ -1466,14 +1466,14 @@ const events = [
     plan: { name: "ENTERPRISE", cycle: "Thanh toán theo năm", price: "19.990.000 đ", daysLeft: 7, expiryDate: "25/04/2026" },
     services: [
       { name: "Zalo OA Integration", active: true },
-      { name: "Livechat Support",    active: true },
-      { name: "Email Marketing",     active: true },
+      { name: "Livechat Support", active: true },
+      { name: "Email Marketing", active: true },
     ],
     quotas: [{ name: "Truy cập User", used: 12, total: 50, color: "blue" }],
     timeline: [
-      { type: "event", title: "Thông báo sắp hết hạn — 7 ngày",        time: daysAgo(1), content: null, duration: null, createdBy: "System" },
-      { type: "email", title: "Email nhắc gia hạn tự động",            time: daysAgo(1), content: "Automation gửi email nhắc gia hạn Enterprise", duration: null, createdBy: "System" },
-      { type: "phone", title: "Gọi tư vấn gia hạn",                   time: hoursAgo(5), content: "CEO đang họp, hẹn gọi lại chiều mai", duration: "1 phút", createdBy: "Phạm Thanh Sơn" },
+      { type: "event", title: "Thông báo sắp hết hạn — 7 ngày", time: daysAgo(1), content: null, duration: null, createdBy: "System" },
+      { type: "email", title: "Email nhắc gia hạn tự động", time: daysAgo(1), content: "Automation gửi email nhắc gia hạn Enterprise", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi tư vấn gia hạn", time: hoursAgo(5), content: "CEO đang họp, hẹn gọi lại chiều mai", duration: "1 phút", createdBy: "Phạm Thanh Sơn" },
     ],
   },
 
@@ -1503,11 +1503,11 @@ const events = [
     services: [],
     quotas: [{ name: "Truy cập User", used: 3, total: 3, color: "red" }],
     timeline: [
-      { type: "event", title: "Cảnh báo khẩn — còn 2 ngày hết hạn",   time: daysAgo(1), content: null, duration: null, createdBy: "System" },
-      { type: "email", title: "Email nhắc khẩn cấp",                   time: daysAgo(1), content: "Gửi email cảnh báo lần cuối", duration: null, createdBy: "System" },
-      { type: "phone", title: "Gọi điện lần 1",                        time: hoursAgo(8), content: "Không bắt máy", duration: null, createdBy: "Lê Văn Hùng" },
-      { type: "phone", title: "Gọi điện lần 2",                        time: hoursAgo(2), content: "Máy bận", duration: null, createdBy: "Lê Văn Hùng" },
-      { type: "note",  title: "Ưu tiên gọi lại ngay",                  time: hoursAgo(1), content: "2 lần gọi không liên lạc được, cần escalate lên Manager", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "event", title: "Cảnh báo khẩn — còn 2 ngày hết hạn", time: daysAgo(1), content: null, duration: null, createdBy: "System" },
+      { type: "email", title: "Email nhắc khẩn cấp", time: daysAgo(1), content: "Gửi email cảnh báo lần cuối", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi điện lần 1", time: hoursAgo(8), content: "Không bắt máy", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "phone", title: "Gọi điện lần 2", time: hoursAgo(2), content: "Máy bận", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "note", title: "Ưu tiên gọi lại ngay", time: hoursAgo(1), content: "2 lần gọi không liên lạc được, cần escalate lên Manager", duration: null, createdBy: "Lê Văn Hùng" },
     ],
   },
 
@@ -1536,11 +1536,11 @@ const events = [
     plan: { name: "PREMIUM", cycle: "Thanh toán theo năm", price: "5.990.000 đ", daysLeft: 14, expiryDate: "02/05/2026" },
     services: [
       { name: "Zalo OA Integration", active: true },
-      { name: "Livechat Support",    active: true },
+      { name: "Livechat Support", active: true },
     ],
     quotas: [
-      { name: "Truy cập User",  used: 8, total: 20, color: "blue" },
-      { name: "Email / tháng",  used: 5000, total: 10000, color: "blue" },
+      { name: "Truy cập User", used: 8, total: 20, color: "blue" },
+      { name: "Email / tháng", used: 5000, total: 10000, color: "blue" },
     ],
     timeline: [
       { type: "event", title: "Hệ thống nhắc gia hạn — còn 14 ngày", time: hoursAgo(4), content: null, duration: null, createdBy: "System" },
@@ -1576,14 +1576,14 @@ const events = [
     plan: { name: "ENTERPRISE", cycle: "Thanh toán theo năm", price: "19.990.000 đ", daysLeft: 365, expiryDate: "18/04/2027" },
     services: [
       { name: "Zalo OA Integration", active: true },
-      { name: "Livechat Support",    active: true },
-      { name: "Email Marketing",     active: true },
+      { name: "Livechat Support", active: true },
+      { name: "Email Marketing", active: true },
     ],
     quotas: [{ name: "Truy cập User", used: 12, total: 50, color: "blue" }],
     timeline: [
-      { type: "event", title: "Nhận thanh toán đơn #DH2026-001 — TPBank",  time: daysAgo(1), content: "Số tiền: 19.990.000 đ", duration: null, createdBy: "System" },
-      { type: "phone", title: "Gọi xác nhận thanh toán",                   time: daysAgo(1), content: "Khách xác nhận đã chuyển khoản thành công", duration: "3 phút", createdBy: "Phạm Thanh Sơn" },
-      { type: "note",  title: "Đã kích hoạt gói Enterprise",               time: hoursAgo(20), content: "Tất cả service đã được bật. Gửi email welcome Enterprise.", duration: null, createdBy: "System" },
+      { type: "event", title: "Nhận thanh toán đơn #DH2026-001 — TPBank", time: daysAgo(1), content: "Số tiền: 19.990.000 đ", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi xác nhận thanh toán", time: daysAgo(1), content: "Khách xác nhận đã chuyển khoản thành công", duration: "3 phút", createdBy: "Phạm Thanh Sơn" },
+      { type: "note", title: "Đã kích hoạt gói Enterprise", time: hoursAgo(20), content: "Tất cả service đã được bật. Gửi email welcome Enterprise.", duration: null, createdBy: "System" },
     ],
   },
 
@@ -1613,8 +1613,8 @@ const events = [
     services: [{ name: "Livechat Support", active: true }],
     quotas: [{ name: "Truy cập User", used: 3, total: 10, color: "blue" }],
     timeline: [
-      { type: "event", title: "Nhận thanh toán chuyển khoản qua VCB",     time: hoursAgo(3), content: "Số tiền: 2.990.000 đ — Đơn hàng #DH2026-002", duration: null, createdBy: "System" },
-      { type: "phone", title: "Gọi điện xác nhận",                        time: hoursAgo(2), content: "Không bắt máy — thử lại", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "event", title: "Nhận thanh toán chuyển khoản qua VCB", time: hoursAgo(3), content: "Số tiền: 2.990.000 đ — Đơn hàng #DH2026-002", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi điện xác nhận", time: hoursAgo(2), content: "Không bắt máy — thử lại", duration: null, createdBy: "Lê Văn Hùng" },
     ],
   },
 

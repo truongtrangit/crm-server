@@ -191,6 +191,7 @@ async function seedCounters() {
     { prefix: "ACT", items: seedData.actions },
     { prefix: "CHN", items: seedData.actionChains },
     { prefix: "FUNC", items: seedData.staffFunctions },
+    { prefix: "ORG", items: seedData.organizations }
 
   ];
 

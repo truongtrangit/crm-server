@@ -37,6 +37,9 @@ const ID_PREFIXES = Object.freeze({
   FUNNEL_FOLDER: "FFOL",
   FUNNEL_GROUP: "FGRP",
   FUNNEL: "FNL",
+
+  // Organization
+  ORGANIZATION: "ORG",
 });
 
 /**

@@ -10,6 +10,14 @@ const createTaskSchema = Joi.object({
   tags: Joi.array().items(Joi.string().trim().max(50)).max(20).optional(),
   assignees: Joi.array().items(assigneeItemSchema).max(10).optional(),
   note: Joi.string().allow("").max(5000).optional(),
+  linkedEvents: Joi.array().items(Joi.object({
+    eventId: Joi.string().trim().required(),
+    eventName: Joi.string().allow("").optional()
+  })).optional(),
+  linkedLeads: Joi.array().items(Joi.object({
+    leadId: Joi.string().trim().required(),
+    leadName: Joi.string().allow("").optional()
+  })).optional(),
 });
 
 const updateTaskSchema = Joi.object({
@@ -18,6 +26,14 @@ const updateTaskSchema = Joi.object({
   tags: Joi.array().items(Joi.string().trim().max(50)).max(20).optional(),
   assignees: Joi.array().items(assigneeItemSchema).max(10).optional(),
   note: Joi.string().allow("").max(5000).optional(),
+  linkedEvents: Joi.array().items(Joi.object({
+    eventId: Joi.string().trim().required(),
+    eventName: Joi.string().allow("").optional()
+  })).optional(),
+  linkedLeads: Joi.array().items(Joi.object({
+    leadId: Joi.string().trim().required(),
+    leadName: Joi.string().allow("").optional()
+  })).optional(),
 });
 
 const linkEventSchema = Joi.object({

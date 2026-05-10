@@ -2,6 +2,7 @@ const Organization = require("../models/Organization");
 const CacheService = require("./CacheService");
 const { buildPaginatedResponse, resolvePagination } = require("../utils/pagination");
 const { buildDepartmentAlias, buildGroupAlias } = require("../utils/organization");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 
 class OrganizationService {
   async getOrganizations(query) {
@@ -36,9 +37,8 @@ class OrganizationService {
       throw error;
     }
 
-    const nextId = String((await Organization.countDocuments()) + 1);
     const department = await Organization.create({
-      id: nextId,
+      id: await generateMonotonicId(ID_PREFIXES.ORGANIZATION),
       alias,
       parent: name,
       children: [],
