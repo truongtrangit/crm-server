@@ -98,6 +98,7 @@ const leadSchema = new mongoose.Schema(
 
     /** Giữ lại để dùng sau cho hệ thống LeadStatus/LeadStatusGroup */
     statusId: { type: String, default: null },
+    funnelId: { type: String, ref: "Funnel", default: null, index: true },
     groupId: { type: String, default: null },
 
     timeline: [timelineEntrySchema],

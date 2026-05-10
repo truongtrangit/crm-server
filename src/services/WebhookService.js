@@ -4,7 +4,7 @@ const Customer = require("../models/Customer");
 const User = require("../models/User");
 const Subscription = require("../models/Subscription");
 const { WEBHOOK_EVENT_TYPES } = require("../constants/webhookEvents");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
 const {
@@ -334,7 +334,7 @@ class WebhookService {
 
     // ─── 4. Create Event ──────────────────────────────────────────────────
     const event = await Event.create({
-      id: await generateMonotonicId("EVT"),
+      id: await generateMonotonicId(ID_PREFIXES.EVENT),
       name: `User mới: ${name || email || "N/A"}`,
       sub: "",
       group: WEBHOOK_EVENT_TYPES.NEW_REGISTRATION,
@@ -570,7 +570,7 @@ class WebhookService {
         const status = endDate && endDate > now ? "active" : "expired";
 
         subscription = await Subscription.create({
-          id: await generateMonotonicId("SUB"),
+          id: await generateMonotonicId(ID_PREFIXES.SUBSCRIPTION),
           externalId: order.id,
           source: "SmaxAi",
           code: order.code || "",
@@ -633,7 +633,7 @@ class WebhookService {
     // ─── 6. Create Event ──────────────────────────────────────────────────
     const primaryUser = users.find((u) => u.id === payload.author_id) || users[0] || {};
     const event = await Event.create({
-      id: await generateMonotonicId("EVT"),
+      id: await generateMonotonicId(ID_PREFIXES.EVENT),
       name: bizName || bizAlias || "Biz mới",
       sub: payload.desc || "",
       group: WEBHOOK_EVENT_TYPES.NEW_BUSINESS,
@@ -688,7 +688,7 @@ class WebhookService {
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
     const event = await Event.create({
-      id: await generateMonotonicId("EVT"),
+      id: await generateMonotonicId(ID_PREFIXES.EVENT),
       name: payload.name || `Sắp hết hạn: ${payload.biz?.id || customerData.name || "N/A"}`,
       sub: payload.sub || "",
       group: WEBHOOK_EVENT_TYPES.PLAN_EXPIRED,
@@ -739,7 +739,7 @@ class WebhookService {
     const { assigneeId, assignee } = await this.#resolveAssignee(payload);
 
     const event = await Event.create({
-      id: await generateMonotonicId("EVT"),
+      id: await generateMonotonicId(ID_PREFIXES.EVENT),
       name: payload.name || `Cần nâng cấp: ${payload.biz?.id || customerData.name || "N/A"}`,
       sub: payload.sub || "",
       group: WEBHOOK_EVENT_TYPES.PLAN_UPGRADE,
@@ -839,7 +839,7 @@ class WebhookService {
 
     // ─── 6. Create Subscription ────────────────────────────────────────────
     const subscription = await Subscription.create({
-      id: await generateMonotonicId("SUB"),
+      id: await generateMonotonicId(ID_PREFIXES.SUBSCRIPTION),
       externalId: payload.id,
       source: "SmaxAi",
       code: payload.code || "",
@@ -957,7 +957,7 @@ class WebhookService {
       .join(" — ");
 
     subscription = await Subscription.create({
-      id: await generateMonotonicId("SUB"),
+      id: await generateMonotonicId(ID_PREFIXES.SUBSCRIPTION),
       externalId: payload.id,
       source: "SmaxAi",
       code: payload.code || "",
@@ -1093,7 +1093,7 @@ class WebhookService {
     // ─── 2. Create new ──────────────────────────────────────────────────
     try {
       const customer = await Customer.create({
-        id: await generateMonotonicId("CUST"),
+        id: await generateMonotonicId(ID_PREFIXES.CUSTOMER),
         name: data.name || "Unknown",
         email: email || "",
         phone: phone || "",
@@ -1166,7 +1166,7 @@ class WebhookService {
     // ─── 3. Create new biz customer ──────────────────────────────────────
     try {
       const customer = await Customer.create({
-        id: await generateMonotonicId("CUST"),
+        id: await generateMonotonicId(ID_PREFIXES.CUSTOMER),
         name: data.name || "Unknown Biz",
         email: email || "",
         phone: phone || "",

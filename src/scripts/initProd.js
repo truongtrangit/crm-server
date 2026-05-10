@@ -34,6 +34,7 @@ const Counter       = require("../models/Counter");
 // ─── Helpers ───
 const { hashPassword } = require("../utils/auth");
 const { seedRbac }     = require("../services/rbacSeed");
+const { seedSystemFunnel } = require("./seedSystemFunnel");
 
 // ─── Minimal StaffFunctions ───────────────────────────────────────────────────
 const STAFF_FUNCTIONS = [
@@ -164,8 +165,12 @@ async function main() {
   await seedOwner();
 
   // 5. Admin account
-  console.log("🛡   [5/5] Khởi tạo tài khoản Admin...");
+  console.log("🛡   [5/6] Khởi tạo tài khoản Admin...");
   await seedAdmin();
+
+  // 6. System Funnel
+  console.log("🔧  [6/6] Khởi tạo Phễu hệ thống...");
+  await seedSystemFunnel();
 
   console.log("\n✅  Khởi tạo UAT/PROD hoàn tất!\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

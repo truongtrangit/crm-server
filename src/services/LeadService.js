@@ -2,7 +2,7 @@ const Lead = require("../models/Lead");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -96,7 +96,7 @@ class LeadService {
    * Tạo lead mới — auto-map customer, resolve assignees.
    */
   async createLead(data, currentUser) {
-    const id = await generateMonotonicId("LEAD");
+    const id = await generateMonotonicId(ID_PREFIXES.LEAD);
 
     // Auto-map customer nếu email/phone khớp
     let customerId = null;
@@ -118,6 +118,8 @@ class LeadService {
       email: data.email || "",
       phone: data.phone || "",
       stage: data.stage || "lead_moi",
+      funnelId: data.funnelId || null,
+      statusId: data.statusId || null,
       customerId,
       assignees,
       address: data.address || {},
@@ -170,8 +172,14 @@ class LeadService {
 
     // Whitelist updatable fields
     const allowedFields = [
-      "name", "avatar", "email", "phone", "stage", "assignees",
-      "address", "street", "source", "tags", "note", "customerId",
+      "name",      "avatar",
+      "email",
+      "phone",
+      "stage",
+      "funnelId",
+      "statusId",
+      "address",
+      "street", "source", "tags", "note", "customerId",
     ];
     const $set = {};
     for (const key of allowedFields) {
