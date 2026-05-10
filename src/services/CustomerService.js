@@ -1,7 +1,7 @@
 const Customer = require("../models/Customer");
 const User = require("../models/User");
 const Event = require("../models/Event");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
@@ -86,7 +86,7 @@ class CustomerService {
 
   async createCustomer(payload) {
     const customer = await Customer.create({
-      id: await generateMonotonicId("CUST"),
+      id: await generateMonotonicId(ID_PREFIXES.CUSTOMER),
       name: payload.name,
       avatar:
         payload.avatar ||

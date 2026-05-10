@@ -1,14 +1,8 @@
 const LeadStatus = require("../models/LeadStatus");
 const LeadStatusGroup = require("../models/LeadStatusGroup");
-const crypto = require("crypto");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
-
-function generateId() {
-  return "ls_" + crypto.randomBytes(6).toString("hex");
-}
-function generateGroupId() {
-  return "lsg_" + crypto.randomBytes(6).toString("hex");
-}
+const { isSystemEntity } = require("../constants/systemFunnel");
 
 class LeadConfigService {
   async getStatuses() {
@@ -18,13 +12,14 @@ class LeadConfigService {
   async createStatus(data) {
     const newStatus = new LeadStatus({
       ...data,
-      id: generateId(),
+      id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS),
     });
     await newStatus.save();
     return newStatus;
   }
 
   async updateStatus(id, data) {
+    if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa trạng thái hệ thống.");
     const updatedStatus = await LeadStatus.findOneAndUpdate({ id }, data, { new: true });
     if (!updatedStatus) {
       throw createHttpError(404, "Không tìm thấy trạng thái");
@@ -33,6 +28,8 @@ class LeadConfigService {
   }
 
   async deleteStatus(id) {
+    if (isSystemEntity(id)) throw createHttpError(400, "Không thể xoá trạng thái hệ thống.");
+
     const usedInGroup = await LeadStatusGroup.findOne({ statusIds: id });
     if (usedInGroup) {
       throw createHttpError(400, "Không thể xóa trạng thái đang được sử dụng trong nhóm.");
@@ -52,13 +49,14 @@ class LeadConfigService {
   async createGroup(data) {
     const newGroup = new LeadStatusGroup({
       ...data,
-      id: generateGroupId(),
+      id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS_GROUP),
     });
     await newGroup.save();
     return newGroup;
   }
 
   async updateGroup(id, data) {
+    if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa nhóm trạng thái hệ thống.");
     const updatedGroup = await LeadStatusGroup.findOneAndUpdate({ id }, data, { new: true });
     if (!updatedGroup) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");
@@ -67,6 +65,8 @@ class LeadConfigService {
   }
 
   async deleteGroup(id) {
+    if (isSystemEntity(id)) throw createHttpError(400, "Không thể xoá nhóm trạng thái hệ thống.");
+
     const deletedGroup = await LeadStatusGroup.findOneAndDelete({ id });
     if (!deletedGroup) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");

@@ -13,6 +13,7 @@ const Counter = require("../models/Counter");
 const seedData = require("../constants/seedData");
 const { hashPassword } = require("../utils/auth");
 const { seedRbac, migrateUsersToRbac } = require("./rbacSeed");
+const { seedSystemFunnel } = require("../scripts/seedSystemFunnel");
 const {
   buildDepartmentAlias,
   buildGroupAlias,
@@ -171,6 +172,9 @@ async function seedDatabase() {
 
   // Seed counters if not present (ensures monotonic IDs start correctly)
   await seedCounters();
+
+  // Seed system funnel (idempotent)
+  await seedSystemFunnel();
 }
 
 /**

@@ -3,7 +3,7 @@ const Customer = require("../models/Customer");
 const User = require("../models/User");
 const Lead = require("../models/Lead");
 const EventActionChain = require("../models/EventActionChain");
-const { generateMonotonicId } = require("../utils/id");
+const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -190,7 +190,7 @@ class EventService {
     }
 
     const event = await Event.create({
-      id: await generateMonotonicId("EVT"),
+      id: await generateMonotonicId(ID_PREFIXES.EVENT),
       name: payload.name || "Sự kiện mới",
       sub: payload.sub || "",
       group: payload.group,
