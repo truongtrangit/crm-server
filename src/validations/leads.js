@@ -17,7 +17,7 @@ const createLeadSchema = Joi.object({
   phone: Joi.string().allow("").max(20).optional(),
   email: Joi.string().email().allow("").optional(),
   stage: Joi.string().valid(...LEAD_STAGE_IDS).default("lead_moi"),
-  funnelId: Joi.string().allow(null, "").max(50).optional(),
+  funnelId: Joi.string().max(50).required(),
   statusId: Joi.string().allow(null, "").max(50).optional(),
   address: addressSchema.optional(),
   street: Joi.string().allow("").max(500).optional(),

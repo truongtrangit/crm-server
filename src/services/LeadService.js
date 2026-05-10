@@ -118,6 +118,8 @@ class LeadService {
       email: data.email || "",
       phone: data.phone || "",
       stage: data.stage || "lead_moi",
+      funnelId: data.funnelId || null,
+      statusId: data.statusId || null,
       customerId,
       assignees,
       address: data.address || {},
@@ -170,8 +172,14 @@ class LeadService {
 
     // Whitelist updatable fields
     const allowedFields = [
-      "name", "avatar", "email", "phone", "stage", "assignees",
-      "address", "street", "source", "tags", "note", "customerId",
+      "name",      "avatar",
+      "email",
+      "phone",
+      "stage",
+      "funnelId",
+      "statusId",
+      "address",
+      "street", "source", "tags", "note", "customerId",
     ];
     const $set = {};
     for (const key of allowedFields) {
