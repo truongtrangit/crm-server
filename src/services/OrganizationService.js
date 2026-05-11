@@ -44,7 +44,7 @@ class OrganizationService {
       children: [],
     });
 
-    await CacheService.del("system:metadata");
+    await CacheService.bumpNamespaceVersion("metadata");
     return department;
   }
 
@@ -86,7 +86,7 @@ class OrganizationService {
     department.children.push({ name, desc, alias });
     await department.save();
 
-    await CacheService.del("system:metadata");
+    await CacheService.bumpNamespaceVersion("metadata");
     return {
       alias,
       name,

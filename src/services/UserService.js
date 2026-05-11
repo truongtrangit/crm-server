@@ -30,6 +30,8 @@ const {
   resolveGroupReference,
 } = require("../utils/organization");
 const { computeChanges } = require("../utils/diff");
+const CacheService = require("./CacheService");
+const { CACHE_TTL } = require("../constants/cache");
 
 const DEFAULT_ROLE_NAME = "STAFF";
 const OWNER_ROLE_NAME = "OWNER";
@@ -419,38 +421,41 @@ function serializeUserBasic(user) {
 }
 
 async function listUsers(actor, filters) {
-  const { query, hasReadPermission } = await buildUserListQuery(actor, filters);
-  const { page, limit, skip } = resolvePagination(filters);
 
-  // Owner/Admin can see deleted users
-  const roleName = (await getUserRoleName(actor) || "").toUpperCase();
-  const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.includeDeleted === "true";
+  return CacheService.withVersionedCache("users", { actorId: actor.id, role: actor.roleId, ...filters }, CACHE_TTL.SHORT, async () => {
+    const { query, hasReadPermission } = await buildUserListQuery(actor, filters);
+    const { page, limit, skip } = resolvePagination(filters);
 
-  let users, totalItems;
+    // Owner/Admin can see deleted users
+    const roleName = (await getUserRoleName(actor) || "").toUpperCase();
+    const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.includeDeleted === "true";
 
-  const sortObj = resolveSort(filters, ["createdAt", "name", "updatedAt", "email", "roleId"]);
+    let users, totalItems;
 
-  if (canSeeDeleted) {
-    [users, totalItems] = await Promise.all([
-      User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
-      User.countWithDeleted(query),
-    ]);
-  } else {
-    [users, totalItems] = await Promise.all([
-      User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
-      User.countDocuments(query),
-    ]);
-  }
+    const sortObj = resolveSort(filters, ["createdAt", "name", "updatedAt", "email", "roleId"]);
 
-  // Staff (no USERS_READ) gets only basic info; others get full data
-  const serializer = hasReadPermission ? serializeUser : serializeUserBasic;
+    if (canSeeDeleted) {
+      [users, totalItems] = await Promise.all([
+        User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
+        User.countWithDeleted(query),
+      ]);
+    } else {
+      [users, totalItems] = await Promise.all([
+        User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+        User.countDocuments(query),
+      ]);
+    }
 
-  return buildPaginatedResponse(
-    users.map(serializer),
-    totalItems,
-    page,
-    limit,
-  );
+    // Staff (no USERS_READ) gets only basic info; others get full data
+    const serializer = hasReadPermission ? serializeUser : serializeUserBasic;
+
+    return buildPaginatedResponse(
+      users.map(serializer),
+      totalItems,
+      page,
+      limit,
+    );
+  });
 }
 
 async function createUserAccount(actor, payload = {}) {
@@ -577,6 +582,7 @@ async function createUserAccount(actor, payload = {}) {
     createdBy: actor.id,
   });
 
+  await CacheService.bumpNamespaceVersion("users");
   return serializeUser(user);
 }
 
@@ -762,7 +768,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   targetUser.departmentAliases = organizationAssignments.departmentAliases;
   targetUser.group = organizationAssignments.groups;
   targetUser.groupAliases = organizationAssignments.groupAliases;
-  targetUser.companies = 
+  targetUser.companies =
     payload.companies !== undefined && Array.isArray(payload.companies)
       ? payload.companies.filter(c => COMPANIES.includes(c))
       : targetUser.companies;
@@ -798,6 +804,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive", "managerId"];
   const changes = computeChanges(oldState, newState, keysToCheck);
 
+  await CacheService.bumpNamespaceVersion("users");
   return { user: serializeUser(targetUser), changes };
 }
 
@@ -939,6 +946,7 @@ async function updateOwnProfile(actor, payload = {}) {
   }
 
   await actor.save();
+  await CacheService.bumpNamespaceVersion("users");
   return serializeUser(actor);
 }
 
@@ -1024,6 +1032,7 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   }
 
   await targetUser.softDelete();
+  await CacheService.bumpNamespaceVersion("users");
   return targetUser;
 }
 
@@ -1045,6 +1054,7 @@ async function restoreUserAccount(actor, userId) {
   }
 
   await targetUser.restore();
+  await CacheService.bumpNamespaceVersion("users");
   return serializeUser(targetUser);
 }
 
@@ -1090,6 +1100,7 @@ async function permanentDeleteUserAccount(actor, userId) {
   );
 
   await targetUser.deleteOne();
+  await CacheService.bumpNamespaceVersion("users");
   return targetUser;
 }
 

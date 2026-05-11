@@ -2,6 +2,7 @@ const Organization = require("../models/Organization");
 const Role = require("../models/Role");
 const CacheService = require("./CacheService");
 const env = require("../config/env");
+const { CACHE_TTL } = require("../constants/cache");
 const { PLATFORMS, CUSTOMER_GROUPS, CUSTOMER_TYPES } = require("../constants/appData");
 const { buildOrganizationDirectory } = require("../utils/organization");
 
@@ -62,42 +63,34 @@ class MetadataService {
   }
 
   async getDerivedMetadata() {
-    const cacheKey = "system:metadata";
-    let metadata = await CacheService.get(cacheKey);
+    return CacheService.withVersionedCache("metadata", { derived: true }, CACHE_TTL.LONG, async () => {
+      const roles = await Role.find(
+        {},
+        { id: 1, name: 1, description: 1, level: 1, isSystem: 1 },
+      )
+        .sort({ level: -1, name: 1 })
+        .lean();
+      const departments = await Organization.find()
+        .sort({ createdAt: 1, id: 1 })
+        .lean();
+      const roleOptions = roles.map((role) => this._formatRoleMetadata(role));
+      const organizationMetadata = this._formatOrganizationMetadata(departments);
 
-    if (metadata) {
-      return metadata;
-    }
-
-    const roles = await Role.find(
-      {},
-      { id: 1, name: 1, description: 1, level: 1, isSystem: 1 },
-    )
-      .sort({ level: -1, name: 1 })
-      .lean();
-    const departments = await Organization.find()
-      .sort({ createdAt: 1, id: 1 })
-      .lean();
-    const roleOptions = roles.map((role) => this._formatRoleMetadata(role));
-    const organizationMetadata = this._formatOrganizationMetadata(departments);
-
-    metadata = {
-      platforms: PLATFORMS,
-      customerGroups:
-        organizationMetadata.activityGroups.length > 0
-          ? organizationMetadata.activityGroups.map((item) => item.label)
-          : CUSTOMER_GROUPS,
-      customerTypes: CUSTOMER_TYPES,
-      staffRoles: roleOptions,
-      userRoles: roleOptions,
-      departments: organizationMetadata.departments,
-      departmentOptions: organizationMetadata.departmentOptions,
-      departmentGroups: organizationMetadata.departmentGroups,
-      activityGroups: organizationMetadata.activityGroups,
-    };
-
-    await CacheService.set(cacheKey, metadata, env.cacheMetadataTtlSeconds);
-    return metadata;
+      return {
+        platforms: PLATFORMS,
+        customerGroups:
+          organizationMetadata.activityGroups.length > 0
+            ? organizationMetadata.activityGroups.map((item) => item.label)
+            : CUSTOMER_GROUPS,
+        customerTypes: CUSTOMER_TYPES,
+        staffRoles: roleOptions,
+        userRoles: roleOptions,
+        departments: organizationMetadata.departments,
+        departmentOptions: organizationMetadata.departmentOptions,
+        departmentGroups: organizationMetadata.departmentGroups,
+        activityGroups: organizationMetadata.activityGroups,
+      };
+    }, { swr: true, maxTtl: 86400 });
   }
 }
 
