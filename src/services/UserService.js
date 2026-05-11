@@ -432,12 +432,12 @@ async function listUsers(actor, filters) {
 
   if (canSeeDeleted) {
     [users, totalItems] = await Promise.all([
-      User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit),
+      User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
       User.countWithDeleted(query),
     ]);
   } else {
     [users, totalItems] = await Promise.all([
-      User.find(query).sort(sortObj).skip(skip).limit(limit),
+      User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
       User.countDocuments(query),
     ]);
   }

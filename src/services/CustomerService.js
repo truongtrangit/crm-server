@@ -59,12 +59,12 @@ class CustomerService {
 
     if (canSeeDeleted) {
       [customers, totalItems] = await Promise.all([
-        Customer.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit),
+        Customer.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
         Customer.countWithDeleted(query),
       ]);
     } else {
       [customers, totalItems] = await Promise.all([
-        Customer.find(query).sort(sortObj).skip(skip).limit(limit),
+        Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
         Customer.countDocuments(query),
       ]);
     }

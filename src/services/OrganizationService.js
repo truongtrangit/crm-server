@@ -8,7 +8,7 @@ class OrganizationService {
   async getOrganizations(query) {
     const { page, limit, skip } = resolvePagination(query || {});
     const [organization, totalItems] = await Promise.all([
-      Organization.find().sort({ createdAt: 1, id: 1 }).skip(skip).limit(limit),
+      Organization.find().sort({ createdAt: 1, id: 1 }).skip(skip).limit(limit).lean(),
       Organization.countDocuments(),
     ]);
 

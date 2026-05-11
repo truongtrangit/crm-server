@@ -38,24 +38,82 @@ class TaskService {
       ];
     }
 
-    const [items, totalItems] = await Promise.all([
-      Task.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    const pipeline = [
+      { $match: query },
+      {
+        $lookup: {
+          from: "eventactionchains",
+          let: { taskId: "$id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$taskId", "$$taskId"] },
+                    { $eq: ["$status", "active"] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "activeChains"
+        }
+      },
+      {
+        $addFields: {
+          earliestScheduledAt: {
+            $min: {
+              $reduce: {
+                input: {
+                  $map: {
+                    input: "$activeChains",
+                    as: "chain",
+                    in: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$$chain.steps",
+                            as: "step",
+                            cond: { $eq: ["$$step.status", "active"] }
+                          }
+                        },
+                        as: "activeStep",
+                        in: "$$activeStep.scheduledAt"
+                      }
+                    }
+                  }
+                },
+                initialValue: [],
+                in: { $concatArrays: ["$$value", "$$this"] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          sortScheduledAt: {
+            $ifNull: ["$earliestScheduledAt", new Date("2099-12-31T23:59:59Z")]
+          }
+        }
+      },
+      {
+        $sort: { sortScheduledAt: 1, createdAt: -1 }
+      },
+      {
+        $project: {
+          sortScheduledAt: 0,
+          earliestScheduledAt: 0
+        }
+      },
+      { $skip: skip },
+      { $limit: limit }
+    ];
+
+    const [itemsWithChains, totalItems] = await Promise.all([
+      Task.aggregate(pipeline),
       Task.countDocuments(query),
     ]);
-
-    const taskIds = items.map(t => t.id);
-    const chains = await EventActionChain.find({ taskId: { $in: taskIds }, status: "active" }).lean();
-
-    const chainsByTaskId = {};
-    for (const chain of chains) {
-      if (!chainsByTaskId[chain.taskId]) chainsByTaskId[chain.taskId] = [];
-      chainsByTaskId[chain.taskId].push(chain);
-    }
-
-    const itemsWithChains = items.map(task => ({
-      ...task,
-      activeChains: chainsByTaskId[task.id] || []
-    }));
 
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -93,12 +151,12 @@ class TaskService {
     if (data.linkedEvents && Array.isArray(data.linkedEvents)) {
       const eventIds = data.linkedEvents.map((e) => e.eventId).filter(Boolean);
       if (eventIds.length > 0) {
-        const events = await Event.find({ id: { $in: eventIds } }).select("id name");
+        const events = await Event.find({ id: { $in: eventIds } }).select("id name").lean();
         linkedEvents = events.map((e) => ({ eventId: e.id, eventName: e.name }));
       }
     }
     if (data.eventId && !linkedEvents.some((e) => e.eventId === data.eventId)) {
-      const event = await Event.findOne({ id: data.eventId }).select("id name");
+      const event = await Event.findOne({ id: data.eventId }).select("id name").lean();
       if (event) linkedEvents.push({ eventId: event.id, eventName: event.name });
     }
 
@@ -106,12 +164,12 @@ class TaskService {
     if (data.linkedLeads && Array.isArray(data.linkedLeads)) {
       const leadIds = data.linkedLeads.map((l) => l.leadId).filter(Boolean);
       if (leadIds.length > 0) {
-        const leads = await Lead.find({ id: { $in: leadIds } }).select("id name");
+        const leads = await Lead.find({ id: { $in: leadIds } }).select("id name").lean();
         linkedLeads = leads.map((l) => ({ leadId: l.id, leadName: l.name }));
       }
     }
     if (data.leadId && !linkedLeads.some((l) => l.leadId === data.leadId)) {
-      const lead = await Lead.findOne({ id: data.leadId }).select("id name");
+      const lead = await Lead.findOne({ id: data.leadId }).select("id name").lean();
       if (lead) linkedLeads.push({ leadId: lead.id, leadName: lead.name });
     }
 
@@ -433,10 +491,10 @@ class TaskService {
 
     const [users, funcs] = await Promise.all([
       userIds.length > 0
-        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar")
+        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar").lean()
         : [],
       funcIds.length > 0
-        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title")
+        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title").lean()
         : [],
     ]);
 

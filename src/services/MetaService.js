@@ -15,7 +15,7 @@ class MetaService {
   // ─── Config CRUD ────────────────────────────────────────────────────────────
 
   async getConfigs() {
-    return MetaConfig.find().sort({ order: 1, createdAt: 1 });
+    return MetaConfig.find().sort({ order: 1, createdAt: 1 }).lean();
   }
 
   async createConfig(payload) {
@@ -133,7 +133,7 @@ class MetaService {
     ]);
 
     const [programs, totalItems] = await Promise.all([
-      MetaProgram.find(query).sort(sortObj).skip(skip).limit(limit),
+      MetaProgram.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
       MetaProgram.countDocuments(query),
     ]);
 

@@ -62,7 +62,7 @@ class EventService {
     const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "stage"]);
 
     const [events, totalItems] = await Promise.all([
-      Event.find(query).sort(sortObj).skip(skip).limit(limit),
+      Event.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
       Event.countDocuments(query),
     ]);
 
@@ -467,8 +467,8 @@ class EventService {
     const funcIds = rawAssignees.map((a) => a.functionId).filter(Boolean);
 
     const [users, funcs] = await Promise.all([
-      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: true }).select("id name avatar") : [],
-      funcIds.length > 0 ? StaffFunction.find({ id: { $in: funcIds } }).select("id title") : [],
+      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar").lean() : [],
+      funcIds.length > 0 ? StaffFunction.find({ id: { $in: funcIds } }).select("id title").lean() : [],
     ]);
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));

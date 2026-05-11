@@ -83,4 +83,8 @@ const taskSchema = new mongoose.Schema(
 
 taskSchema.plugin(softDeletePlugin);
 
+// ─── Indexes for Performance ───
+taskSchema.index({ status: 1, createdAt: -1 });
+taskSchema.index({ "assignees.userId": 1, status: 1 });
+
 module.exports = mongoose.model("Task", taskSchema);

@@ -57,7 +57,8 @@ class LeadService {
 
     const leads = await Lead.find(query)
       .sort({ createdAt: -1 })
-      .limit(limit + 1); // +1 to detect hasMore
+      .limit(limit + 1)
+      .lean();
 
     const hasMore = leads.length > limit;
     const items = hasMore ? leads.slice(0, limit) : leads;
@@ -388,10 +389,10 @@ class LeadService {
       userIds.length > 0
         ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select(
           "id name avatar",
-        )
+        ).lean()
         : [],
       funcIds.length > 0
-        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title")
+        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title").lean()
         : [],
     ]);
 
