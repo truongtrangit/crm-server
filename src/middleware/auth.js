@@ -47,8 +47,14 @@ async function authenticateRequest(req, res, next) {
     });
   }
 
-  session.lastUsedAt = new Date();
-  await user.save();
+  const now = new Date();
+  const lastUsed = session.lastUsedAt ? new Date(session.lastUsedAt).getTime() : 0;
+  
+  // Throttle DB updates to once every 5 minutes (300,000 ms) per session
+  if (now.getTime() - lastUsed > 5 * 60 * 1000) {
+    session.lastUsedAt = now;
+    await user.save();
+  }
 
   req.auth = { user, session };
   req.user = user;
