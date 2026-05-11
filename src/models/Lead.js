@@ -79,7 +79,7 @@ const leadSchema = new mongoose.Schema(
     },
 
     /** Ref Customer — auto-mapped khi tạo/cập nhật nếu email/phone khớp */
-    customerId: { type: String, ref: "Customer", default: null },
+    customerId: { type: String, ref: "Customer", default: null, index: true },
 
     /** Nhiều nhân sự phụ trách, mỗi người 1 chức năng */
     assignees: [assigneeSchema],
@@ -117,5 +117,9 @@ const leadSchema = new mongoose.Schema(
 );
 
 leadSchema.plugin(softDeletePlugin);
+
+// Performance indexes for list queries
+leadSchema.index({ "assignees.userId": 1 });
+leadSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

@@ -50,9 +50,9 @@ const userSchema = new mongoose.Schema(
     groupAliases: { type: [String], default: [] },
     phone: { type: String, default: "" },
     companies: { type: [String], default: [] },
-    roleId: { type: String, default: null }, // Reference to Role model for RBAC
+    roleId: { type: String, default: null, index: true }, // Reference to Role model for RBAC
     permissions: { type: [String], default: [] }, // Additional custom permissions
-    managerId: { type: String, default: null },
+    managerId: { type: String, default: null, index: true },
     createdBy: { type: String, default: null },
     lastLoginAt: { type: Date, default: null },
     passwordReset: { type: passwordResetSchema, default: () => ({}) },
@@ -68,5 +68,8 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.plugin(softDeletePlugin);
+
+// Performance indexes for list queries
+userSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("User", userSchema);

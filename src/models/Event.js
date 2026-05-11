@@ -40,7 +40,7 @@ const eventSchema = new mongoose.Schema(
       enum: EVENT_GROUP_IDS,
       required: true,
     },
-    customerId: { type: String, ref: "Customer", default: null },
+    customerId: { type: String, ref: "Customer", default: null, index: true },
     customer: {
       name: { type: String, required: true, trim: true },
       avatar: { type: String, default: "" },
@@ -91,5 +91,11 @@ const eventSchema = new mongoose.Schema(
 );
 
 eventSchema.plugin(softDeletePlugin);
+
+// Performance indexes for list queries
+eventSchema.index({ "assignees.userId": 1 });
+eventSchema.index({ group: 1 });
+eventSchema.index({ stage: 1 });
+eventSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Event", eventSchema);
