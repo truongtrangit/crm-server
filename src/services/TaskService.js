@@ -234,6 +234,18 @@ class TaskService {
 
     await task.save();
 
+    // Close all action chains associated with this task
+    const activeChains = await EventActionChain.find({ taskId: id, status: "active" });
+    for (const chain of activeChains) {
+      chain.status = "closed";
+      const current = chain.steps[chain.currentStepIndex];
+      if (current && !current.isLocked) {
+        current.status = "skipped";
+      }
+      chain.markModified("steps");
+      await chain.save();
+    }
+
     return task;
   }
 
