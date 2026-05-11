@@ -3,7 +3,9 @@ const Customer = require("../models/Customer");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
 const Lead = require("../models/Lead");
+const Task = require("../models/Task");
 const EventActionChain = require("../models/EventActionChain");
+const TaskService = require("./TaskService");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
@@ -55,8 +57,8 @@ class EventService {
 
     const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
-    if (group)    query.group = group;
-    if (stage)    query.stage = stage;
+    if (group) query.group = group;
+    if (stage) query.stage = stage;
     if (assignee) query["assignees.userId"] = assignee;
 
     const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "stage"]);
@@ -313,7 +315,7 @@ class EventService {
     return { event, timelineEntry };
   }
 
-  async deleteEvent(id) {
+  async deleteEvent(id, currentUser) {
     const event = await Event.findOne({ id });
     if (!event) {
       throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
@@ -323,6 +325,22 @@ class EventService {
     const chains = await EventActionChain.find({ eventId: id });
     for (const chain of chains) {
       await chain.softDelete();
+    }
+
+    // ━ Cascade: close all active Tasks linked to this Event
+    try {
+      const activeTasks = await Task.find({
+        "linkedEvents.eventId": id,
+        status: { $ne: "closed" }
+      });
+      for (const task of activeTasks) {
+        const performer = currentUser || { id: "system", name: "System", email: "" };
+        await TaskService.closeTask(task.id, performer).catch(err => {
+          console.error(`Failed to close task ${task.id} cascading from event ${id}`, err);
+        });
+      }
+    } catch (err) {
+      console.error("Error during cascading task close for event", err);
     }
 
     await event.softDelete();

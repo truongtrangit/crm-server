@@ -2,6 +2,8 @@ const Lead = require("../models/Lead");
 const Customer = require("../models/Customer");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
+const Task = require("../models/Task");
+const TaskService = require("./TaskService");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolveSort } = require("../utils/pagination");
@@ -62,6 +64,24 @@ class LeadService {
 
     const hasMore = leads.length > limit;
     const items = hasMore ? leads.slice(0, limit) : leads;
+
+    // Attach active tasks info
+    if (items.length > 0) {
+      const leadIds = items.map(l => l.id);
+      const activeTasks = await Task.find({
+        "linkedLeads.leadId": { $in: leadIds },
+        status: "active"
+      }).select("name linkedLeads").lean();
+
+      for (const lead of items) {
+        const tasksForLead = activeTasks.filter(t => t.linkedLeads.some(ll => ll.leadId === lead.id));
+        lead.activeTaskCount = tasksForLead.length;
+        if (tasksForLead.length > 0) {
+          // Just grab the first active task's name for quick display
+          lead.activeTaskName = tasksForLead[0].name;
+        }
+      }
+    }
 
     return {
       items,
@@ -308,6 +328,23 @@ class LeadService {
     await lead.save();
 
     await lead.softDelete();
+
+    // ━ Cascade: close all active Tasks linked to this Lead
+    try {
+      const activeTasks = await Task.find({
+        "linkedLeads.leadId": id,
+        status: { $ne: "closed" }
+      });
+      for (const task of activeTasks) {
+        const performer = currentUser || { id: "system", name: "System", email: "" };
+        await TaskService.closeTask(task.id, performer).catch(err => {
+          console.error(`Failed to close task ${task.id} cascading from lead ${id}`, err);
+        });
+      }
+    } catch (err) {
+      console.error("Error during cascading task close for lead", err);
+    }
+
     return lead;
   }
 

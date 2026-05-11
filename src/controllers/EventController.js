@@ -99,7 +99,7 @@ class EventController {
   async deleteEvent(req, res) {
     const event = await Event.findOne({ id: req.params.id });
     const name = event ? event.name : req.params.id;
-    await EventService.deleteEvent(req.params.id);
+    await EventService.deleteEvent(req.params.id, req.user);
     SystemLogService.log({ action: "delete", resource: RESOURCES.EVENTS, resourceId: req.params.id, resourceName: name, description: `Xóa sự kiện "${name}"`, metadata: { deletedItem: event }, req });
     return sendSuccess(res, 200, "Delete event success", null);
   }
