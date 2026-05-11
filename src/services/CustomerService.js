@@ -13,63 +13,68 @@ const {
   USER_SUB_TYPE_LIST,
   CUSTOMER_MAIN_TYPES,
 } = require("../constants/appData");
+const CacheService = require("./CacheService");
+const { CACHE_TTL } = require("../constants/cache");
 
 class CustomerService {
   async getCustomers(queryParams, currentUser) {
     const { search = "", type, group, platform, includeDeleted, mainType, subType } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
-    const query = {};
 
-    if (searchRegex) {
-      query.$or = [
-        { name: searchRegex },
-        { email: searchRegex },
-        { phone: searchRegex },
-      ];
-    }
+    return CacheService.withVersionedCache("customers", { q: queryParams, role: (await getUserRoleName(currentUser) || "").toUpperCase() }, CACHE_TTL.SHORT, async () => {
+      const query = {};
 
-    if (type && type !== "All") {
-      query.type = type;
-    }
+      if (searchRegex) {
+        query.$or = [
+          { name: searchRegex },
+          { email: searchRegex },
+          { phone: searchRegex },
+        ];
+      }
 
-    if (mainType && mainType !== "all") {
-      query.mainType = mainType;
-    }
+      if (type && type !== "All") {
+        query.type = type;
+      }
 
-    if (subType && subType !== "all") {
-      query.subType = subType;
-    }
+      if (mainType && mainType !== "all") {
+        query.mainType = mainType;
+      }
 
-    if (group) {
-      query.group = group;
-    }
+      if (subType && subType !== "all") {
+        query.subType = subType;
+      }
 
-    if (platform) {
-      query.platforms = platform;
-    }
+      if (group) {
+        query.group = group;
+      }
 
-    // Owner/Admin can see deleted customers
-    const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
-    const canSeeDeleted = ["OWNER", "ADMIN"].includes(roleName) && includeDeleted === "true";
+      if (platform) {
+        query.platforms = platform;
+      }
 
-    let customers, totalItems;
+      // Owner/Admin can see deleted customers
+      const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
+      const canSeeDeleted = ["OWNER", "ADMIN"].includes(roleName) && includeDeleted === "true";
 
-    const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "email", "type"]);
+      let customers, totalItems;
 
-    if (canSeeDeleted) {
-      [customers, totalItems] = await Promise.all([
-        Customer.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
-        Customer.countWithDeleted(query),
-      ]);
-    } else {
-      [customers, totalItems] = await Promise.all([
-        Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
-        Customer.countDocuments(query),
-      ]);
-    }
+      const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "email", "type"]);
 
-    return buildPaginatedResponse(customers, totalItems, page, limit);
+      if (canSeeDeleted) {
+        [customers, totalItems] = await Promise.all([
+          Customer.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
+          Customer.countWithDeleted(query),
+        ]);
+      } else {
+        [customers, totalItems] = await Promise.all([
+          Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+          Customer.countDocuments(query),
+        ]);
+      }
+
+      return buildPaginatedResponse(customers, totalItems, page, limit);
+    });
   }
 
   getAssignmentRoles() {
@@ -97,8 +102,8 @@ class CustomerService {
       type: payload.type || "Standard Customer",
       email: payload.email,
       phone: payload.phone || "",
-      biz: (payload.mainType || CUSTOMER_MAIN_TYPES.USER) === CUSTOMER_MAIN_TYPES.BIZ 
-        ? [] 
+      biz: (payload.mainType || CUSTOMER_MAIN_TYPES.USER) === CUSTOMER_MAIN_TYPES.BIZ
+        ? []
         : (Array.isArray(payload.biz) ? payload.biz.filter(Boolean) : []),
       platforms: Array.isArray(payload.platforms)
         ? payload.platforms.filter(Boolean)
@@ -111,6 +116,8 @@ class CustomerService {
       tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
       extraInfo: payload.extraInfo || null,
     });
+
+    await CacheService.bumpNamespaceVersion("customers");
     return customer;
   }
 
@@ -153,8 +160,8 @@ class CustomerService {
       type: payload.type ?? existing.type,
       email: payload.email ?? existing.email,
       phone: payload.phone ?? existing.phone,
-      biz: (payload.mainType ?? existing.mainType) === CUSTOMER_MAIN_TYPES.BIZ 
-        ? [] 
+      biz: (payload.mainType ?? existing.mainType) === CUSTOMER_MAIN_TYPES.BIZ
+        ? []
         : (Array.isArray(payload.biz) ? payload.biz : existing.biz),
       platforms: Array.isArray(payload.platforms)
         ? payload.platforms
@@ -173,6 +180,7 @@ class CustomerService {
     const keysToCheck = ["name", "avatar", "mainType", "subType", "alias", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "lastLoginAt", "tags", "extraInfo", "isActive"];
     const changes = computeChanges(oldState, newState, keysToCheck);
 
+    await CacheService.bumpNamespaceVersion("customers");
     return { customer: existing, changes };
   }
 
@@ -233,6 +241,7 @@ class CustomerService {
     }
 
     await customer.softDelete();
+    await CacheService.bumpNamespaceVersion("customers");
     return customer;
   }
 
@@ -297,6 +306,7 @@ class CustomerService {
     });
 
     await customer.save();
+    await CacheService.bumpNamespaceVersion("customers");
     return customer;
   }
 
@@ -337,6 +347,7 @@ class CustomerService {
     }
 
     await customer.save();
+    await CacheService.bumpNamespaceVersion("customers");
     return customer;
   }
 
@@ -349,6 +360,7 @@ class CustomerService {
       throw createHttpError(400, "Customer is not deleted", { code: "CUSTOMER_NOT_DELETED" });
     }
     await customer.restore();
+    await CacheService.bumpNamespaceVersion("customers");
     return customer;
   }
 
@@ -385,6 +397,7 @@ class CustomerService {
     );
 
     await customer.deleteOne();
+    await CacheService.bumpNamespaceVersion("customers");
     return customer;
   }
 }

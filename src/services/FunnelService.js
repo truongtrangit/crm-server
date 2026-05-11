@@ -4,10 +4,14 @@ const Funnel = require("../models/Funnel");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const { isSystemEntity, SYSTEM_IDS } = require("../constants/systemFunnel");
+const CacheService = require("./CacheService");
+const { CACHE_TTL } = require("../constants/cache");
 
 class FunnelService {
   async getFolders() {
-    return await FunnelFolder.find().sort({ createdAt: 1 });
+    return CacheService.withVersionedCache("funnels:folders", {}, CACHE_TTL.LONG, async () => {
+      return await FunnelFolder.find().sort({ createdAt: 1 }).lean();
+    }, { swr: true, maxTtl: CACHE_TTL.LONG });
   }
 
   async createFolder(data) {
@@ -16,6 +20,7 @@ class FunnelService {
       id: await generateMonotonicId(ID_PREFIXES.FUNNEL_FOLDER),
     });
     await newFolder.save();
+    await CacheService.bumpNamespaceVersion("funnels:folders");
     return newFolder;
   }
 
@@ -23,6 +28,7 @@ class FunnelService {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa thư mục hệ thống.");
     const updated = await FunnelFolder.findOneAndUpdate({ id }, data, { new: true });
     if (!updated) throw createHttpError(404, "Không tìm thấy thư mục");
+    await CacheService.bumpNamespaceVersion("funnels:folders");
     return updated;
   }
 
@@ -37,11 +43,14 @@ class FunnelService {
 
     const deleted = await FunnelFolder.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Không tìm thấy thư mục");
+    await CacheService.bumpNamespaceVersion("funnels:folders");
     return deleted;
   }
 
   async getGroups() {
-    return await FunnelGroup.find().sort({ createdAt: 1 });
+    return CacheService.withVersionedCache("funnels:groups", {}, CACHE_TTL.LONG, async () => {
+      return await FunnelGroup.find().sort({ createdAt: 1 }).lean();
+    }, { swr: true, maxTtl: CACHE_TTL.LONG });
   }
 
   async createGroup(data) {
@@ -53,6 +62,7 @@ class FunnelService {
       id: await generateMonotonicId(ID_PREFIXES.FUNNEL_GROUP),
     });
     await newGroup.save();
+    await CacheService.bumpNamespaceVersion("funnels:groups");
     return newGroup;
   }
 
@@ -60,6 +70,7 @@ class FunnelService {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa nhóm phễu hệ thống.");
     const updated = await FunnelGroup.findOneAndUpdate({ id }, data, { new: true });
     if (!updated) throw createHttpError(404, "Không tìm thấy nhóm phễu");
+    await CacheService.bumpNamespaceVersion("funnels:groups");
     return updated;
   }
 
@@ -71,11 +82,14 @@ class FunnelService {
 
     const deleted = await FunnelGroup.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Không tìm thấy nhóm phễu");
+    await CacheService.bumpNamespaceVersion("funnels:groups");
     return deleted;
   }
 
   async getFunnels() {
-    return await Funnel.find().sort({ createdAt: 1 });
+    return CacheService.withVersionedCache("funnels:funnels", {}, CACHE_TTL.LONG, async () => {
+      return await Funnel.find().sort({ createdAt: 1 }).lean();
+    }, { swr: true, maxTtl: CACHE_TTL.LONG });
   }
 
   async createFunnel(data) {
@@ -87,6 +101,7 @@ class FunnelService {
       id: await generateMonotonicId(ID_PREFIXES.FUNNEL),
     });
     await newFunnel.save();
+    await CacheService.bumpNamespaceVersion("funnels:funnels");
     return newFunnel;
   }
 
@@ -94,6 +109,7 @@ class FunnelService {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa phễu hệ thống.");
     const updated = await Funnel.findOneAndUpdate({ id }, data, { new: true });
     if (!updated) throw createHttpError(404, "Không tìm thấy phễu");
+    await CacheService.bumpNamespaceVersion("funnels:funnels");
     return updated;
   }
 
@@ -102,6 +118,7 @@ class FunnelService {
 
     const deleted = await Funnel.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Không tìm thấy phễu");
+    await CacheService.bumpNamespaceVersion("funnels:funnels");
     return deleted;
   }
 }

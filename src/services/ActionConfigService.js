@@ -11,6 +11,8 @@ const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
+const CacheService = require("./CacheService");
+const { CACHE_TTL } = require("../constants/cache");
 
 class ActionConfigService {
   // ─── Result CRUD ───
@@ -25,17 +27,21 @@ class ActionConfigService {
       query.$or = [{ name: searchRegex }, { id: searchRegex }];
     }
 
-    const [items, totalItems] = await Promise.all([
-      Result.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Result.countDocuments(query),
-    ]);
+    return CacheService.withVersionedCache("configs:results", queryParams, CACHE_TTL.LONG, async () => {
+      const [items, totalItems] = await Promise.all([
+        Result.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        Result.countDocuments(query),
+      ]);
 
-    return buildPaginatedResponse(items, totalItems, page, limit);
+      return buildPaginatedResponse(items, totalItems, page, limit);
+    });
   }
 
   async createResult(body) {
     const id = await generateMonotonicId(ID_PREFIXES.RESULT);
-    return Result.create({ ...body, id });
+    const item = await Result.create({ ...body, id });
+    await CacheService.bumpNamespaceVersion("configs:results");
+    return item;
   }
 
   async updateResult(id, body) {
@@ -43,6 +49,7 @@ class ActionConfigService {
     if (!oldItem) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
     const item = await Result.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     const changes = computeChanges(oldItem, item, Object.keys(body));
+    await CacheService.bumpNamespaceVersion("configs:results");
     return { result: item, changes };
   }
 
@@ -64,6 +71,7 @@ class ActionConfigService {
     }
     const deleted = await Result.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Result not found", { code: "RESULT_NOT_FOUND" });
+    await CacheService.bumpNamespaceVersion("configs:results");
     return deleted;
   }
 
@@ -79,17 +87,21 @@ class ActionConfigService {
       query.$or = [{ name: searchRegex }, { id: searchRegex }];
     }
 
-    const [items, totalItems] = await Promise.all([
-      Reason.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Reason.countDocuments(query),
-    ]);
+    return CacheService.withVersionedCache("configs:reasons", queryParams, CACHE_TTL.LONG, async () => {
+      const [items, totalItems] = await Promise.all([
+        Reason.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        Reason.countDocuments(query),
+      ]);
 
-    return buildPaginatedResponse(items, totalItems, page, limit);
+      return buildPaginatedResponse(items, totalItems, page, limit);
+    });
   }
 
   async createReason(body) {
     const id = await generateMonotonicId(ID_PREFIXES.REASON);
-    return Reason.create({ ...body, id });
+    const item = await Reason.create({ ...body, id });
+    await CacheService.bumpNamespaceVersion("configs:reasons");
+    return item;
   }
 
   async updateReason(id, body) {
@@ -97,6 +109,7 @@ class ActionConfigService {
     if (!oldItem) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
     const item = await Reason.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     const changes = computeChanges(oldItem, item, Object.keys(body));
+    await CacheService.bumpNamespaceVersion("configs:reasons");
     return { reason: item, changes };
   }
 
@@ -118,6 +131,7 @@ class ActionConfigService {
     }
     const deleted = await Reason.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Reason not found", { code: "REASON_NOT_FOUND" });
+    await CacheService.bumpNamespaceVersion("configs:reasons");
     return deleted;
   }
 
@@ -133,17 +147,21 @@ class ActionConfigService {
       query.$or = [{ name: searchRegex }, { id: searchRegex }];
     }
 
-    const [items, totalItems] = await Promise.all([
-      Action.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Action.countDocuments(query),
-    ]);
+    return CacheService.withVersionedCache("configs:actions", queryParams, CACHE_TTL.LONG, async () => {
+      const [items, totalItems] = await Promise.all([
+        Action.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        Action.countDocuments(query),
+      ]);
 
-    return buildPaginatedResponse(items, totalItems, page, limit);
+      return buildPaginatedResponse(items, totalItems, page, limit);
+    });
   }
 
   async createAction(body) {
     const id = await generateMonotonicId(ID_PREFIXES.ACTION);
-    return Action.create({ ...body, id });
+    const item = await Action.create({ ...body, id });
+    await CacheService.bumpNamespaceVersion("configs:actions");
+    return item;
   }
 
   async updateAction(id, body) {
@@ -151,6 +169,7 @@ class ActionConfigService {
     if (!oldItem) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
     const item = await Action.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     const changes = computeChanges(oldItem, item, Object.keys(body));
+    await CacheService.bumpNamespaceVersion("configs:actions");
     return { action: item, changes };
   }
 
@@ -182,6 +201,7 @@ class ActionConfigService {
     }
     const deleted = await Action.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Action not found", { code: "ACTION_NOT_FOUND" });
+    await CacheService.bumpNamespaceVersion("configs:actions");
     return deleted;
   }
 
@@ -201,12 +221,14 @@ class ActionConfigService {
       query.active = queryParams.active === 'true' || queryParams.active === true;
     }
 
-    const [items, totalItems] = await Promise.all([
-      ActionChain.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      ActionChain.countDocuments(query),
-    ]);
+    return CacheService.withVersionedCache("configs:chains", queryParams, CACHE_TTL.LONG, async () => {
+      const [items, totalItems] = await Promise.all([
+        ActionChain.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        ActionChain.countDocuments(query),
+      ]);
 
-    return buildPaginatedResponse(items, totalItems, page, limit);
+      return buildPaginatedResponse(items, totalItems, page, limit);
+    });
   }
 
   async getActionChain(id) {
@@ -258,6 +280,7 @@ class ActionConfigService {
     chain.steps = steps;
     await chain.save();
     const changes = computeChanges(oldItem, chain, ['steps']);
+    await CacheService.bumpNamespaceVersion("configs:chains");
     return { actionChain: chain, changes };
   }
 
@@ -273,12 +296,14 @@ class ActionConfigService {
       query.$or = [{ name: searchRegex }, { id: searchRegex }, { url: searchRegex }];
     }
 
-    const [items, totalItems] = await Promise.all([
-      BlockAutomation.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      BlockAutomation.countDocuments(query),
-    ]);
+    return CacheService.withVersionedCache("configs:block_automations", queryParams, CACHE_TTL.LONG, async () => {
+      const [items, totalItems] = await Promise.all([
+        BlockAutomation.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        BlockAutomation.countDocuments(query),
+      ]);
 
-    return buildPaginatedResponse(items, totalItems, page, limit);
+      return buildPaginatedResponse(items, totalItems, page, limit);
+    });
   }
 
   async getBlockAutomation(id) {
@@ -289,7 +314,9 @@ class ActionConfigService {
 
   async createBlockAutomation(body) {
     const id = await generateMonotonicId(ID_PREFIXES.BLOCK_AUTOMATION);
-    return BlockAutomation.create({ ...body, id });
+    const item = await BlockAutomation.create({ ...body, id });
+    await CacheService.bumpNamespaceVersion("configs:block_automations");
+    return item;
   }
 
   async updateBlockAutomation(id, body) {
@@ -297,12 +324,14 @@ class ActionConfigService {
     if (!oldItem) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
     const item = await BlockAutomation.findOneAndUpdate({ id }, body, { returnDocument: "after" });
     const changes = computeChanges(oldItem, item, Object.keys(body));
+    await CacheService.bumpNamespaceVersion("configs:block_automations");
     return { blockAutomation: item, changes };
   }
 
   async deleteBlockAutomation(id) {
     const deleted = await BlockAutomation.findOneAndDelete({ id });
     if (!deleted) throw createHttpError(404, "Block automation not found", { code: "BLOCK_AUTOMATION_NOT_FOUND" });
+    await CacheService.bumpNamespaceVersion("configs:block_automations");
     return deleted;
   }
 

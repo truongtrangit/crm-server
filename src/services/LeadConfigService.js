@@ -3,10 +3,14 @@ const LeadStatusGroup = require("../models/LeadStatusGroup");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { createHttpError } = require("../utils/http");
 const { isSystemEntity } = require("../constants/systemFunnel");
+const CacheService = require("./CacheService");
+const { CACHE_TTL } = require("../constants/cache");
 
 class LeadConfigService {
   async getStatuses() {
-    return await LeadStatus.find().sort({ createdAt: 1 });
+    return CacheService.withVersionedCache("lead_configs:statuses", {}, CACHE_TTL.LONG, async () => {
+      return await LeadStatus.find().sort({ createdAt: 1 }).lean();
+    }, { swr: true, maxTtl: CACHE_TTL.LONG });
   }
 
   async createStatus(data) {
@@ -15,6 +19,7 @@ class LeadConfigService {
       id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS),
     });
     await newStatus.save();
+    await CacheService.bumpNamespaceVersion("lead_configs:statuses");
     return newStatus;
   }
 
@@ -24,6 +29,7 @@ class LeadConfigService {
     if (!updatedStatus) {
       throw createHttpError(404, "Không tìm thấy trạng thái");
     }
+    await CacheService.bumpNamespaceVersion("lead_configs:statuses");
     return updatedStatus;
   }
 
@@ -39,11 +45,14 @@ class LeadConfigService {
     if (!deletedStatus) {
       throw createHttpError(404, "Không tìm thấy trạng thái");
     }
+    await CacheService.bumpNamespaceVersion("lead_configs:statuses");
     return deletedStatus;
   }
 
   async getGroups() {
-    return await LeadStatusGroup.find().sort({ createdAt: 1 });
+    return CacheService.withVersionedCache("lead_configs:groups", {}, CACHE_TTL.LONG, async () => {
+      return await LeadStatusGroup.find().sort({ createdAt: 1 }).lean();
+    }, { swr: true, maxTtl: CACHE_TTL.LONG });
   }
 
   async createGroup(data) {
@@ -52,6 +61,7 @@ class LeadConfigService {
       id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS_GROUP),
     });
     await newGroup.save();
+    await CacheService.bumpNamespaceVersion("lead_configs:groups");
     return newGroup;
   }
 
@@ -61,6 +71,7 @@ class LeadConfigService {
     if (!updatedGroup) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");
     }
+    await CacheService.bumpNamespaceVersion("lead_configs:groups");
     return updatedGroup;
   }
 
@@ -71,6 +82,7 @@ class LeadConfigService {
     if (!deletedGroup) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");
     }
+    await CacheService.bumpNamespaceVersion("lead_configs:groups");
     return deletedGroup;
   }
 }
