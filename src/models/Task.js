@@ -59,6 +59,9 @@ const taskSchema = new mongoose.Schema(
       default: "active",
     },
 
+    /** Trạng thái lưu trữ */
+    isArchived: { type: Boolean, default: false },
+
     /** Nhiều nhân sự phụ trách, mỗi người 1 chức năng */
     assignees: [assigneeSchema],
 

@@ -76,6 +76,20 @@ router.put(
   TaskController.closeTask,
 );
 
+// ─── PUT /api/tasks/:id/archive ───
+router.put(
+  "/:id/archive",
+  requirePermission(PERMISSIONS.TASKS_UPDATE),
+  TaskController.archiveTask,
+);
+
+// ─── PUT /api/tasks/:id/unarchive ───
+router.put(
+  "/:id/unarchive",
+  requirePermission(PERMISSIONS.TASKS_UPDATE),
+  TaskController.unarchiveTask,
+);
+
 // ─── DELETE /api/tasks/:id ───
 router.delete(
   "/:id",

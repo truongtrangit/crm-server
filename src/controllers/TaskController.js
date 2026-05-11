@@ -32,6 +32,16 @@ class TaskController {
     return sendSuccess(res, 200, "Delete task success", null);
   }
 
+  async archiveTask(req, res) {
+    const task = await TaskService.archiveTask(req.params.id, req.user);
+    return sendSuccess(res, 200, "Archive task success", task);
+  }
+
+  async unarchiveTask(req, res) {
+    const task = await TaskService.unarchiveTask(req.params.id, req.user);
+    return sendSuccess(res, 200, "Unarchive task success", task);
+  }
+
   // ─── Link / Unlink Event ───
 
   async linkEvent(req, res) {
@@ -59,12 +69,12 @@ class TaskController {
   // ─── Tasks by Event/Lead ───
 
   async getTasksByEvent(req, res) {
-    const tasks = await TaskService.getTasksByEventId(req.params.eventId);
+    const tasks = await TaskService.getTasksByEventId(req.params.eventId, req.query);
     return sendSuccess(res, 200, "Get tasks by event success", tasks);
   }
 
   async getTasksByLead(req, res) {
-    const tasks = await TaskService.getTasksByLeadId(req.params.leadId);
+    const tasks = await TaskService.getTasksByLeadId(req.params.leadId, req.query);
     return sendSuccess(res, 200, "Get tasks by lead success", tasks);
   }
 

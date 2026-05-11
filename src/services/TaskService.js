@@ -13,7 +13,7 @@ class TaskService {
    * List tasks with pagination + search.
    */
   async getTasks(queryParams = {}) {
-    const { search = "", status, assignees, page: rawPage = 1, limit: rawLimit = 20 } = queryParams;
+    const { search = "", status, assignees, isArchived, page: rawPage = 1, limit: rawLimit = 20 } = queryParams;
     const page = Math.max(parseInt(rawPage, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
     const skip = (page - 1) * limit;
@@ -21,6 +21,11 @@ class TaskService {
 
     const query = {};
     if (status) query.status = status;
+    if (isArchived === 'true') {
+      query.isArchived = true;
+    } else {
+      query.isArchived = { $ne: true };
+    }
 
     if (assignees) {
       const ids = assignees.split(",").map(id => id.trim()).filter(Boolean);
@@ -305,9 +310,66 @@ class TaskService {
         current.status = "skipped";
       }
       chain.markModified("steps");
-      await chain.save();
+    }
+    await Promise.all(
+      activeChains.map((chain) =>
+        chain.save(),
+      ),
+    );
+
+    return task;
+  }
+
+  /**
+   * Lưu trữ tác vụ.
+   */
+  async archiveTask(id, currentUser) {
+    const roleId = (currentUser?.roleId || '').toUpperCase();
+    const ELEVATED_ROLES = ['OWNER', 'ADMIN'];
+    if (!ELEVATED_ROLES.includes(roleId)) {
+      throw createHttpError(403, "Chỉ Admin/Owner mới có quyền lưu trữ tác vụ");
     }
 
+    const task = await this.getTaskById(id);
+    if (task.status !== "closed") {
+      throw createHttpError(400, "Chỉ có thể lưu trữ tác vụ đã đóng");
+    }
+    task.isArchived = true;
+    task.logs.push({
+      action: "update",
+      description: `Lưu trữ tác vụ`,
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+      },
+    });
+    await task.save();
+    return task;
+  }
+
+  /**
+   * Khôi phục tác vụ.
+   */
+  async unarchiveTask(id, currentUser) {
+    const roleId = (currentUser?.roleId || '').toUpperCase();
+    const ELEVATED_ROLES = ['OWNER', 'ADMIN'];
+    if (!ELEVATED_ROLES.includes(roleId)) {
+      throw createHttpError(403, "Chỉ Admin/Owner mới có quyền khôi phục tác vụ");
+    }
+
+    const task = await this.getTaskById(id);
+    task.isArchived = false;
+    task.logs.push({
+      action: "update",
+      description: `Khôi phục tác vụ`,
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+      },
+    });
+    await task.save();
     return task;
   }
 
@@ -453,15 +515,27 @@ class TaskService {
   /**
    * Lấy tất cả tasks liên kết với 1 event.
    */
-  async getTasksByEventId(eventId) {
-    return Task.find({ "linkedEvents.eventId": eventId }).sort({ createdAt: -1 });
+  async getTasksByEventId(eventId, queryParams = {}) {
+    const query = { "linkedEvents.eventId": eventId };
+    if (queryParams.isArchived === 'true') {
+      query.isArchived = true;
+    } else {
+      query.isArchived = { $ne: true };
+    }
+    return Task.find(query).sort({ createdAt: -1 });
   }
 
   /**
    * Lấy tất cả tasks liên kết với 1 lead.
    */
-  async getTasksByLeadId(leadId) {
-    return Task.find({ "linkedLeads.leadId": leadId }).sort({ createdAt: -1 });
+  async getTasksByLeadId(leadId, queryParams = {}) {
+    const query = { "linkedLeads.leadId": leadId };
+    if (queryParams.isArchived === 'true') {
+      query.isArchived = true;
+    } else {
+      query.isArchived = { $ne: true };
+    }
+    return Task.find(query).sort({ createdAt: -1 });
   }
 
   /**
