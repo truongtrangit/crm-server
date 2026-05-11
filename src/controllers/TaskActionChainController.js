@@ -523,7 +523,7 @@ class TaskActionChainController {
 
     // Log automation execution
     AutomationLogService.log({
-      taskId,
+      eventId: taskId,
       eventName: task?.name || "",
       chainId,
       chainName: chain.name,

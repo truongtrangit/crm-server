@@ -152,6 +152,12 @@ class ActionConfigController {
     const fields = ActionConfigService.getEventSchemaFields();
     return sendSuccess(res, 200, "Get event schema fields success", fields);
   }
+
+  // ─── Lead Schema Fields (for field mapping) ───
+  async getLeadSchemaFields(_req, res) {
+    const fields = ActionConfigService.getLeadSchemaFields();
+    return sendSuccess(res, 200, "Get lead schema fields success", fields);
+  }
 }
 
 module.exports = new ActionConfigController();

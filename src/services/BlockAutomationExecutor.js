@@ -13,6 +13,7 @@
 const BlockAutomation = require("../models/BlockAutomation");
 const Action = require("../models/Action");
 const Event = require("../models/Event");
+const Lead = require("../models/Lead");
 const Task = require("../models/Task");
 const { createHttpError } = require("../utils/http");
 const logger = require("../utils/logger");
@@ -81,8 +82,34 @@ async function executeBlockAutomation(eventId, actionId, entityType = "event") {
   // 3. Load entity data
   let entityData = null;
   if (entityType === "task") {
-    entityData = await Task.findOne({ id: eventId }).lean();
-    if (!entityData) throw createHttpError(404, `Task "${eventId}" không tồn tại`);
+    const task = await Task.findOne({ id: eventId }).lean();
+    if (!task) throw createHttpError(404, `Task "${eventId}" không tồn tại`);
+
+    // Dynamically extract context from associated Leads or Events
+    let leadData = null;
+    let eventData = null;
+
+    if (task.linkedLeads && task.linkedLeads.length > 0) {
+      leadData = await Lead.findOne({ id: task.linkedLeads[0].leadId }).lean();
+    }
+    if (task.linkedEvents && task.linkedEvents.length > 0) {
+      eventData = await Event.findOne({ id: task.linkedEvents[0].eventId }).lean();
+    }
+
+    if (leadData || eventData) {
+      entityData = { ...task };
+      if (leadData) {
+        Object.assign(entityData, leadData);
+        entityData.lead = leadData; // accessible via {{lead.field}}
+      }
+      if (eventData) {
+        Object.assign(entityData, eventData);
+        entityData.event = eventData; // accessible via {{event.field}}
+      }
+    } else {
+      // Fallback to task if no linked entity exists
+      entityData = task;
+    }
   } else {
     entityData = await Event.findOne({ id: eventId }).lean();
     if (!entityData) throw createHttpError(404, `Event "${eventId}" không tồn tại`);

@@ -171,4 +171,11 @@ router.get(
   ctrl.getEventSchemaFields,
 );
 
+// ─── Lead Schema Fields (for field mapping picker) ───
+router.get(
+  "/lead-schema-fields",
+  requirePermission(PERMISSIONS.ACTIONS_CFG_READ),
+  ctrl.getLeadSchemaFields,
+);
+
 module.exports = router;

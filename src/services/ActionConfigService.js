@@ -5,6 +5,7 @@ const ActionChain = require("../models/ActionChain");
 const EventActionChain = require("../models/EventActionChain");
 const BlockAutomation = require("../models/BlockAutomation");
 const Event = require("../models/Event");
+const Lead = require("../models/Lead");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
@@ -324,6 +325,32 @@ class ActionConfigService {
       let type = schemaType.instance; // String, Number, Boolean, Array, ...
 
       // For arrays, try to get the caster type
+      if (type === "Array" && schemaType.caster) {
+        type = `Array<${schemaType.caster.instance || "Mixed"}>`;
+      }
+
+      fields.push({
+        path,
+        type,
+        required: !!schemaType.isRequired,
+      });
+    }
+
+    return fields;
+  }
+
+  /**
+   * Introspect the Lead Mongoose schema and return a flat list of field paths.
+   */
+  getLeadSchemaFields() {
+    const paths = Lead.schema.paths;
+    const fields = [];
+
+    for (const [path, schemaType] of Object.entries(paths)) {
+      if (["_id", "__v", "deleted", "deletedAt"].includes(path)) continue;
+      if (path.startsWith("timeline") || path.startsWith("discussions")) continue;
+
+      let type = schemaType.instance;
       if (type === "Array" && schemaType.caster) {
         type = `Array<${schemaType.caster.instance || "Mixed"}>`;
       }
