@@ -233,6 +233,10 @@ class TaskService {
   async updateTask(id, updates, currentUser) {
     const task = await this.getTaskById(id);
 
+    if (task.status === "closed") {
+      throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
+    }
+
     // Resolve assignees nếu có gửi lên
     if (updates.assignees) {
       updates.assignees = await this._resolveAssignees(updates.assignees);
@@ -334,6 +338,7 @@ class TaskService {
    */
   async linkEvent(taskId, eventId, currentUser) {
     const task = await this.getTaskById(taskId);
+    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     const event = await Event.findOne({ id: eventId });
     if (!event) throw createHttpError(404, "Event không tồn tại");
 
@@ -364,6 +369,7 @@ class TaskService {
    */
   async unlinkEvent(taskId, eventId, currentUser) {
     const task = await this.getTaskById(taskId);
+    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     task.linkedEvents = task.linkedEvents.filter((e) => e.eventId !== eventId);
 
     task.logs.push({
@@ -384,6 +390,7 @@ class TaskService {
    */
   async linkLead(taskId, leadId, currentUser) {
     const task = await this.getTaskById(taskId);
+    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     const lead = await Lead.findOne({ id: leadId });
     if (!lead) throw createHttpError(404, "Lead không tồn tại");
 
@@ -414,6 +421,7 @@ class TaskService {
    */
   async unlinkLead(taskId, leadId, currentUser) {
     const task = await this.getTaskById(taskId);
+    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     task.linkedLeads = task.linkedLeads.filter((l) => l.leadId !== leadId);
 
     task.logs.push({
@@ -430,12 +438,14 @@ class TaskService {
   }
 
   async checkTaskOwnership(id, currentUser) {
+    const task = await Task.findOne({ id });
+    if (!task) throw createHttpError(404, "Task không tồn tại");
+    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
+
     const roleId = (currentUser?.roleId || '').toUpperCase();
     const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
     if (ELEVATED_ROLES.includes(roleId)) return true;
 
-    const task = await Task.findOne({ id });
-    if (!task) throw createHttpError(404, "Task không tồn tại");
     if (task.assignees.some(a => a.userId === currentUser.id)) return true;
     throw createHttpError(403, "Bạn không có quyền cập nhật tác vụ này");
   }

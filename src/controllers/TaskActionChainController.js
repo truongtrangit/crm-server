@@ -71,9 +71,8 @@ class TaskActionChainController {
     const { taskId } = req.params;
     const { chainId } = req.body;
 
-    // Verify task exists
-    const task = await Task.findOne({ id: taskId });
-    if (!task) throw createHttpError(404, "Tác vụ không tồn tại");
+    // Verify task exists, isn't closed, and user has ownership/access
+    await TaskService.checkTaskOwnership(taskId, req.user);
 
     const template = await ActionChain.findOne({ id: chainId }).lean();
     if (!template) throw createHttpError(404, "ActionChain không tồn tại");
