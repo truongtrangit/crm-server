@@ -259,6 +259,10 @@ class TaskActionChainController {
     chain.markModified("steps");
     await chain.save();
 
+    if (nextStepType === "close_task") {
+      await TaskService.closeTask(taskId, req.user);
+    }
+
     return sendSuccess(res, 200, "Lưu bước thành công", chain);
   }
 
