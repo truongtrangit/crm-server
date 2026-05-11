@@ -196,6 +196,10 @@ class ActionConfigService {
       query.$or = [{ name: searchRegex }, { id: searchRegex }];
     }
 
+    if (queryParams.active !== undefined) {
+      query.active = queryParams.active === 'true' || queryParams.active === true;
+    }
+
     const [items, totalItems] = await Promise.all([
       ActionChain.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       ActionChain.countDocuments(query),
