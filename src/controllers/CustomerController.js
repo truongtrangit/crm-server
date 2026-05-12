@@ -9,11 +9,6 @@ class CustomerController {
     return sendSuccess(res, 200, "Get customer list success", result);
   }
 
-  async getAssignmentRoles(req, res) {
-    const roles = CustomerService.getAssignmentRoles();
-    return sendSuccess(res, 200, "Get assignment roles success", { items: roles });
-  }
-
   async getCustomerById(req, res) {
     const customer = await CustomerService.getCustomerById(req.params.id);
     return sendSuccess(res, 200, "Get customer detail success", customer);

@@ -27,6 +27,7 @@ class CustomerService {
 
       if (searchRegex) {
         query.$or = [
+          { id: searchRegex },
           { name: searchRegex },
           { email: searchRegex },
           { phone: searchRegex },
@@ -75,10 +76,6 @@ class CustomerService {
 
       return buildPaginatedResponse(customers, totalItems, page, limit);
     });
-  }
-
-  getAssignmentRoles() {
-    return ASSIGNMENT_ROLES;
   }
 
   async getCustomerById(id) {

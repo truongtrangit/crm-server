@@ -25,15 +25,6 @@ router.get(
   CustomerController.getCustomers
 );
 
-/**
- * GET /api/customers/meta/assignment-roles
- * Get available assignment roles — must be before /:id to avoid conflict
- */
-router.get(
-  "/meta/assignment-roles",
-  requirePermission(PERMISSIONS.CUSTOMERS_READ),
-  CustomerController.getAssignmentRoles
-);
 
 /**
  * GET /api/customers/:id
