@@ -7,8 +7,7 @@ const CustomerController = require("../../controllers/CustomerController");
 const {
   createCustomerSchema,
   updateCustomerSchema,
-  assignCustomerSchema,
-  unassignCustomerQuerySchema,
+
   listCustomersQuerySchema,
 } = require("../../validations/customers");
 
@@ -65,39 +64,11 @@ router.put(
 router.delete(
   "/:id",
   requirePermission(
-    [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_READ],
-    "any",
+    PERMISSIONS.CUSTOMERS_DELETE
   ),
   CustomerController.deleteCustomer
 );
 
-/**
- * POST /api/customers/:id/assignees
- * Assign a staff member to a customer
- */
-router.post(
-  "/:id/assignees",
-  requirePermission(
-    [PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_READ],
-    "any",
-  ),
-  validate(assignCustomerSchema),
-  CustomerController.assignCustomer
-);
-
-/**
- * DELETE /api/customers/:id/assignees/:userId
- * Remove a staff assignment from a customer
- */
-router.delete(
-  "/:id/assignees/:userId",
-  requirePermission(
-    [PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_READ],
-    "any",
-  ),
-  validate(unassignCustomerQuerySchema, "query"),
-  CustomerController.unassignCustomer
-);
 
 /**
  * PUT /api/customers/:id/restore
@@ -105,7 +76,7 @@ router.delete(
  */
 router.put(
   "/:id/restore",
-  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  requirePermission(PERMISSIONS.CUSTOMER_RESTORE),
   CustomerController.restoreCustomer
 );
 
@@ -115,7 +86,7 @@ router.put(
  */
 router.delete(
   "/:id/permanent",
-  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  requirePermission(PERMISSIONS.CUSTOMERS_PERMANENT_DELETE),
   CustomerController.permanentDeleteCustomer
 );
 

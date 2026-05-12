@@ -1,10 +1,8 @@
 const Customer = require("../models/Customer");
-const User = require("../models/User");
 const Event = require("../models/Event");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
-const { ASSIGNMENT_ROLES, ASSIGNMENT_ROLE_VALUES } = require("../constants/assignmentRoles");
 const { createHttpError } = require("../utils/http");
 const { getUserRoleName } = require("../utils/rbac");
 const { computeChanges } = require("../utils/diff");
@@ -87,6 +85,15 @@ class CustomerService {
   }
 
   async createCustomer(payload) {
+    // Check if customer already exists
+    const existingCustomer = await Customer.findOneWithDeleted({ email: payload.email }).lean();
+    if (existingCustomer) {
+      if (existingCustomer.isDeleted) {
+        throw createHttpError(409, "Khách hàng đã bị xóa, không thể thêm mới. Vui lòng liên hệ admin để được hỗ trợ khôi phục khách hàng.", { code: "CUSTOMER_HAS_BEEN_DELETED" });
+      }
+      throw createHttpError(409, "Khách hàng đã tồn tại, không thể thêm mới. Vui lòng kiểm tra lại thông tin.", { code: "CUSTOMER_ALREADY_EXISTS" });
+    }
+
     const customer = await Customer.create({
       id: await generateMonotonicId(ID_PREFIXES.CUSTOMER),
       name: payload.name,
@@ -119,9 +126,13 @@ class CustomerService {
   }
 
   async updateCustomer(id, payload, currentUser) {
-    const existing = await Customer.findOne({ id });
+    const existing = await Customer.findOneWithDeleted({ id });
     if (!existing) {
-      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
+      throw createHttpError(404, "Không tìm thấy khách hàng", { code: "CUSTOMER_NOT_FOUND" });
+    }
+
+    if (existing.isDeleted) {
+      throw createHttpError(404, "Khách hàng đã bị xóa, không thể cập nhật. Vui lòng liên hệ admin để được hỗ trợ.", { code: "CUSTOMER_IS_DELETED" });
     }
 
     // Only OWNER/ADMIN may change the subType field
@@ -174,7 +185,7 @@ class CustomerService {
     await existing.save();
 
     const newState = existing.toObject();
-    const keysToCheck = ["name", "avatar", "mainType", "subType", "alias", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "lastLoginAt", "tags", "extraInfo", "isActive"];
+    const keysToCheck = ["name", "avatar", "mainType", "subType", "alias", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "tags", "extraInfo", "isActive"];
     const changes = computeChanges(oldState, newState, keysToCheck);
 
     await CacheService.bumpNamespaceVersion("customers");
@@ -185,17 +196,6 @@ class CustomerService {
     const customer = await Customer.findOne({ id });
     if (!customer) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
-    }
-
-    const assignees = Array.isArray(customer.assignees) ? customer.assignees : [];
-    const hasAssigneeOtherThanCurrentUser = assignees.some(
-      (assignee) => assignee.userId !== currentUserId,
-    );
-
-    if (hasAssigneeOtherThanCurrentUser) {
-      throw createHttpError(403, "Cannot delete customer while assigned to other users", {
-        code: "CUSTOMER_HAS_OTHER_ASSIGNEES",
-      });
     }
 
     // Referential integrity: check if any Event references this customer
@@ -242,111 +242,8 @@ class CustomerService {
     return customer;
   }
 
-  async assignCustomer(customerId, assignData, currentUser) {
-    const { userId, role } = assignData;
 
-    // Validate role
-    if (!ASSIGNMENT_ROLE_VALUES.includes(role)) {
-      throw createHttpError(400, `Invalid assignment role: ${role}. Valid roles: ${ASSIGNMENT_ROLE_VALUES.join(", ")}`, {
-        code: "INVALID_ASSIGNMENT_ROLE",
-      });
-    }
 
-    // Find the customer
-    const customer = await Customer.findOne({ id: customerId });
-    if (!customer) {
-      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
-    }
-
-    // Find target user
-    const targetUser = await User.findOne({ id: userId });
-    if (!targetUser) {
-      throw createHttpError(404, "User not found", { code: "USER_NOT_FOUND" });
-    }
-
-    // Authorization check
-    const currentRole = (await getUserRoleName(currentUser) || "STAFF").toUpperCase();
-    if (currentRole === "MANAGER") {
-      const isSelf = currentUser.id === userId;
-      const isSubordinate = targetUser.managerId === currentUser.id;
-      if (!isSelf && !isSubordinate) {
-        throw createHttpError(403, "Manager chỉ có thể gán cho chính mình hoặc nhân viên dưới quyền", {
-          code: "FORBIDDEN",
-        });
-      }
-    } else if (currentRole === "STAFF") {
-      if (currentUser.id !== userId) {
-        throw createHttpError(403, "Staff chỉ có thể gán cho chính mình", {
-          code: "FORBIDDEN",
-        });
-      }
-    }
-
-    // Check for duplicate
-    const isDuplicate = customer.assignees.some(
-      (a) => a.userId === userId && a.role === role,
-    );
-    if (isDuplicate) {
-      throw createHttpError(409, "Nhân viên này đã được gán với vai trò này", {
-        code: "DUPLICATE_ASSIGNMENT",
-      });
-    }
-
-    // Add assignment
-    customer.assignees.push({
-      userId: targetUser.id,
-      userName: targetUser.name,
-      userAvatar: targetUser.avatar || "",
-      role,
-      assignedAt: new Date(),
-      assignedBy: currentUser.id,
-    });
-
-    await customer.save();
-    await CacheService.bumpNamespaceVersion("customers");
-    return customer;
-  }
-
-  async unassignCustomer(customerId, userId, role, currentUser) {
-    const customer = await Customer.findOne({ id: customerId });
-    if (!customer) {
-      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
-    }
-
-    // Authorization check
-    const currentRole = (await getUserRoleName(currentUser) || "STAFF").toUpperCase();
-    if (currentRole === "MANAGER") {
-      const targetUser = await User.findOne({ id: userId });
-      const isSelf = currentUser.id === userId;
-      const isSubordinate = targetUser && targetUser.managerId === currentUser.id;
-      if (!isSelf && !isSubordinate) {
-        throw createHttpError(403, "Manager chỉ có thể gỡ gán cho chính mình hoặc nhân viên dưới quyền", {
-          code: "FORBIDDEN",
-        });
-      }
-    } else if (currentRole === "STAFF") {
-      if (currentUser.id !== userId) {
-        throw createHttpError(403, "Staff chỉ có thể gỡ gán cho chính mình", {
-          code: "FORBIDDEN",
-        });
-      }
-    }
-
-    const before = customer.assignees.length;
-    customer.assignees = customer.assignees.filter(
-      (a) => !(a.userId === userId && a.role === role),
-    );
-
-    if (customer.assignees.length === before) {
-      throw createHttpError(404, "Assignment not found", {
-        code: "ASSIGNMENT_NOT_FOUND",
-      });
-    }
-
-    await customer.save();
-    await CacheService.bumpNamespaceVersion("customers");
-    return customer;
-  }
 
   async restoreCustomer(id) {
     const customer = await Customer.findOneWithDeleted({ id });

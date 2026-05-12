@@ -2,18 +2,6 @@ const mongoose = require("mongoose");
 const { softDeletePlugin } = require("../utils/softDelete");
 const { CUSTOMER_MAIN_TYPES } = require("../constants/appData");
 
-const assigneeSchema = new mongoose.Schema(
-  {
-    userId: { type: String, required: true },
-    userName: { type: String, default: "" },
-    userAvatar: { type: String, default: "" },
-    role: { type: String, required: true, trim: true },
-    assignedAt: { type: Date, default: Date.now },
-    assignedBy: { type: String, default: null },
-  },
-  { _id: false, id: false },
-);
-
 const customerSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -51,7 +39,7 @@ const customerSchema = new mongoose.Schema(
     registeredAt: { type: String, default: "" },
     lastLoginAt: { type: String, default: "" },
     tags: { type: [String], default: [] },
-    assignees: { type: [assigneeSchema], default: [] },
+
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true },
   },

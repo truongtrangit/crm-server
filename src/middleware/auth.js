@@ -49,7 +49,7 @@ async function authenticateRequest(req, res, next) {
 
   const now = new Date();
   const lastUsed = session.lastUsedAt ? new Date(session.lastUsedAt).getTime() : 0;
-  
+
   // Throttle DB updates to once every 5 minutes (300,000 ms) per session
   if (now.getTime() - lastUsed > 5 * 60 * 1000) {
     session.lastUsedAt = now;
@@ -70,7 +70,7 @@ async function authenticateRequest(req, res, next) {
 function requirePermission(...permissionsOrOptions) {
   return async (req, res, next) => {
     if (!req.user) {
-      return sendError(res, 401, "Authentication required", {
+      return sendError(res, 401, "Bạn cần đăng nhập để thực hiện hành động này", {
         code: "AUTHENTICATION_REQUIRED",
       });
     }
@@ -100,7 +100,7 @@ function requirePermission(...permissionsOrOptions) {
     }
 
     if (!authorized) {
-      return sendError(res, 403, "Insufficient permissions", {
+      return sendError(res, 403, "Bạn không có quyền thực hiện hành động này", {
         code: "INSUFFICIENT_PERMISSION",
         requiredPermissions: permissions,
       });

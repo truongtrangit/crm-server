@@ -47,21 +47,6 @@ const updateCustomerSchema = Joi.object({
   "object.min": "At least one field is required to update",
 });
 
-const assignCustomerSchema = Joi.object({
-  userId: Joi.string().required().messages({
-    "any.required": "userId is required",
-  }),
-  role: Joi.string().required().messages({
-    "any.required": "role is required",
-  }),
-});
-
-const unassignCustomerQuerySchema = Joi.object({
-  role: Joi.string().required().messages({
-    "any.required": "role query param is required",
-  }),
-});
-
 const listCustomersQuerySchema = Joi.object({
   search: Joi.string().allow("").optional(),
   type: Joi.string().allow("").optional(),
@@ -75,7 +60,6 @@ const listCustomersQuerySchema = Joi.object({
 module.exports = {
   createCustomerSchema,
   updateCustomerSchema,
-  assignCustomerSchema,
-  unassignCustomerQuerySchema,
+
   listCustomersQuerySchema,
 };

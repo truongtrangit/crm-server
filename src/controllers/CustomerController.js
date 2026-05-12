@@ -34,19 +34,6 @@ class CustomerController {
     return sendSuccess(res, 200, "Delete customer success", null);
   }
 
-  async assignCustomer(req, res) {
-    const customer = await CustomerService.assignCustomer(req.params.id, req.body || {}, req.user);
-    SystemLogService.log({ action: "assign", resource: RESOURCES.CUSTOMERS, resourceId: req.params.id, resourceName: customer.name, description: `Phân công nhân viên cho khách hàng "${customer.name}"`, req });
-    return sendSuccess(res, 200, "Assign staff success", customer);
-  }
-
-  async unassignCustomer(req, res) {
-    const { userId } = req.params;
-    const { role } = req.query;
-    const customer = await CustomerService.unassignCustomer(req.params.id, userId, role, req.user);
-    return sendSuccess(res, 200, "Unassign staff success", customer);
-  }
-
   async restoreCustomer(req, res) {
     const customer = await CustomerService.restoreCustomer(req.params.id);
     SystemLogService.log({ action: "restore", resource: RESOURCES.CUSTOMERS, resourceId: req.params.id, resourceName: customer.name, description: `Khôi phục khách hàng "${customer.name}"`, req });
