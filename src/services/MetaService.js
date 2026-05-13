@@ -613,14 +613,18 @@ class MetaService {
     // Creator check
     if (program.createdBy && program.createdBy === currentUser.id) return;
 
-    // Manager subordinate check — manager of a PIC
-    if (role === "MANAGER" && picIds.length > 0) {
+    // Manager subordinate check — manager of a PIC or creator
+    if (role === "MANAGER") {
       const User = require("../models/User");
       const subordinates = await User.find({ managerId: currentUser.id })
         .select("id")
         .lean();
       const subIds = subordinates.map((u) => u.id);
-      if (picIds.some((id) => subIds.includes(id))) return;
+      
+      const isSubordinatePic = picIds.some((id) => subIds.includes(id));
+      const isSubordinateCreator = program.createdBy && subIds.includes(program.createdBy);
+
+      if (isSubordinatePic || isSubordinateCreator) return;
     }
 
     throw createHttpError(403, "Bạn không có quyền thao tác trên chương trình này (chỉ người phụ trách mới được phép)", {

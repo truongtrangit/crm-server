@@ -69,12 +69,14 @@ router.post(
 router.delete(
   "/:id/timeline/:timelineId",
   requirePermission(PERMISSIONS.EVENTS_UPDATE), // UPDATE vì permission xóa comment nằm trong thao tác chỉnh sửa event (với RBAC check riêng ở controller)
+  eventResourceAccess,
   EventController.deleteEventTimeline
 );
 
 router.delete(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_DELETE),
+  eventResourceAccess,
   EventController.deleteEvent
 );
 
@@ -89,6 +91,7 @@ router.post(
 router.post(
   "/:id/self-assign",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
   EventController.selfAssignEvent
 );
 
@@ -96,6 +99,7 @@ router.post(
 router.delete(
   "/:id/assignee",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
   EventController.unassignEvent
 );
 

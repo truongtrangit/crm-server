@@ -63,14 +63,19 @@ function requireResourceAccess(options) {
     if (allowUnassigned && assigneeIds.length === 0) return next();
 
     // 6. Manager subordinate check:
-    //    Manager có quyền thao tác resource mà nhân viên dưới cấp là assignee
+    //    Manager có quyền thao tác resource mà nhân viên dưới cấp là assignee hoặc creator
     const allowManager = options.allowManager ?? true;
     if (allowManager && role === "MANAGER") {
       const subordinates = await User.find({ managerId: user.id })
         .select("id")
         .lean();
       const subIds = subordinates.map((u) => u.id);
-      if (assigneeIds.some((id) => subIds.includes(id))) return next();
+      
+      const isSubordinateAssignee = assigneeIds.some((id) => subIds.includes(id));
+      const creatorId = options.getCreatorId ? options.getCreatorId(resource) : null;
+      const isSubordinateCreator = creatorId && subIds.includes(creatorId);
+
+      if (isSubordinateAssignee || isSubordinateCreator) return next();
     }
 
     return sendError(res, 403, "Bạn không có quyền thao tác trên tài nguyên này", {
