@@ -24,4 +24,6 @@ const env = {
   webhookAllowedIps: process.env.WEBHOOK_ALLOWED_IPS || "", // comma-separated, empty = allow all
 };
 
+Object.freeze(env);
+
 module.exports = env;

@@ -52,7 +52,7 @@ class CacheService {
       const MAX_TTL = 604800;
       const finalTtl = Math.min(ttlSeconds, MAX_TTL);
 
-      const stringValue = JSON.stringify(value);
+      const stringValue = JSON.stringify(value || {});
       await client.set(key, stringValue, "EX", finalTtl);
     } catch (error) {
       logger.error("Cache SET error", { key, error: error.message });

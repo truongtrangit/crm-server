@@ -1,5 +1,16 @@
 const Organization = require("../models/Organization");
 const Role = require("../models/Role");
+const StaffFunction = require("../models/StaffFunction");
+const LeadStatus = require("../models/LeadStatus");
+const LeadStatusGroup = require("../models/LeadStatusGroup");
+const Result = require("../models/Result");
+const Reason = require("../models/Reason");
+const Action = require("../models/Action");
+const FunnelFolder = require("../models/FunnelFolder");
+const FunnelGroup = require("../models/FunnelGroup");
+const Funnel = require("../models/Funnel");
+const ActionConfigService = require("./ActionConfigService");
+
 const CacheService = require("./CacheService");
 const env = require("../config/env");
 const { CACHE_TTL } = require("../constants/cache");
@@ -63,16 +74,33 @@ class MetadataService {
   }
 
   async getDerivedMetadata() {
-    return CacheService.withVersionedCache("metadata", { derived: true }, CACHE_TTL.LONG, async () => {
-      const roles = await Role.find(
-        {},
-        { id: 1, name: 1, description: 1, level: 1, isSystem: 1 },
-      )
-        .sort({ level: -1, name: 1 })
-        .lean();
-      const departments = await Organization.find()
-        .sort({ createdAt: 1, id: 1 })
-        .lean();
+    return CacheService.withVersionedCache("metadata", { derived: true }, CACHE_TTL.SHORT, async () => {
+      const [
+        roles,
+        departments,
+        staffFunctions,
+        leadStatuses,
+        leadStatusGroups,
+        actionResults,
+        actionReasons,
+        actions,
+        funnelFolders,
+        funnelGroups,
+        funnels,
+      ] = await Promise.all([
+        Role.find({}, { id: 1, name: 1, description: 1, level: 1, isSystem: 1 }).sort({ level: -1, name: 1 }).lean(),
+        Organization.find().sort({ createdAt: 1, id: 1 }).lean(),
+        StaffFunction.find().sort({ createdAt: 1 }).lean(),
+        LeadStatus.find().sort({ createdAt: 1 }).lean(),
+        LeadStatusGroup.find().sort({ createdAt: 1 }).lean(),
+        Result.find().sort({ createdAt: -1 }).lean(),
+        Reason.find().sort({ createdAt: -1 }).lean(),
+        Action.find().sort({ createdAt: -1 }).lean(),
+        FunnelFolder.find().sort({ createdAt: 1 }).lean(),
+        FunnelGroup.find().sort({ createdAt: 1 }).lean(),
+        Funnel.find().sort({ createdAt: 1 }).lean(),
+      ]);
+
       const roleOptions = roles.map((role) => this._formatRoleMetadata(role));
       const organizationMetadata = this._formatOrganizationMetadata(departments);
 
@@ -89,6 +117,35 @@ class MetadataService {
         departmentOptions: organizationMetadata.departmentOptions,
         departmentGroups: organizationMetadata.departmentGroups,
         activityGroups: organizationMetadata.activityGroups,
+
+        // --- Bổ sung các cấu hình hệ thống (System Configs) ---
+        staffFunctions,
+
+        // Cấu hình Phễu/Lead
+        leadConfig: {
+          statuses: leadStatuses,
+          groups: leadStatusGroups,
+        },
+
+        // Cấu trúc Phễu bán hàng (Funnels)
+        funnels: {
+          folders: funnelFolders,
+          groups: funnelGroups,
+          items: funnels,
+        },
+
+        // Cấu hình báo cáo Tác vụ (Action Config)
+        actionConfig: {
+          results: actionResults,
+          reasons: actionReasons,
+          actions: actions,
+        },
+
+        // Cấu hình Fields để mapping tự động (Action Chain Block Automation)
+        schemaFields: {
+          event: ActionConfigService.getEventSchemaFields(),
+          lead: ActionConfigService.getLeadSchemaFields(),
+        }
       };
     }, { swr: true, maxTtl: 86400 });
   }

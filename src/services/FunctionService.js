@@ -31,7 +31,7 @@ class FunctionService {
       type,
     });
 
-    await CacheService.bumpNamespaceVersion("functions");
+    await CacheService.bumpNamespaceVersion("metadata");
     return item;
   }
 }

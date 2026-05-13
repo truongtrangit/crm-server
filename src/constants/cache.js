@@ -8,9 +8,9 @@
  *         Nên đặt TTL dài để tăng tỷ lệ Cache Hit tối đa, tiết kiệm CPU và DB I/O.
  */
 const CACHE_TTL = {
-  SHORT: 1800,   // 30 phút
-  MEDIUM: 14400, // 4 giờ
-  LONG: 86400,   // 24 giờ
+  SHORT: 600,   // 10 phút
+  MEDIUM: 1800, // 30 phút
+  LONG: 3600,   // 60 phút
 };
 
 module.exports = { CACHE_TTL };

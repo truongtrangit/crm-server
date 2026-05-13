@@ -19,7 +19,7 @@ class LeadConfigService {
       id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS),
     });
     await newStatus.save();
-    await CacheService.bumpNamespaceVersion("lead_configs:statuses");
+    await CacheService.bumpNamespaceVersion("metadata");
     return newStatus;
   }
 
@@ -29,7 +29,7 @@ class LeadConfigService {
     if (!updatedStatus) {
       throw createHttpError(404, "Không tìm thấy trạng thái");
     }
-    await CacheService.bumpNamespaceVersion("lead_configs:statuses");
+    await CacheService.bumpNamespaceVersion("metadata");
     return updatedStatus;
   }
 
@@ -45,7 +45,7 @@ class LeadConfigService {
     if (!deletedStatus) {
       throw createHttpError(404, "Không tìm thấy trạng thái");
     }
-    await CacheService.bumpNamespaceVersion("lead_configs:statuses");
+    await CacheService.bumpNamespaceVersion("metadata");
     return deletedStatus;
   }
 
@@ -61,7 +61,7 @@ class LeadConfigService {
       id: await generateMonotonicId(ID_PREFIXES.LEAD_STATUS_GROUP),
     });
     await newGroup.save();
-    await CacheService.bumpNamespaceVersion("lead_configs:groups");
+    await CacheService.bumpNamespaceVersion("metadata");
     return newGroup;
   }
 
@@ -71,7 +71,7 @@ class LeadConfigService {
     if (!updatedGroup) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");
     }
-    await CacheService.bumpNamespaceVersion("lead_configs:groups");
+    await CacheService.bumpNamespaceVersion("metadata");
     return updatedGroup;
   }
 
@@ -82,7 +82,7 @@ class LeadConfigService {
     if (!deletedGroup) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");
     }
-    await CacheService.bumpNamespaceVersion("lead_configs:groups");
+    await CacheService.bumpNamespaceVersion("metadata");
     return deletedGroup;
   }
 }
