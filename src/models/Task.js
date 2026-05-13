@@ -62,6 +62,9 @@ const taskSchema = new mongoose.Schema(
     /** Trạng thái lưu trữ */
     isArchived: { type: Boolean, default: false },
 
+    /** Người tạo task — dùng cho resource-level access control */
+    createdBy: { type: String, ref: "User", default: null, index: true },
+
     /** Nhiều nhân sự phụ trách, mỗi người 1 chức năng */
     assignees: [assigneeSchema],
 
@@ -89,5 +92,6 @@ taskSchema.plugin(softDeletePlugin);
 // ─── Indexes for Performance ───
 taskSchema.index({ status: 1, createdAt: -1 });
 taskSchema.index({ "assignees.userId": 1, status: 1 });
+taskSchema.index({ createdBy: 1 });
 
 module.exports = mongoose.model("Task", taskSchema);

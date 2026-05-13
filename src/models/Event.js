@@ -58,6 +58,8 @@ const eventSchema = new mongoose.Schema(
     assignees: [assigneeSchema],
     stage: { type: String, default: "" },
     source: { type: String, default: "CRM" },
+    /** Người tạo event — dùng cho resource-level access control */
+    createdBy: { type: String, ref: "User", default: null, index: true },
     subscriptionId: { type: String, ref: "Subscription", default: null },
     tags: [{ type: String }],
     plan: {
@@ -96,6 +98,7 @@ eventSchema.plugin(softDeletePlugin);
 eventSchema.index({ "assignees.userId": 1 });
 eventSchema.index({ group: 1 });
 eventSchema.index({ stage: 1 });
+eventSchema.index({ createdBy: 1 });
 eventSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Event", eventSchema);

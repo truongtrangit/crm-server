@@ -93,6 +93,8 @@ const leadSchema = new mongoose.Schema(
     street: { type: String, default: "" },
 
     source: { type: String, default: "CRM" },
+    /** Người tạo lead — dùng cho resource-level access control */
+    createdBy: { type: String, ref: "User", default: null, index: true },
     tags: [{ type: String }],
     note: { type: String, default: "" },
 
@@ -120,6 +122,7 @@ leadSchema.plugin(softDeletePlugin);
 
 // Performance indexes for list queries
 leadSchema.index({ "assignees.userId": 1 });
+leadSchema.index({ createdBy: 1 });
 leadSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Lead", leadSchema);
