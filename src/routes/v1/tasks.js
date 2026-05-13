@@ -1,8 +1,10 @@
 const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
+const { requireResourceAccess } = require("../../middleware/resourceAccess");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const TaskController = require("../../controllers/TaskController");
+const Task = require("../../models/Task");
 const {
   createTaskSchema,
   updateTaskSchema,
@@ -12,6 +14,15 @@ const {
 } = require("../../validations/tasks");
 
 const router = express.Router();
+
+// ─── Shared resource access config for Task ──────────────────────────────────
+const taskResourceAccess = requireResourceAccess({
+  getResource: (req) => Task.findOne({ id: req.params.id }),
+  getAssigneeIds: (task) => (task.assignees || []).map((a) => a.userId),
+  getCreatorId: (task) => task.createdBy,
+  allowUnassigned: false, // Task phải có người phụ trách
+  allowManager: true,
+});
 
 // ─── GET /api/tasks ───
 router.get(
@@ -58,6 +69,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_READ),
+  taskResourceAccess,
   TaskController.getTask,
 );
 
@@ -65,6 +77,7 @@ router.get(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  taskResourceAccess,
   validate(updateTaskSchema),
   TaskController.updateTask,
 );
@@ -73,6 +86,7 @@ router.put(
 router.put(
   "/:id/close",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  taskResourceAccess,
   TaskController.closeTask,
 );
 
@@ -94,6 +108,7 @@ router.put(
 router.delete(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_DELETE),
+  taskResourceAccess,
   TaskController.deleteTask,
 );
 
@@ -101,6 +116,7 @@ router.delete(
 router.post(
   "/:id/link-event",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  taskResourceAccess,
   validate(linkEventSchema),
   TaskController.linkEvent,
 );
@@ -108,6 +124,7 @@ router.post(
 router.delete(
   "/:id/unlink-event/:eventId",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  taskResourceAccess,
   TaskController.unlinkEvent,
 );
 
@@ -115,6 +132,7 @@ router.delete(
 router.post(
   "/:id/link-lead",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  taskResourceAccess,
   validate(linkLeadSchema),
   TaskController.linkLead,
 );
@@ -122,6 +140,7 @@ router.post(
 router.delete(
   "/:id/unlink-lead/:leadId",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
+  taskResourceAccess,
   TaskController.unlinkLead,
 );
 

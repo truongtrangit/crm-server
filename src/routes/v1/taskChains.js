@@ -6,9 +6,11 @@
  */
 const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
+const { requireResourceAccess } = require("../../middleware/resourceAccess");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const TaskActionChainController = require("../../controllers/TaskActionChainController");
+const Task = require("../../models/Task");
 const {
   addChainToEventSchema,
   saveStepSchema,
@@ -19,6 +21,15 @@ const {
 } = require("../../validations/eventActionChain");
 
 const router = express.Router({ mergeParams: true });
+
+// ─── Shared: task ownership check for all chain mutations ────────────────────
+const taskResourceAccess = requireResourceAccess({
+  getResource: (req) => Task.findOne({ id: req.params.taskId }),
+  getAssigneeIds: (task) => (task.assignees || []).map((a) => a.userId),
+  getCreatorId: (task) => task.createdBy,
+  allowUnassigned: false,
+  allowManager: true,
+});
 
 // ─── GET /api/tasks/:taskId/chains ───
 router.get(
@@ -31,6 +42,7 @@ router.get(
 router.post(
   "/",
   requirePermission(PERMISSIONS.TASK_CHAINS_CREATE),
+  taskResourceAccess,
   validate(addChainToEventSchema),
   TaskActionChainController.addChain,
 );
@@ -39,6 +51,7 @@ router.post(
 router.post(
   "/:chainId/steps",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   validate(injectStepSchema),
   TaskActionChainController.injectStep,
 );
@@ -47,6 +60,7 @@ router.post(
 router.put(
   "/:chainId/steps/current",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   validate(saveStepSchema),
   TaskActionChainController.saveCurrentStep,
 );
@@ -55,6 +69,7 @@ router.put(
 router.patch(
   "/:chainId/steps/current/delay",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   validate(updateStepDelaySchema),
   TaskActionChainController.updateCurrentStepDelay,
 );
@@ -63,6 +78,7 @@ router.patch(
 router.patch(
   "/:chainId/steps/:stepOrder/note",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   validate(updateStepNoteSchema),
   TaskActionChainController.updateStepNote,
 );
@@ -71,6 +87,7 @@ router.patch(
 router.put(
   "/:chainId/steps/:stepOrder/branches",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   validate(upsertStepBranchSchema),
   TaskActionChainController.upsertStepBranch,
 );
@@ -79,6 +96,7 @@ router.put(
 router.delete(
   "/:chainId/steps/:stepOrder/branches/:resultId",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   TaskActionChainController.deleteStepBranch,
 );
 
@@ -86,6 +104,7 @@ router.delete(
 router.put(
   "/:chainId/close",
   requirePermission(PERMISSIONS.TASK_CHAINS_CLOSE),
+  taskResourceAccess,
   TaskActionChainController.closeChain,
 );
 
@@ -93,6 +112,7 @@ router.put(
 router.post(
   "/:chainId/execute-block-automation",
   requirePermission(PERMISSIONS.TASK_CHAINS_UPDATE),
+  taskResourceAccess,
   TaskActionChainController.executeBlockAutomationStep,
 );
 
@@ -100,6 +120,7 @@ router.post(
 router.delete(
   "/:chainId",
   requirePermission(PERMISSIONS.TASK_CHAINS_DELETE),
+  taskResourceAccess,
   TaskActionChainController.deleteChain,
 );
 

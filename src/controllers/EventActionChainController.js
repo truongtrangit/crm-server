@@ -13,7 +13,8 @@ const AutomationLogService = require("../services/AutomationLogService");
 const { RESOURCES } = require("../constants/rbac");
 
 const EventService = require("../services/EventService");
-// Ownership check is now handled in EventService
+const { buildResourceScopeFilter } = require("../utils/resourceScope");
+// Ownership check is now handled by requireResourceAccess middleware
 
 // ─── Helpers ───
 
@@ -69,7 +70,7 @@ class EventActionChainController {
   // ─── POST /api/events/:eventId/chains ───
   async addChain(req, res) {
     const { eventId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { chainId } = req.body;
 
     const template = await ActionChain.findOne({ id: chainId }).lean();
@@ -127,7 +128,7 @@ class EventActionChainController {
   // ─── PUT /api/events/:eventId/chains/:chainId/steps/current ───
   async saveCurrentStep(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const {
       selectedResultId, selectedReasonId, note,
       nextStepDelay,
@@ -276,7 +277,7 @@ class EventActionChainController {
   // Thêm mới một step vào chain (sau step hiện tại)
   async injectStep(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { actionId, delayUnit, delayValue, insertAfterOrder } = req.body;
 
     if (!actionId) throw createHttpError(400, "actionId là bắt buộc");
@@ -338,7 +339,7 @@ class EventActionChainController {
   // ─── PATCH /api/events/:eventId/chains/:chainId/steps/current/delay ───
   async updateCurrentStepDelay(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { delayUnit, delayValue, editNote } = req.body;
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
@@ -366,7 +367,7 @@ class EventActionChainController {
   // ─── PATCH /api/events/:eventId/chains/:chainId/steps/:stepOrder/note ───
   async updateStepNote(req, res) {
     const { eventId, chainId, stepOrder } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { note } = req.body;
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
@@ -384,7 +385,7 @@ class EventActionChainController {
   // ─── PUT /api/events/:eventId/chains/:chainId/close ───
   async closeChain(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng rồi");
@@ -401,7 +402,7 @@ class EventActionChainController {
   // ─── DELETE /api/events/:eventId/chains/:chainId ───
   async deleteChain(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
@@ -442,22 +443,16 @@ class EventActionChainController {
     const isManager = roleName === "MANAGER";
 
     // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────
+    const scopeFilter = await buildResourceScopeFilter(req.user, {
+      assigneeField: "assignees.userId",
+      creatorField: "createdBy",
+      includeUnassigned: true,
+      assigneesArrayField: "assignees",
+    });
+
     let allowedEventIds = null; // null = không giới hạn (owner/admin)
-
-    if (!isAdminOrOwner) {
-      // Xây dựng danh sách assigneeId được phép
-      const allowedUserIds = new Set([req.user.id]);
-
-      if (isManager) {
-        // Manager thấy events của bản thân + nhân viên dưới quyền
-        const subordinates = await User.find({ managerId: req.user.id }).select("id");
-        subordinates.forEach((u) => allowedUserIds.add(u.id));
-      }
-      // staff: chỉ thấy event của chính mình (allowedUserIds = { req.user.id })
-
-      const allowedEvents = await Event.find({
-        assigneeId: { $in: [...allowedUserIds] },
-      }).select("id");
+    if (scopeFilter.$or) {
+      const allowedEvents = await Event.find(scopeFilter).select("id");
       allowedEventIds = allowedEvents.map((e) => e.id);
     }
 
@@ -615,7 +610,7 @@ class EventActionChainController {
    */
   async upsertStepBranch(req, res) {
     const { eventId, chainId, stepOrder } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const {
       resultId, nextStepType, nextActionId = null,
       closeOutcome = null, delayUnit = null, delayValue = null,
@@ -664,7 +659,7 @@ class EventActionChainController {
    */
   async deleteStepBranch(req, res) {
     const { eventId, chainId, stepOrder, resultId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
@@ -698,7 +693,6 @@ class EventActionChainController {
    */
   async executeBlockAutomationStep(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");

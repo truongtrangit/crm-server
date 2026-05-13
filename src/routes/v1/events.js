@@ -1,8 +1,10 @@
 const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
+const { requireResourceAccess } = require("../../middleware/resourceAccess");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const EventController = require("../../controllers/EventController");
+const Event = require("../../models/Event");
 const {
   createEventSchema,
   updateEventSchema,
@@ -11,6 +13,15 @@ const {
 } = require("../../validations/events");
 
 const router = express.Router();
+
+// ─── Shared resource access config for Event ─────────────────────────────────
+const eventResourceAccess = requireResourceAccess({
+  getResource: (req) => Event.findOne({ id: req.params.id }),
+  getAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
+  getCreatorId: (event) => event.createdBy,
+  allowUnassigned: true,
+  allowManager: true,
+});
 
 router.get(
   "/",
@@ -28,6 +39,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_READ),
+  eventResourceAccess,
   EventController.getEventById
 );
 
@@ -41,6 +53,7 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
   validate(updateEventSchema),
   EventController.updateEvent
 );
@@ -48,6 +61,7 @@ router.put(
 router.post(
   "/:id/timeline",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
   validate(addTimelineSchema),
   EventController.addEventTimeline
 );
@@ -67,6 +81,7 @@ router.delete(
 router.post(
   "/:id/sync-customer",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
   EventController.syncCustomer
 );
 

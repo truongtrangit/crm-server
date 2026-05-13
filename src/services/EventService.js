@@ -11,6 +11,7 @@ const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
+const { buildResourceScopeFilter } = require("../utils/resourceScope");
 
 class EventService {
   async getEvents(queryParams, currentUser) {
@@ -21,24 +22,15 @@ class EventService {
     // Dùng $and để tránh conflict giữa scope $or và search $or
     const andClauses = [];
 
-    const role = (currentUser?.roleId || '').toUpperCase();
-    const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(role);
-    const isManager = role === 'MANAGER';
-
-    // Scope: MANAGER / STAFF thấy event của mình + event chưa assign (+ nhân viên dưới cấp nếu là Manager)
-    if (!isAdminOrOwner) {
-      const allowedUserIds = [currentUser?.id];
-      if (isManager && currentUser?.id) {
-        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
-        allowedUserIds.push(...subordinates.map(u => u.id));
-      }
-
-      andClauses.push({
-        $or: [
-          { "assignees.userId": { $in: allowedUserIds } },
-          { assignees: { $size: 0 } },
-        ],
-      });
+    // Scope: MANAGER / STAFF thấy event của mình + event chưa assign + event mình tạo (+ nhân viên dưới cấp nếu là Manager)
+    const scopeFilter = await buildResourceScopeFilter(currentUser, {
+      assigneeField: "assignees.userId",
+      creatorField: "createdBy",
+      includeUnassigned: true,
+      assigneesArrayField: "assignees",
+    });
+    if (scopeFilter.$or) {
+      andClauses.push(scopeFilter);
     }
 
     // Search text
@@ -80,25 +72,12 @@ class EventService {
       "chuyen_khoan",
     ];
 
-    const role = (currentUser?.roleId || '').toUpperCase();
-    const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(role);
-    const isManager = role === 'MANAGER';
-
-    let matchStage = {};
-
-    if (!isAdminOrOwner) {
-      const allowedUserIds = [currentUser?.id];
-      if (isManager && currentUser?.id) {
-        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
-        allowedUserIds.push(...subordinates.map(u => u.id));
-      }
-      matchStage = {
-        $or: [
-          { "assignees.userId": { $in: allowedUserIds } },
-          { assignees: { $size: 0 } }
-        ]
-      };
-    }
+    const matchStage = await buildResourceScopeFilter(currentUser, {
+      assigneeField: "assignees.userId",
+      creatorField: "createdBy",
+      includeUnassigned: true,
+      assigneesArrayField: "assignees",
+    });
 
     const counts = await Event.aggregate([
       { $match: matchStage },
@@ -172,6 +151,7 @@ class EventService {
       biz: payload.biz || { id: "", tags: [] },
       stage: payload.stage || "",
       source: payload.source || "CRM",
+      createdBy: currentUser?.id || null,
       tags: payload.tags || [],
       plan: payload.plan || {
         name: "TRIAL",
@@ -380,23 +360,6 @@ class EventService {
     return event;
   }
 
-  async checkEventOwnership(id, currentUser) {
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
-    if (ELEVATED_ROLES.includes(roleId)) return true;
-
-    const event = await Event.findOne({ id });
-    if (!event) {
-      const lead = await Lead.findOne({ id });
-      if (lead.assignees.some(a => a.userId === currentUser.id)) return true;
-      throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện/lead được giao cho bạn");
-    }
-    const isAssignee = event.assignees.some(a => a.userId === currentUser.id);
-    if (!isAssignee) {
-      throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện được giao cho bạn");
-    }
-    return true;
-  }
 
   /**
    * Bỏ phân công 1 user khỏi event.

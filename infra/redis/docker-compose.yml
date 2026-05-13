@@ -1,16 +1,22 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  redis-server:
-    image: redis:7.2-alpine
+  redis:
+    image: redis:7-alpine
     container_name: redis
+    restart: always
     ports:
       - "6379:6379"
+    command:
+      [
+        "redis-server",
+        "--appendonly", "yes",
+        "--maxmemory", "256mb",
+        "--maxmemory-policy", "allkeys-lru",
+        "--user", "admin", "on", ">cw82oKff2mU1RxDpIssDd7FKK7v", "~*", "+@all"
+      ]
     volumes:
-      - ./redis.conf:/usr/local/etc/redis/redis.conf
-      - redis-data:/data
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-    restart: always
+      - redis_data:/data
 
 volumes:
-  redis-data:
+  redis_data:

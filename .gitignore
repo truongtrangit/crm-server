@@ -1,4 +1,30 @@
-node_modules/
-logs/
 _webhook_payload/*
-coverage/*
+# dependencies
+node_modules/
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# build
+dist/
+build/
+
+# docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# coverage
+coverage/

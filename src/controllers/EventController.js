@@ -29,7 +29,6 @@ class EventController {
   }
 
   async updateEvent(req, res) {
-    await EventService.checkEventOwnership(req.params.id, req.user);
     const { event, changes } = await EventService.updateEvent(req.params.id, req.body || {});
     SystemLogService.log({ 
       action: "update", 
@@ -44,7 +43,6 @@ class EventController {
   }
 
   async addEventTimeline(req, res) {
-    await EventService.checkEventOwnership(req.params.id, req.user);
     const payload = req.body || {};
     const event = await EventService.addEventTimeline(req.params.id, payload, req.user);
     

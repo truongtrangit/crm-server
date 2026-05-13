@@ -10,6 +10,7 @@ const {
 } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
+const { buildResourceScopeFilter } = require("../utils/resourceScope");
 
 class MetaService {
   // ─── Config CRUD ────────────────────────────────────────────────────────────
@@ -90,12 +91,25 @@ class MetaService {
 
   // ─── Program CRUD ──────────────────────────────────────────────────────────
 
-  async getPrograms(queryParams) {
+  async getPrograms(queryParams, currentUser = null) {
     const { search = "", type, time } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams);
 
     const query = {};
+
+    // ── RBAC Scoping — STAFF/MANAGER chỉ thấy program mình là PIC/creator ──
+    if (currentUser) {
+      const scopeFilter = await buildResourceScopeFilter(currentUser, {
+        assigneeField: "picIds",
+        creatorField: "createdBy",
+        includeUnassigned: true,
+        assigneesArrayField: "picIds",
+      });
+      if (scopeFilter.$or) {
+        query.$and = [scopeFilter];
+      }
+    }
 
     if (searchRegex) {
       query.$or = [{ name: searchRegex }];
@@ -196,7 +210,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     if (payload.picIds && payload.picIds.length > 0) {
       const usersCount = await User.countDocuments({ id: { $in: payload.picIds } });
@@ -255,7 +269,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     await program.softDelete();
     return program;
@@ -271,7 +285,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const config = await MetaConfig.findOne({ id: program.typeId });
     if (config?.kpiType === 'task') {
@@ -322,7 +336,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const config = await MetaConfig.findOne({ id: program.typeId });
     if (config?.kpiType === "task") {
@@ -375,7 +389,7 @@ class MetaService {
   async updateMilestone(programId, milestoneId, payload, currentUser) {
     const program = await MetaProgram.findOne({ id: programId });
     if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const role = (currentUser.roleId || "").toUpperCase();
     if (!["OWNER", "ADMIN"].includes(role)) {
@@ -419,7 +433,7 @@ class MetaService {
   async deleteMilestone(programId, milestoneId, currentUser) {
     const program = await MetaProgram.findOne({ id: programId });
     if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const role = (currentUser.roleId || "").toUpperCase();
     if (!["OWNER", "ADMIN"].includes(role)) {
@@ -460,7 +474,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     program.tasks.push({
       title: payload.title,
@@ -484,7 +498,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const task = program.tasks.id(taskId);
     if (!task) {
@@ -523,7 +537,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const task = program.tasks.id(taskId);
     if (!task) {
@@ -548,7 +562,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     program.attachments.push({
       fileName: payload.fileName,
@@ -568,7 +582,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const att = program.attachments.id(attachmentId);
     if (!att) {
@@ -584,16 +598,34 @@ class MetaService {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  _checkAccess(program, currentUser) {
+  async _checkAccess(program, currentUser) {
     if (!currentUser) return;
     const role = (currentUser.roleId || "").toUpperCase();
-    if (role === "STAFF") {
-      if (!program.picIds || !program.picIds.includes(currentUser.id)) {
-        throw createHttpError(403, "Bạn không có quyền thao tác trên chương trình này (chỉ người phụ trách mới được phép)", {
-          code: "META_FORBIDDEN",
-        });
-      }
+
+    // OWNER/ADMIN bypass
+    if (["OWNER", "ADMIN"].includes(role)) return;
+
+    const picIds = program.picIds || [];
+
+    // Direct PIC check — user is a person-in-charge
+    if (picIds.includes(currentUser.id)) return;
+
+    // Creator check
+    if (program.createdBy && program.createdBy === currentUser.id) return;
+
+    // Manager subordinate check — manager of a PIC
+    if (role === "MANAGER" && picIds.length > 0) {
+      const User = require("../models/User");
+      const subordinates = await User.find({ managerId: currentUser.id })
+        .select("id")
+        .lean();
+      const subIds = subordinates.map((u) => u.id);
+      if (picIds.some((id) => subIds.includes(id))) return;
     }
+
+    throw createHttpError(403, "Bạn không có quyền thao tác trên chương trình này (chỉ người phụ trách mới được phép)", {
+      code: "META_FORBIDDEN",
+    });
   }
 
   /**
@@ -640,7 +672,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     program.comments.push({
       content: payload.content,
@@ -660,7 +692,7 @@ class MetaService {
       });
     }
 
-    this._checkAccess(program, currentUser);
+    await this._checkAccess(program, currentUser);
 
     const role = (currentUser.roleId || "").toUpperCase();
     const comment = program.comments.id(commentId);

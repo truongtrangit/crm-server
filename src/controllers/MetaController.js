@@ -58,7 +58,7 @@ class MetaController {
   // ─── Programs ──────────────────────────────────────────────────────────────
 
   async getPrograms(req, res) {
-    const result = await MetaService.getPrograms(req.query);
+    const result = await MetaService.getPrograms(req.query, req.user);
     return sendSuccess(res, 200, "Lấy danh sách chương trình thành công", result);
   }
 

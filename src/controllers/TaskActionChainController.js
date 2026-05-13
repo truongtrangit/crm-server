@@ -72,7 +72,7 @@ class TaskActionChainController {
     const { chainId } = req.body;
 
     // Verify task exists, isn't closed, and user has ownership/access
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
 
     const template = await ActionChain.findOne({ id: chainId }).lean();
     if (!template) throw createHttpError(404, "ActionChain không tồn tại");
@@ -143,7 +143,7 @@ class TaskActionChainController {
   // ─── PUT /api/tasks/:taskId/chains/:chainId/steps/current ───
   async saveCurrentStep(req, res) {
     const { taskId, chainId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const {
       selectedResultId, selectedReasonId, note,
       nextStepDelay,
@@ -270,7 +270,7 @@ class TaskActionChainController {
   // Thêm mới một step vào chain (sau step hiện tại)
   async injectStep(req, res) {
     const { taskId, chainId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const { actionId, delayUnit, delayValue, insertAfterOrder } = req.body;
 
     if (!actionId) throw createHttpError(400, "actionId là bắt buộc");
@@ -332,7 +332,7 @@ class TaskActionChainController {
   // ─── PATCH delay ───
   async updateCurrentStepDelay(req, res) {
     const { taskId, chainId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const { delayUnit, delayValue, editNote } = req.body;
 
     const chain = await EventActionChain.findOne({ id: chainId, taskId });
@@ -359,7 +359,7 @@ class TaskActionChainController {
   // ─── PATCH note ───
   async updateStepNote(req, res) {
     const { taskId, chainId, stepOrder } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const { note } = req.body;
 
     const chain = await EventActionChain.findOne({ id: chainId, taskId });
@@ -377,7 +377,7 @@ class TaskActionChainController {
   // ─── PUT close ───
   async closeChain(req, res) {
     const { taskId, chainId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng rồi");
@@ -393,7 +393,7 @@ class TaskActionChainController {
   // ─── DELETE ───
   async deleteChain(req, res) {
     const { taskId, chainId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
@@ -410,7 +410,7 @@ class TaskActionChainController {
   // ─── PUT branches ───
   async upsertStepBranch(req, res) {
     const { taskId, chainId, stepOrder } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
     const {
       resultId, nextStepType, nextActionId = null,
       closeOutcome = null, delayUnit = null, delayValue = null,
@@ -456,7 +456,7 @@ class TaskActionChainController {
   // Removes a branch from a specific EventActionChain step.
   async deleteStepBranch(req, res) {
     const { taskId, chainId, stepOrder, resultId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
+
 
     const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
@@ -489,7 +489,6 @@ class TaskActionChainController {
    */
   async executeBlockAutomationStep(req, res) {
     const { taskId, chainId } = req.params;
-    await TaskService.checkTaskOwnership(taskId, req.user);
 
     const chain = await EventActionChain.findOne({ id: chainId, taskId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
