@@ -428,23 +428,18 @@ async function listUsers(actor, filters) {
 
     // Owner/Admin can see deleted users
     const roleName = (await getUserRoleName(actor) || "").toUpperCase();
-    const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.includeDeleted === "true";
-
-    let users, totalItems;
+    const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.isDeleted === "true";
 
     const sortObj = resolveSort(filters, ["createdAt", "name", "updatedAt", "email", "roleId"]);
 
     if (canSeeDeleted) {
-      [users, totalItems] = await Promise.all([
-        User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
-        User.countWithDeleted(query),
-      ]);
-    } else {
-      [users, totalItems] = await Promise.all([
-        User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
-        User.countDocuments(query),
-      ]);
+      query.isDeleted = true;
     }
+
+    const [users, totalItems] = await Promise.all([
+      User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+      User.countDocuments(query),
+    ]);
 
     // Staff (no USERS_READ) gets only basic info; others get full data
     const serializer = hasReadPermission ? serializeUser : serializeUserBasic;

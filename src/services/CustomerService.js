@@ -54,23 +54,18 @@ class CustomerService {
 
       // Owner/Admin can see deleted customers
       const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
-      const canSeeDeleted = ["OWNER", "ADMIN"].includes(roleName) && includeDeleted === "true";
-
-      let customers, totalItems;
+      const canSeeDeleted = ["OWNER", "ADMIN"].includes(roleName) && queryParams.isDeleted === "true";
 
       const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "email", "type"]);
 
       if (canSeeDeleted) {
-        [customers, totalItems] = await Promise.all([
-          Customer.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
-          Customer.countWithDeleted(query),
-        ]);
-      } else {
-        [customers, totalItems] = await Promise.all([
-          Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
-          Customer.countDocuments(query),
-        ]);
+        query.isDeleted = true;
       }
+
+      const [customers, totalItems] = await Promise.all([
+        Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+        Customer.countDocuments(query),
+      ]);
 
       return buildPaginatedResponse(customers, totalItems, page, limit);
     });
