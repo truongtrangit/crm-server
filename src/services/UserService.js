@@ -222,43 +222,6 @@ function canAssignRole(actorRole, targetRole) {
   return (actorRole.level || 0) > (targetRole.level || 0);
 }
 
-function canManageUserByRole(actor, actorRole, targetUser, targetRole) {
-  if (!actor || !actorRole || !targetUser || !targetRole) {
-    return false;
-  }
-
-  if (actor.id === targetUser.id) {
-    return false;
-  }
-
-  if (actorRole.name === OWNER_ROLE_NAME) {
-    return targetRole.name !== OWNER_ROLE_NAME;
-  }
-
-  if ((actorRole.level || 0) <= (targetRole.level || 0)) {
-    return false;
-  }
-
-  if (actorRole.name === MANAGER_ROLE_NAME) {
-    const managerDeptAliases = Array.isArray(actor.departmentAliases)
-      ? actor.departmentAliases
-      : Array.isArray(actor.department)
-        ? actor.department
-        : [];
-    const targetDeptAliases = Array.isArray(targetUser.departmentAliases)
-      ? targetUser.departmentAliases
-      : Array.isArray(targetUser.department)
-        ? targetUser.department
-        : [];
-
-    return targetDeptAliases.some((alias) =>
-      managerDeptAliases.includes(alias),
-    );
-  }
-
-  return true;
-}
-
 
 
 function serializeUser(user) {
@@ -535,52 +498,6 @@ async function createUserAccount(actor, payload = {}) {
   return serializeUser(user);
 }
 
-async function getUserForStaffApi(actor, userId) {
-  if (
-    !(await hasAnyPermission(actor, [
-      PERMISSIONS.USERS_READ,
-      PERMISSIONS.USERS_MANAGE,
-      PERMISSIONS.USERS_CREATE,
-      PERMISSIONS.USERS_UPDATE,
-      PERMISSIONS.USERS_DELETE,
-    ]))
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to access staff APIs",
-    );
-  }
-
-  const user = await User.findOne({ id: userId });
-
-  if (!user) {
-    throw createHttpError(404, "User not found");
-  }
-
-  const actorRoleName = await getUserRoleName(actor);
-  if (actorRoleName === MANAGER_ROLE_NAME) {
-    const managerDeptAliases = Array.isArray(actor.departmentAliases)
-      ? actor.departmentAliases
-      : Array.isArray(actor.department)
-        ? actor.department
-        : [];
-    const userDeptAliases = Array.isArray(user.departmentAliases)
-      ? user.departmentAliases
-      : Array.isArray(user.department)
-        ? user.department
-        : [];
-    const hasOverlap = userDeptAliases.some((alias) =>
-      managerDeptAliases.includes(alias),
-    );
-
-    if (!hasOverlap) {
-      throw createHttpError(404, "User not found");
-    }
-  }
-
-  return user;
-}
-
 async function updateUserAccount(actor, targetUser, payload = {}) {
   const actorRole = await getUserRoleWithPermissions(actor);
   const targetCurrentRole = await getUserRoleWithPermissions(targetUser);
@@ -604,19 +521,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
-  // ── Guard 3: Actor must have manage permission OR update + scope check ────
-  if (
-    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    !(
-      (await hasPermission(actor, PERMISSIONS.USERS_UPDATE)) &&
-      canManageUserByRole(actor, actorRole, targetUser, targetCurrentRole)
-    )
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to update this user",
-    );
-  }
+
 
   // ── Determine next role ───────────────────────────────────────────────────
   const nextRole =
@@ -690,7 +595,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   ) {
     throw createHttpError(
       403,
-      "Manager can only update staff inside their department/group scope",
+      "Manager chỉ được update nhân viên trong phạm vi quản lý của mình",
     );
   }
 
@@ -918,16 +823,7 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
     }
   }
 
-  // ── Guard 4: Actor must have manage permission OR scope-based manage ──────
-  if (
-    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    !canManageUserByRole(actor, actorRole, targetUser, targetRole)
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to delete this user",
-    );
-  }
+
 
   // ── Guard 5: Referential integrity — check Events assigned to this user ──
   if (!force) {
@@ -1065,7 +961,6 @@ module.exports = {
   createUserAccount,
   deleteUserAccount,
   getOrgOptions,
-  getUserForStaffApi,
   listUsers,
   permanentDeleteUserAccount,
   restoreUserAccount,
