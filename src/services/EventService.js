@@ -375,18 +375,18 @@ class EventService {
    * Tự gán bản thân vào event.
    * Cho phép nhiều người cùng assign vào 1 event (multi-assignee).
    */
-  async selfAssignEvent(id, currentUser) {
+  async selfAssignEvent(id, functionId, currentUser) {
     const event = await Event.findOne({ id });
     if (!event) throw createHttpError(404, 'Event not found');
 
     // Kiểm tra đã assign chưa
-    const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id);
+    const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
     if (alreadyAssigned) {
-      throw createHttpError(409, 'Bạn đã được phân công trong sự kiện này');
+      throw createHttpError(409, 'Bạn đã được phân công trong sự kiện này với vai trò này');
     }
 
     // Resolve thông tin user
-    const resolved = await this._resolveAssignees([{ userId: currentUser.id }]);
+    const resolved = await this._resolveAssignees([{ userId: currentUser.id, functionId }]);
     if (resolved.length > 0) {
       event.assignees.push(resolved[0]);
     } else {
@@ -395,7 +395,7 @@ class EventService {
         userId: currentUser.id,
         userName: currentUser.name || '',
         userAvatar: currentUser.avatar || '',
-        functionId: null,
+        functionId: functionId || null,
         functionTitle: '',
       });
     }

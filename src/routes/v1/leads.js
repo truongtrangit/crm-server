@@ -115,6 +115,7 @@ router.put(
 router.post(
   "/:id/self-assign",
   requirePermission(PERMISSIONS.LEADS_UPDATE),
+  leadAssignmentRules,
   leadResourceAccess.with({ allowUnassigned: true }),
   LeadController.selfAssignLead,
 );
@@ -156,7 +157,7 @@ router.post(
 router.get(
   "/:id/activity-logs",
   requirePermission(PERMISSIONS.LEADS_READ),
-  leadResourceAccess,
+  leadResourceAccess.with({ allowUnassigned: true }),
   LeadController.getActivityLogs,
 );
 

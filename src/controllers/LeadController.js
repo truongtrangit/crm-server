@@ -32,7 +32,7 @@ class LeadController {
   }
 
   async selfAssignLead(req, res) {
-    const lead = await LeadService.selfAssignLead(req.params.id, req.user);
+    const lead = await LeadService.selfAssignLead(req.params.id, req.body.functionId, req.user);
     return sendSuccess(res, 200, "Self assign success", lead);
   }
 

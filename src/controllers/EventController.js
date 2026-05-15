@@ -89,7 +89,7 @@ class EventController {
    * Cho phép nhiều người cùng assign vào 1 event.
    */
   async selfAssignEvent(req, res) {
-    const event = await EventService.selfAssignEvent(req.params.id, req.user);
+    const event = await EventService.selfAssignEvent(req.params.id, req.body.functionId, req.user);
     SystemLogService.log({ action: "assign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tự nhận sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Tự nhận sự kiện thành công', event);
   }

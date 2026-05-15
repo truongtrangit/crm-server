@@ -383,10 +383,10 @@ class LeadService {
     return lead;
   }
 
-  async selfAssignLead(id, currentUser) {
+  async selfAssignLead(id, functionId, currentUser) {
     const lead = await this.getLeadById(id);
 
-    const isAssigned = lead.assignees && lead.assignees.some(a => a.userId === currentUser.id);
+    const isAssigned = lead.assignees && lead.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
     if (isAssigned) {
       return lead;
     }
@@ -394,7 +394,7 @@ class LeadService {
     const before = lead.toObject();
     
     // Resolve assignee format
-    const newAssignees = [...(lead.assignees || []), currentUser.id];
+    const newAssignees = [...(lead.assignees || []), { userId: currentUser.id, functionId }];
     lead.assignees = await this._resolveAssignees(newAssignees);
 
     const changes = computeChanges(before, lead.toObject());
