@@ -65,8 +65,8 @@ function requireResourceAccess(options) {
       if (allowAssignee && assigneeIds.includes(user.id)) return next();
 
       // 5. Unassigned resource → allow all (để nhân viên có thể nhận)
-      const allowUnassigned = options.allowUnassigned ?? true;
-      if (allowUnassigned && assigneeIds.length === 0 && !options.getTargetUserId) return next();
+      const allowUnassigned = options.allowUnassigned ?? false;
+      if (options.getAssigneeIds && allowUnassigned && assigneeIds.length === 0 && !options.getTargetUserId) return next();
 
       // 6. Manager subordinate check (department-based):
       if (role === "MANAGER") {
