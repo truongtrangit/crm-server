@@ -494,7 +494,7 @@ class EventActionChainController {
         ]
       }).select("id");
       const deptUserIds = deptUsers.map((u) => u.id);
-      eventQuery.assigneeId = { $in: deptUserIds };
+      eventQuery["assignees.userId"] = { $in: deptUserIds };
     }
 
     // Filter group (nhóm trong phòng ban — chỉ owner/admin/manager)
@@ -510,13 +510,13 @@ class EventActionChainController {
         ]
       }).select("id");
       const groupUserIds = groupUsers.map((u) => u.id);
-      // Nếu đã filter dept, giao nhau với assigneeId.$in
-      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
-        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
+      // Nếu đã filter dept, giao nhau với assignees.userId.$in
+      if (eventQuery["assignees.userId"] && eventQuery["assignees.userId"].$in) {
+        eventQuery["assignees.userId"].$in = eventQuery["assignees.userId"].$in.filter((id) =>
           groupUserIds.includes(id)
         );
       } else {
-        eventQuery.assigneeId = { $in: groupUserIds };
+        eventQuery["assignees.userId"] = { $in: groupUserIds };
       }
     }
 
@@ -524,12 +524,12 @@ class EventActionChainController {
     if (assignee) {
       const assignees = typeof assignee === "string" ? assignee.split(',').map(s => s.trim()).filter(Boolean) : assignee;
       const assigneeIds = Array.isArray(assignees) ? assignees : [assignees];
-      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
-        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
+      if (eventQuery["assignees.userId"] && eventQuery["assignees.userId"].$in) {
+        eventQuery["assignees.userId"].$in = eventQuery["assignees.userId"].$in.filter((id) =>
           assigneeIds.includes(id)
         );
       } else {
-        eventQuery.assigneeId = { $in: assigneeIds };
+        eventQuery["assignees.userId"] = { $in: assigneeIds };
       }
     }
 
@@ -540,12 +540,12 @@ class EventActionChainController {
       eventQuery.$or = [
         { name: regex },
         { "customer.name": regex },
-        { "assignee.name": regex },
+        { "assignees.userName": regex },
       ];
     }
 
     const events = await Event.find(eventQuery)
-      .select("id name sub group stage customer assignee plan assigneeId");
+      .select("id name sub group stage customer assignees plan");
     const eventMap = Object.fromEntries(events.map((e) => [e.id, e]));
 
     // ── 4. Build queue ───────────────────────────────────────────────────────
@@ -569,7 +569,7 @@ class EventActionChainController {
           group: evt.group,
           stage: evt.stage,
           customer: evt.customer,
-          assignee: evt.assignee,
+          assignees: evt.assignees,
           plan: evt.plan,
         },
         step: {

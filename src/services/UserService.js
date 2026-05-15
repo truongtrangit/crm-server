@@ -469,7 +469,7 @@ async function createUserAccount(actor, payload = {}) {
   ) {
     throw createHttpError(
       403,
-      "Manager can only create staff inside their department/group scope",
+      "Manager chỉ được tạo nhân viên trong phạm vi quản lý của mình",
     );
   }
 
@@ -828,7 +828,7 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   // ── Guard 5: Referential integrity — check Events assigned to this user ──
   if (!force) {
     const assignedEvents = await Event.find(
-      { assigneeId: targetUser.id },
+      { "assignees.userId": targetUser.id },
       { id: 1, name: 1 },
     ).lean();
     if (assignedEvents.length > 0) {
@@ -848,15 +848,10 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   } else {
     // Force delete: nullify references in Events
     await Event.updateMany(
-      { assigneeId: targetUser.id },
+      { "assignees.userId": targetUser.id },
       {
-        $set: {
-          assigneeId: null,
-          "assignee.name": "(Đã xóa)",
-          "assignee.avatar": "",
-          "assignee.role": "",
-          "assignee.department": [],
-          "assignee.group": [],
+        $pull: {
+          assignees: { userId: targetUser.id },
         },
       },
     );
@@ -917,16 +912,9 @@ async function permanentDeleteUserAccount(actor, userId) {
 
   // Cascade: nullify references in Events
   await Event.updateMany(
-    { assigneeId: targetUser.id },
+    { "assignees.userId": targetUser.id },
     {
-      $set: {
-        assigneeId: null,
-        "assignee.name": "(Đã xóa)",
-        "assignee.avatar": "",
-        "assignee.role": "",
-        "assignee.department": [],
-        "assignee.group": [],
-      },
+      $pull: { assignees: { userId: targetUser.id } },
     },
   );
 
