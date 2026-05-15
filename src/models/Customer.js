@@ -42,6 +42,7 @@ const customerSchema = new mongoose.Schema(
 
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true },
+    createdBy: { type: String, default: null },
   },
   {
     timestamps: true,

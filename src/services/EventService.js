@@ -11,10 +11,10 @@ const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
-const { buildResourceScopeFilter } = require("../utils/resourceScope");
+
 
 class EventService {
-  async getEvents(queryParams, currentUser) {
+  async getEvents(queryParams, scopeFilter = {}) {
     const { search = "", group, stage, assignee } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
@@ -23,12 +23,6 @@ class EventService {
     const andClauses = [];
 
     // Scope: MANAGER / STAFF thấy event của mình + event chưa assign + event mình tạo (+ nhân viên dưới cấp nếu là Manager)
-    const scopeFilter = await buildResourceScopeFilter(currentUser, {
-      assigneeField: "assignees.userId",
-      creatorField: "createdBy",
-      includeUnassigned: true,
-      assigneesArrayField: "assignees",
-    });
     if (scopeFilter.$or) {
       andClauses.push(scopeFilter);
     }
@@ -63,7 +57,7 @@ class EventService {
     return buildPaginatedResponse(events, totalItems, page, limit);
   }
 
-  async getEventStats(currentUser) {
+  async getEventStats(scopeFilter = {}) {
     const groups = [
       "user_moi",
       "biz_moi",
@@ -72,15 +66,8 @@ class EventService {
       "chuyen_khoan",
     ];
 
-    const matchStage = await buildResourceScopeFilter(currentUser, {
-      assigneeField: "assignees.userId",
-      creatorField: "createdBy",
-      includeUnassigned: true,
-      assigneesArrayField: "assignees",
-    });
-
     const counts = await Event.aggregate([
-      { $match: matchStage },
+      { $match: scopeFilter },
       { $group: { _id: "$group", count: { $sum: 1 } } },
     ]);
 
@@ -369,7 +356,6 @@ class EventService {
    * Nếu không truyền userId trong body, mặc định bỏ currentUser.
    */
   async unassignEvent(id, currentUser, targetUserId) {
-    const actorRole = (currentUser?.roleId || '').toUpperCase();
     const removeUserId = targetUserId || currentUser?.id;
 
     const event = await Event.findOne({ id });
@@ -378,23 +364,6 @@ class EventService {
     const existingAssignee = event.assignees.find(a => a.userId === removeUserId);
     if (!existingAssignee) {
       throw createHttpError(400, 'Người này chưa được phân công trong sự kiện');
-    }
-
-    if (actorRole === 'STAFF') {
-      if (removeUserId !== currentUser.id) {
-        throw createHttpError(403, 'Bạn chỉ có thể bỏ nhận sự kiện của chính mình');
-      }
-    }
-
-    if (actorRole === 'MANAGER') {
-      const isSelf = removeUserId === currentUser.id;
-      if (!isSelf) {
-        const assigneeUser = await User.findOne({ id: removeUserId });
-        const isDirectStaff = assigneeUser?.managerId === currentUser.id;
-        if (!isDirectStaff) {
-          throw createHttpError(403, 'Bạn chỉ có thể bỏ phân công của chính bạn hoặc nhân viên trực thuộc');
-        }
-      }
     }
 
     event.assignees = event.assignees.filter(a => a.userId !== removeUserId);

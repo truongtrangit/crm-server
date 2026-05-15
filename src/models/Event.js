@@ -98,7 +98,6 @@ eventSchema.plugin(softDeletePlugin);
 eventSchema.index({ "assignees.userId": 1 });
 eventSchema.index({ group: 1 });
 eventSchema.index({ stage: 1 });
-eventSchema.index({ createdBy: 1 });
 eventSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Event", eventSchema);

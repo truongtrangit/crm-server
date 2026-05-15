@@ -110,7 +110,33 @@ function requirePermission(...permissionsOrOptions) {
   };
 }
 
+/**
+ * Middleware to check if user has specific role(s)
+ * Usage: requireRole(["OWNER", "ADMIN"])
+ */
+function requireRole(allowedRoles) {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return sendError(res, 401, "Bạn cần đăng nhập để thực hiện hành động này", {
+        code: "AUTHENTICATION_REQUIRED",
+      });
+    }
+
+    const roleName = (req.user.roleId || "").toUpperCase();
+    
+    if (!allowedRoles.includes(roleName)) {
+      return sendError(res, 403, "Bạn không có quyền thực hiện hành động này", {
+        code: "INSUFFICIENT_ROLE",
+        requiredRoles: allowedRoles,
+      });
+    }
+
+    return next();
+  };
+}
+
 module.exports = {
   authenticateRequest,
   requirePermission,
+  requireRole,
 };

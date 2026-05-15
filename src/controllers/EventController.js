@@ -8,12 +8,12 @@ const { RESOURCES } = require("../constants/rbac");
 
 class EventController {
   async getEvents(req, res) {
-    const result = await EventService.getEvents(req.query, req.user);
+    const result = await EventService.getEvents(req.query, req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get event list success", result);
   }
 
   async getEventStats(req, res) {
-    const stats = await EventService.getEventStats(req.user);
+    const stats = await EventService.getEventStats(req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get event stats success", stats);
   }
 

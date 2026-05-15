@@ -10,7 +10,7 @@ const { resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
 const { LEAD_STAGE_MAP, getNextStage } = require("../constants/leadStages");
-const { buildResourceScopeFilter } = require("../utils/resourceScope");
+
 
 class LeadService {
   /**
@@ -23,7 +23,7 @@ class LeadService {
    *            ?lastId=LEAD0050 (cursor for lazy load)
    *            ?limit=20
    */
-  async getLeads(queryParams, currentUser) {
+  async getLeads(queryParams, scopeFilter = {}) {
     const { search = "", stage, lastId, limit: rawLimit = 20 } = queryParams;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
     const searchRegex = buildSearchRegex(search);
@@ -31,12 +31,6 @@ class LeadService {
     const andClauses = [];
 
     // ── RBAC Scoping ─ STAFF/MANAGER chỉ thấy lead assigned/created + unassigned ──
-    const scopeFilter = await buildResourceScopeFilter(currentUser, {
-      assigneeField: "assignees.userId",
-      creatorField: "createdBy",
-      includeUnassigned: true,
-      assigneesArrayField: "assignees",
-    });
     if (scopeFilter.$or) {
       andClauses.push(scopeFilter);
     }
@@ -102,17 +96,10 @@ class LeadService {
   /**
    * Get lead counts per stage — cho Kanban header.
    */
-  async getStageCounts(currentUser) {
+  async getStageCounts(scopeFilter = {}) {
     // RBAC Scoping — đồng bộ với getLeads
-    const matchStage = await buildResourceScopeFilter(currentUser, {
-      assigneeField: "assignees.userId",
-      creatorField: "createdBy",
-      includeUnassigned: true,
-      assigneesArrayField: "assignees",
-    });
-
     const counts = await Lead.aggregate([
-      { $match: matchStage },
+      { $match: scopeFilter },
       { $group: { _id: "$stage", count: { $sum: 1 } } },
     ]);
 
@@ -188,16 +175,6 @@ class LeadService {
 
     // Resolve assignees nếu có gửi lên
     if (updates.assignees) {
-      const role = (currentUser?.roleId || "").toUpperCase();
-      if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) {
-        throw createHttpError(
-          403,
-          "Chỉ Manager, Admin hoặc Owner mới có quyền phân công lead.",
-          {
-            code: "ASSIGN_LEAD_FORBIDDEN",
-          },
-        );
-      }
       updates.assignees = await this._resolveAssignees(updates.assignees);
     }
 

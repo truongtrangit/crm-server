@@ -18,11 +18,17 @@ const router = express.Router({ mergeParams: true });
 
 // ─── Shared: event ownership check for all chain mutations ───────────────────
 const eventResourceAccess = requireResourceAccess({
+  // Helpers
   getResource: (req) => Event.findOne({ id: req.params.eventId }),
   getAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
   getCreatorId: (event) => event.createdBy,
+
+  // Hành vi (Behaviors)
+  allowCreator: true,
+  allowAssignee: true,
   allowUnassigned: true,
-  allowManager: true,
+  allowManagerSubordinateCreator: true,
+  allowManagerSubordinateAssignee: true,
 });
 
 // ─── GET /api/events/:eventId/chains ───

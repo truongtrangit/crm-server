@@ -122,7 +122,6 @@ leadSchema.plugin(softDeletePlugin);
 
 // Performance indexes for list queries
 leadSchema.index({ "assignees.userId": 1 });
-leadSchema.index({ createdBy: 1 });
 leadSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

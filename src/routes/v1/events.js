@@ -1,6 +1,6 @@
 const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
-const { requireResourceAccess } = require("../../middleware/resourceAccess");
+const { requireResourceAccess, enforceAssignmentRules, enforceUnassignmentRules, scopeResourceList } = require("../../middleware/resourceAccess");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const EventController = require("../../controllers/EventController");
@@ -16,23 +16,63 @@ const router = express.Router();
 
 // ─── Shared resource access config for Event ─────────────────────────────────
 const eventResourceAccess = requireResourceAccess({
+  // Helpers
   getResource: (req) => Event.findOne({ id: req.params.id }),
   getAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
   getCreatorId: (event) => event.createdBy,
+
+  // Hành vi (Behaviors)
+  allowCreator: true,
+  allowAssignee: true,
   allowUnassigned: true,
-  allowManager: true,
+  allowManagerSubordinateCreator: true,
+  allowManagerSubordinateAssignee: true,
+});
+
+const eventAssignmentRules = enforceAssignmentRules({
+  // Helpers
+  getNewAssigneeIds: (req) => req.body.assignees ? req.body.assignees.map(a => typeof a === 'string' ? a : a.userId) : null,
+  getCurrentAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
+
+  // Hành vi (Behaviors)
+  allowSelfAssignment: true,
+  allowManagerSubordinateAssignment: true,
+  allowStaffReassignment: false,
+});
+
+const eventUnassignmentRules = enforceUnassignmentRules({
+  // Helpers
+  getNewAssigneeIds: (req) => req.body.assignees ? req.body.assignees.map(a => typeof a === 'string' ? a : a.userId) : null,
+  getCurrentAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
+  getTargetUserId: (req) => req.body.userId, // Dùng cho DELETE /:id/assignee
+
+  // Hành vi (Behaviors)
+  allowSelfUnassignment: true,
+  allowManagerSubordinateUnassignment: true,
+});
+
+const eventScopeList = scopeResourceList({
+  // Helpers — cấu trúc DB
+  assigneeField: "assignees.userId",
+  creatorField: "createdBy",
+  assigneesArrayField: "assignees",
+
+  // Hành vi (Behaviors)
+  includeUnassigned: true,
 });
 
 router.get(
   "/",
   requirePermission(PERMISSIONS.EVENTS_READ),
   validate(listEventsQuerySchema, "query"),
+  eventScopeList,
   EventController.getEvents
 );
 
 router.get(
   "/stats",
   requirePermission(PERMISSIONS.EVENTS_READ),
+  eventScopeList,
   EventController.getEventStats
 );
 
@@ -46,6 +86,7 @@ router.get(
 router.post(
   "/",
   requirePermission(PERMISSIONS.EVENTS_CREATE),
+  eventAssignmentRules,
   validate(createEventSchema),
   EventController.createEvent
 );
@@ -54,6 +95,8 @@ router.put(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
   eventResourceAccess,
+  eventAssignmentRules,
+  eventUnassignmentRules,
   validate(updateEventSchema),
   EventController.updateEvent
 );
@@ -100,6 +143,7 @@ router.delete(
   "/:id/assignee",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
   eventResourceAccess,
+  eventUnassignmentRules,
   EventController.unassignEvent
 );
 

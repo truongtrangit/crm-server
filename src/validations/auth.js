@@ -89,7 +89,6 @@ const registerSchema = Joi.object({
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
   companies: Joi.array().items(Joi.string()).optional(),
-  managerId: Joi.string().allow("", null).optional(),
 });
 
 module.exports = {

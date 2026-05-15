@@ -259,41 +259,7 @@ function canManageUserByRole(actor, actorRole, targetUser, targetRole) {
   return true;
 }
 
-async function ensureManagerExists(
-  managerId,
-  department,
-  group,
-  departmentAliases = [],
-  groupAliases = [],
-) {
-  if (!managerId) {
-    return null;
-  }
 
-  const manager = await User.findOne({ id: managerId }).lean();
-
-  const managerRoleName = await getUserRoleName(manager);
-
-  if (!manager || managerRoleName !== MANAGER_ROLE_NAME) {
-    throw createHttpError(400, "managerId must reference a manager user");
-  }
-
-  if (
-    !isWithinManagerScope(manager, {
-      department,
-      group,
-      departmentAliases,
-      groupAliases,
-    })
-  ) {
-    throw createHttpError(
-      400,
-      "department/group must belong to the assigned manager scope",
-    );
-  }
-
-  return manager;
-}
 
 function serializeUser(user) {
   const item =
@@ -326,9 +292,13 @@ async function buildUserListQuery(actor, filters = {}) {
   // but will receive only basic fields (handled in listUsers).
   // We still build the query normally so pagination works.
 
-  const { search = "", department, role, managerId } = filters;
+  const { search = "", department, role, scopedUserIds } = filters;
   const searchRegex = buildSearchRegex(search);
   const query = {};
+
+  if (scopedUserIds) {
+    query.id = Array.isArray(scopedUserIds) ? { $in: scopedUserIds } : scopedUserIds;
+  }
 
   if (searchRegex) {
     query.$or = [
@@ -398,8 +368,6 @@ async function buildUserListQuery(actor, filters = {}) {
         // Manager has no departments assigned — return nothing
         query._id = null;
       }
-    } else if (managerId) {
-      query.managerId = normalizeString(managerId);
     }
   }
 
@@ -542,21 +510,7 @@ async function createUserAccount(actor, payload = {}) {
     );
   }
 
-  let managerId = normalizeString(payload.managerId) || null;
 
-  if (targetRole.name !== STAFF_ROLE_NAME) {
-    managerId = null;
-  } else if (actorRoleName === MANAGER_ROLE_NAME) {
-    managerId = actor.id;
-  }
-
-  await ensureManagerExists(
-    managerId,
-    department,
-    group,
-    organizationAssignments.departmentAliases,
-    organizationAssignments.groupAliases,
-  );
 
   const user = await User.create({
     id: await generateMonotonicId(ID_PREFIXES.USER),
@@ -573,7 +527,7 @@ async function createUserAccount(actor, payload = {}) {
     companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
-    managerId,
+
     createdBy: actor.id,
   });
 
@@ -777,26 +731,12 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? payload.isActive
       : targetUser.isActive;
 
-  if (nextRole.name !== STAFF_ROLE_NAME) {
-    targetUser.managerId = null;
-  } else if ((await getUserRoleName(actor)) === MANAGER_ROLE_NAME) {
-    targetUser.managerId = actor.id;
-  } else if (payload.managerId !== undefined) {
-    const managerId = normalizeString(payload.managerId) || null;
-    await ensureManagerExists(
-      managerId,
-      organizationAssignments.departments,
-      organizationAssignments.groups,
-      organizationAssignments.departmentAliases,
-      organizationAssignments.groupAliases,
-    );
-    targetUser.managerId = managerId;
-  }
+
 
   await targetUser.save();
 
   const newState = targetUser.toObject();
-  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive", "managerId"];
+  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive"];
   const changes = computeChanges(oldState, newState, keysToCheck);
 
   await CacheService.bumpNamespaceVersion("users");
@@ -808,7 +748,7 @@ async function updateOwnProfile(actor, payload = {}) {
   const safePayload = { ...payload };
   delete safePayload.role;
   delete safePayload.roleId;
-  delete safePayload.managerId;
+
 
   if (safePayload.password !== undefined) {
     ensurePasswordStrength(safePayload.password);

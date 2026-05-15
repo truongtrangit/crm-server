@@ -7,13 +7,13 @@ const EventActionChain = require("../models/EventActionChain");
 const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { createHttpError } = require("../utils/http");
-const { buildResourceScopeFilter } = require("../utils/resourceScope");
+
 
 class TaskService {
   /**
    * List tasks with pagination + search.
    */
-  async getTasks(queryParams = {}, currentUser = null) {
+  async getTasks(queryParams = {}, scopeFilter = {}) {
     const { search = "", status, assignees, isArchived, page: rawPage = 1, limit: rawLimit = 20 } = queryParams;
     const page = Math.max(parseInt(rawPage, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
@@ -23,16 +23,8 @@ class TaskService {
     const query = {};
 
     // ── RBAC Scoping — STAFF/MANAGER chỉ thấy task assigned/created ──
-    if (currentUser) {
-      const scopeFilter = await buildResourceScopeFilter(currentUser, {
-        assigneeField: "assignees.userId",
-        creatorField: "createdBy",
-        includeUnassigned: false,
-        assigneesArrayField: "assignees",
-      });
-      if (scopeFilter.$or) {
-        query.$and = [scopeFilter];
-      }
+    if (scopeFilter.$or) {
+      query.$and = [scopeFilter];
     }
 
     if (status) query.status = status;
@@ -340,12 +332,6 @@ class TaskService {
    * Lưu trữ tác vụ.
    */
   async archiveTask(id, currentUser) {
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN'];
-    if (!ELEVATED_ROLES.includes(roleId)) {
-      throw createHttpError(403, "Chỉ Admin/Owner mới có quyền lưu trữ tác vụ");
-    }
-
     const task = await this.getTaskById(id);
     if (task.status !== "closed") {
       throw createHttpError(400, "Chỉ có thể lưu trữ tác vụ đã đóng");
@@ -368,12 +354,6 @@ class TaskService {
    * Khôi phục tác vụ.
    */
   async unarchiveTask(id, currentUser) {
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN'];
-    if (!ELEVATED_ROLES.includes(roleId)) {
-      throw createHttpError(403, "Chỉ Admin/Owner mới có quyền khôi phục tác vụ");
-    }
-
     const task = await this.getTaskById(id);
     task.isArchived = false;
     task.logs.push({

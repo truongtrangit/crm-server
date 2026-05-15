@@ -79,7 +79,7 @@ class CustomerService {
     return customer;
   }
 
-  async createCustomer(payload) {
+  async createCustomer(payload, currentUser) {
     // Check if customer already exists
     const existingCustomer = await Customer.findOneWithDeleted({ email: payload.email }).lean();
     if (existingCustomer) {
@@ -114,6 +114,7 @@ class CustomerService {
         payload.lastLoginAt || new Date().toLocaleDateString("vi-VN"),
       tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
       extraInfo: payload.extraInfo || null,
+      createdBy: currentUser ? currentUser.id : null,
     });
 
     await CacheService.bumpNamespaceVersion("customers");
@@ -187,7 +188,7 @@ class CustomerService {
     return { customer: existing, changes };
   }
 
-  async deleteCustomer(id, currentUserId, { force = false } = {}) {
+  async deleteCustomer(id, { force = false } = {}) {
     const customer = await Customer.findOne({ id });
     if (!customer) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });

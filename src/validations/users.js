@@ -23,7 +23,6 @@ const createUserSchema = Joi.object({
   group: Joi.array().items(Joi.string()).optional(),
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
-  managerId: Joi.string().allow("", null).optional(),
   isActive: Joi.boolean().optional(),
 });
 
@@ -46,7 +45,6 @@ const updateUserSchema = Joi.object({
   group: Joi.array().items(Joi.string()).optional(),
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
-  managerId: Joi.string().allow("", null).optional(),
   isActive: Joi.boolean().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
@@ -56,10 +54,11 @@ const listUsersQuerySchema = Joi.object({
   search: Joi.string().allow("").optional(),
   department: Joi.string().allow("").optional(),
   role: Joi.string().allow("").optional(),
-  managerId: Joi.string().allow("").optional(),
   includeDeleted: Joi.string().valid("true", "false").optional(),
   page: Joi.number().integer().min(1).optional(),
   limit: Joi.number().integer().min(1).max(100).optional(),
+  assignmentScope: Joi.string().valid("true", "false").optional(),
+  scopedUserIds: Joi.array().items(Joi.string()).optional(),
 });
 
 module.exports = {

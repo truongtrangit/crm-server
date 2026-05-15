@@ -107,7 +107,6 @@ const users = [
     group: ["Nhóm Sale Hà Nội"],
     phone: "0901 000 004",
     role: "STAFF",
-    managerId: "USER3",
   },
   {
     id: "USER5",
@@ -119,7 +118,6 @@ const users = [
     group: ["Nhóm Sale HCM"],
     phone: "0901 000 005",
     role: "STAFF",
-    managerId: "USER3",
   },
   {
     id: "USER7",
@@ -131,7 +129,6 @@ const users = [
     group: ["Nhóm Sale Đà Nẵng"],
     phone: "0901 000 007",
     role: "STAFF",
-    managerId: "USER3",
   },
   {
     id: "USER8",
@@ -143,7 +140,6 @@ const users = [
     group: ["Nhóm Support L1"],
     phone: "0901 000 008",
     role: "STAFF",
-    managerId: "USER6",
   },
 ];
 

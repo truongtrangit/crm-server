@@ -3,7 +3,7 @@ const { sendSuccess } = require("../utils/http");
 
 class TaskController {
   async getTasks(req, res) {
-    const result = await TaskService.getTasks(req.query, req.user);
+    const result = await TaskService.getTasks(req.query, req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get tasks success", result);
   }
 

@@ -24,11 +24,17 @@ const router = express.Router({ mergeParams: true });
 
 // ─── Shared: task ownership check for all chain mutations ────────────────────
 const taskResourceAccess = requireResourceAccess({
+  // Helpers
   getResource: (req) => Task.findOne({ id: req.params.taskId }),
   getAssigneeIds: (task) => (task.assignees || []).map((a) => a.userId),
   getCreatorId: (task) => task.createdBy,
+
+  // Hành vi (Behaviors)
+  allowCreator: true,
+  allowAssignee: true,
   allowUnassigned: false,
-  allowManager: true,
+  allowManagerSubordinateCreator: true,
+  allowManagerSubordinateAssignee: true,
 });
 
 // ─── GET /api/tasks/:taskId/chains ───

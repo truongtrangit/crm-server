@@ -15,7 +15,7 @@ class CustomerController {
   }
 
   async createCustomer(req, res) {
-    const customer = await CustomerService.createCustomer(req.body || {});
+    const customer = await CustomerService.createCustomer(req.body || {}, req.user);
     SystemLogService.log({ action: "create", resource: RESOURCES.CUSTOMERS, resourceId: customer.id, resourceName: customer.name, description: `Tạo khách hàng "${customer.name}"`, metadata: { newItem: customer }, req });
     return sendSuccess(res, 201, "Create customer success", customer);
   }
@@ -28,7 +28,7 @@ class CustomerController {
 
   async deleteCustomer(req, res) {
     const force = req.query.force === 'true';
-    const customer = await CustomerService.deleteCustomer(req.params.id, req.user?.id, { force });
+    const customer = await CustomerService.deleteCustomer(req.params.id, { force });
     const name = customer ? customer.name : req.params.id;
     SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.CUSTOMERS, resourceId: req.params.id, resourceName: name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} khách hàng "${name}"`, metadata: { deletedItem: customer }, req });
     return sendSuccess(res, 200, "Delete customer success", null);

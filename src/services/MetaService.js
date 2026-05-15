@@ -10,7 +10,7 @@ const {
 } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
-const { buildResourceScopeFilter } = require("../utils/resourceScope");
+
 
 class MetaService {
   // ─── Config CRUD ────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ class MetaService {
 
   // ─── Program CRUD ──────────────────────────────────────────────────────────
 
-  async getPrograms(queryParams, currentUser = null) {
+  async getPrograms(queryParams, scopeFilter = {}) {
     const { search = "", type, time } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams);
@@ -99,16 +99,8 @@ class MetaService {
     const query = {};
 
     // ── RBAC Scoping — STAFF/MANAGER chỉ thấy program mình là PIC/creator ──
-    if (currentUser) {
-      const scopeFilter = await buildResourceScopeFilter(currentUser, {
-        assigneeField: "picIds",
-        creatorField: "createdBy",
-        includeUnassigned: true,
-        assigneesArrayField: "picIds",
-      });
-      if (scopeFilter.$or) {
-        query.$and = [scopeFilter];
-      }
+    if (scopeFilter.$or) {
+      query.$and = [scopeFilter];
     }
 
     if (searchRegex) {
@@ -210,8 +202,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     if (payload.picIds && payload.picIds.length > 0) {
       const usersCount = await User.countDocuments({ id: { $in: payload.picIds } });
       if (usersCount !== payload.picIds.length) {
@@ -269,8 +259,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     await program.softDelete();
     return program;
   }
@@ -284,8 +272,6 @@ class MetaService {
         code: "META_PROGRAM_NOT_FOUND",
       });
     }
-
-    await this._checkAccess(program, currentUser);
 
     const config = await MetaConfig.findOne({ id: program.typeId });
     if (config?.kpiType === 'task') {
@@ -335,8 +321,6 @@ class MetaService {
         code: "META_PROGRAM_NOT_FOUND",
       });
     }
-
-    await this._checkAccess(program, currentUser);
 
     const config = await MetaConfig.findOne({ id: program.typeId });
     if (config?.kpiType === "task") {
@@ -389,12 +373,6 @@ class MetaService {
   async updateMilestone(programId, milestoneId, payload, currentUser) {
     const program = await MetaProgram.findOne({ id: programId });
     if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });
-    await this._checkAccess(program, currentUser);
-
-    const role = (currentUser.roleId || "").toUpperCase();
-    if (!["OWNER", "ADMIN"].includes(role)) {
-      throw createHttpError(403, "Chỉ Owner/Admin mới có quyền sửa/xoá tiến độ", { code: "META_FORBIDDEN" });
-    }
 
     const milestone = program.milestones.id(milestoneId);
     if (!milestone) throw createHttpError(404, "Cột mốc không tồn tại", { code: "META_MILESTONE_NOT_FOUND" });
@@ -433,12 +411,6 @@ class MetaService {
   async deleteMilestone(programId, milestoneId, currentUser) {
     const program = await MetaProgram.findOne({ id: programId });
     if (!program) throw createHttpError(404, "Chương trình không tồn tại", { code: "META_PROGRAM_NOT_FOUND" });
-    await this._checkAccess(program, currentUser);
-
-    const role = (currentUser.roleId || "").toUpperCase();
-    if (!["OWNER", "ADMIN"].includes(role)) {
-      throw createHttpError(403, "Chỉ Owner/Admin mới có quyền sửa/xoá tiến độ", { code: "META_FORBIDDEN" });
-    }
 
     const milestone = program.milestones.id(milestoneId);
     if (!milestone) throw createHttpError(404, "Cột mốc không tồn tại", { code: "META_MILESTONE_NOT_FOUND" });
@@ -474,8 +446,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     program.tasks.push({
       title: payload.title,
       picId: payload.picId || null,
@@ -497,8 +467,6 @@ class MetaService {
         code: "META_PROGRAM_NOT_FOUND",
       });
     }
-
-    await this._checkAccess(program, currentUser);
 
     const task = program.tasks.id(taskId);
     if (!task) {
@@ -537,8 +505,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     const task = program.tasks.id(taskId);
     if (!task) {
       throw createHttpError(404, "Công việc không tồn tại", {
@@ -562,8 +528,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     program.attachments.push({
       fileName: payload.fileName,
       url: payload.url,
@@ -582,8 +546,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     const att = program.attachments.id(attachmentId);
     if (!att) {
       throw createHttpError(404, "Tài liệu không tồn tại", {
@@ -598,45 +560,6 @@ class MetaService {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  async _checkAccess(program, currentUser) {
-    if (!currentUser) return;
-    const role = (currentUser.roleId || "").toUpperCase();
-
-    // OWNER/ADMIN bypass
-    if (["OWNER", "ADMIN"].includes(role)) return;
-
-    const picIds = program.picIds || [];
-
-    // Direct PIC check — user is a person-in-charge
-    if (picIds.includes(currentUser.id)) return;
-
-    // Creator check
-    if (program.createdBy && program.createdBy === currentUser.id) return;
-
-    // Manager subordinate check — manager of a PIC or creator
-    if (role === "MANAGER") {
-      const User = require("../models/User");
-      const subordinates = await User.find({ managerId: currentUser.id })
-        .select("id")
-        .lean();
-      const subIds = subordinates.map((u) => u.id);
-      
-      const isSubordinatePic = picIds.some((id) => subIds.includes(id));
-      const isSubordinateCreator = program.createdBy && subIds.includes(program.createdBy);
-
-      if (isSubordinatePic || isSubordinateCreator) return;
-    }
-
-    throw createHttpError(403, "Bạn không có quyền thao tác trên chương trình này (chỉ người phụ trách mới được phép)", {
-      code: "META_FORBIDDEN",
-    });
-  }
-
-  /**
-   * Recalculate progressPercent based on the program's KPI type:
-   * - metric: average % of each kpiTarget (current / target)
-   * - task: % of completed tasks
-   */
   async _recalculateProgress(program) {
     // We need the config to know kpiType
     const config = await MetaConfig.findOne({ id: program.typeId });
@@ -676,8 +599,6 @@ class MetaService {
       });
     }
 
-    await this._checkAccess(program, currentUser);
-
     program.comments.push({
       content: payload.content,
       userId: currentUser.id || "",
@@ -695,8 +616,6 @@ class MetaService {
         code: "META_PROGRAM_NOT_FOUND",
       });
     }
-
-    await this._checkAccess(program, currentUser);
 
     const role = (currentUser.roleId || "").toUpperCase();
     const comment = program.comments.id(commentId);

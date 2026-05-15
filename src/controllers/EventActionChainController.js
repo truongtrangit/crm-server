@@ -13,7 +13,7 @@ const AutomationLogService = require("../services/AutomationLogService");
 const { RESOURCES } = require("../constants/rbac");
 
 const EventService = require("../services/EventService");
-const { buildResourceScopeFilter } = require("../utils/resourceScope");
+
 // Ownership check is now handled by requireResourceAccess middleware
 
 // ─── Helpers ───
@@ -443,12 +443,7 @@ class EventActionChainController {
     const isManager = roleName === "MANAGER";
 
     // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────
-    const scopeFilter = await buildResourceScopeFilter(req.user, {
-      assigneeField: "assignees.userId",
-      creatorField: "createdBy",
-      includeUnassigned: true,
-      assigneesArrayField: "assignees",
-    });
+    const scopeFilter = req.resourceScopeFilter || {};
 
     let allowedEventIds = null; // null = không giới hạn (owner/admin)
     if (scopeFilter.$or) {

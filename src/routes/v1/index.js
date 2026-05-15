@@ -11,6 +11,7 @@ const functionsRouter = require("./functions");
 const rbacRouter = require("./rbac");
 const actionConfigRouter = require("./actionConfig");
 const eventChainsRouter = require("./eventChains");
+const globalEventChainsRouter = require("./globalEventChains");
 const webhooksRouter = require("./webhooks");
 const logsRouter = require("./logs");
 const metaRouter = require("./meta");
@@ -20,10 +21,8 @@ const taskRouter = require("./tasks");
 const taskChainsRouter = require("./taskChains");
 const funnelsRouter = require("./funnels");
 
-const { authenticateRequest, requirePermission } = require("../../middleware/auth");
-const { PERMISSIONS } = require("../../constants/rbac");
+const { authenticateRequest } = require("../../middleware/auth");
 const { sendSuccess } = require("../../utils/http");
-const EventActionChainController = require("../../controllers/EventActionChainController");
 
 const v1Router = Router();
 
@@ -71,18 +70,12 @@ v1Router.use("/lead-config", leadConfigRouter);
 v1Router.use("/leads", leadRouter);
 v1Router.use("/tasks", taskRouter);
 v1Router.use("/funnels", funnelsRouter);
+v1Router.use("/event-chains", globalEventChainsRouter);
 
 // Nested: chuỗi hành động trong sự kiện
 v1Router.use("/events/:eventId/chains", eventChainsRouter);
 
 // Nested: chuỗi hành động trong tác vụ
 v1Router.use("/tasks/:taskId/chains", taskChainsRouter);
-
-// Task Queue: lấy tất cả steps cần làm (cross-event)
-v1Router.get(
-  "/event-chains/queue",
-  requirePermission(PERMISSIONS.EVENT_CHAINS_READ),
-  EventActionChainController.getTaskQueue,
-);
 
 module.exports = v1Router;
