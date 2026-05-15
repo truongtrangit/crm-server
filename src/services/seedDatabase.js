@@ -162,13 +162,13 @@ async function seedDatabase() {
   await seedCollection(Reason, seedData.reasons, "reasons");
   await seedCollection(Result, seedData.results, "results");
   await seedCollection(Action, seedData.actions, "actions");
-  await seedCollection(ActionChain, seedData.actionChains, "action chains");
+  // await seedCollection(ActionChain, seedData.actionChains, "action chains");
 
   // Seed RBAC
   await seedRbac();
 
   // Migrate existing users to RBAC
-  await migrateUsersToRbac();
+  // await migrateUsersToRbac();
 
   // Seed counters if not present (ensures monotonic IDs start correctly)
   await seedCounters();

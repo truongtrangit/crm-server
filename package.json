@@ -4,7 +4,9 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "dotenv -e .env -- node --watch src/server.js",
+    "vps": "dotenv -e .env.vps -- node --watch src/server.js",
+    "prod": "dotenv -e .env.prod -- node src/server.js",
     "start": "node src/server.js",
     "check": "find src -name '*.js' -print0 | xargs -0 -n1 node --check",
     "db:reset": "node src/scripts/resetAndSeed.js",
@@ -19,7 +21,8 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.2",
+    "dotenv-cli": "^11.0.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
     "fast-json-stable-stringify": "^2.1.0",
