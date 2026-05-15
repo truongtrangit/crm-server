@@ -3,12 +3,12 @@ const { sendSuccess } = require("../utils/http");
 
 class LeadController {
   async getLeads(req, res) {
-    const result = await LeadService.getLeads(req.query, req.user);
+    const result = await LeadService.getLeads(req.query, req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get leads success", result);
   }
 
   async getStageCounts(req, res) {
-    const counts = await LeadService.getStageCounts(req.user);
+    const counts = await LeadService.getStageCounts(req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get stage counts success", counts);
   }
 
@@ -29,6 +29,11 @@ class LeadController {
       req.user,
     );
     return sendSuccess(res, 200, "Update lead success", lead);
+  }
+
+  async selfAssignLead(req, res) {
+    const lead = await LeadService.selfAssignLead(req.params.id, req.body.functionId, req.user);
+    return sendSuccess(res, 200, "Self assign success", lead);
   }
 
   async confirmStage(req, res) {

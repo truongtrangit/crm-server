@@ -1,8 +1,10 @@
 const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
+const { requireResourceAccess } = require("../../middleware/resourceAccess");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const EventActionChainController = require("../../controllers/EventActionChainController");
+const Event = require("../../models/Event");
 const {
   addChainToEventSchema,
   saveStepSchema,
@@ -13,6 +15,21 @@ const {
 } = require("../../validations/eventActionChain");
 
 const router = express.Router({ mergeParams: true });
+
+// ─── Shared: event ownership check for all chain mutations ───────────────────
+const eventResourceAccess = requireResourceAccess({
+  // Helpers
+  getResource: (req) => Event.findOne({ id: req.params.eventId }),
+  getAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
+  getCreatorId: (event) => event.createdBy,
+
+  // Hành vi (Behaviors)
+  allowCreator: true,
+  allowAssignee: true,
+  allowUnassigned: true,
+  allowManagerSubordinateCreator: true,
+  allowManagerSubordinateAssignee: true,
+});
 
 // ─── GET /api/events/:eventId/chains ───
 router.get(
@@ -25,6 +42,7 @@ router.get(
 router.post(
   "/",
   requirePermission(PERMISSIONS.EVENT_CHAINS_CREATE),
+  eventResourceAccess,
   validate(addChainToEventSchema),
   EventActionChainController.addChain
 );
@@ -34,6 +52,7 @@ router.post(
 router.post(
   "/:chainId/steps",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   validate(injectStepSchema),
   EventActionChainController.injectStep
 );
@@ -43,6 +62,7 @@ router.post(
 router.put(
   "/:chainId/steps/current",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   validate(saveStepSchema),
   EventActionChainController.saveCurrentStep
 );
@@ -52,6 +72,7 @@ router.put(
 router.patch(
   "/:chainId/steps/current/delay",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   validate(updateStepDelaySchema),
   EventActionChainController.updateCurrentStepDelay
 );
@@ -61,6 +82,7 @@ router.patch(
 router.patch(
   "/:chainId/steps/:stepOrder/note",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   validate(updateStepNoteSchema),
   EventActionChainController.updateStepNote
 );
@@ -70,6 +92,7 @@ router.patch(
 router.put(
   "/:chainId/steps/:stepOrder/branches",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   validate(upsertStepBranchSchema),
   EventActionChainController.upsertStepBranch
 );
@@ -79,6 +102,7 @@ router.put(
 router.delete(
   "/:chainId/steps/:stepOrder/branches/:resultId",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   EventActionChainController.deleteStepBranch
 );
 
@@ -87,6 +111,7 @@ router.delete(
 router.post(
   "/:chainId/steps/current/execute-block-automation",
   requirePermission(PERMISSIONS.EVENT_CHAINS_UPDATE),
+  eventResourceAccess,
   EventActionChainController.executeBlockAutomationStep
 );
 
@@ -94,6 +119,7 @@ router.post(
 router.put(
   "/:chainId/close",
   requirePermission(PERMISSIONS.EVENT_CHAINS_CLOSE),
+  eventResourceAccess,
   EventActionChainController.closeChain
 );
 
@@ -101,6 +127,7 @@ router.put(
 router.delete(
   "/:chainId",
   requirePermission(PERMISSIONS.EVENT_CHAINS_DELETE),
+  eventResourceAccess,
   EventActionChainController.deleteChain
 );
 

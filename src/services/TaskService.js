@@ -8,11 +8,12 @@ const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { createHttpError } = require("../utils/http");
 
+
 class TaskService {
   /**
    * List tasks with pagination + search.
    */
-  async getTasks(queryParams = {}) {
+  async getTasks(queryParams = {}, scopeFilter = {}) {
     const { search = "", status, assignees, isArchived, page: rawPage = 1, limit: rawLimit = 20 } = queryParams;
     const page = Math.max(parseInt(rawPage, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
@@ -20,6 +21,12 @@ class TaskService {
     const searchRegex = buildSearchRegex(search);
 
     const query = {};
+
+    // ── RBAC Scoping — STAFF/MANAGER chỉ thấy task assigned/created ──
+    if (scopeFilter.$or) {
+      query.$and = [scopeFilter];
+    }
+
     if (status) query.status = status;
     if (isArchived === 'true') {
       query.isArchived = true;
@@ -182,6 +189,7 @@ class TaskService {
       id,
       name: data.name,
       status: "active",
+      createdBy: currentUser?.id || null,
       assignees,
       tags: data.tags || [],
       note: data.note || "",
@@ -324,12 +332,6 @@ class TaskService {
    * Lưu trữ tác vụ.
    */
   async archiveTask(id, currentUser) {
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN'];
-    if (!ELEVATED_ROLES.includes(roleId)) {
-      throw createHttpError(403, "Chỉ Admin/Owner mới có quyền lưu trữ tác vụ");
-    }
-
     const task = await this.getTaskById(id);
     if (task.status !== "closed") {
       throw createHttpError(400, "Chỉ có thể lưu trữ tác vụ đã đóng");
@@ -352,12 +354,6 @@ class TaskService {
    * Khôi phục tác vụ.
    */
   async unarchiveTask(id, currentUser) {
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN'];
-    if (!ELEVATED_ROLES.includes(roleId)) {
-      throw createHttpError(403, "Chỉ Admin/Owner mới có quyền khôi phục tác vụ");
-    }
-
     const task = await this.getTaskById(id);
     task.isArchived = false;
     task.logs.push({
@@ -499,18 +495,6 @@ class TaskService {
     return task;
   }
 
-  async checkTaskOwnership(id, currentUser) {
-    const task = await Task.findOne({ id });
-    if (!task) throw createHttpError(404, "Task không tồn tại");
-    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
-
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
-    if (ELEVATED_ROLES.includes(roleId)) return true;
-
-    if (task.assignees.some(a => a.userId === currentUser.id)) return true;
-    throw createHttpError(403, "Bạn không có quyền cập nhật tác vụ này");
-  }
 
   /**
    * Lấy tất cả tasks liên kết với 1 event.

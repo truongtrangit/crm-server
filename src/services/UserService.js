@@ -222,78 +222,7 @@ function canAssignRole(actorRole, targetRole) {
   return (actorRole.level || 0) > (targetRole.level || 0);
 }
 
-function canManageUserByRole(actor, actorRole, targetUser, targetRole) {
-  if (!actor || !actorRole || !targetUser || !targetRole) {
-    return false;
-  }
 
-  if (actor.id === targetUser.id) {
-    return false;
-  }
-
-  if (actorRole.name === OWNER_ROLE_NAME) {
-    return targetRole.name !== OWNER_ROLE_NAME;
-  }
-
-  if ((actorRole.level || 0) <= (targetRole.level || 0)) {
-    return false;
-  }
-
-  if (actorRole.name === MANAGER_ROLE_NAME) {
-    const managerDeptAliases = Array.isArray(actor.departmentAliases)
-      ? actor.departmentAliases
-      : Array.isArray(actor.department)
-        ? actor.department
-        : [];
-    const targetDeptAliases = Array.isArray(targetUser.departmentAliases)
-      ? targetUser.departmentAliases
-      : Array.isArray(targetUser.department)
-        ? targetUser.department
-        : [];
-
-    return targetDeptAliases.some((alias) =>
-      managerDeptAliases.includes(alias),
-    );
-  }
-
-  return true;
-}
-
-async function ensureManagerExists(
-  managerId,
-  department,
-  group,
-  departmentAliases = [],
-  groupAliases = [],
-) {
-  if (!managerId) {
-    return null;
-  }
-
-  const manager = await User.findOne({ id: managerId }).lean();
-
-  const managerRoleName = await getUserRoleName(manager);
-
-  if (!manager || managerRoleName !== MANAGER_ROLE_NAME) {
-    throw createHttpError(400, "managerId must reference a manager user");
-  }
-
-  if (
-    !isWithinManagerScope(manager, {
-      department,
-      group,
-      departmentAliases,
-      groupAliases,
-    })
-  ) {
-    throw createHttpError(
-      400,
-      "department/group must belong to the assigned manager scope",
-    );
-  }
-
-  return manager;
-}
 
 function serializeUser(user) {
   const item =
@@ -326,9 +255,13 @@ async function buildUserListQuery(actor, filters = {}) {
   // but will receive only basic fields (handled in listUsers).
   // We still build the query normally so pagination works.
 
-  const { search = "", department, role, managerId } = filters;
+  const { search = "", department, role, scopedUserIds } = filters;
   const searchRegex = buildSearchRegex(search);
   const query = {};
+
+  if (scopedUserIds) {
+    query.id = Array.isArray(scopedUserIds) ? { $in: scopedUserIds } : scopedUserIds;
+  }
 
   if (searchRegex) {
     query.$or = [
@@ -398,8 +331,6 @@ async function buildUserListQuery(actor, filters = {}) {
         // Manager has no departments assigned — return nothing
         query._id = null;
       }
-    } else if (managerId) {
-      query.managerId = normalizeString(managerId);
     }
   }
 
@@ -428,23 +359,18 @@ async function listUsers(actor, filters) {
 
     // Owner/Admin can see deleted users
     const roleName = (await getUserRoleName(actor) || "").toUpperCase();
-    const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.includeDeleted === "true";
-
-    let users, totalItems;
+    const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.isDeleted === "true";
 
     const sortObj = resolveSort(filters, ["createdAt", "name", "updatedAt", "email", "roleId"]);
 
     if (canSeeDeleted) {
-      [users, totalItems] = await Promise.all([
-        User.findWithDeleted(query).sort(sortObj).skip(skip).limit(limit).lean(),
-        User.countWithDeleted(query),
-      ]);
-    } else {
-      [users, totalItems] = await Promise.all([
-        User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
-        User.countDocuments(query),
-      ]);
+      query.isDeleted = true;
     }
+
+    const [users, totalItems] = await Promise.all([
+      User.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+      User.countDocuments(query),
+    ]);
 
     // Staff (no USERS_READ) gets only basic info; others get full data
     const serializer = hasReadPermission ? serializeUser : serializeUserBasic;
@@ -543,25 +469,11 @@ async function createUserAccount(actor, payload = {}) {
   ) {
     throw createHttpError(
       403,
-      "Manager can only create staff inside their department/group scope",
+      "Manager chỉ được tạo nhân viên trong phạm vi quản lý của mình",
     );
   }
 
-  let managerId = normalizeString(payload.managerId) || null;
 
-  if (targetRole.name !== STAFF_ROLE_NAME) {
-    managerId = null;
-  } else if (actorRoleName === MANAGER_ROLE_NAME) {
-    managerId = actor.id;
-  }
-
-  await ensureManagerExists(
-    managerId,
-    department,
-    group,
-    organizationAssignments.departmentAliases,
-    organizationAssignments.groupAliases,
-  );
 
   const user = await User.create({
     id: await generateMonotonicId(ID_PREFIXES.USER),
@@ -578,58 +490,12 @@ async function createUserAccount(actor, payload = {}) {
     companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
-    managerId,
+
     createdBy: actor.id,
   });
 
   await CacheService.bumpNamespaceVersion("users");
   return serializeUser(user);
-}
-
-async function getUserForStaffApi(actor, userId) {
-  if (
-    !(await hasAnyPermission(actor, [
-      PERMISSIONS.USERS_READ,
-      PERMISSIONS.USERS_MANAGE,
-      PERMISSIONS.USERS_CREATE,
-      PERMISSIONS.USERS_UPDATE,
-      PERMISSIONS.USERS_DELETE,
-    ]))
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to access staff APIs",
-    );
-  }
-
-  const user = await User.findOne({ id: userId });
-
-  if (!user) {
-    throw createHttpError(404, "User not found");
-  }
-
-  const actorRoleName = await getUserRoleName(actor);
-  if (actorRoleName === MANAGER_ROLE_NAME) {
-    const managerDeptAliases = Array.isArray(actor.departmentAliases)
-      ? actor.departmentAliases
-      : Array.isArray(actor.department)
-        ? actor.department
-        : [];
-    const userDeptAliases = Array.isArray(user.departmentAliases)
-      ? user.departmentAliases
-      : Array.isArray(user.department)
-        ? user.department
-        : [];
-    const hasOverlap = userDeptAliases.some((alias) =>
-      managerDeptAliases.includes(alias),
-    );
-
-    if (!hasOverlap) {
-      throw createHttpError(404, "User not found");
-    }
-  }
-
-  return user;
 }
 
 async function updateUserAccount(actor, targetUser, payload = {}) {
@@ -655,19 +521,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
-  // ── Guard 3: Actor must have manage permission OR update + scope check ────
-  if (
-    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    !(
-      (await hasPermission(actor, PERMISSIONS.USERS_UPDATE)) &&
-      canManageUserByRole(actor, actorRole, targetUser, targetCurrentRole)
-    )
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to update this user",
-    );
-  }
+
 
   // ── Determine next role ───────────────────────────────────────────────────
   const nextRole =
@@ -741,7 +595,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   ) {
     throw createHttpError(
       403,
-      "Manager can only update staff inside their department/group scope",
+      "Manager chỉ được update nhân viên trong phạm vi quản lý của mình",
     );
   }
 
@@ -782,26 +636,12 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? payload.isActive
       : targetUser.isActive;
 
-  if (nextRole.name !== STAFF_ROLE_NAME) {
-    targetUser.managerId = null;
-  } else if ((await getUserRoleName(actor)) === MANAGER_ROLE_NAME) {
-    targetUser.managerId = actor.id;
-  } else if (payload.managerId !== undefined) {
-    const managerId = normalizeString(payload.managerId) || null;
-    await ensureManagerExists(
-      managerId,
-      organizationAssignments.departments,
-      organizationAssignments.groups,
-      organizationAssignments.departmentAliases,
-      organizationAssignments.groupAliases,
-    );
-    targetUser.managerId = managerId;
-  }
+
 
   await targetUser.save();
 
   const newState = targetUser.toObject();
-  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive", "managerId"];
+  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive"];
   const changes = computeChanges(oldState, newState, keysToCheck);
 
   await CacheService.bumpNamespaceVersion("users");
@@ -813,7 +653,7 @@ async function updateOwnProfile(actor, payload = {}) {
   const safePayload = { ...payload };
   delete safePayload.role;
   delete safePayload.roleId;
-  delete safePayload.managerId;
+
 
   if (safePayload.password !== undefined) {
     ensurePasswordStrength(safePayload.password);
@@ -983,21 +823,12 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
     }
   }
 
-  // ── Guard 4: Actor must have manage permission OR scope-based manage ──────
-  if (
-    !(await hasPermission(actor, PERMISSIONS.USERS_MANAGE)) &&
-    !canManageUserByRole(actor, actorRole, targetUser, targetRole)
-  ) {
-    throw createHttpError(
-      403,
-      "You do not have permission to delete this user",
-    );
-  }
+
 
   // ── Guard 5: Referential integrity — check Events assigned to this user ──
   if (!force) {
     const assignedEvents = await Event.find(
-      { assigneeId: targetUser.id },
+      { "assignees.userId": targetUser.id },
       { id: 1, name: 1 },
     ).lean();
     if (assignedEvents.length > 0) {
@@ -1017,15 +848,10 @@ async function deleteUserAccount(actor, targetUser, { force = false } = {}) {
   } else {
     // Force delete: nullify references in Events
     await Event.updateMany(
-      { assigneeId: targetUser.id },
+      { "assignees.userId": targetUser.id },
       {
-        $set: {
-          assigneeId: null,
-          "assignee.name": "(Đã xóa)",
-          "assignee.avatar": "",
-          "assignee.role": "",
-          "assignee.department": [],
-          "assignee.group": [],
+        $pull: {
+          assignees: { userId: targetUser.id },
         },
       },
     );
@@ -1086,16 +912,9 @@ async function permanentDeleteUserAccount(actor, userId) {
 
   // Cascade: nullify references in Events
   await Event.updateMany(
-    { assigneeId: targetUser.id },
+    { "assignees.userId": targetUser.id },
     {
-      $set: {
-        assigneeId: null,
-        "assignee.name": "(Đã xóa)",
-        "assignee.avatar": "",
-        "assignee.role": "",
-        "assignee.department": [],
-        "assignee.group": [],
-      },
+      $pull: { assignees: { userId: targetUser.id } },
     },
   );
 
@@ -1130,7 +949,6 @@ module.exports = {
   createUserAccount,
   deleteUserAccount,
   getOrgOptions,
-  getUserForStaffApi,
   listUsers,
   permanentDeleteUserAccount,
   restoreUserAccount,

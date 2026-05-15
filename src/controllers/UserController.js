@@ -1,7 +1,6 @@
 const {
   createUserAccount,
   deleteUserAccount,
-  getUserForStaffApi,
   listUsers,
   permanentDeleteUserAccount,
   restoreUserAccount,
@@ -27,16 +26,14 @@ class UserController {
   }
 
   async updateUser(req, res) {
-    const user = await getUserForStaffApi(req.user, req.params.id);
-    const { user: staff, changes } = await updateUserAccount(req.user, user, req.body || {});
+    const { user: staff, changes } = await updateUserAccount(req.user, req.resource, req.body || {});
     SystemLogService.log({ action: "update", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: staff.name, description: `Cập nhật nhân viên "${staff.name}"`, metadata: { changes }, req });
     return sendSuccess(res, 200, "Update staff success", staff);
   }
 
   async deleteUser(req, res) {
-    const user = await getUserForStaffApi(req.user, req.params.id);
     const force = req.query.force === 'true';
-    const deletedUser = await deleteUserAccount(req.user, user, { force });
+    const deletedUser = await deleteUserAccount(req.user, req.resource, { force });
     SystemLogService.log({ action: force ? "force_delete" : "delete", resource: RESOURCES.USERS, resourceId: req.params.id, resourceName: deletedUser.name, description: `${force ? 'Xóa vĩnh viễn' : 'Xóa'} nhân viên "${deletedUser.name}"`, metadata: { deletedItem: deletedUser }, req });
     return sendSuccess(res, 200, "Delete staff success", null);
   }

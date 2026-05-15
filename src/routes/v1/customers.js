@@ -1,8 +1,10 @@
 const express = require("express");
-const { requirePermission } = require("../../middleware/auth");
+const { requirePermission, requireRole } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const CustomerController = require("../../controllers/CustomerController");
+const { requireResourceAccess, scopeResourceList } = require("../../middleware/resourceAccess");
+const Customer = require("../../models/Customer");
 
 const {
   createCustomerSchema,
@@ -12,6 +14,25 @@ const {
 } = require("../../validations/customers");
 
 const router = express.Router();
+
+const customerResourceAccess = requireResourceAccess({
+  // Helper
+  getResource: (req) => Customer.findOne({ id: req.params.id }),
+  getCreatorId: (customer) => customer.createdBy,
+
+  // Behavior flags
+  allowCreator: true,
+  allowManagerSubordinateCreator: true,
+})
+
+const customerScopeList = scopeResourceList({
+  // Helpers — cấu trúc DB
+  creatorField: "createdBy",
+
+  // Hành vi (Behaviors)
+  includeUnassigned: true,
+});
+
 
 /**
  * GET /api/customers
@@ -32,6 +53,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
+  customerScopeList,
   CustomerController.getCustomerById
 );
 
@@ -53,6 +75,7 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  customerResourceAccess,
   validate(updateCustomerSchema),
   CustomerController.updateCustomer
 );
@@ -63,9 +86,8 @@ router.put(
  */
 router.delete(
   "/:id",
-  requirePermission(
-    PERMISSIONS.CUSTOMERS_DELETE
-  ),
+  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  customerResourceAccess,
   CustomerController.deleteCustomer
 );
 
@@ -76,6 +98,7 @@ router.delete(
  */
 router.put(
   "/:id/restore",
+  requireRole(["OWNER", "ADMIN"]),
   requirePermission(PERMISSIONS.CUSTOMER_RESTORE),
   CustomerController.restoreCustomer
 );
@@ -86,6 +109,7 @@ router.put(
  */
 router.delete(
   "/:id/permanent",
+  requireRole(["OWNER", "ADMIN"]),
   requirePermission(PERMISSIONS.CUSTOMERS_PERMANENT_DELETE),
   CustomerController.permanentDeleteCustomer
 );

@@ -62,6 +62,9 @@ const taskSchema = new mongoose.Schema(
     /** Trạng thái lưu trữ */
     isArchived: { type: Boolean, default: false },
 
+    /** Người tạo task — dùng cho resource-level access control */
+    createdBy: { type: String, ref: "User", default: null, index: true },
+
     /** Nhiều nhân sự phụ trách, mỗi người 1 chức năng */
     assignees: [assigneeSchema],
 

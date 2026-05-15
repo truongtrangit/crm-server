@@ -151,7 +151,7 @@ async function syncUserOrganizationReferences() {
 async function seedDatabase() {
   await seedCollection(Organization, seedData.organizations, "organization items");
   await syncOrganizationAliases();
-  await seedUsers();
+  // await seedUsers();
   await syncUserOrganizationReferences();
   // await seedCollection(Customer, seedData.customers, "customers");
 

@@ -81,9 +81,6 @@ class MetadataService {
         staffFunctions,
         leadStatuses,
         leadStatusGroups,
-        actionResults,
-        actionReasons,
-        actions,
         funnelFolders,
         funnelGroups,
         funnels,
@@ -93,9 +90,6 @@ class MetadataService {
         StaffFunction.find().sort({ createdAt: 1 }).lean(),
         LeadStatus.find().sort({ createdAt: 1 }).lean(),
         LeadStatusGroup.find().sort({ createdAt: 1 }).lean(),
-        Result.find().sort({ createdAt: -1 }).lean(),
-        Reason.find().sort({ createdAt: -1 }).lean(),
-        Action.find().sort({ createdAt: -1 }).lean(),
         FunnelFolder.find().sort({ createdAt: 1 }).lean(),
         FunnelGroup.find().sort({ createdAt: 1 }).lean(),
         Funnel.find().sort({ createdAt: 1 }).lean(),
@@ -132,13 +126,6 @@ class MetadataService {
           folders: funnelFolders,
           groups: funnelGroups,
           items: funnels,
-        },
-
-        // Cấu hình báo cáo Tác vụ (Action Config)
-        actionConfig: {
-          results: actionResults,
-          reasons: actionReasons,
-          actions: actions,
         },
 
         // Cấu hình Fields để mapping tự động (Action Chain Block Automation)

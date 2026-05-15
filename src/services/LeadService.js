@@ -11,6 +11,7 @@ const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
 const { LEAD_STAGE_MAP, getNextStage } = require("../constants/leadStages");
 
+
 class LeadService {
   /**
    * List leads with RBAC scoping + lazy load (cursor-based or offset).
@@ -22,15 +23,17 @@ class LeadService {
    *            ?lastId=LEAD0050 (cursor for lazy load)
    *            ?limit=20
    */
-  async getLeads(queryParams, currentUser) {
+  async getLeads(queryParams, scopeFilter = {}) {
     const { search = "", stage, lastId, limit: rawLimit = 20 } = queryParams;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
     const searchRegex = buildSearchRegex(search);
 
     const andClauses = [];
 
-    // ── RBAC Scoping ──
-    // Staff can see all leads, so no restriction on read.
+    // ── RBAC Scoping ─ STAFF/MANAGER chỉ thấy lead assigned/created + unassigned ──
+    if (scopeFilter.$or) {
+      andClauses.push(scopeFilter);
+    }
 
     // ── Search ──
     if (searchRegex) {
@@ -93,12 +96,10 @@ class LeadService {
   /**
    * Get lead counts per stage — cho Kanban header.
    */
-  async getStageCounts(currentUser) {
-    // Staff can see all leads, so no restriction on read.
-    const matchStage = {};
-
+  async getStageCounts(scopeFilter = {}) {
+    // RBAC Scoping — đồng bộ với getLeads
     const counts = await Lead.aggregate([
-      { $match: matchStage },
+      { $match: scopeFilter },
       { $group: { _id: "$stage", count: { $sum: 1 } } },
     ]);
 
@@ -148,6 +149,7 @@ class LeadService {
       address: data.address || {},
       street: data.street || "",
       source: data.source || "CRM",
+      createdBy: currentUser?.id || null,
       tags: data.tags || [],
       note: data.note || "",
       activityLogs: [
@@ -167,22 +169,12 @@ class LeadService {
    */
   async updateLead(id, updates, currentUser) {
     const lead = await this.getLeadById(id);
-    this._checkOwnership(lead, currentUser);
+    // Ownership check đã được xử lý bởi requireResourceAccess middleware
 
     const before = lead.toObject();
 
     // Resolve assignees nếu có gửi lên
     if (updates.assignees) {
-      const role = (currentUser?.roleId || "").toUpperCase();
-      if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) {
-        throw createHttpError(
-          403,
-          "Chỉ Manager, Admin hoặc Owner mới có quyền phân công lead.",
-          {
-            code: "ASSIGN_LEAD_FORBIDDEN",
-          },
-        );
-      }
       updates.assignees = await this._resolveAssignees(updates.assignees);
     }
 
@@ -267,7 +259,7 @@ class LeadService {
    */
   async confirmStage(id, currentUser) {
     const lead = await this.getLeadById(id);
-    this._checkOwnership(lead, currentUser);
+    // Ownership check đã được xử lý bởi requireResourceAccess middleware
 
     const nextStage = getNextStage(lead.stage);
     if (!nextStage) {
@@ -316,7 +308,7 @@ class LeadService {
    */
   async deleteLead(id, currentUser) {
     const lead = await this.getLeadById(id);
-    this._checkOwnership(lead, currentUser);
+    // Ownership check đã được xử lý bởi requireResourceAccess middleware
 
     // Push activity log before soft delete
     const performer = this._extractPerformer(currentUser);
@@ -378,13 +370,41 @@ class LeadService {
    */
   async addDiscussion(id, content, currentUser) {
     const lead = await this.getLeadById(id);
-    this._checkDiscussionPermission(lead, currentUser);
+    // Discussion permission đã được xử lý bởi requireResourceAccess middleware
 
     const performer = this._extractPerformer(currentUser);
 
     lead.discussions.push({
       content: content.trim(),
       createdBy: performer,
+    });
+
+    await lead.save();
+    return lead;
+  }
+
+  async selfAssignLead(id, functionId, currentUser) {
+    const lead = await this.getLeadById(id);
+
+    const isAssigned = lead.assignees && lead.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
+    if (isAssigned) {
+      return lead;
+    }
+
+    const before = lead.toObject();
+    
+    // Resolve assignee format
+    const newAssignees = [...(lead.assignees || []), { userId: currentUser.id, functionId }];
+    lead.assignees = await this._resolveAssignees(newAssignees);
+
+    const changes = computeChanges(before, lead.toObject());
+
+    const performer = this._extractPerformer(currentUser);
+    lead.activityLogs.push({
+      action: "assign",
+      description: `Tự nhận phụ trách lead "${lead.name}"`,
+      performedBy: performer,
+      metadata: { changes },
     });
 
     await lead.save();
@@ -456,48 +476,6 @@ class LeadService {
       }));
   }
 
-  /**
-   * Ownership check — ADMIN/OWNER luôn qua.
-   * STAFF/MANAGER chỉ sửa lead mà họ là assignee.
-   * MANAGER có thể sửa lead mà họ là manager của assignee đó.
-   */
-  _checkOwnership(lead, currentUser) {
-    const role = (currentUser?.roleId || "").toUpperCase();
-    if (["OWNER", "ADMIN"].includes(role)) return;
-
-    const isAssignee = lead.assignees.some((a) => a.userId === currentUser?.id);
-
-    if (["MANAGER"].includes(role) && !isAssignee) {
-      const isManagerOfAssignee = lead.assignees.some(
-        (a) => a.userId === currentUser?.managerId,
-      );
-      if (isManagerOfAssignee) return;
-    }
-
-    if (!isAssignee) {
-      throw createHttpError(403, "Bạn không có quyền thao tác lead này.", {
-        code: "LEAD_FORBIDDEN",
-      });
-    }
-  }
-
-  /**
-   * Discussion permission check:
-   * - ADMIN/OWNER: always allowed
-   * - MANAGER: always allowed
-   * - STAFF: only if assigned to this lead
-   */
-  _checkDiscussionPermission(lead, currentUser) {
-    const role = (currentUser?.roleId || "").toUpperCase();
-    if (["OWNER", "ADMIN", "MANAGER"].includes(role)) return;
-
-    const isAssignee = lead.assignees.some((a) => a.userId === currentUser?.id);
-    if (!isAssignee) {
-      throw createHttpError(403, "Chỉ nhân sự được gán mới có thể bình luận.", {
-        code: "LEAD_DISCUSSION_FORBIDDEN",
-      });
-    }
-  }
 
   /**
    * Extract performer info from currentUser.

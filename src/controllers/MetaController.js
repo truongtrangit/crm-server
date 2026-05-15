@@ -58,7 +58,7 @@ class MetaController {
   // ─── Programs ──────────────────────────────────────────────────────────────
 
   async getPrograms(req, res) {
-    const result = await MetaService.getPrograms(req.query);
+    const result = await MetaService.getPrograms(req.query, req.resourceScopeFilter);
     return sendSuccess(res, 200, "Lấy danh sách chương trình thành công", result);
   }
 
@@ -93,6 +93,22 @@ class MetaController {
       req,
     });
     return sendSuccess(res, 200, "Cập nhật chương trình thành công", program);
+  }
+
+  async selfAssignProgram(req, res) {
+    const { program, changes } = await MetaService.selfAssignProgram(req.params.id, req.user);
+    if (changes.length > 0) {
+      SystemLogService.log({
+        action: "assign",
+        resource: RESOURCES.META,
+        resourceId: program.id,
+        resourceName: program.name,
+        description: `Tự nhận phụ trách chương trình "${program.name}"`,
+        metadata: { changes },
+        req,
+      });
+    }
+    return sendSuccess(res, 200, "Tự nhận phụ trách thành công", program);
   }
 
   async deleteProgram(req, res) {

@@ -8,12 +8,12 @@ const { RESOURCES } = require("../constants/rbac");
 
 class EventController {
   async getEvents(req, res) {
-    const result = await EventService.getEvents(req.query, req.user);
+    const result = await EventService.getEvents(req.query, req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get event list success", result);
   }
 
   async getEventStats(req, res) {
-    const stats = await EventService.getEventStats(req.user);
+    const stats = await EventService.getEventStats(req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get event stats success", stats);
   }
 
@@ -29,7 +29,6 @@ class EventController {
   }
 
   async updateEvent(req, res) {
-    await EventService.checkEventOwnership(req.params.id, req.user);
     const { event, changes } = await EventService.updateEvent(req.params.id, req.body || {});
     SystemLogService.log({ 
       action: "update", 
@@ -44,7 +43,6 @@ class EventController {
   }
 
   async addEventTimeline(req, res) {
-    await EventService.checkEventOwnership(req.params.id, req.user);
     const payload = req.body || {};
     const event = await EventService.addEventTimeline(req.params.id, payload, req.user);
     
@@ -91,7 +89,7 @@ class EventController {
    * Cho phép nhiều người cùng assign vào 1 event.
    */
   async selfAssignEvent(req, res) {
-    const event = await EventService.selfAssignEvent(req.params.id, req.user);
+    const event = await EventService.selfAssignEvent(req.params.id, req.body.functionId, req.user);
     SystemLogService.log({ action: "assign", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Tự nhận sự kiện "${event.name}"`, req });
     return sendSuccess(res, 200, 'Tự nhận sự kiện thành công', event);
   }

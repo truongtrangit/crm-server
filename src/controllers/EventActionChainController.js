@@ -13,7 +13,8 @@ const AutomationLogService = require("../services/AutomationLogService");
 const { RESOURCES } = require("../constants/rbac");
 
 const EventService = require("../services/EventService");
-// Ownership check is now handled in EventService
+
+// Ownership check is now handled by requireResourceAccess middleware
 
 // ─── Helpers ───
 
@@ -69,7 +70,7 @@ class EventActionChainController {
   // ─── POST /api/events/:eventId/chains ───
   async addChain(req, res) {
     const { eventId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { chainId } = req.body;
 
     const template = await ActionChain.findOne({ id: chainId }).lean();
@@ -127,7 +128,7 @@ class EventActionChainController {
   // ─── PUT /api/events/:eventId/chains/:chainId/steps/current ───
   async saveCurrentStep(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const {
       selectedResultId, selectedReasonId, note,
       nextStepDelay,
@@ -276,7 +277,7 @@ class EventActionChainController {
   // Thêm mới một step vào chain (sau step hiện tại)
   async injectStep(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { actionId, delayUnit, delayValue, insertAfterOrder } = req.body;
 
     if (!actionId) throw createHttpError(400, "actionId là bắt buộc");
@@ -338,7 +339,7 @@ class EventActionChainController {
   // ─── PATCH /api/events/:eventId/chains/:chainId/steps/current/delay ───
   async updateCurrentStepDelay(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { delayUnit, delayValue, editNote } = req.body;
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
@@ -366,7 +367,7 @@ class EventActionChainController {
   // ─── PATCH /api/events/:eventId/chains/:chainId/steps/:stepOrder/note ───
   async updateStepNote(req, res) {
     const { eventId, chainId, stepOrder } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const { note } = req.body;
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
@@ -384,7 +385,7 @@ class EventActionChainController {
   // ─── PUT /api/events/:eventId/chains/:chainId/close ───
   async closeChain(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
     if (chain.status === "closed") throw createHttpError(400, "Chuỗi đã đóng rồi");
@@ -401,7 +402,7 @@ class EventActionChainController {
   // ─── DELETE /api/events/:eventId/chains/:chainId ───
   async deleteChain(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
@@ -442,22 +443,11 @@ class EventActionChainController {
     const isManager = roleName === "MANAGER";
 
     // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────
+    const scopeFilter = req.resourceScopeFilter || {};
+
     let allowedEventIds = null; // null = không giới hạn (owner/admin)
-
-    if (!isAdminOrOwner) {
-      // Xây dựng danh sách assigneeId được phép
-      const allowedUserIds = new Set([req.user.id]);
-
-      if (isManager) {
-        // Manager thấy events của bản thân + nhân viên dưới quyền
-        const subordinates = await User.find({ managerId: req.user.id }).select("id");
-        subordinates.forEach((u) => allowedUserIds.add(u.id));
-      }
-      // staff: chỉ thấy event của chính mình (allowedUserIds = { req.user.id })
-
-      const allowedEvents = await Event.find({
-        assigneeId: { $in: [...allowedUserIds] },
-      }).select("id");
+    if (scopeFilter.$or) {
+      const allowedEvents = await Event.find(scopeFilter).select("id");
       allowedEventIds = allowedEvents.map((e) => e.id);
     }
 
@@ -504,7 +494,7 @@ class EventActionChainController {
         ]
       }).select("id");
       const deptUserIds = deptUsers.map((u) => u.id);
-      eventQuery.assigneeId = { $in: deptUserIds };
+      eventQuery["assignees.userId"] = { $in: deptUserIds };
     }
 
     // Filter group (nhóm trong phòng ban — chỉ owner/admin/manager)
@@ -520,13 +510,13 @@ class EventActionChainController {
         ]
       }).select("id");
       const groupUserIds = groupUsers.map((u) => u.id);
-      // Nếu đã filter dept, giao nhau với assigneeId.$in
-      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
-        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
+      // Nếu đã filter dept, giao nhau với assignees.userId.$in
+      if (eventQuery["assignees.userId"] && eventQuery["assignees.userId"].$in) {
+        eventQuery["assignees.userId"].$in = eventQuery["assignees.userId"].$in.filter((id) =>
           groupUserIds.includes(id)
         );
       } else {
-        eventQuery.assigneeId = { $in: groupUserIds };
+        eventQuery["assignees.userId"] = { $in: groupUserIds };
       }
     }
 
@@ -534,12 +524,12 @@ class EventActionChainController {
     if (assignee) {
       const assignees = typeof assignee === "string" ? assignee.split(',').map(s => s.trim()).filter(Boolean) : assignee;
       const assigneeIds = Array.isArray(assignees) ? assignees : [assignees];
-      if (eventQuery.assigneeId && eventQuery.assigneeId.$in) {
-        eventQuery.assigneeId.$in = eventQuery.assigneeId.$in.filter((id) =>
+      if (eventQuery["assignees.userId"] && eventQuery["assignees.userId"].$in) {
+        eventQuery["assignees.userId"].$in = eventQuery["assignees.userId"].$in.filter((id) =>
           assigneeIds.includes(id)
         );
       } else {
-        eventQuery.assigneeId = { $in: assigneeIds };
+        eventQuery["assignees.userId"] = { $in: assigneeIds };
       }
     }
 
@@ -550,12 +540,12 @@ class EventActionChainController {
       eventQuery.$or = [
         { name: regex },
         { "customer.name": regex },
-        { "assignee.name": regex },
+        { "assignees.userName": regex },
       ];
     }
 
     const events = await Event.find(eventQuery)
-      .select("id name sub group stage customer assignee plan assigneeId");
+      .select("id name sub group stage customer assignees plan");
     const eventMap = Object.fromEntries(events.map((e) => [e.id, e]));
 
     // ── 4. Build queue ───────────────────────────────────────────────────────
@@ -579,7 +569,7 @@ class EventActionChainController {
           group: evt.group,
           stage: evt.stage,
           customer: evt.customer,
-          assignee: evt.assignee,
+          assignees: evt.assignees,
           plan: evt.plan,
         },
         step: {
@@ -615,7 +605,7 @@ class EventActionChainController {
    */
   async upsertStepBranch(req, res) {
     const { eventId, chainId, stepOrder } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
     const {
       resultId, nextStepType, nextActionId = null,
       closeOutcome = null, delayUnit = null, delayValue = null,
@@ -664,7 +654,7 @@ class EventActionChainController {
    */
   async deleteStepBranch(req, res) {
     const { eventId, chainId, stepOrder, resultId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
+
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
@@ -698,7 +688,6 @@ class EventActionChainController {
    */
   async executeBlockAutomationStep(req, res) {
     const { eventId, chainId } = req.params;
-    await EventService.checkEventOwnership(eventId, req.user);
 
     const chain = await EventActionChain.findOne({ id: chainId, eventId });
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");

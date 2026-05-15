@@ -93,6 +93,8 @@ const leadSchema = new mongoose.Schema(
     street: { type: String, default: "" },
 
     source: { type: String, default: "CRM" },
+    /** Người tạo lead — dùng cho resource-level access control */
+    createdBy: { type: String, ref: "User", default: null, index: true },
     tags: [{ type: String }],
     note: { type: String, default: "" },
 

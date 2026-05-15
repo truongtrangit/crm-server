@@ -58,6 +58,8 @@ const eventSchema = new mongoose.Schema(
     assignees: [assigneeSchema],
     stage: { type: String, default: "" },
     source: { type: String, default: "CRM" },
+    /** Người tạo event — dùng cho resource-level access control */
+    createdBy: { type: String, ref: "User", default: null, index: true },
     subscriptionId: { type: String, ref: "Subscription", default: null },
     tags: [{ type: String }],
     plan: {

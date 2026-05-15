@@ -12,8 +12,9 @@ const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../u
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
 
+
 class EventService {
-  async getEvents(queryParams, currentUser) {
+  async getEvents(queryParams, scopeFilter = {}) {
     const { search = "", group, stage, assignee } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
@@ -21,24 +22,9 @@ class EventService {
     // Dùng $and để tránh conflict giữa scope $or và search $or
     const andClauses = [];
 
-    const role = (currentUser?.roleId || '').toUpperCase();
-    const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(role);
-    const isManager = role === 'MANAGER';
-
-    // Scope: MANAGER / STAFF thấy event của mình + event chưa assign (+ nhân viên dưới cấp nếu là Manager)
-    if (!isAdminOrOwner) {
-      const allowedUserIds = [currentUser?.id];
-      if (isManager && currentUser?.id) {
-        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
-        allowedUserIds.push(...subordinates.map(u => u.id));
-      }
-
-      andClauses.push({
-        $or: [
-          { "assignees.userId": { $in: allowedUserIds } },
-          { assignees: { $size: 0 } },
-        ],
-      });
+    // Scope: MANAGER / STAFF thấy event của mình + event chưa assign + event mình tạo (+ nhân viên dưới cấp nếu là Manager)
+    if (scopeFilter.$or) {
+      andClauses.push(scopeFilter);
     }
 
     // Search text
@@ -71,7 +57,7 @@ class EventService {
     return buildPaginatedResponse(events, totalItems, page, limit);
   }
 
-  async getEventStats(currentUser) {
+  async getEventStats(scopeFilter = {}) {
     const groups = [
       "user_moi",
       "biz_moi",
@@ -80,28 +66,8 @@ class EventService {
       "chuyen_khoan",
     ];
 
-    const role = (currentUser?.roleId || '').toUpperCase();
-    const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(role);
-    const isManager = role === 'MANAGER';
-
-    let matchStage = {};
-
-    if (!isAdminOrOwner) {
-      const allowedUserIds = [currentUser?.id];
-      if (isManager && currentUser?.id) {
-        const subordinates = await User.find({ managerId: currentUser.id }).select("id");
-        allowedUserIds.push(...subordinates.map(u => u.id));
-      }
-      matchStage = {
-        $or: [
-          { "assignees.userId": { $in: allowedUserIds } },
-          { assignees: { $size: 0 } }
-        ]
-      };
-    }
-
     const counts = await Event.aggregate([
-      { $match: matchStage },
+      { $match: scopeFilter },
       { $group: { _id: "$group", count: { $sum: 1 } } },
     ]);
 
@@ -172,6 +138,7 @@ class EventService {
       biz: payload.biz || { id: "", tags: [] },
       stage: payload.stage || "",
       source: payload.source || "CRM",
+      createdBy: currentUser?.id || null,
       tags: payload.tags || [],
       plan: payload.plan || {
         name: "TRIAL",
@@ -380,23 +347,6 @@ class EventService {
     return event;
   }
 
-  async checkEventOwnership(id, currentUser) {
-    const roleId = (currentUser?.roleId || '').toUpperCase();
-    const ELEVATED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
-    if (ELEVATED_ROLES.includes(roleId)) return true;
-
-    const event = await Event.findOne({ id });
-    if (!event) {
-      const lead = await Lead.findOne({ id });
-      if (lead.assignees.some(a => a.userId === currentUser.id)) return true;
-      throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện/lead được giao cho bạn");
-    }
-    const isAssignee = event.assignees.some(a => a.userId === currentUser.id);
-    if (!isAssignee) {
-      throw createHttpError(403, "Bạn chỉ có thể cập nhật sự kiện được giao cho bạn");
-    }
-    return true;
-  }
 
   /**
    * Bỏ phân công 1 user khỏi event.
@@ -406,7 +356,6 @@ class EventService {
    * Nếu không truyền userId trong body, mặc định bỏ currentUser.
    */
   async unassignEvent(id, currentUser, targetUserId) {
-    const actorRole = (currentUser?.roleId || '').toUpperCase();
     const removeUserId = targetUserId || currentUser?.id;
 
     const event = await Event.findOne({ id });
@@ -415,23 +364,6 @@ class EventService {
     const existingAssignee = event.assignees.find(a => a.userId === removeUserId);
     if (!existingAssignee) {
       throw createHttpError(400, 'Người này chưa được phân công trong sự kiện');
-    }
-
-    if (actorRole === 'STAFF') {
-      if (removeUserId !== currentUser.id) {
-        throw createHttpError(403, 'Bạn chỉ có thể bỏ nhận sự kiện của chính mình');
-      }
-    }
-
-    if (actorRole === 'MANAGER') {
-      const isSelf = removeUserId === currentUser.id;
-      if (!isSelf) {
-        const assigneeUser = await User.findOne({ id: removeUserId });
-        const isDirectStaff = assigneeUser?.managerId === currentUser.id;
-        if (!isDirectStaff) {
-          throw createHttpError(403, 'Bạn chỉ có thể bỏ phân công của chính bạn hoặc nhân viên trực thuộc');
-        }
-      }
     }
 
     event.assignees = event.assignees.filter(a => a.userId !== removeUserId);
@@ -443,18 +375,18 @@ class EventService {
    * Tự gán bản thân vào event.
    * Cho phép nhiều người cùng assign vào 1 event (multi-assignee).
    */
-  async selfAssignEvent(id, currentUser) {
+  async selfAssignEvent(id, functionId, currentUser) {
     const event = await Event.findOne({ id });
     if (!event) throw createHttpError(404, 'Event not found');
 
     // Kiểm tra đã assign chưa
-    const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id);
+    const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
     if (alreadyAssigned) {
-      throw createHttpError(409, 'Bạn đã được phân công trong sự kiện này');
+      throw createHttpError(409, 'Bạn đã được phân công trong sự kiện này với vai trò này');
     }
 
     // Resolve thông tin user
-    const resolved = await this._resolveAssignees([{ userId: currentUser.id }]);
+    const resolved = await this._resolveAssignees([{ userId: currentUser.id, functionId }]);
     if (resolved.length > 0) {
       event.assignees.push(resolved[0]);
     } else {
@@ -463,7 +395,7 @@ class EventService {
         userId: currentUser.id,
         userName: currentUser.name || '',
         userAvatar: currentUser.avatar || '',
-        functionId: null,
+        functionId: functionId || null,
         functionTitle: '',
       });
     }
