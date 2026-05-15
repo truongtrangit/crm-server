@@ -251,6 +251,29 @@ class MetaService {
     return { program, changes };
   }
 
+  async selfAssignProgram(id, currentUser) {
+    const program = await MetaProgram.findOne({ id });
+    if (!program) {
+      throw createHttpError(404, "Chương trình không tồn tại", {
+        code: "META_PROGRAM_NOT_FOUND",
+      });
+    }
+
+    if (program.picIds && program.picIds.includes(currentUser.id)) {
+      return { program, changes: [] };
+    }
+
+    const oldState = program.toObject();
+    program.picIds = program.picIds || [];
+    program.picIds.push(currentUser.id);
+    await program.save();
+
+    const newState = program.toObject();
+    const changes = computeChanges(oldState, newState, ["picIds"]);
+
+    return { program, changes };
+  }
+
   async deleteProgram(id, currentUser) {
     const program = await MetaProgram.findOne({ id });
     if (!program) {

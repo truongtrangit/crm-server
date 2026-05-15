@@ -383,6 +383,34 @@ class LeadService {
     return lead;
   }
 
+  async selfAssignLead(id, currentUser) {
+    const lead = await this.getLeadById(id);
+
+    const isAssigned = lead.assignees && lead.assignees.some(a => a.userId === currentUser.id);
+    if (isAssigned) {
+      return lead;
+    }
+
+    const before = lead.toObject();
+    
+    // Resolve assignee format
+    const newAssignees = [...(lead.assignees || []), currentUser.id];
+    lead.assignees = await this._resolveAssignees(newAssignees);
+
+    const changes = computeChanges(before, lead.toObject());
+
+    const performer = this._extractPerformer(currentUser);
+    lead.activityLogs.push({
+      action: "assign",
+      description: `Tự nhận phụ trách lead "${lead.name}"`,
+      performedBy: performer,
+      metadata: { changes },
+    });
+
+    await lead.save();
+    return lead;
+  }
+
   /**
    * Lấy lịch sử thao tác của lead (paginated, newest first).
    */

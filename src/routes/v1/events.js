@@ -24,7 +24,7 @@ const eventResourceAccess = requireResourceAccess({
   // Hành vi (Behaviors)
   allowCreator: true,
   allowAssignee: true,
-  allowUnassigned: true,
+  allowUnassigned: false,
   allowManagerSubordinateCreator: true,
   allowManagerSubordinateAssignee: true,
 });
@@ -79,7 +79,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_READ),
-  eventResourceAccess,
+  eventResourceAccess.with({ allowUnassigned: true }),
   EventController.getEventById
 );
 
@@ -134,7 +134,7 @@ router.post(
 router.post(
   "/:id/self-assign",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
-  eventResourceAccess,
+  eventResourceAccess.with({ allowUnassigned: true }),
   EventController.selfAssignEvent
 );
 

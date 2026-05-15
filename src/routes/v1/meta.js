@@ -61,7 +61,7 @@ const metaProgramAccess = requireResourceAccess({
   // Hành vi (Behaviors)
   allowCreator: true,
   allowAssignee: true,
-  allowUnassigned: true,
+  allowUnassigned: false,
   allowManagerSubordinateCreator: true,
   allowManagerSubordinateAssignee: true,
 });
@@ -108,7 +108,7 @@ router.get(
 router.get(
   "/programs/:id",
   requirePermission(PERMISSIONS.META_READ),
-  metaProgramAccess,
+  metaProgramAccess.with({ allowUnassigned: true }),
   MetaController.getProgramById,
 );
 
@@ -128,6 +128,13 @@ router.put(
   metaUnassignmentRules,
   validate(updateMetaProgramSchema),
   MetaController.updateProgram,
+);
+
+router.post(
+  "/programs/:id/self-assign",
+  requirePermission(PERMISSIONS.META_UPDATE),
+  metaProgramAccess.with({ allowUnassigned: true }),
+  MetaController.selfAssignProgram,
 );
 
 router.delete(

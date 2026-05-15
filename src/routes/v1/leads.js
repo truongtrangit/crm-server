@@ -29,7 +29,7 @@ const leadResourceAccess = requireResourceAccess({
   // Hành vi (Behaviors)
   allowCreator: true,
   allowAssignee: true,
-  allowUnassigned: true,
+  allowUnassigned: false,
   allowManagerSubordinateCreator: true,
   allowManagerSubordinateAssignee: true,
 });
@@ -87,7 +87,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.LEADS_READ),
-  leadResourceAccess,
+  leadResourceAccess.with({ allowUnassigned: true }),
   LeadController.getLead,
 );
 
@@ -109,6 +109,14 @@ router.put(
   leadUnassignmentRules,
   validate(updateLeadSchema),
   LeadController.updateLead,
+);
+
+// Tự nhận lead chưa có người phụ trách
+router.post(
+  "/:id/self-assign",
+  requirePermission(PERMISSIONS.LEADS_UPDATE),
+  leadResourceAccess.with({ allowUnassigned: true }),
+  LeadController.selfAssignLead,
 );
 
 // Confirm stage → chuyển sang stage tiếp theo

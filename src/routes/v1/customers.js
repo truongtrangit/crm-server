@@ -41,7 +41,6 @@ const customerScopeList = scopeResourceList({
 router.get(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
-  customerScopeList,
   validate(listCustomersQuerySchema, "query"),
   CustomerController.getCustomers
 );
