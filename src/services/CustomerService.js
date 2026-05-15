@@ -15,21 +15,32 @@ const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
 
 class CustomerService {
-  async getCustomers(queryParams, currentUser) {
-    const { search = "", type, group, platform, includeDeleted, mainType, subType } = queryParams;
+  async getCustomers(queryParams, currentUser, scopeFilter = {}) {
+    const { search = "", type, group, platform, mainType, subType } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
 
     return CacheService.withVersionedCache("customers", { q: queryParams, role: (await getUserRoleName(currentUser) || "").toUpperCase() }, CACHE_TTL.SHORT, async () => {
       const query = {};
+      const andClauses = [];
+
+      if (scopeFilter && Object.keys(scopeFilter).length > 0) {
+        andClauses.push(scopeFilter);
+      }
 
       if (searchRegex) {
-        query.$or = [
-          { id: searchRegex },
-          { name: searchRegex },
-          { email: searchRegex },
-          { phone: searchRegex },
-        ];
+        andClauses.push({
+          $or: [
+            { id: searchRegex },
+            { name: searchRegex },
+            { email: searchRegex },
+            { phone: searchRegex },
+          ]
+        });
+      }
+
+      if (andClauses.length > 0) {
+        query.$and = andClauses;
       }
 
       if (type && type !== "All") {

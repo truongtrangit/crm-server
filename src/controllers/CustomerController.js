@@ -5,7 +5,7 @@ const { RESOURCES } = require("../constants/rbac");
 
 class CustomerController {
   async getCustomers(req, res) {
-    const result = await CustomerService.getCustomers(req.query, req.user);
+    const result = await CustomerService.getCustomers(req.query, req.user, req.resourceScopeFilter);
     return sendSuccess(res, 200, "Get customer list success", result);
   }
 
