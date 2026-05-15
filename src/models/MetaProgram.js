@@ -27,8 +27,7 @@ const milestoneSchema = new mongoose.Schema(
 const taskSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
-    picId: { type: String, default: null },
-    picName: { type: String, default: "" },
+    picIds: { type: [String], default: [] },
     description: { type: String, default: "" },
     deadline: { type: Date, default: null },
     isCompleted: { type: Boolean, default: false },

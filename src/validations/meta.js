@@ -136,16 +136,14 @@ const createTaskSchema = Joi.object({
   title: Joi.string().trim().required().messages({
     "any.required": "Tên công việc là bắt buộc",
   }),
-  picId: Joi.string().allow("", null).optional(),
-  picName: Joi.string().allow("").optional(),
+  picIds: Joi.array().items(Joi.string()).optional(),
   description: Joi.string().allow("").optional(),
   deadline: Joi.date().iso().allow(null).optional(),
 });
 
 const updateTaskSchema = Joi.object({
   title: Joi.string().trim().optional(),
-  picId: Joi.string().allow("", null).optional(),
-  picName: Joi.string().allow("").optional(),
+  picIds: Joi.array().items(Joi.string()).optional(),
   description: Joi.string().allow("").optional(),
   deadline: Joi.date().iso().allow(null).optional(),
   isCompleted: Joi.boolean().optional(),

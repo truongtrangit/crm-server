@@ -471,8 +471,7 @@ class MetaService {
 
     program.tasks.push({
       title: payload.title,
-      picId: payload.picId || null,
-      picName: payload.picName || "",
+      picIds: payload.picIds || [],
       description: payload.description || "",
       deadline: payload.deadline || null,
       isCompleted: false,
@@ -500,7 +499,7 @@ class MetaService {
 
     const oldState = task.toObject();
     
-    const fields = ["title", "picId", "picName", "description", "deadline", "isCompleted"];
+    const fields = ["title", "picIds", "description", "deadline", "isCompleted"];
     for (const f of fields) {
       if (payload[f] !== undefined) {
         task[f] = payload[f];
