@@ -25,7 +25,7 @@ const taskResourceAccess = requireResourceAccess({
   // Hành vi (Behaviors)
   allowCreator: true,
   allowAssignee: true,
-  allowUnassigned: false, // Task phải có người phụ trách
+  allowUnassigned: false,
   allowManagerSubordinateCreator: true,
   allowManagerSubordinateAssignee: true,
 });
@@ -109,7 +109,7 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_READ),
-  taskResourceAccess,
+  taskResourceAccess.with({ allowUnassigned: true }),
   TaskController.getTask,
 );
 
