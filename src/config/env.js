@@ -21,5 +21,6 @@ const env = {
 };
 
 Object.freeze(env);
+console.log("🚀 ~ env:", JSON.stringify(env, null, 2));
 
 module.exports = env;

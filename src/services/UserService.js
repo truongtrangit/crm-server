@@ -6,6 +6,7 @@ const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
 const { createHttpError } = require("../utils/http");
+const { getDefaultAvatar } = require("../utils/avatar");
 const {
   buildPaginatedResponse,
   resolvePagination,
@@ -482,7 +483,7 @@ async function createUserAccount(actor, payload = {}) {
     passwordHash: await hashPassword(password),
     avatar:
       normalizeString(payload.avatar) ||
-      `https://i.pravatar.cc/150?u=${encodeURIComponent(email)}`,
+      getDefaultAvatar(name || email),
     department,
     departmentAliases: organizationAssignments.departmentAliases,
     group,

@@ -14,6 +14,7 @@ const {
   classifyBizSubType,
 } = require("../constants/appData");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
+const { getDefaultAvatar } = require("../utils/avatar");
 
 /**
  * WebhookService — Strategy-based event processor.
@@ -224,7 +225,7 @@ class WebhookService {
         email,
         phone,
         name: name || "Unknown",
-        avatar: avatar || `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
+        avatar: avatar || getDefaultAvatar(name),
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         platforms: ["SmaxAi"],
         registeredAt,
@@ -313,8 +314,7 @@ class WebhookService {
         phone,
         name: name || "Unknown",
         avatar:
-          avatar ||
-          `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
+          avatar || getDefaultAvatar(name),
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         platforms: ["SmaxAi"],
         registeredAt,
@@ -341,9 +341,7 @@ class WebhookService {
       customerId: customer?.id || null,
       customer: {
         name: name || "Unknown",
-        avatar:
-          avatar ||
-          `https://ui-avatars.com/api/?name=${name?.split(" ")?.join("+")}&background=random`,
+        avatar: avatar || getDefaultAvatar(name),
         role: (payload.roles || []).join(", "),
         email: email || "",
         phone: phone || "",
@@ -460,7 +458,7 @@ class WebhookService {
         phone: bizPhone,
         name: bizName || "Unknown Biz",
         alias: bizAlias,
-        avatar: bizAvatar || `https://ui-avatars.com/api/?name=${bizName?.split(" ")?.join("+")}&background=random`,
+        avatar: bizAvatar || getDefaultAvatar(bizName),
         mainType: CUSTOMER_MAIN_TYPES.BIZ,
         subType,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
@@ -533,7 +531,7 @@ class WebhookService {
             email: userEmail,
             phone: userPhone,
             name: userName || "Unknown",
-            avatar: userAvatar || `https://ui-avatars.com/api/?name=${userName?.split(" ")?.join("+")}&background=random`,
+            avatar: userAvatar || getDefaultAvatar(userName),
             mainType: CUSTOMER_MAIN_TYPES.USER,
             subType: "", // default empty — set by staff later
             type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
@@ -1111,9 +1109,7 @@ class WebhookService {
         name: data.name || "Unknown",
         email: email || "",
         phone: phone || "",
-        avatar:
-          data.avatar ||
-          `https://ui-avatars.com/api/?name=${data.name?.split(" ")?.join("+")}&background=random`,
+        avatar: data.avatar || getDefaultAvatar(data.name),
         mainType: data.mainType || CUSTOMER_MAIN_TYPES.USER,
         subType: data.subType || "",
         alias: data.alias || "",
@@ -1184,9 +1180,7 @@ class WebhookService {
         name: data.name || "Unknown Biz",
         email: email || "",
         phone: phone || "",
-        avatar:
-          data.avatar ||
-          `https://ui-avatars.com/api/?name=${data.name?.split(" ")?.join("+")}&background=random`,
+        avatar: data.avatar || getDefaultAvatar(data.name),
         mainType: CUSTOMER_MAIN_TYPES.BIZ,
         subType: data.subType || "",
         alias: alias || "",

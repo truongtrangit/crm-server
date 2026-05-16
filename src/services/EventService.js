@@ -11,6 +11,7 @@ const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
+const { getDefaultAvatar } = require("../utils/avatar");
 
 
 class EventService {
@@ -102,7 +103,7 @@ class EventService {
     const payloadCust = payload.customer || {};
     const mappedCustomer = {
       name: payloadCust.name || "Unknown",
-      avatar: payloadCust.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(payloadCust.email || payloadCust.name || "unknown")}`,
+      avatar: payloadCust.avatar || getDefaultAvatar(payloadCust.name || payloadCust.email || "unknown"),
       role: payloadCust.role || "",
       email: payloadCust.email || "",
       phone: payloadCust.phone || "",

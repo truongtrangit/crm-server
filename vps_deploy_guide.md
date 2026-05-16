@@ -4,6 +4,12 @@
 
 ```
 scp -r ./infra/ root@188.166.241.110:/root/crm/
+OR
+#!/bin/bash
+rsync -avz \
+  --exclude data \
+  --exclude .env \
+  ./infra/ root@188.166.241.110:/root/crm/infra
 ```
 
 #How to connect mongodb in vps

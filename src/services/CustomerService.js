@@ -11,6 +11,7 @@ const {
   USER_SUB_TYPE_LIST,
   CUSTOMER_MAIN_TYPES,
 } = require("../constants/appData");
+const { getDefaultAvatar } = require("../utils/avatar");
 const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
 
@@ -105,7 +106,7 @@ class CustomerService {
       name: payload.name,
       avatar:
         payload.avatar ||
-        `https://i.pravatar.cc/150?u=${encodeURIComponent(payload.email)}`,
+        getDefaultAvatar(payload.name || payload.email),
       mainType: payload.mainType || CUSTOMER_MAIN_TYPES.USER,
       subType: payload.subType || "",
       alias: payload.alias || "",
