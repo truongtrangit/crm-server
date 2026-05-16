@@ -37,11 +37,7 @@ function requireResourceAccess(options) {
 
       const role = (user.roleId || "").toUpperCase();
 
-      // 1. Bypass roles (OWNER, ADMIN mặc định)
-      const bypassRoles = options.bypassRoles || ["OWNER", "ADMIN"];
-      if (bypassRoles.includes(role)) return next();
-
-      // 2. Fetch resource (reuse nếu đã fetch trước đó)
+      // 1. Fetch resource (reuse nếu đã fetch trước đó)
       let resource = req.resource;
       if (!resource) {
         resource = await options.getResource(req);
@@ -53,6 +49,10 @@ function requireResourceAccess(options) {
         // Cache vào req để controller dùng lại — tránh query DB lần 2
         req.resource = resource;
       }
+
+      // 2. Bypass roles (OWNER, ADMIN mặc định)
+      const bypassRoles = options.bypassRoles || ["OWNER", "ADMIN"];
+      if (bypassRoles.includes(role)) return next();
 
       // 3. Check creator — user tạo ra resource
       const creatorId = options?.getCreatorId?.(resource);
