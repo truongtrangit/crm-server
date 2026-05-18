@@ -54,6 +54,7 @@ const userSchema = new mongoose.Schema(
     companies: { type: [String], default: [] },
     roleId: { type: String, default: null, index: true }, // Reference to Role model for RBAC
     permissions: { type: [String], default: [] }, // Additional custom permissions
+    functions: { type: [String], default: [] }, // Reference to StaffFunction ids
     createdBy: { type: String, default: null },
     lastLoginAt: { type: Date, default: null },
     passwordReset: { type: passwordResetSchema, default: () => ({}) },

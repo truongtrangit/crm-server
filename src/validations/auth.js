@@ -64,6 +64,7 @@ const updateProfileSchema = Joi.object({
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
   companies: Joi.array().items(Joi.string()).optional(),
+  functions: Joi.array().items(Joi.string()).optional(),
   preferences: Joi.object().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
@@ -93,6 +94,7 @@ const registerSchema = Joi.object({
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
   companies: Joi.array().items(Joi.string()).optional(),
+  functions: Joi.array().items(Joi.string()).optional(),
 });
 
 module.exports = {

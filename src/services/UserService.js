@@ -237,6 +237,7 @@ function serializeUser(user) {
     ...item,
     // Derive display label directly from roleId (e.g. "staff" → "Staff")
     roleLabel: formatRoleLabel(item.roleId),
+    functions: item.functions || [],
     departmentAliases: item.departmentAliases || [],
     groupAliases: item.groupAliases || [],
     preferences: item.preferences || {},
@@ -256,12 +257,16 @@ async function buildUserListQuery(actor, filters = {}) {
   // but will receive only basic fields (handled in listUsers).
   // We still build the query normally so pagination works.
 
-  const { search = "", department, role, scopedUserIds } = filters;
+  const { search = "", department, role, scopedUserIds, functionId } = filters;
   const searchRegex = buildSearchRegex(search);
   const query = {};
 
   if (scopedUserIds) {
     query.id = Array.isArray(scopedUserIds) ? { $in: scopedUserIds } : scopedUserIds;
+  }
+
+  if (functionId) {
+    query.functions = functionId;
   }
 
   if (searchRegex) {
@@ -493,6 +498,7 @@ async function createUserAccount(actor, payload = {}) {
     companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
+    functions: Array.isArray(payload.functions) ? payload.functions : [],
 
     createdBy: actor.id,
   });
@@ -506,15 +512,6 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   const targetCurrentRole = await getUserRoleWithPermissions(targetUser);
   const actorRoleName = actorRole?.name || null;
   const targetRoleName = targetCurrentRole?.name || null;
-
-  // ── Guard 1: Nobody can update their own role via this endpoint ────────────
-  // Use updateOwnProfile for self-edits; role changes via self are forbidden.
-  if (actor.id === targetUser.id) {
-    throw createHttpError(
-      403,
-      "You cannot update your own account through this endpoint",
-    );
-  }
 
   // ── Guard 2: Only OWNER can manage other OWNER accounts ──────────────────
   if (targetRoleName === OWNER_ROLE_NAME && actorRoleName !== OWNER_ROLE_NAME) {
@@ -540,7 +537,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   // Only enforce this when role is explicitly being changed.
   // canAssignRole blocks OWNER assignment and requires strictly higher level.
   const isRoleBeingChanged =
-    payload.role !== undefined || payload.roleId !== undefined;
+    (payload.role !== undefined || payload.roleId !== undefined) && nextRole.id !== targetCurrentRole?.id;
 
   if (isRoleBeingChanged && !canAssignRole(actorRole, nextRole)) {
     throw createHttpError(
@@ -637,6 +634,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? normalizeString(payload.phone)
       : targetUser.phone;
   targetUser.roleId = nextRole.id;
+  targetUser.functions = payload.functions !== undefined && Array.isArray(payload.functions) ? payload.functions : targetUser.functions;
   targetUser.isActive =
     payload.isActive !== undefined
       ? payload.isActive
@@ -647,7 +645,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   await targetUser.save();
 
   const newState = targetUser.toObject();
-  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "isActive"];
+  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "functions", "isActive"];
   const changes = computeChanges(oldState, newState, keysToCheck);
 
   await CacheService.bumpNamespaceVersion("users");
