@@ -1,5 +1,5 @@
 const express = require("express");
-const { requirePermission } = require("../../middleware/auth");
+const { requirePermission, requireRole } = require("../../middleware/auth");
 const { requireResourceAccess, enforceAssignmentRules, enforceUnassignmentRules, scopeResourceList } = require("../../middleware/resourceAccess");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
@@ -125,6 +125,7 @@ router.delete(
 
 router.post(
   "/:id/archive",
+  requireRole(['OWNER', 'ADMIN']),
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
   eventResourceAccess,
   EventController.archiveEvent
@@ -132,6 +133,7 @@ router.post(
 
 router.post(
   "/:id/unarchive",
+  requireRole(['OWNER', 'ADMIN']),
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
   eventResourceAccess,
   EventController.unarchiveEvent

@@ -3,6 +3,8 @@ const Customer = require("../models/Customer");
 const User = require("../models/User");
 const StaffFunction = require("../models/StaffFunction");
 const Task = require("../models/Task");
+const Funnel = require("../models/Funnel");
+const LeadStatusGroup = require("../models/LeadStatusGroup");
 const TaskService = require("./TaskService");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
@@ -348,6 +350,30 @@ class LeadService {
 
   async archiveLead(id, currentUser) {
     const lead = await this.getLeadById(id);
+
+    let isLastStep = false;
+    if (lead.funnelId && lead.statusId) {
+      const funnel = await Funnel.findOne({ id: lead.funnelId }).lean();
+      if (funnel) {
+        const statusGroup = await LeadStatusGroup.findOne({ id: funnel.statusGroupId }).lean();
+        if (statusGroup && statusGroup.statusIds && statusGroup.statusIds.length > 0) {
+          const lastStatusId = statusGroup.statusIds[statusGroup.statusIds.length - 1];
+          if (lead.statusId === lastStatusId) {
+            isLastStep = true;
+          }
+        }
+      }
+    } else {
+      // Legacy stage fallback
+      if (lead.stage === "chot_hop_dong") {
+        isLastStep = true;
+      }
+    }
+
+    if (!isLastStep) {
+      throw createHttpError(400, "BAD_REQUEST", "Chỉ được phép lưu trữ khi Lead ở trạng thái cuối cùng của phễu");
+    }
+
     const performer = this._extractPerformer(currentUser);
     lead.isArchived = true;
     lead.activityLogs.push({

@@ -49,6 +49,7 @@ const listLeadsQuerySchema = Joi.object({
   stage: Joi.string().valid(...LEAD_STAGE_IDS).optional(),
   lastId: Joi.string().max(20).optional(),
   limit: Joi.number().integer().min(1).max(100).default(20),
+  isArchived: Joi.string().valid('true', 'false').optional(),
 }).unknown(true);
 
 module.exports = {

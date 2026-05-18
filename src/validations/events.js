@@ -144,6 +144,7 @@ const listEventsQuerySchema = Joi.object({
   assignee: Joi.string().allow("").optional(),
   page: Joi.number().integer().min(1).optional(),
   limit: Joi.number().integer().min(1).max(100).optional(),
+  isArchived: Joi.string().valid('true', 'false').optional(),
 });
 
 const addTimelineSchema = Joi.object({
