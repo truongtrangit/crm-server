@@ -76,7 +76,7 @@ router.put(
 router.delete(
   "/:id/permanent",
   requireRole(['OWNER', 'ADMIN']),
-  requirePermission(PERMISSIONS.PERMANENT_DELETE),
+  requirePermission(PERMISSIONS.USERS_PERMANENT_DELETE),
   UserController.permanentDeleteUser,
 );
 
