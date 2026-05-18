@@ -16,7 +16,7 @@ const { getDefaultAvatar } = require("../utils/avatar");
 
 class EventService {
   async getEvents(queryParams, scopeFilter = {}) {
-    const { search = "", group, stage, assignee } = queryParams;
+    const { search = "", group, stage, assignee, isArchived } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
 
@@ -44,6 +44,12 @@ class EventService {
 
     const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
+    if (isArchived === 'true') {
+      query.isArchived = true;
+    } else if (isArchived === 'false' || !isArchived) {
+      query.isArchived = { $ne: true };
+    }
+
     if (group) query.group = group;
     if (stage) query.stage = stage;
     if (assignee) query["assignees.userId"] = assignee;
@@ -68,7 +74,7 @@ class EventService {
     ];
 
     const counts = await Event.aggregate([
-      { $match: scopeFilter },
+      { $match: { ...scopeFilter, isArchived: { $ne: true } } },
       { $group: { _id: "$group", count: { $sum: 1 } } },
     ]);
 
@@ -312,6 +318,36 @@ class EventService {
     }
 
     await event.softDelete();
+  }
+
+  async archiveEvent(id, currentUser) {
+    const event = await Event.findOne({ id });
+    if (!event) throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+    event.isArchived = true;
+    event.timeline.unshift({
+      type: "note",
+      title: "Lưu trữ sự kiện",
+      time: new Date().toLocaleString("vi-VN"),
+      content: null,
+      createdBy: currentUser?.name || "System",
+    });
+    await event.save();
+    return event;
+  }
+
+  async unarchiveEvent(id, currentUser) {
+    const event = await Event.findOne({ id });
+    if (!event) throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+    event.isArchived = false;
+    event.timeline.unshift({
+      type: "note",
+      title: "Khôi phục sự kiện từ lưu trữ",
+      time: new Date().toLocaleString("vi-VN"),
+      content: null,
+      createdBy: currentUser?.name || "System",
+    });
+    await event.save();
+    return event;
   }
 
   async syncCustomer(id) {

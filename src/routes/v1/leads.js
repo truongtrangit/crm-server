@@ -1,5 +1,5 @@
 const express = require("express");
-const { requirePermission } = require("../../middleware/auth");
+const { requirePermission, requireRole } = require("../../middleware/auth");
 const {
   requireResourceAccess,
   enforceAssignmentRules,
@@ -134,6 +134,21 @@ router.delete(
   requirePermission(PERMISSIONS.LEADS_DELETE),
   leadResourceAccess,
   LeadController.deleteLead,
+);
+
+// Archive / Unarchive lead
+router.post(
+  "/:id/archive",
+  requireRole(['OWNER', 'ADMIN']),
+  requirePermission(PERMISSIONS.LEADS_UPDATE),
+  LeadController.archiveLead,
+);
+
+router.post(
+  "/:id/unarchive",
+  requireRole(['OWNER', 'ADMIN']),
+  requirePermission(PERMISSIONS.LEADS_UPDATE),
+  LeadController.unarchiveLead,
 );
 
 // Timeline

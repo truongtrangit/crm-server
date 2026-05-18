@@ -65,6 +65,7 @@ const discussionSchema = new mongoose.Schema(
 const leadSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    isArchived: { type: Boolean, default: false },
     name: { type: String, required: true, trim: true },
     avatar: { type: String, default: "" },
     email: { type: String, default: "", trim: true, lowercase: true, index: true },

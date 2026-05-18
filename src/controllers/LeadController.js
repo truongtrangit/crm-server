@@ -46,6 +46,16 @@ class LeadController {
     return sendSuccess(res, 200, "Delete lead success", { id: lead.id });
   }
 
+  async archiveLead(req, res) {
+    const lead = await LeadService.archiveLead(req.params.id, req.user);
+    return sendSuccess(res, 200, "Archive lead success", lead);
+  }
+
+  async unarchiveLead(req, res) {
+    const lead = await LeadService.unarchiveLead(req.params.id, req.user);
+    return sendSuccess(res, 200, "Unarchive lead success", lead);
+  }
+
   async addLeadTimeline(req, res) {
     const lead = await LeadService.addLeadTimeline(
       req.params.id,

@@ -102,6 +102,18 @@ class EventController {
     return sendSuccess(res, 200, "Delete event success", null);
   }
 
+  async archiveEvent(req, res) {
+    const event = await EventService.archiveEvent(req.params.id, req.user);
+    SystemLogService.log({ action: "update", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Lưu trữ sự kiện "${event.name}"`, req });
+    return sendSuccess(res, 200, "Archive event success", event);
+  }
+
+  async unarchiveEvent(req, res) {
+    const event = await EventService.unarchiveEvent(req.params.id, req.user);
+    SystemLogService.log({ action: "update", resource: RESOURCES.EVENTS, resourceId: event.id, resourceName: event.name, description: `Khôi phục sự kiện "${event.name}" từ lưu trữ`, req });
+    return sendSuccess(res, 200, "Unarchive event success", event);
+  }
+
   async syncCustomer(req, res) {
     const event = await EventService.syncCustomer(req.params.id);
     return sendSuccess(res, 200, "Sync customer success", event);

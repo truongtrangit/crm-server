@@ -124,6 +124,20 @@ router.delete(
 );
 
 router.post(
+  "/:id/archive",
+  requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
+  EventController.archiveEvent
+);
+
+router.post(
+  "/:id/unarchive",
+  requirePermission(PERMISSIONS.EVENTS_UPDATE),
+  eventResourceAccess,
+  EventController.unarchiveEvent
+);
+
+router.post(
   "/:id/sync-customer",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
   eventResourceAccess,

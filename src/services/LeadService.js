@@ -24,7 +24,7 @@ class LeadService {
    *            ?limit=20
    */
   async getLeads(queryParams, scopeFilter = {}) {
-    const { search = "", stage, lastId, limit: rawLimit = 20 } = queryParams;
+    const { search = "", stage, lastId, limit: rawLimit = 20, isArchived } = queryParams;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
     const searchRegex = buildSearchRegex(search);
 
@@ -51,6 +51,12 @@ class LeadService {
     const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
     if (stage) query.stage = stage;
+    
+    if (isArchived === 'true') {
+      query.isArchived = true;
+    } else if (isArchived === 'false' || !isArchived) {
+      query.isArchived = { $ne: true };
+    }
 
     // ── Cursor-based lazy load ──
     if (lastId) {
@@ -99,7 +105,7 @@ class LeadService {
   async getStageCounts(scopeFilter = {}) {
     // RBAC Scoping — đồng bộ với getLeads
     const counts = await Lead.aggregate([
-      { $match: scopeFilter },
+      { $match: { ...scopeFilter, isArchived: { $ne: true } } },
       { $group: { _id: "$stage", count: { $sum: 1 } } },
     ]);
 
@@ -337,6 +343,32 @@ class LeadService {
       console.error("Error during cascading task close for lead", err);
     }
 
+    return lead;
+  }
+
+  async archiveLead(id, currentUser) {
+    const lead = await this.getLeadById(id);
+    const performer = this._extractPerformer(currentUser);
+    lead.isArchived = true;
+    lead.activityLogs.push({
+      action: "update",
+      description: `Lưu trữ lead "${lead.name}"`,
+      performedBy: performer,
+    });
+    await lead.save();
+    return lead;
+  }
+
+  async unarchiveLead(id, currentUser) {
+    const lead = await this.getLeadById(id);
+    const performer = this._extractPerformer(currentUser);
+    lead.isArchived = false;
+    lead.activityLogs.push({
+      action: "update",
+      description: `Khôi phục lead "${lead.name}" từ lưu trữ`,
+      performedBy: performer,
+    });
+    await lead.save();
     return lead;
   }
 

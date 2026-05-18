@@ -33,6 +33,7 @@ const assigneeSchema = new mongoose.Schema(
 const eventSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    isArchived: { type: Boolean, default: false },
     name: { type: String, required: true, trim: true },
     sub: { type: String, default: "" },
     group: {
