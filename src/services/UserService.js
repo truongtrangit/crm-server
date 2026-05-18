@@ -485,8 +485,10 @@ async function createUserAccount(actor, payload = {}) {
       normalizeString(payload.avatar) ||
       getDefaultAvatar(name || email),
     department,
+    departmentRoles: payload.departmentRoles || {},
     departmentAliases: organizationAssignments.departmentAliases,
     group,
+    groupRoles: payload.groupRoles || {},
     groupAliases: organizationAssignments.groupAliases,
     companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
     phone: normalizeString(payload.phone),
@@ -615,13 +617,16 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     payload.email !== undefined
       ? normalizeString(payload.email).toLowerCase() || targetUser.email
       : targetUser.email;
+
   targetUser.avatar =
     payload.avatar !== undefined
       ? normalizeString(payload.avatar)
       : targetUser.avatar;
   targetUser.department = organizationAssignments.departments;
+  targetUser.departmentRoles = payload.departmentRoles !== undefined ? payload.departmentRoles : targetUser.departmentRoles;
   targetUser.departmentAliases = organizationAssignments.departmentAliases;
   targetUser.group = organizationAssignments.groups;
+  targetUser.groupRoles = payload.groupRoles !== undefined ? payload.groupRoles : targetUser.groupRoles;
   targetUser.groupAliases = organizationAssignments.groupAliases;
   targetUser.companies =
     payload.companies !== undefined && Array.isArray(payload.companies)
