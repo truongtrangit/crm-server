@@ -539,11 +539,20 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   const isRoleBeingChanged =
     (payload.role !== undefined || payload.roleId !== undefined) && nextRole.id !== targetCurrentRole?.id;
 
-  if (isRoleBeingChanged && !canAssignRole(actorRole, nextRole)) {
-    throw createHttpError(
-      403,
-      "You do not have permission to assign this role",
-    );
+  if (isRoleBeingChanged) {
+    if (actor.id === targetUser.id) {
+      throw createHttpError(
+        403,
+        "Bạn không thể tự thay đổi quyền của chính mình",
+      );
+    }
+    
+    if (!canAssignRole(actorRole, nextRole)) {
+      throw createHttpError(
+        403,
+        "You do not have permission to assign this role",
+      );
+    }
   }
 
   // Treat department-related fields as a package: if any one is provided,
