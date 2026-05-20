@@ -31,8 +31,8 @@ const customerSchema = new mongoose.Schema(
     alias: { type: String, default: "", trim: true, sparse: true, index: true },
     /** Loại khách hàng (legacy field, giữ để backward-compat) */
     type: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true, index: true, unique: true },
-    phone: { type: String, index: true, unique: true, sparse: true },
+    email: { type: String, required: true, trim: true, lowercase: true },
+    phone: { type: String, sparse: true },
     biz: { type: [String], default: [] },
     platforms: { type: [String], default: [] },
     group: { type: String, default: "" },
@@ -60,6 +60,9 @@ customerSchema.pre("save", function () {
     this.alias = undefined;
   }
 });
+
+customerSchema.index({ email: 1, mainType: 1 }, { unique: true });
+customerSchema.index({ phone: 1, mainType: 1 }, { unique: true, sparse: true });
 
 customerSchema.plugin(softDeletePlugin);
 module.exports = mongoose.model("Customer", customerSchema);

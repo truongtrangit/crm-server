@@ -93,7 +93,7 @@ class CustomerService {
 
   async createCustomer(payload, currentUser) {
     // Check if customer already exists
-    const existingCustomer = await Customer.findOneWithDeleted({ email: payload.email }).lean();
+    const existingCustomer = await Customer.findOneWithDeleted({ email: payload.email, mainType: payload.mainType || CUSTOMER_MAIN_TYPES.USER }).lean();
     if (existingCustomer) {
       if (existingCustomer.isDeleted) {
         throw createHttpError(409, "Khách hàng đã bị xóa, không thể thêm mới. Vui lòng liên hệ admin để được hỗ trợ khôi phục khách hàng.", { code: "CUSTOMER_HAS_BEEN_DELETED" });

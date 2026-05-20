@@ -185,8 +185,8 @@ class WebhookService {
 
     // Find existing customer by email or phone
     const orConditions = [];
-    if (email) orConditions.push({ email });
-    if (phone) orConditions.push({ phone });
+    if (email) orConditions.push({ email, mainType: CUSTOMER_MAIN_TYPES.USER });
+    if (phone) orConditions.push({ phone, mainType: CUSTOMER_MAIN_TYPES.USER });
 
     let customer = null;
 
@@ -226,6 +226,7 @@ class WebhookService {
         phone,
         name: name || "Unknown",
         avatar: avatar || getDefaultAvatar(name),
+        mainType: CUSTOMER_MAIN_TYPES.USER,
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         platforms: ["SmaxAi"],
         registeredAt,
@@ -275,8 +276,8 @@ class WebhookService {
 
     // ─── 2. Upsert Customer ───────────────────────────────────────────────
     const orConditions = [];
-    if (email) orConditions.push({ email });
-    if (phone) orConditions.push({ phone });
+    if (email) orConditions.push({ email, mainType: CUSTOMER_MAIN_TYPES.USER });
+    if (phone) orConditions.push({ phone, mainType: CUSTOMER_MAIN_TYPES.USER });
 
     let customer = null;
 
@@ -316,6 +317,7 @@ class WebhookService {
         avatar:
           avatar || getDefaultAvatar(name),
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+        mainType: CUSTOMER_MAIN_TYPES.USER,
         platforms: ["SmaxAi"],
         registeredAt,
         tags: ["#Webhook"],
@@ -335,7 +337,7 @@ class WebhookService {
     // ─── 4. Create Event ──────────────────────────────────────────────────
     const event = await Event.create({
       id: await generateMonotonicId(ID_PREFIXES.EVENT),
-      name: `User mới: ${name || email || "N/A"}`,
+      name: `${name || email || "N/A"}`,
       sub: "",
       group: WEBHOOK_EVENT_TYPES.NEW_REGISTRATION,
       customerId: customer?.id || null,
@@ -495,8 +497,8 @@ class WebhookService {
 
       try {
         const orConds = [];
-        if (userEmail) orConds.push({ email: userEmail });
-        if (userPhone) orConds.push({ phone: userPhone });
+        if (userEmail) orConds.push({ email: userEmail, mainType: CUSTOMER_MAIN_TYPES.USER });
+        if (userPhone) orConds.push({ phone: userPhone, mainType: CUSTOMER_MAIN_TYPES.USER });
         let userCustomer = await Customer.findOneWithDeleted({ $or: orConds });
 
         if (userCustomer?.isDeleted) {
@@ -1066,8 +1068,9 @@ class WebhookService {
    */
   async #findCustomer(customerData) {
     const orConditions = [];
-    if (customerData.email) orConditions.push({ email: customerData.email });
-    if (customerData.phone) orConditions.push({ phone: customerData.phone });
+    const mainType = customerData.mainType || CUSTOMER_MAIN_TYPES.USER;
+    if (customerData.email) orConditions.push({ email: customerData.email, mainType });
+    if (customerData.phone) orConditions.push({ phone: customerData.phone, mainType });
 
     if (orConditions.length === 0) return null;
 
@@ -1087,8 +1090,9 @@ class WebhookService {
 
     // ─── 1. Check existing by email or phone ────────────────────────────
     const orConditions = [];
-    if (email) orConditions.push({ email });
-    if (phone) orConditions.push({ phone });
+    const searchMainType = data?.mainType || CUSTOMER_MAIN_TYPES.USER;
+    if (email) orConditions.push({ email, mainType: searchMainType });
+    if (phone) orConditions.push({ phone, mainType: searchMainType });
 
     if (orConditions.length > 0) {
       const existing = await Customer.findOne({ $or: orConditions });
@@ -1132,7 +1136,7 @@ class WebhookService {
           keyPattern: err.keyPattern,
         });
         const fallback = await Customer.findOne(
-          orConditions.length > 0 ? { $or: orConditions } : { email },
+          orConditions.length > 0 ? { $or: orConditions } : { email, mainType: searchMainType },
         );
         if (fallback) return { customer: fallback, existed: true };
       }
