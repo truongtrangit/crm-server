@@ -31,6 +31,18 @@ const passwordResetSchema = new mongoose.Schema(
   },
 );
 
+const moduleAccessEntrySchema = new mongoose.Schema(
+  {
+    moduleId: { type: String, required: true },
+    isEnabled: { type: Boolean, default: true },
+    customPermissions: { type: [String], default: null }, // null = fallback to RBAC role
+  },
+  {
+    _id: false,
+    id: false,
+  },
+);
+
 const userSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -61,6 +73,7 @@ const userSchema = new mongoose.Schema(
     sessions: { type: [sessionSchema], default: [] },
     isActive: { type: Boolean, default: true },
     preferences: { type: mongoose.Schema.Types.Mixed, default: {} },
+    moduleAccess: { type: [moduleAccessEntrySchema], default: [] },
   },
   {
     timestamps: true,

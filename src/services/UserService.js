@@ -241,6 +241,7 @@ function serializeUser(user) {
     departmentAliases: item.departmentAliases || [],
     groupAliases: item.groupAliases || [],
     preferences: item.preferences || {},
+    moduleAccess: item.moduleAccess || [],
   };
 }
 
@@ -499,6 +500,7 @@ async function createUserAccount(actor, payload = {}) {
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
     functions: Array.isArray(payload.functions) ? payload.functions : [],
+    moduleAccess: Array.isArray(payload.moduleAccess) ? payload.moduleAccess : [],
 
     createdBy: actor.id,
   });
@@ -644,6 +646,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       : targetUser.phone;
   targetUser.roleId = nextRole.id;
   targetUser.functions = payload.functions !== undefined && Array.isArray(payload.functions) ? payload.functions : targetUser.functions;
+  targetUser.moduleAccess = payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess) ? payload.moduleAccess : targetUser.moduleAccess;
   targetUser.isActive =
     payload.isActive !== undefined
       ? payload.isActive

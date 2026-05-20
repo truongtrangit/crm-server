@@ -135,8 +135,92 @@ function requireRole(allowedRoles) {
   };
 }
 
+/**
+ * Module-Level Access Control (MLAC) middleware.
+ *
+ * Checks if the user has access to a specific module and (optionally) a specific
+ * action within that module. If the user has `customPermissions` set for the module,
+ * those take precedence. Otherwise, the request passes through and falls back to
+ * the existing RBAC/RLAC middleware downstream.
+ *
+ * Usage:
+ *   requireModuleAccess("meta")                // Check module access only
+ *   requireModuleAccess("meta", "create")       // Check module + action
+ *   requireModuleAccess("operations.events", "edit")
+ */
+function requireModuleAccess(moduleId, action) {
+  return (req, res, next) => {
+    const user = req.user;
+    if (!user) {
+      return sendError(res, 401, "Bạn cần đăng nhập để thực hiện hành động này", {
+        code: "AUTHENTICATION_REQUIRED",
+      });
+    }
+
+    // OWNER always bypasses module access checks
+    const roleName = (user.roleId || "").toUpperCase();
+    if (roleName === "OWNER") return next();
+
+    // If user has no moduleAccess config at all -> backward compat, allow everything
+    const moduleAccessList = user.moduleAccess || [];
+    if (moduleAccessList.length === 0) return next();
+
+    // For sub-modules (e.g. "operations.events"), also check parent module
+    const parts = moduleId.split(".");
+    if (parts.length > 1) {
+      const parentModuleId = parts[0];
+      const parentConf = moduleAccessList.find((m) => m.moduleId === parentModuleId);
+      if (parentConf && !parentConf.isEnabled) {
+        return sendError(res, 403, "Bạn không có quyền truy cập module này.", {
+          code: "MODULE_ACCESS_DENIED",
+          moduleId: parentModuleId,
+        });
+      }
+    }
+
+    const moduleConf = moduleAccessList.find((m) => m.moduleId === moduleId);
+
+    // Module not in user's configured list → DENIED
+    // (admin configured MLAC but didn't include this module)
+    if (!moduleConf) {
+      return sendError(res, 403, "Bạn không có quyền truy cập module này.", {
+        code: "MODULE_ACCESS_DENIED",
+        moduleId,
+      });
+    }
+
+    // Module is explicitly disabled
+    if (!moduleConf.isEnabled) {
+      return sendError(res, 403, "Bạn không có quyền truy cập module này.", {
+        code: "MODULE_ACCESS_DENIED",
+        moduleId,
+      });
+    }
+
+    // If no action check requested, module-level access is sufficient
+    if (!action) return next();
+
+    // If customPermissions is null -> fallback to RBAC (let downstream middleware handle)
+    if (moduleConf.customPermissions === null || moduleConf.customPermissions === undefined) {
+      return next();
+    }
+
+    // Custom permissions exist -> check if the specific action is allowed
+    if (Array.isArray(moduleConf.customPermissions) && moduleConf.customPermissions.includes(action)) {
+      return next();
+    }
+
+    return sendError(res, 403, "Bạn không có quyền thực hiện hành động này trong module.", {
+      code: "MODULE_ACTION_DENIED",
+      moduleId,
+      action,
+    });
+  };
+}
+
 module.exports = {
   authenticateRequest,
   requirePermission,
   requireRole,
+  requireModuleAccess,
 };

@@ -233,9 +233,27 @@ const ROLE_DEFINITIONS = {
   },
 };
 
+
+// ─── Module-Level Access Control (MLAC) Definitions ────────────────────────────
+// Defines the modules visible in the FE sidebar and the per-module permissions
+// that can be granted to individual users.
+// `parentKey` links sub-modules to their root module for sidebar grouping.
+
+const MODULE_DEFINITIONS = {
+  customers:          { key: "customers",          label: "Khách hàng",        type: "root",   actions: ["view", "create", "edit", "delete", "export"] },
+  operations:         { key: "operations",         label: "Quản lý",           type: "root",   actions: [] },
+  "operations.tasks": { key: "operations.tasks",   label: "Quản lý Tác vụ",   type: "sub",    parentKey: "operations", actions: ["view", "create", "edit", "delete"] },
+  "operations.events":{ key: "operations.events",  label: "Quản lý Sự kiện",  type: "sub",    parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
+  "operations.leads": { key: "operations.leads",   label: "Quản lý Lead",      type: "sub",    parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
+  meta:               { key: "meta",               label: "Hợp tác Meta",      type: "root",   actions: ["view", "create", "edit", "delete"] },
+  staff:              { key: "staff",              label: "Nhân viên",         type: "root",   actions: ["view", "create", "edit"] },
+  logs:               { key: "logs",               label: "Logs Hệ thống",    type: "root",   actions: ["view"] },
+};
+
 module.exports = {
   RESOURCES,
   ACTIONS,
   PERMISSIONS,
   ROLE_DEFINITIONS,
+  MODULE_DEFINITIONS,
 };

@@ -21,7 +21,7 @@ const taskRouter = require("./tasks");
 const taskChainsRouter = require("./taskChains");
 const funnelsRouter = require("./funnels");
 
-const { authenticateRequest } = require("../../middleware/auth");
+const { authenticateRequest, requireModuleAccess } = require("../../middleware/auth");
 const { sendSuccess } = require("../../utils/http");
 
 const v1Router = Router();
@@ -56,26 +56,29 @@ v1Router.use("/webhooks", webhooksRouter);
 // ─── Protected ───────────────────────────────────────────────────────────────
 v1Router.use(authenticateRequest);
 
-v1Router.use("/customers", customersRouter);
-v1Router.use("/users", usersRouter);
-v1Router.use("/events", eventsRouter);
+// ─── Module-level access control (MLAC) applied per-module ───────────────────
+v1Router.use("/customers", requireModuleAccess("customers"), customersRouter);
+v1Router.use("/users", requireModuleAccess("staff"), usersRouter);
+v1Router.use("/events", requireModuleAccess("operations.events"), eventsRouter);
+v1Router.use("/meta", requireModuleAccess("meta"), metaRouter);
+v1Router.use("/lead-config", requireModuleAccess("operations.leads"), leadConfigRouter);
+v1Router.use("/leads", requireModuleAccess("operations.leads"), leadRouter);
+v1Router.use("/tasks", requireModuleAccess("operations.tasks"), taskRouter);
+v1Router.use("/logs", requireModuleAccess("logs"), logsRouter);
+
+// ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use("/organization", organizationRouter);
 v1Router.use("/metadata", metadataRouter);
 v1Router.use("/functions", functionsRouter);
 v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
-v1Router.use("/logs", logsRouter);
-v1Router.use("/meta", metaRouter);
-v1Router.use("/lead-config", leadConfigRouter);
-v1Router.use("/leads", leadRouter);
-v1Router.use("/tasks", taskRouter);
 v1Router.use("/funnels", funnelsRouter);
 v1Router.use("/event-chains", globalEventChainsRouter);
 
 // Nested: chuỗi hành động trong sự kiện
-v1Router.use("/events/:eventId/chains", eventChainsRouter);
+v1Router.use("/events/:eventId/chains", requireModuleAccess("operations.events"), eventChainsRouter);
 
 // Nested: chuỗi hành động trong tác vụ
-v1Router.use("/tasks/:taskId/chains", taskChainsRouter);
+v1Router.use("/tasks/:taskId/chains", requireModuleAccess("operations.tasks"), taskChainsRouter);
 
 module.exports = v1Router;

@@ -145,48 +145,48 @@ const users = [
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 const customers = [
-  // {
-  //   id: "CUST1",
-  //   name: "Phạm Tường Vy",
-  //   avatar: "https://i.pravatar.cc/100?img=15",
-  //   type: "VIP Customer",
-  //   email: "vy.pham@example.com",
-  //   phone: "0912 345 678",
-  //   biz: ["Torano", "Biluxury"],
-  //   platforms: ["SmaxAi", "Botvn"],
-  //   group: "Nhóm Sale Hà Nội",
-  //   registeredAt: "10/10/2022",
-  //   lastLoginAt: "30/03/2026",
-  //   tags: ["#KHTiemNang", "#VIP"],
-  // },
-  // {
-  //   id: "CUST2",
-  //   name: "Minh Khôi",
-  //   avatar: "https://i.pravatar.cc/100?img=62",
-  //   type: "Premium",
-  //   email: "khoi.minh@example.com",
-  //   phone: "0999 777 888",
-  //   biz: ["KhoiCorp"],
-  //   platforms: ["SmaxAi"],
-  //   group: "Nhóm Sale HCM",
-  //   registeredAt: "20/01/2024",
-  //   lastLoginAt: "17/04/2026",
-  //   tags: ["#Enterprise"],
-  // },
-  // {
-  //   id: "CUST3",
-  //   name: "Hoàng Sơn",
-  //   avatar: "https://i.pravatar.cc/100?img=7",
-  //   type: "Trial",
-  //   email: "son.hoang@example.com",
-  //   phone: "0966 444 555",
-  //   biz: ["HoangSonCo"],
-  //   platforms: ["Botvn"],
-  //   group: "Nhóm Sale HCM",
-  //   registeredAt: "14/04/2026",
-  //   lastLoginAt: "17/04/2026",
-  //   tags: ["#Trial"],
-  // },
+  {
+    id: "CUST1",
+    name: "Phạm Tường Vy",
+    avatar: "https://i.pravatar.cc/100?img=15",
+    type: "VIP Customer",
+    email: "vy.pham@example.com",
+    phone: "0912 345 678",
+    biz: ["Torano", "Biluxury"],
+    platforms: ["SmaxAi", "Botvn"],
+    group: "Nhóm Sale Hà Nội",
+    registeredAt: "10/10/2022",
+    lastLoginAt: "30/03/2026",
+    tags: ["#KHTiemNang", "#VIP"],
+  },
+  {
+    id: "CUST2",
+    name: "Minh Khôi",
+    avatar: "https://i.pravatar.cc/100?img=62",
+    type: "Premium",
+    email: "khoi.minh@example.com",
+    phone: "0999 777 888",
+    biz: ["KhoiCorp"],
+    platforms: ["SmaxAi"],
+    group: "Nhóm Sale HCM",
+    registeredAt: "20/01/2024",
+    lastLoginAt: "17/04/2026",
+    tags: ["#Enterprise"],
+  },
+  {
+    id: "CUST3",
+    name: "Hoàng Sơn",
+    avatar: "https://i.pravatar.cc/100?img=7",
+    type: "Trial",
+    email: "son.hoang@example.com",
+    phone: "0966 444 555",
+    biz: ["HoangSonCo"],
+    platforms: ["Botvn"],
+    group: "Nhóm Sale HCM",
+    registeredAt: "14/04/2026",
+    lastLoginAt: "17/04/2026",
+    tags: ["#Trial"],
+  },
   // {
   //   id: "CUST4",
   //   name: "Nguyễn Thị Lan",
@@ -330,134 +330,134 @@ const reasons = [
 // type enum: "call" | "send_block_automation" | "other" | "review" | "manual_order" | "create_booking"
 // category: "primary" | "secondary"
 const actions = [
-  // {
-  //   id: "ACT1",
-  //   name: "Gọi điện lần 1",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS1", "REAS2", "REAS3", "REAS4", "REAS5"],
-  //   description: "Cuộc gọi chào hàng/chăm sóc đầu tiên",
-  // },
-  // {
-  //   id: "ACT2",
-  //   name: "Gọi điện lần 2",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS1", "REAS2", "REAS3", "REAS4"],
-  //   description: "Cuộc gọi tiếp theo nếu lần 1 không thành công",
-  // },
-  // {
-  //   id: "ACT3",
-  //   name: "Gọi điện tư vấn nâng cấp",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS1", "REAS3", "REAS4", "REAS6"],
-  //   description: "Tư vấn khách hàng nâng cấp gói dịch vụ",
-  // },
-  // {
-  //   id: "ACT4",
-  //   name: "Gửi email giới thiệu tự động",
-  //   type: "send_block_automation",
-  //   category: "primary",
-  //   reasonIds: [],
-  //   description: "Block automation gửi email chào mừng/giới thiệu dịch vụ",
-  // },
-  // {
-  //   id: "ACT5",
-  //   name: "Gửi email nhắc gia hạn",
-  //   type: "send_block_automation",
-  //   category: "primary",
-  //   reasonIds: [],
-  //   description: "Block automation gửi email nhắc gia hạn dịch vụ",
-  // },
-  // {
-  //   id: "ACT6",
-  //   name: "Gọi điện xác nhận thanh toán",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS1", "REAS2", "REAS8", "REAS9"],
-  //   description: "Gọi xác nhận khách hàng đã thanh toán",
-  // },
-  // {
-  //   id: "ACT7",
-  //   name: "Review hợp đồng",
-  //   type: "review",
-  //   category: "secondary",
-  //   reasonIds: [],
-  //   description: "Xem lại hợp đồng/điều khoản với khách hàng",
-  // },
-  // {
-  //   id: "ACT8",
-  //   name: "Gửi tài liệu & proposal",
-  //   type: "send_block_automation",
-  //   category: "primary",
-  //   reasonIds: [],
-  //   description: "Block automation gửi tài liệu giới thiệu, bảng giá và proposal",
-  // },
-  // {
-  //   id: "ACT9",
-  //   name: "Tạo đơn hàng thủ công",
-  //   type: "manual_order",
-  //   category: "secondary",
-  //   reasonIds: [],
-  //   description: "Nhân viên sale tạo đơn hàng thủ công sau khi chốt deal",
-  // },
-  // {
-  //   id: "ACT10",
-  //   name: "Gọi điện chốt deal",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS3", "REAS4", "REAS6", "REAS7"],
-  //   description: "Cuộc gọi cuối cùng để chốt hợp đồng/gói dịch vụ",
-  // },
-  // {
-  //   id: "ACT11",
-  //   name: "Gọi điện lần 3 (khẩn)",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS1", "REAS2", "REAS12"],
-  //   description: "Cuộc gọi lần 3, ưu tiên cao khi gói sắp hết hạn",
-  // },
-  // {
-  //   id: "ACT12",
-  //   name: "Gửi SMS nhắc nhở",
-  //   type: "send_block_automation",
-  //   category: "primary",
-  //   reasonIds: [],
-  //   description: "Block automation gửi SMS nhắc gia hạn qua Zalo/SMS",
-  // },
-  // {
-  //   id: "ACT13",
-  //   name: "Gọi demo sản phẩm",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS7", "REAS10", "REAS11"],
-  //   description: "Gọi để giới thiệu demo trực tiếp với khách hàng",
-  // },
-  // {
-  //   id: "ACT14",
-  //   name: "Tạo booking demo",
-  //   type: "create_booking",
-  //   category: "secondary",
-  //   reasonIds: [],
-  //   description: "Đặt lịch buổi demo với chuyên gia kỹ thuật",
-  // },
-  // {
-  //   id: "ACT15",
-  //   name: "Gửi hợp đồng điện tử",
-  //   type: "send_block_automation",
-  //   category: "primary",
-  //   reasonIds: [],
-  //   description: "Gửi hợp đồng điện tử qua email để ký duyệt",
-  // },
-  // {
-  //   id: "ACT16",
-  //   name: "Gọi điện hỗ trợ kỹ thuật",
-  //   type: "call",
-  //   category: "primary",
-  //   reasonIds: ["REAS10", "REAS11"],
-  //   description: "Gọi hỗ trợ khách hàng gặp vấn đề kỹ thuật",
-  // },
+  {
+    id: "ACT1",
+    name: "Gọi điện lần 1",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS1", "REAS2", "REAS3", "REAS4", "REAS5"],
+    description: "Cuộc gọi chào hàng/chăm sóc đầu tiên",
+  },
+  {
+    id: "ACT2",
+    name: "Gọi điện lần 2",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS1", "REAS2", "REAS3", "REAS4"],
+    description: "Cuộc gọi tiếp theo nếu lần 1 không thành công",
+  },
+  {
+    id: "ACT3",
+    name: "Gọi điện tư vấn nâng cấp",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS1", "REAS3", "REAS4", "REAS6"],
+    description: "Tư vấn khách hàng nâng cấp gói dịch vụ",
+  },
+  {
+    id: "ACT4",
+    name: "Gửi email giới thiệu tự động",
+    type: "send_block_automation",
+    category: "primary",
+    reasonIds: [],
+    description: "Block automation gửi email chào mừng/giới thiệu dịch vụ",
+  },
+  {
+    id: "ACT5",
+    name: "Gửi email nhắc gia hạn",
+    type: "send_block_automation",
+    category: "primary",
+    reasonIds: [],
+    description: "Block automation gửi email nhắc gia hạn dịch vụ",
+  },
+  {
+    id: "ACT6",
+    name: "Gọi điện xác nhận thanh toán",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS1", "REAS2", "REAS8", "REAS9"],
+    description: "Gọi xác nhận khách hàng đã thanh toán",
+  },
+  {
+    id: "ACT7",
+    name: "Review hợp đồng",
+    type: "review",
+    category: "secondary",
+    reasonIds: [],
+    description: "Xem lại hợp đồng/điều khoản với khách hàng",
+  },
+  {
+    id: "ACT8",
+    name: "Gửi tài liệu & proposal",
+    type: "send_block_automation",
+    category: "primary",
+    reasonIds: [],
+    description: "Block automation gửi tài liệu giới thiệu, bảng giá và proposal",
+  },
+  {
+    id: "ACT9",
+    name: "Tạo đơn hàng thủ công",
+    type: "manual_order",
+    category: "secondary",
+    reasonIds: [],
+    description: "Nhân viên sale tạo đơn hàng thủ công sau khi chốt deal",
+  },
+  {
+    id: "ACT10",
+    name: "Gọi điện chốt deal",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS3", "REAS4", "REAS6", "REAS7"],
+    description: "Cuộc gọi cuối cùng để chốt hợp đồng/gói dịch vụ",
+  },
+  {
+    id: "ACT11",
+    name: "Gọi điện lần 3 (khẩn)",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS1", "REAS2", "REAS12"],
+    description: "Cuộc gọi lần 3, ưu tiên cao khi gói sắp hết hạn",
+  },
+  {
+    id: "ACT12",
+    name: "Gửi SMS nhắc nhở",
+    type: "send_block_automation",
+    category: "primary",
+    reasonIds: [],
+    description: "Block automation gửi SMS nhắc gia hạn qua Zalo/SMS",
+  },
+  {
+    id: "ACT13",
+    name: "Gọi demo sản phẩm",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS7", "REAS10", "REAS11"],
+    description: "Gọi để giới thiệu demo trực tiếp với khách hàng",
+  },
+  {
+    id: "ACT14",
+    name: "Tạo booking demo",
+    type: "create_booking",
+    category: "secondary",
+    reasonIds: [],
+    description: "Đặt lịch buổi demo với chuyên gia kỹ thuật",
+  },
+  {
+    id: "ACT15",
+    name: "Gửi hợp đồng điện tử",
+    type: "send_block_automation",
+    category: "primary",
+    reasonIds: [],
+    description: "Gửi hợp đồng điện tử qua email để ký duyệt",
+  },
+  {
+    id: "ACT16",
+    name: "Gọi điện hỗ trợ kỹ thuật",
+    type: "call",
+    category: "primary",
+    reasonIds: ["REAS10", "REAS11"],
+    description: "Gọi hỗ trợ khách hàng gặp vấn đề kỹ thuật",
+  },
 ];
 
 // ─── ActionChains ─────────────────────────────────────────────────────────────
@@ -468,611 +468,611 @@ const actions = [
 // branch.closeOutcome: "success" | "failure" (chỉ khi nextStepType === "close_task")
 const actionChains = [
 
-  // // ─ CHAIN001: Chăm sóc khách hàng mới ──────────────────────────────────────
-  // {
-  //   id: "CHAIN1",
-  //   name: "Chăm sóc khách hàng mới",
-  //   description: "Chuỗi chăm sóc tự động khi có user/biz mới đăng ký: gửi email → gọi điện lần 1 → dự phòng gọi lần 2",
-  //   delayUnit: "immediate",
-  //   delayValue: null,
-  //   active: true,
-  //   steps: [
-  //     {
-  //       order: 1,
-  //       actionId: "ACT4", // Gửi email giới thiệu tự động
-  //       branches: [
-  //         {
-  //           resultId: "RES5", // Đã gửi email
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT1", // → Gọi điện lần 1
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 2,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 2,
-  //       actionId: "ACT1", // Gọi điện lần 1
-  //       branches: [
-  //         {
-  //           resultId: "RES1", // Đã liên hệ & quan tâm
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES2", // Không bắt máy
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT2", // → Gọi điện lần 2
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES12", // Máy bận
-  //           order: 3,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT2",
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 3,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối
-  //           order: 4,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 3,
-  //       actionId: "ACT2", // Gọi điện lần 2
-  //       branches: [
-  //         {
-  //           resultId: "RES1", // Đã liên hệ & quan tâm
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES2", // Không bắt máy
-  //           order: 2,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES13", // Sai số điện thoại
-  //           order: 3,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES3", // Hẹn gọi lại
-  //           order: 4,
-  //           nextStepType: "close_chain",
-  //           nextActionId: null,
-  //           closeOutcome: null,
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  // ─ CHAIN001: Chăm sóc khách hàng mới ──────────────────────────────────────
+  {
+    id: "CHAIN1",
+    name: "Chăm sóc khách hàng mới",
+    description: "Chuỗi chăm sóc tự động khi có user/biz mới đăng ký: gửi email → gọi điện lần 1 → dự phòng gọi lần 2",
+    delayUnit: "immediate",
+    delayValue: null,
+    active: true,
+    steps: [
+      {
+        order: 1,
+        actionId: "ACT4", // Gửi email giới thiệu tự động
+        branches: [
+          {
+            resultId: "RES5", // Đã gửi email
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT1", // → Gọi điện lần 1
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 2,
+          },
+        ],
+      },
+      {
+        order: 2,
+        actionId: "ACT1", // Gọi điện lần 1
+        branches: [
+          {
+            resultId: "RES1", // Đã liên hệ & quan tâm
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES2", // Không bắt máy
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT2", // → Gọi điện lần 2
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES12", // Máy bận
+            order: 3,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT2",
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 3,
+          },
+          {
+            resultId: "RES4", // Từ chối
+            order: 4,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+      {
+        order: 3,
+        actionId: "ACT2", // Gọi điện lần 2
+        branches: [
+          {
+            resultId: "RES1", // Đã liên hệ & quan tâm
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES2", // Không bắt máy
+            order: 2,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES13", // Sai số điện thoại
+            order: 3,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES3", // Hẹn gọi lại
+            order: 4,
+            nextStepType: "close_chain",
+            nextActionId: null,
+            closeOutcome: null,
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+    ],
+  },
 
-  // // ─ CHAIN002: Xử lý chuyển khoản ────────────────────────────────────────────
-  // {
-  //   id: "CHAIN2",
-  //   name: "Xử lý chuyển khoản",
-  //   description: "Xác nhận và xử lý khi nhận thanh toán chuyển khoản: gọi xác nhận → gọi lại nếu thất bại",
-  //   delayUnit: "immediate",
-  //   delayValue: null,
-  //   active: true,
-  //   steps: [
-  //     {
-  //       order: 1,
-  //       actionId: "ACT6", // Gọi điện xác nhận thanh toán
-  //       branches: [
-  //         {
-  //           resultId: "RES6", // Đã thanh toán
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES7", // Chưa thanh toán
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT6", // → Gọi lại
-  //           closeOutcome: null,
-  //           delayUnit: "minute",
-  //           delayValue: 30,
-  //         },
-  //         {
-  //           resultId: "RES2", // Không bắt máy
-  //           order: 3,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT6", // → Gọi lại
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES8", // Sai số tài khoản (dùng chung REAS008)
-  //           order: 4,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  // ─ CHAIN002: Xử lý chuyển khoản ────────────────────────────────────────────
+  {
+    id: "CHAIN2",
+    name: "Xử lý chuyển khoản",
+    description: "Xác nhận và xử lý khi nhận thanh toán chuyển khoản: gọi xác nhận → gọi lại nếu thất bại",
+    delayUnit: "immediate",
+    delayValue: null,
+    active: true,
+    steps: [
+      {
+        order: 1,
+        actionId: "ACT6", // Gọi điện xác nhận thanh toán
+        branches: [
+          {
+            resultId: "RES6", // Đã thanh toán
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES7", // Chưa thanh toán
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT6", // → Gọi lại
+            closeOutcome: null,
+            delayUnit: "minute",
+            delayValue: 30,
+          },
+          {
+            resultId: "RES2", // Không bắt máy
+            order: 3,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT6", // → Gọi lại
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES8", // Sai số tài khoản (dùng chung REAS008)
+            order: 4,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+    ],
+  },
 
-  // // ─ CHAIN003: Nhắc gia hạn gói cước ─────────────────────────────────────────
-  // {
-  //   id: "CHAIN3",
-  //   name: "Nhắc gia hạn gói cước",
-  //   description: "Tự động nhắc gia hạn khi gói cước sắp hết hạn: gửi email → gọi tư vấn → gọi lại nếu hẹn",
-  //   delayUnit: "immediate",
-  //   delayValue: null,
-  //   active: true,
-  //   steps: [
-  //     {
-  //       order: 1,
-  //       actionId: "ACT5", // Gửi email nhắc gia hạn
-  //       branches: [
-  //         {
-  //           resultId: "RES5", // Đã gửi email
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT3", // → Gọi tư vấn nâng cấp
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 2,
-  //       actionId: "ACT3", // Gọi điện tư vấn nâng cấp
-  //       branches: [
-  //         {
-  //           resultId: "RES8", // Đã gia hạn
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES1", // Quan tâm, hỏi thêm
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT11", // → Gọi lần 3 (khẩn)
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối
-  //           order: 3,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES3", // Hẹn gọi lại
-  //           order: 4,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT3",
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 2,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 3,
-  //       actionId: "ACT11", // Gọi điện lần 3 (khẩn)
-  //       branches: [
-  //         {
-  //           resultId: "RES8", // Đã gia hạn
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES2", // Không bắt máy
-  //           order: 2,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối
-  //           order: 3,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  // ─ CHAIN003: Nhắc gia hạn gói cước ─────────────────────────────────────────
+  {
+    id: "CHAIN3",
+    name: "Nhắc gia hạn gói cước",
+    description: "Tự động nhắc gia hạn khi gói cước sắp hết hạn: gửi email → gọi tư vấn → gọi lại nếu hẹn",
+    delayUnit: "immediate",
+    delayValue: null,
+    active: true,
+    steps: [
+      {
+        order: 1,
+        actionId: "ACT5", // Gửi email nhắc gia hạn
+        branches: [
+          {
+            resultId: "RES5", // Đã gửi email
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT3", // → Gọi tư vấn nâng cấp
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+        ],
+      },
+      {
+        order: 2,
+        actionId: "ACT3", // Gọi điện tư vấn nâng cấp
+        branches: [
+          {
+            resultId: "RES8", // Đã gia hạn
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES1", // Quan tâm, hỏi thêm
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT11", // → Gọi lần 3 (khẩn)
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES4", // Từ chối
+            order: 3,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES3", // Hẹn gọi lại
+            order: 4,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT3",
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 2,
+          },
+        ],
+      },
+      {
+        order: 3,
+        actionId: "ACT11", // Gọi điện lần 3 (khẩn)
+        branches: [
+          {
+            resultId: "RES8", // Đã gia hạn
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES2", // Không bắt máy
+            order: 2,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES4", // Từ chối
+            order: 3,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+    ],
+  },
 
-  // // ─ CHAIN004: Chuyển đổi Trial → Trả phí (5 bước) ──────────────────────────
-  // {
-  //   id: "CHAIN4",
-  //   name: "Chuyển đổi Trial → Trả phí",
-  //   description: "Chuỗi 5 bước chuyển đổi khách hàng từ Trial sang trả phí: gửi tài liệu → gọi tư vấn → gọi chốt deal → tạo đơn → xác nhận",
-  //   delayUnit: "day",
-  //   delayValue: 1,
-  //   active: true,
-  //   steps: [
-  //     {
-  //       order: 1,
-  //       actionId: "ACT8", // Gửi tài liệu & proposal
-  //       branches: [
-  //         {
-  //           resultId: "RES10", // Đã gửi tài liệu
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT1", // → Gọi điện lần 1
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 4,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 2,
-  //       actionId: "ACT1", // Gọi điện lần 1
-  //       branches: [
-  //         {
-  //           resultId: "RES9", // Hứng thú - cần demo
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT13", // → Gọi demo
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES1", // Đã liên hệ & quan tâm
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT10", // → Gọi chốt deal
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 2,
-  //         },
-  //         {
-  //           resultId: "RES2", // Không bắt máy
-  //           order: 3,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT2", // → Gọi điện lần 2
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 3,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối
-  //           order: 4,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 3,
-  //       actionId: "ACT13", // Gọi demo sản phẩm
-  //       branches: [
-  //         {
-  //           resultId: "RES14", // Đã demo thành công
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT10", // → Gọi chốt deal
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES15", // Cần thêm thời gian
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT10",
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 3,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối sau demo
-  //           order: 3,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 4,
-  //       actionId: "ACT10", // Gọi chốt deal
-  //       branches: [
-  //         {
-  //           resultId: "RES6", // Đã thanh toán (chốt thành công)
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT9", // → Tạo đơn hàng thủ công
-  //           closeOutcome: null,
-  //           delayUnit: "immediate",
-  //           delayValue: 0,
-  //         },
-  //         {
-  //           resultId: "RES3", // Hẹn gọi lại
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT10", // → Gọi lại chốt deal
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 2,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối
-  //           order: 3,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 5,
-  //       actionId: "ACT9", // Tạo đơn hàng thủ công
-  //       branches: [
-  //         {
-  //           resultId: "RES11", // Đã tạo đơn hàng
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  // ─ CHAIN004: Chuyển đổi Trial → Trả phí (5 bước) ──────────────────────────
+  {
+    id: "CHAIN4",
+    name: "Chuyển đổi Trial → Trả phí",
+    description: "Chuỗi 5 bước chuyển đổi khách hàng từ Trial sang trả phí: gửi tài liệu → gọi tư vấn → gọi chốt deal → tạo đơn → xác nhận",
+    delayUnit: "day",
+    delayValue: 1,
+    active: true,
+    steps: [
+      {
+        order: 1,
+        actionId: "ACT8", // Gửi tài liệu & proposal
+        branches: [
+          {
+            resultId: "RES10", // Đã gửi tài liệu
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT1", // → Gọi điện lần 1
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 4,
+          },
+        ],
+      },
+      {
+        order: 2,
+        actionId: "ACT1", // Gọi điện lần 1
+        branches: [
+          {
+            resultId: "RES9", // Hứng thú - cần demo
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT13", // → Gọi demo
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES1", // Đã liên hệ & quan tâm
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT10", // → Gọi chốt deal
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 2,
+          },
+          {
+            resultId: "RES2", // Không bắt máy
+            order: 3,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT2", // → Gọi điện lần 2
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 3,
+          },
+          {
+            resultId: "RES4", // Từ chối
+            order: 4,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+      {
+        order: 3,
+        actionId: "ACT13", // Gọi demo sản phẩm
+        branches: [
+          {
+            resultId: "RES14", // Đã demo thành công
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT10", // → Gọi chốt deal
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES15", // Cần thêm thời gian
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT10",
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 3,
+          },
+          {
+            resultId: "RES4", // Từ chối sau demo
+            order: 3,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+      {
+        order: 4,
+        actionId: "ACT10", // Gọi chốt deal
+        branches: [
+          {
+            resultId: "RES6", // Đã thanh toán (chốt thành công)
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT9", // → Tạo đơn hàng thủ công
+            closeOutcome: null,
+            delayUnit: "immediate",
+            delayValue: 0,
+          },
+          {
+            resultId: "RES3", // Hẹn gọi lại
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT10", // → Gọi lại chốt deal
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 2,
+          },
+          {
+            resultId: "RES4", // Từ chối
+            order: 3,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+      {
+        order: 5,
+        actionId: "ACT9", // Tạo đơn hàng thủ công
+        branches: [
+          {
+            resultId: "RES11", // Đã tạo đơn hàng
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+    ],
+  },
 
-  // // ─ CHAIN005: Doanh nghiệp mới (từ Biz) ─────────────────────────────────────
-  // {
-  //   id: "CHAIN5",
-  //   name: "Hỗ trợ doanh nghiệp mới",
-  //   description: "Chuỗi hỗ trợ onboarding doanh nghiệp mới: gửi SMS/email → gọi hỗ trợ → tạo booking demo",
-  //   delayUnit: "immediate",
-  //   delayValue: null,
-  //   active: true,
-  //   steps: [
-  //     {
-  //       order: 1,
-  //       actionId: "ACT12", // Gửi SMS nhắc nhở
-  //       branches: [
-  //         {
-  //           resultId: "RES5", // Đã gửi
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT16", // → Gọi hỗ trợ kỹ thuật
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 1,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 2,
-  //       actionId: "ACT16", // Gọi điện hỗ trợ kỹ thuật
-  //       branches: [
-  //         {
-  //           resultId: "RES1", // Đã liên hệ
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT14", // → Tạo booking demo
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES2", // Không bắt máy
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT1", // → Gọi điện lần 1
-  //           closeOutcome: null,
-  //           delayUnit: "hour",
-  //           delayValue: 2,
-  //         },
-  //         {
-  //           resultId: "RES4", // Từ chối
-  //           order: 3,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 3,
-  //       actionId: "ACT14", // Tạo booking demo
-  //       branches: [
-  //         {
-  //           resultId: "RES14", // Đã demo thành công
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES3", // Hẹn lại
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT14",
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 2,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  // ─ CHAIN005: Doanh nghiệp mới (từ Biz) ─────────────────────────────────────
+  {
+    id: "CHAIN5",
+    name: "Hỗ trợ doanh nghiệp mới",
+    description: "Chuỗi hỗ trợ onboarding doanh nghiệp mới: gửi SMS/email → gọi hỗ trợ → tạo booking demo",
+    delayUnit: "immediate",
+    delayValue: null,
+    active: true,
+    steps: [
+      {
+        order: 1,
+        actionId: "ACT12", // Gửi SMS nhắc nhở
+        branches: [
+          {
+            resultId: "RES5", // Đã gửi
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT16", // → Gọi hỗ trợ kỹ thuật
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 1,
+          },
+        ],
+      },
+      {
+        order: 2,
+        actionId: "ACT16", // Gọi điện hỗ trợ kỹ thuật
+        branches: [
+          {
+            resultId: "RES1", // Đã liên hệ
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT14", // → Tạo booking demo
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES2", // Không bắt máy
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT1", // → Gọi điện lần 1
+            closeOutcome: null,
+            delayUnit: "hour",
+            delayValue: 2,
+          },
+          {
+            resultId: "RES4", // Từ chối
+            order: 3,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+      {
+        order: 3,
+        actionId: "ACT14", // Tạo booking demo
+        branches: [
+          {
+            resultId: "RES14", // Đã demo thành công
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+          {
+            resultId: "RES3", // Hẹn lại
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT14",
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 2,
+          },
+        ],
+      },
+    ],
+  },
 
-  // // ─ CHAIN006: Xử lý nâng cấp cần thiết (inactive — đang tắt) ───────────────
-  // {
-  //   id: "CHAIN6",
-  //   name: "Nâng cấp Enterprise",
-  //   description: "Chuỗi tư vấn và chốt deal nâng cấp lên gói Enterprise (hiện tắt - đang review)",
-  //   delayUnit: "day",
-  //   delayValue: 2,
-  //   active: false,  // ← INACTIVE chain (dùng để test filter)
-  //   steps: [
-  //     {
-  //       order: 1,
-  //       actionId: "ACT8", // Gửi tài liệu Enterprise
-  //       branches: [
-  //         {
-  //           resultId: "RES10",
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT3",
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 2,
-  //       actionId: "ACT3", // Gọi tư vấn nâng cấp
-  //       branches: [
-  //         {
-  //           resultId: "RES1",
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT15", // → Gửi hợp đồng
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //         {
-  //           resultId: "RES4",
-  //           order: 2,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "failure",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 3,
-  //       actionId: "ACT15", // Gửi hợp đồng điện tử
-  //       branches: [
-  //         {
-  //           resultId: "RES16", // Đã gửi hợp đồng
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT6", // → Xác nhận thanh toán
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 2,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 4,
-  //       actionId: "ACT6", // Gọi xác nhận thanh toán
-  //       branches: [
-  //         {
-  //           resultId: "RES6", // Đã thanh toán
-  //           order: 1,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT9",
-  //           closeOutcome: null,
-  //           delayUnit: "immediate",
-  //           delayValue: null,
-  //         },
-  //         {
-  //           resultId: "RES7", // Chưa thanh toán
-  //           order: 2,
-  //           nextStepType: "next_in_chain",
-  //           nextActionId: "ACT6",
-  //           closeOutcome: null,
-  //           delayUnit: "day",
-  //           delayValue: 1,
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       order: 5,
-  //       actionId: "ACT9", // Tạo đơn hàng
-  //       branches: [
-  //         {
-  //           resultId: "RES11",
-  //           order: 1,
-  //           nextStepType: "close_task",
-  //           nextActionId: null,
-  //           closeOutcome: "success",
-  //           delayUnit: null,
-  //           delayValue: null,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  // ─ CHAIN006: Xử lý nâng cấp cần thiết (inactive — đang tắt) ───────────────
+  {
+    id: "CHAIN6",
+    name: "Nâng cấp Enterprise",
+    description: "Chuỗi tư vấn và chốt deal nâng cấp lên gói Enterprise (hiện tắt - đang review)",
+    delayUnit: "day",
+    delayValue: 2,
+    active: false,  // ← INACTIVE chain (dùng để test filter)
+    steps: [
+      {
+        order: 1,
+        actionId: "ACT8", // Gửi tài liệu Enterprise
+        branches: [
+          {
+            resultId: "RES10",
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT3",
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+        ],
+      },
+      {
+        order: 2,
+        actionId: "ACT3", // Gọi tư vấn nâng cấp
+        branches: [
+          {
+            resultId: "RES1",
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT15", // → Gửi hợp đồng
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+          {
+            resultId: "RES4",
+            order: 2,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "failure",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+      {
+        order: 3,
+        actionId: "ACT15", // Gửi hợp đồng điện tử
+        branches: [
+          {
+            resultId: "RES16", // Đã gửi hợp đồng
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT6", // → Xác nhận thanh toán
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 2,
+          },
+        ],
+      },
+      {
+        order: 4,
+        actionId: "ACT6", // Gọi xác nhận thanh toán
+        branches: [
+          {
+            resultId: "RES6", // Đã thanh toán
+            order: 1,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT9",
+            closeOutcome: null,
+            delayUnit: "immediate",
+            delayValue: null,
+          },
+          {
+            resultId: "RES7", // Chưa thanh toán
+            order: 2,
+            nextStepType: "next_in_chain",
+            nextActionId: "ACT6",
+            closeOutcome: null,
+            delayUnit: "day",
+            delayValue: 1,
+          },
+        ],
+      },
+      {
+        order: 5,
+        actionId: "ACT9", // Tạo đơn hàng
+        branches: [
+          {
+            resultId: "RES11",
+            order: 1,
+            nextStepType: "close_task",
+            nextActionId: null,
+            closeOutcome: "success",
+            delayUnit: null,
+            delayValue: null,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -1092,105 +1092,105 @@ const hoursAgo = (n) => {
 
 const events = [
 
-  // // ════════════════════════════════════════════════════
-  // // GROUP: user_moi (4 events)
-  // // ════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════
+  // GROUP: user_moi (4 events)
+  // ════════════════════════════════════════════════════
 
-  // // EVT001: user_moi — có assignee — đã đồng bộ
-  // {
-  //   id: "EVT1",
-  //   name: "Đăng ký tài khoản mới",
-  //   sub: "Hệ thống tự động",
-  //   group: "user_moi",
-  //   customer: {
-  //     name: "Phạm Tường Vy",
-  //     avatar: "https://i.pravatar.cc/100?img=15",
-  //     role: "Giám đốc - Công ty TNHH Torano",
-  //     email: "vy.pham@example.com",
-  //     phone: "0912 345 678",
-  //     source: "Facebook Ads",
-  //     address: "Tầng 3, Tòa nhà AB, Quận 1, TP. HCM",
-  //   },
-  //   customerId: "CUST1",
-  //   biz: { id: "#BIZ001", tags: ["Trial", "SmaxAi"] },
-  //   assignee: { name: "Vũ Thu Phương", avatar: "https://i.pravatar.cc/100?img=25", role: "Nhân viên Sales" },
-  //   assigneeId: "USER4",
-  //   stage: "Đăng ký thành công",
-  //   source: "CRM",
-  //   tags: ["#UserMoi", "#Trial"],
-  //   plan: { name: "TRIAL", cycle: "Dùng thử", price: "0 đ", daysLeft: 14, expiryDate: "02/05/2026" },
-  //   services: [],
-  //   quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
-  //   timeline: [
-  //     { type: "event", title: "Tài khoản được tạo tự động", time: daysAgo(2), content: null, duration: null, createdBy: "System" },
-  //     { type: "phone", title: "Gọi điện chào mừng", time: daysAgo(1), content: "Khách hàng bắt máy, hài lòng với sản phẩm", duration: "5 phút", createdBy: "Vũ Thu Phương" },
-  //     { type: "note", title: "Ghi chú nội bộ", time: hoursAgo(3), content: "Khách quan tâm gói Basic, hẹn demo tuần sau", duration: null, createdBy: "Vũ Thu Phương" },
-  //   ],
-  // },
+  // EVT001: user_moi — có assignee — đã đồng bộ
+  {
+    id: "EVT1",
+    name: "Đăng ký tài khoản mới",
+    sub: "Hệ thống tự động",
+    group: "user_moi",
+    customer: {
+      name: "Phạm Tường Vy",
+      avatar: "https://i.pravatar.cc/100?img=15",
+      role: "Giám đốc - Công ty TNHH Torano",
+      email: "vy.pham@example.com",
+      phone: "0912 345 678",
+      source: "Facebook Ads",
+      address: "Tầng 3, Tòa nhà AB, Quận 1, TP. HCM",
+    },
+    customerId: "CUST1",
+    biz: { id: "#BIZ001", tags: ["Trial", "SmaxAi"] },
+    assignee: { name: "Vũ Thu Phương", avatar: "https://i.pravatar.cc/100?img=25", role: "Nhân viên Sales" },
+    assigneeId: "USER4",
+    stage: "Đăng ký thành công",
+    source: "CRM",
+    tags: ["#UserMoi", "#Trial"],
+    plan: { name: "TRIAL", cycle: "Dùng thử", price: "0 đ", daysLeft: 14, expiryDate: "02/05/2026" },
+    services: [],
+    quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
+    timeline: [
+      { type: "event", title: "Tài khoản được tạo tự động", time: daysAgo(2), content: null, duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi điện chào mừng", time: daysAgo(1), content: "Khách hàng bắt máy, hài lòng với sản phẩm", duration: "5 phút", createdBy: "Vũ Thu Phương" },
+      { type: "note", title: "Ghi chú nội bộ", time: hoursAgo(3), content: "Khách quan tâm gói Basic, hẹn demo tuần sau", duration: null, createdBy: "Vũ Thu Phương" },
+    ],
+  },
 
-  // // EVT002: user_moi — có assignee — đã đồng bộ — timeline phong phú
-  // {
-  //   id: "EVT2",
-  //   name: "Hoàn tất hồ sơ cá nhân",
-  //   sub: "Người dùng tự thao tác",
-  //   group: "user_moi",
-  //   customer: {
-  //     name: "Nguyễn Thị Lan",
-  //     avatar: "https://i.pravatar.cc/100?img=5",
-  //     role: "Chủ cửa hàng - LanStore",
-  //     email: "lan.nguyen@example.com",
-  //     phone: "0933 222 111",
-  //     source: "Google Ads",
-  //     address: "89 Trần Phú, Hà Đông, Hà Nội",
-  //   },
-  //   customerId: "CUST4",
-  //   biz: { id: "#BIZ002", tags: ["Trial", "Appvn"] },
-  //   assignee: { name: "Lê Văn Hùng", avatar: "https://i.pravatar.cc/100?img=30", role: "Nhân viên Sales" },
-  //   assigneeId: "USER5",
-  //   stage: "Đã hoàn tất hồ sơ",
-  //   source: "CRM",
-  //   tags: ["#NewUser", "#HoSoHoanTat"],
-  //   plan: { name: "TRIAL", cycle: "Dùng thử", price: "0 đ", daysLeft: 7, expiryDate: "25/04/2026" },
-  //   services: [],
-  //   quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
-  //   timeline: [
-  //     { type: "event", title: "Hồ sơ cá nhân hoàn tất", time: daysAgo(3), content: null, duration: null, createdBy: "System" },
-  //     { type: "email", title: "Email chào mừng đã gửi", time: daysAgo(3), content: "Automation gửi email giới thiệu dịch vụ thành công", duration: null, createdBy: "System" },
-  //     { type: "phone", title: "Gọi điện lần 1", time: daysAgo(2), content: "Không bắt máy — thử lại sau", duration: null, createdBy: "Lê Văn Hùng" },
-  //     { type: "phone", title: "Gọi điện lần 2", time: daysAgo(1), content: "Bắt máy, khách hàng hỏi về gói Basic", duration: "3 phút", createdBy: "Lê Văn Hùng" },
-  //     { type: "note", title: "Ghi chú: cần gửi bảng giá", time: hoursAgo(5), content: "Khách muốn so sánh các gói, cần gửi file bảng giá 2026", duration: null, createdBy: "Lê Văn Hùng" },
-  //   ],
-  // },
+  // EVT002: user_moi — có assignee — đã đồng bộ — timeline phong phú
+  {
+    id: "EVT2",
+    name: "Hoàn tất hồ sơ cá nhân",
+    sub: "Người dùng tự thao tác",
+    group: "user_moi",
+    customer: {
+      name: "Nguyễn Thị Lan",
+      avatar: "https://i.pravatar.cc/100?img=5",
+      role: "Chủ cửa hàng - LanStore",
+      email: "lan.nguyen@example.com",
+      phone: "0933 222 111",
+      source: "Google Ads",
+      address: "89 Trần Phú, Hà Đông, Hà Nội",
+    },
+    customerId: "CUST4",
+    biz: { id: "#BIZ002", tags: ["Trial", "Appvn"] },
+    assignee: { name: "Lê Văn Hùng", avatar: "https://i.pravatar.cc/100?img=30", role: "Nhân viên Sales" },
+    assigneeId: "USER5",
+    stage: "Đã hoàn tất hồ sơ",
+    source: "CRM",
+    tags: ["#NewUser", "#HoSoHoanTat"],
+    plan: { name: "TRIAL", cycle: "Dùng thử", price: "0 đ", daysLeft: 7, expiryDate: "25/04/2026" },
+    services: [],
+    quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
+    timeline: [
+      { type: "event", title: "Hồ sơ cá nhân hoàn tất", time: daysAgo(3), content: null, duration: null, createdBy: "System" },
+      { type: "email", title: "Email chào mừng đã gửi", time: daysAgo(3), content: "Automation gửi email giới thiệu dịch vụ thành công", duration: null, createdBy: "System" },
+      { type: "phone", title: "Gọi điện lần 1", time: daysAgo(2), content: "Không bắt máy — thử lại sau", duration: null, createdBy: "Lê Văn Hùng" },
+      { type: "phone", title: "Gọi điện lần 2", time: daysAgo(1), content: "Bắt máy, khách hàng hỏi về gói Basic", duration: "3 phút", createdBy: "Lê Văn Hùng" },
+      { type: "note", title: "Ghi chú: cần gửi bảng giá", time: hoursAgo(5), content: "Khách muốn so sánh các gói, cần gửi file bảng giá 2026", duration: null, createdBy: "Lê Văn Hùng" },
+    ],
+  },
 
-  // // EVT003: user_moi — CHƯA có assignee
-  // {
-  //   id: "EVT3",
-  //   name: "Người dùng mới từ Google Ads",
-  //   sub: "Tự đăng ký",
-  //   group: "user_moi",
-  //   customer: {
-  //     name: "Trần Thị Hoa",
-  //     avatar: "https://i.pravatar.cc/100?img=20",
-  //     role: "Freelancer - HoaDesign",
-  //     email: "hoa.tran@example.com",
-  //     phone: "0977 333 444",
-  //     source: "Google Ads",
-  //     address: "Đà Nẵng",
-  //   },
-  //   customerId: "CUST6",
-  //   biz: { id: "#BIZ007", tags: ["Trial"] },
-  //   assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
-  //   assigneeId: null,
-  //   stage: "Chờ phân công",
-  //   source: "Google Ads",
-  //   tags: ["#UserMoi", "#ChuaGan"],
-  //   plan: { name: "TRIAL", cycle: "Dùng thử", price: "0 đ", daysLeft: 14, expiryDate: "02/05/2026" },
-  //   services: [],
-  //   quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
-  //   timeline: [
-  //     { type: "event", title: "Tài khoản tự động tạo từ Google Ads", time: hoursAgo(2), content: null, duration: null, createdBy: "System" },
-  //   ],
-  // },
+  // EVT003: user_moi — CHƯA có assignee
+  {
+    id: "EVT3",
+    name: "Người dùng mới từ Google Ads",
+    sub: "Tự đăng ký",
+    group: "user_moi",
+    customer: {
+      name: "Trần Thị Hoa",
+      avatar: "https://i.pravatar.cc/100?img=20",
+      role: "Freelancer - HoaDesign",
+      email: "hoa.tran@example.com",
+      phone: "0977 333 444",
+      source: "Google Ads",
+      address: "Đà Nẵng",
+    },
+    customerId: "CUST6",
+    biz: { id: "#BIZ007", tags: ["Trial"] },
+    assignee: { name: "", avatar: "", role: "" },   // ← CHƯA ĐƯỢC GÁN
+    assigneeId: null,
+    stage: "Chờ phân công",
+    source: "Google Ads",
+    tags: ["#UserMoi", "#ChuaGan"],
+    plan: { name: "TRIAL", cycle: "Dùng thử", price: "0 đ", daysLeft: 14, expiryDate: "02/05/2026" },
+    services: [],
+    quotas: [{ name: "Truy cập User", used: 1, total: 3, color: "blue" }],
+    timeline: [
+      { type: "event", title: "Tài khoản tự động tạo từ Google Ads", time: hoursAgo(2), content: null, duration: null, createdBy: "System" },
+    ],
+  },
 
   // // EVT004: user_moi — CHƯA có assignee, CHƯA đồng bộ nhân viên hệ thống (customer ID chưa map)
   // {

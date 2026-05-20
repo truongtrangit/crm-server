@@ -26,6 +26,13 @@ const createUserSchema = Joi.object({
   groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
+  moduleAccess: Joi.array().items(
+    Joi.object({
+      moduleId: Joi.string().required(),
+      isEnabled: Joi.boolean().default(true),
+      customPermissions: Joi.array().items(Joi.string()).allow(null).default(null),
+    })
+  ).optional(),
   isActive: Joi.boolean().optional(),
 });
 
@@ -51,6 +58,13 @@ const updateUserSchema = Joi.object({
   groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
   groupAliases: Joi.array().items(Joi.string()).optional(),
   groupIds: Joi.array().items(Joi.string()).optional(),
+  moduleAccess: Joi.array().items(
+    Joi.object({
+      moduleId: Joi.string().required(),
+      isEnabled: Joi.boolean().default(true),
+      customPermissions: Joi.array().items(Joi.string()).allow(null).default(null),
+    })
+  ).optional(),
   isActive: Joi.boolean().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
