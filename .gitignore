@@ -29,3 +29,7 @@ docker-compose.override.yml
 # coverage
 coverage/
 vps_*.md
+
+vps_deploy_guide.md
+deploy.sh
+.rsyncignore
