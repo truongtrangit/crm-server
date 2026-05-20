@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "dev": "dotenv -e .env -- node --watch src/server.js",
+    "local": "dotenv -e .env.local -- node --watch src/server.js",
+    "dev": "dotenv -e .env.dev -- node --watch src/server.js",
     "vps": "dotenv -e .env.vps -- node --watch src/server.js",
     "prod": "dotenv -e .env.prod -- node src/server.js",
     "start": "node src/server.js",
