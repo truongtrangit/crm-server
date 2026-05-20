@@ -51,8 +51,9 @@ function requireResourceAccess(options) {
       }
 
       // 2. Bypass roles (OWNER, ADMIN mặc định)
+      //    Also bypass if MLAC already granted access for this module
       const bypassRoles = options.bypassRoles || ["OWNER", "ADMIN"];
-      if (bypassRoles.includes(role)) return next();
+      if (bypassRoles.includes(role) || req.mlacGranted) return next();
 
       // 3. Check creator — user tạo ra resource
       const creatorId = options?.getCreatorId?.(resource);
@@ -124,7 +125,7 @@ function enforceAssignmentRules(options) {
       if (!user) return next();
 
       const role = (user.roleId || "").toUpperCase();
-      if (["OWNER", "ADMIN"].includes(role)) return next();
+      if (["OWNER", "ADMIN"].includes(role) || req.mlacGranted) return next();
 
       const newAssigneeIds = options.getNewAssigneeIds(req) || [];
       const currentAssignees = req.resource && options.getCurrentAssigneeIds ? options.getCurrentAssigneeIds(req.resource) : [];
@@ -192,7 +193,7 @@ function enforceUnassignmentRules(options) {
       if (!user) return next();
 
       const role = (user.roleId || "").toUpperCase();
-      if (["OWNER", "ADMIN"].includes(role)) return next();
+      if (["OWNER", "ADMIN"].includes(role) || req.mlacGranted) return next();
 
       let removedAssigneeIds = [];
       if (options.getNewAssigneeIds && options.getCurrentAssigneeIds) {
@@ -264,7 +265,7 @@ function scopeAssignmentList(options = {}) {
         if (!user) return next();
         const role = (user.roleId || "").toUpperCase();
 
-        if (!["OWNER", "ADMIN"].includes(role)) {
+        if (!["OWNER", "ADMIN"].includes(role) && !req.mlacGranted) {
           const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
           if (role === "MANAGER" && allowManagerSubordinateScope) {
             const subIds = await getManagerSubordinateIds(user);
@@ -289,6 +290,11 @@ function scopeAssignmentList(options = {}) {
 function scopeResourceList(options = {}) {
   const middleware = async (req, res, next) => {
     try {
+      // MLAC-granted users see everything (same as OWNER/ADMIN)
+      if (req.mlacGranted) {
+        req.resourceScopeFilter = {};
+        return next();
+      }
       const filter = await buildResourceScopeFilter(req.user, options);
       req.resourceScopeFilter = filter || {};
       next();

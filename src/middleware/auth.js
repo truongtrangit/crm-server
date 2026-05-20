@@ -66,6 +66,9 @@ async function authenticateRequest(req, res, next) {
  * Middleware to check if user has specific permission(s)
  * Usage: requirePermission(PERMISSIONS.USERS_MANAGE)
  *        requirePermission([PERMISSIONS.USERS_READ, PERMISSIONS.USERS_CREATE], 'any')
+ *
+ * NOTE: If MLAC has already granted access (req.mlacGranted === true),
+ *       this middleware is bypassed entirely — MLAC supersedes RBAC.
  */
 function requirePermission(...permissionsOrOptions) {
   return async (req, res, next) => {
@@ -74,6 +77,9 @@ function requirePermission(...permissionsOrOptions) {
         code: "AUTHENTICATION_REQUIRED",
       });
     }
+
+    // MLAC supersedes RBAC — if module access was already granted, skip permission check
+    if (req.mlacGranted) return next();
 
     let permissions = [];
     let checkType = "all"; // 'all' or 'any'
@@ -113,6 +119,9 @@ function requirePermission(...permissionsOrOptions) {
 /**
  * Middleware to check if user has specific role(s)
  * Usage: requireRole(["OWNER", "ADMIN"])
+ *
+ * NOTE: If MLAC has already granted access (req.mlacGranted === true),
+ *       this middleware is bypassed entirely — MLAC supersedes role checks.
  */
 function requireRole(allowedRoles) {
   return async (req, res, next) => {
@@ -121,6 +130,9 @@ function requireRole(allowedRoles) {
         code: "AUTHENTICATION_REQUIRED",
       });
     }
+
+    // MLAC supersedes role checks
+    if (req.mlacGranted) return next();
 
     const roleName = (req.user.roleId || "").toUpperCase();
     
@@ -138,10 +150,14 @@ function requireRole(allowedRoles) {
 /**
  * Module-Level Access Control (MLAC) middleware.
  *
- * Checks if the user has access to a specific module and (optionally) a specific
- * action within that module. If the user has `customPermissions` set for the module,
- * those take precedence. Otherwise, the request passes through and falls back to
- * the existing RBAC/RLAC middleware downstream.
+ * When MLAC is configured for a user and access is granted, it sets
+ * `req.mlacGranted = true` which causes downstream `requirePermission`
+ * and `requireRole` middleware to be bypassed. This makes MLAC the sole
+ * authorization authority — a Staff user granted module access does NOT
+ * need RBAC permissions for that module's routes.
+ *
+ * Backward compat: Users with no moduleAccess entries pass through
+ * unchanged, and downstream RBAC middleware works as before.
  *
  * Usage:
  *   requireModuleAccess("meta")                // Check module access only
@@ -162,6 +178,7 @@ function requireModuleAccess(moduleId, action) {
     if (roleName === "OWNER") return next();
 
     // If user has no moduleAccess config at all -> backward compat, allow everything
+    // (downstream RBAC middleware will still run normally)
     const moduleAccessList = user.moduleAccess || [];
     if (moduleAccessList.length === 0) return next();
 
@@ -181,7 +198,6 @@ function requireModuleAccess(moduleId, action) {
     const moduleConf = moduleAccessList.find((m) => m.moduleId === moduleId);
 
     // Module not in user's configured list → DENIED
-    // (admin configured MLAC but didn't include this module)
     if (!moduleConf) {
       return sendError(res, 403, "Bạn không có quyền truy cập module này.", {
         code: "MODULE_ACCESS_DENIED",
@@ -197,24 +213,22 @@ function requireModuleAccess(moduleId, action) {
       });
     }
 
-    // If no action check requested, module-level access is sufficient
-    if (!action) return next();
-
-    // If customPermissions is null -> fallback to RBAC (let downstream middleware handle)
-    if (moduleConf.customPermissions === null || moduleConf.customPermissions === undefined) {
-      return next();
+    // If action check is requested and customPermissions exist, validate action
+    if (action && Array.isArray(moduleConf.customPermissions)) {
+      if (!moduleConf.customPermissions.includes(action)) {
+        return sendError(res, 403, "Bạn không có quyền thực hiện hành động này trong module.", {
+          code: "MODULE_ACTION_DENIED",
+          moduleId,
+          action,
+        });
+      }
     }
 
-    // Custom permissions exist -> check if the specific action is allowed
-    if (Array.isArray(moduleConf.customPermissions) && moduleConf.customPermissions.includes(action)) {
-      return next();
-    }
-
-    return sendError(res, 403, "Bạn không có quyền thực hiện hành động này trong module.", {
-      code: "MODULE_ACTION_DENIED",
-      moduleId,
-      action,
-    });
+    // ── MLAC GRANTED ──────────────────────────────────────────────────────
+    // Module access is confirmed. Set flag so downstream requirePermission
+    // and requireRole middleware are bypassed entirely.
+    req.mlacGranted = true;
+    return next();
   };
 }
 
