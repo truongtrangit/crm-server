@@ -1,5 +1,6 @@
 const Customer = require("../models/Customer");
 const Event = require("../models/Event");
+const Subscription = require("../models/Subscription");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require("../utils/pagination");
@@ -79,6 +80,56 @@ class CustomerService {
         Customer.countDocuments(query),
       ]);
 
+      // Attach subscriptions and members to BIZ customers
+      const bizCustomerIds = customers.filter(c => c.mainType === CUSTOMER_MAIN_TYPES.BIZ).map(c => c.id);
+      if (bizCustomerIds.length > 0) {
+        const [subscriptions, members] = await Promise.all([
+          Subscription.find({ customerId: { $in: bizCustomerIds } }).sort({ endDate: -1 }).lean(),
+          Customer.find({
+            mainType: CUSTOMER_MAIN_TYPES.USER,
+            'bizDetails.bizId': { $in: bizCustomerIds }
+          }).lean()
+        ]);
+
+        // Map subscriptions by customerId (keep newest)
+        const subMap = {};
+        for (const sub of subscriptions) {
+          if (!subMap[sub.customerId]) {
+            subMap[sub.customerId] = sub;
+          }
+        }
+
+        // Map members by bizId
+        const membersMap = {};
+        for (const member of members) {
+          if (member.bizDetails && Array.isArray(member.bizDetails)) {
+            for (const bizD of member.bizDetails) {
+              if (bizCustomerIds.includes(bizD.bizId)) {
+                if (!membersMap[bizD.bizId]) {
+                  membersMap[bizD.bizId] = [];
+                }
+                membersMap[bizD.bizId].push({
+                  id: member.id,
+                  name: member.name,
+                  avatar: member.avatar,
+                  email: member.email,
+                  phone: member.phone,
+                  role: bizD.role || ""
+                });
+              }
+            }
+          }
+        }
+
+        // Attach to customers
+        for (const c of customers) {
+          if (c.mainType === CUSTOMER_MAIN_TYPES.BIZ) {
+            c.subscription = subMap[c.id] || null;
+            c.members = membersMap[c.id] || [];
+          }
+        }
+      }
+
       return buildPaginatedResponse(customers, totalItems, page, limit);
     });
   }
@@ -88,7 +139,30 @@ class CustomerService {
     if (!customer) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
     }
-    return customer;
+    const customerObj = customer.toObject();
+    if (customerObj.mainType === CUSTOMER_MAIN_TYPES.BIZ) {
+      const [subscription, members] = await Promise.all([
+        Subscription.findOne({ customerId: id }).sort({ endDate: -1 }).lean(),
+        Customer.find({
+          mainType: CUSTOMER_MAIN_TYPES.USER,
+          'bizDetails.bizId': id
+        }).lean()
+      ]);
+
+      customerObj.subscription = subscription || null;
+      customerObj.members = members.map(member => {
+        const bizD = member.bizDetails?.find(b => b.bizId === id);
+        return {
+          id: member.id,
+          name: member.name,
+          avatar: member.avatar,
+          email: member.email,
+          phone: member.phone,
+          role: bizD?.role || ""
+        };
+      });
+    }
+    return customerObj;
   }
 
   async createCustomer(payload, currentUser) {

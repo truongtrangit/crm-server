@@ -315,8 +315,8 @@ describe("Webhook Endpoints", () => {
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.assigneeId).toBe("TEST-USER004");
-      expect(event.assignee.name).toBe("Test Staff One");
+      expect(event.assignees[0].userId).toBe("TEST-USER004");
+      expect(event.assignees[0].userName).toBe("Test Staff One");
     });
 
     it("should resolve assignee by nested email (expiring-subscription)", async () => {
@@ -326,8 +326,8 @@ describe("Webhook Endpoints", () => {
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.assigneeId).toBe("TEST-USER004");
-      expect(event.assignee.name).toBe("Test Staff One");
+      expect(event.assignees[0].userId).toBe("TEST-USER004");
+      expect(event.assignees[0].userName).toBe("Test Staff One");
     });
 
     it("should resolve assignee by nested name", async () => {
@@ -337,7 +337,7 @@ describe("Webhook Endpoints", () => {
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.assigneeId).toBe("TEST-USER003");
+      expect(event.assignees[0].userId).toBe("TEST-USER003");
     });
 
     it("should keep payload info when staff not found", async () => {
@@ -348,8 +348,7 @@ describe("Webhook Endpoints", () => {
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.assigneeId).toBeNull();
-      expect(event.assignee.name).toBe("Unknown Staff");
+      expect(event.assignees).toHaveLength(0);
     });
 
     it("should default to empty assignee when not provided", async () => {
@@ -360,8 +359,7 @@ describe("Webhook Endpoints", () => {
       });
       expect(res.status).toBe(201);
       const event = await Event.findOne({ id: res.body.data.eventId });
-      expect(event.assigneeId).toBeNull();
-      expect(event.assignee.name).toBe("");
+      expect(event.assignees).toHaveLength(0);
     });
   });
 
