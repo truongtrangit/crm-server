@@ -34,6 +34,15 @@ class LogController {
     const result = await AutomationLogService.getLogs(req.query);
     return sendSuccess(res, 200, "Automation logs retrieved", result);
   }
+
+  /**
+   * POST /api/v1/logs/webhook/:id/retry
+   */
+  async retryWebhook(req, res) {
+    const { id } = req.params;
+    const result = await WebhookService.retryEvent(id);
+    return sendSuccess(res, 200, "Thử lại webhook thành công", result);
+  }
 }
 
 module.exports = new LogController();

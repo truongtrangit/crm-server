@@ -154,6 +154,56 @@ class WebhookService {
     return buildPaginatedResponse(logs, totalItems, page, limit);
   }
 
+  async retryEvent(id) {
+    const webhookLog = await WebhookLog.findById(id);
+    if (!webhookLog) {
+      throw createHttpError(404, "Không tìm thấy log webhook.");
+    }
+
+    const processor = this.#processors.get(webhookLog.eventType);
+    if (!processor) {
+      throw createHttpError(400, `Không hỗ trợ event type: ${webhookLog.eventType}`, {
+        code: "WEBHOOK_UNSUPPORTED_EVENT",
+      });
+    }
+
+    try {
+      webhookLog.status = "processing";
+      webhookLog.error = null;
+      await webhookLog.save();
+
+      const result = await processor(webhookLog.payload);
+
+      webhookLog.status = "processed";
+      webhookLog.processedAt = new Date();
+      webhookLog.createdEventId = result.eventId || null;
+      webhookLog.createdCustomerId = result.customerId || null;
+      webhookLog.createdSubscriptionId = result.subscriptionId || null;
+      await webhookLog.save();
+
+      logger.info("Webhook retried and processed successfully", {
+        id,
+        eventType: webhookLog.eventType,
+        eventId: result.eventId,
+      });
+
+      return webhookLog;
+    } catch (error) {
+      webhookLog.status = "failed";
+      webhookLog.error = error.message;
+      await webhookLog.save();
+
+      logger.error("Webhook retry processing failed", {
+        id,
+        eventType: webhookLog.eventType,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      throw error;
+    }
+  }
+
   // ─── Event Processors ────────────────────────────────────────────────────────
 
   /**
