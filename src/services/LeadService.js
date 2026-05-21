@@ -444,6 +444,15 @@ class LeadService {
   async selfAssignLead(id, functionId, currentUser) {
     const lead = await this.getLeadById(id);
 
+    // Kiểm tra vai trò của người dùng nếu là STAFF hoặc MANAGER
+    const userRole = (currentUser.roleId || '').toUpperCase();
+    if (['STAFF', 'MANAGER'].includes(userRole)) {
+      const userFuncs = currentUser.functions || [];
+      if (!functionId || !userFuncs.includes(functionId)) {
+        throw createHttpError(403, 'Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.');
+      }
+    }
+
     const isAssigned = lead.assignees && lead.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
     if (isAssigned) {
       return lead;
