@@ -12,6 +12,12 @@ router.get(
   LogController.getWebhookLogs,
 );
 
+router.post(
+  "/webhook/:id/retry",
+  requirePermission(PERMISSIONS.LOGS_READ),
+  LogController.retryWebhook,
+);
+
 router.get(
   "/system",
   requirePermission(PERMISSIONS.LOGS_READ),

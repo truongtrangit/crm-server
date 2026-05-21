@@ -416,6 +416,15 @@ class EventService {
     const event = await Event.findOne({ id });
     if (!event) throw createHttpError(404, 'Event not found');
 
+    // Kiểm tra vai trò của người dùng nếu là STAFF hoặc MANAGER
+    const userRole = (currentUser.roleId || '').toUpperCase();
+    if (['STAFF', 'MANAGER'].includes(userRole)) {
+      const userFuncs = currentUser.functions || [];
+      if (!functionId || !userFuncs.includes(functionId)) {
+        throw createHttpError(403, 'Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.');
+      }
+    }
+
     // Kiểm tra đã assign chưa
     const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
     if (alreadyAssigned) {

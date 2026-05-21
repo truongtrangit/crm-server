@@ -154,6 +154,56 @@ class WebhookService {
     return buildPaginatedResponse(logs, totalItems, page, limit);
   }
 
+  async retryEvent(id) {
+    const webhookLog = await WebhookLog.findById(id);
+    if (!webhookLog) {
+      throw createHttpError(404, "Không tìm thấy log webhook.");
+    }
+
+    const processor = this.#processors.get(webhookLog.eventType);
+    if (!processor) {
+      throw createHttpError(400, `Không hỗ trợ event type: ${webhookLog.eventType}`, {
+        code: "WEBHOOK_UNSUPPORTED_EVENT",
+      });
+    }
+
+    try {
+      webhookLog.status = "processing";
+      webhookLog.error = null;
+      await webhookLog.save();
+
+      const result = await processor(webhookLog.payload);
+
+      webhookLog.status = "processed";
+      webhookLog.processedAt = new Date();
+      webhookLog.createdEventId = result.eventId || null;
+      webhookLog.createdCustomerId = result.customerId || null;
+      webhookLog.createdSubscriptionId = result.subscriptionId || null;
+      await webhookLog.save();
+
+      logger.info("Webhook retried and processed successfully", {
+        id,
+        eventType: webhookLog.eventType,
+        eventId: result.eventId,
+      });
+
+      return webhookLog;
+    } catch (error) {
+      webhookLog.status = "failed";
+      webhookLog.error = error.message;
+      await webhookLog.save();
+
+      logger.error("Webhook retry processing failed", {
+        id,
+        eventType: webhookLog.eventType,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      throw error;
+    }
+  }
+
   // ─── Event Processors ────────────────────────────────────────────────────────
 
   /**
@@ -521,6 +571,27 @@ class WebhookService {
           if (!userCustomer.mainType || userCustomer.mainType === CUSTOMER_MAIN_TYPES.USER) {
             userCustomer.mainType = CUSTOMER_MAIN_TYPES.USER;
           }
+
+          // Link bizDetails robustly
+          if (!userCustomer.bizDetails) {
+            userCustomer.bizDetails = [];
+          }
+          const existingEntry = userCustomer.bizDetails.find(b => b.bizId === bizCustomer.id);
+          if (existingEntry) {
+            existingEntry.role = u.role || "";
+            existingEntry.bizName = bizCustomer.name;
+            existingEntry.bizAlias = bizCustomer.alias;
+            existingEntry.thirdPartyBizId = payload.id;
+          } else {
+            userCustomer.bizDetails.push({
+              bizId: bizCustomer.id,
+              thirdPartyBizId: payload.id,
+              role: u.role || "",
+              bizName: bizCustomer.name,
+              bizAlias: bizCustomer.alias
+            });
+          }
+
           await userCustomer.save();
 
           logger.info("Biz create — existing user customer updated", {
@@ -548,6 +619,13 @@ class WebhookService {
               roles: u.role ? [u.role] : [],
               country: payload.country || null,
             },
+            bizDetails: [{
+              bizId: bizCustomer.id,
+              thirdPartyBizId: payload.id,
+              role: u.role || "",
+              bizName: bizCustomer.name,
+              bizAlias: bizCustomer.alias
+            }]
           });
 
           logger.info("Biz create — new user customer created", {
@@ -611,7 +689,7 @@ class WebhookService {
     // ─── 4. Build plan snapshot ────────────────────────────────────────────
     const endDate = order.time_end ? new Date(order.time_end) : null;
     const daysLeft = endDate
-      ? Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      ? Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : 0;
 
     const plan = {
@@ -620,6 +698,8 @@ class WebhookService {
       price: order.type === "FREE" ? "0 đ" : "",
       daysLeft,
       expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+      timeStart: order.time_start || "",
+      timeEnd: order.time_end || "",
     };
 
     // ─── 5. Build services & quotas ───────────────────────────────────────
@@ -687,55 +767,393 @@ class WebhookService {
    * Tạo Event group 'sap_het_han'.
    */
   async #processPlanExpired(payload) {
-    const customerData = this.#extractCustomerData(payload);
-    const existingCustomer = await this.#findCustomer(customerData);
-    const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+    const isSmaxBizPayload = payload.users || payload.order || payload.alias || payload.picture;
 
-    const event = await Event.create({
-      id: await generateMonotonicId(ID_PREFIXES.EVENT),
-      name: payload.name || `Sắp hết hạn: ${payload.biz?.id || customerData.name || "N/A"}`,
-      sub: payload.sub || "",
-      group: WEBHOOK_EVENT_TYPES.PLAN_EXPIRED,
-      customerId: existingCustomer?.id || null,
-      customer: {
-        name: customerData.name || existingCustomer?.name || "Unknown",
-        avatar: customerData.avatar || existingCustomer?.avatar || "",
-        role: customerData.role || "",
-        email: customerData.email || existingCustomer?.email || "",
-        phone: customerData.phone || existingCustomer?.phone || "",
-        source: customerData.source || "Webhook",
-        address: customerData.address || "",
-      },
-      assignees: assigneeId ? [{
-        userId: assigneeId,
-        userName: assignee.name,
-        userAvatar: assignee.avatar,
-        functionId: null,
-        functionTitle: "",
-      }] : [],
-      biz: payload.biz || { id: "", tags: [] },
-      stage: payload.stage || "",
-      source: "Webhook",
-      tags: payload.tags || [],
-      plan: payload.plan || {},
-      services: payload.services || [],
-      quotas: payload.quotas || [],
-      timeline: [
-        {
-          type: "event",
-          title: "Sự kiện tạo tự động từ Webhook",
-          time: new Date().toLocaleString("vi-VN"),
-          content: `Biz cần gia hạn: ${payload.biz?.id || "N/A"}`,
-          createdBy: "Webhook System",
+    if (isSmaxBizPayload) {
+      // ─── NEW SmaxAI style Business Payload ───
+      const order = payload.order || {};
+      const users = Array.isArray(payload.users) ? payload.users : [];
+
+      // ─── 1. Upsert BIZ customer ───────────────────────────────────────────
+      const bizEmail = (payload.email || "").trim().toLowerCase();
+      const bizPhone = (payload.phone || "").trim();
+      const bizName = (payload.name || "").trim();
+      const bizAlias = (payload.alias || "").trim();
+      const bizAvatar = payload.picture || "";
+      const subType = classifyBizSubType(order);
+
+      let bizCustomer = null;
+
+      // Dedup biz: prefer alias match, then email/phone
+      if (bizAlias) {
+        bizCustomer = await Customer.findOneWithDeleted({ alias: bizAlias, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+      }
+      if (!bizCustomer && (bizEmail || bizPhone)) {
+        const orConds = [];
+        if (bizEmail) orConds.push({ email: bizEmail, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+        if (bizPhone) orConds.push({ phone: bizPhone, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+        bizCustomer = await Customer.findOneWithDeleted({ $or: orConds });
+      }
+
+      if (bizCustomer?.isDeleted) {
+        logger.warn("Biz plan expired — biz customer soft-deleted, skipping link", {
+          customerId: bizCustomer.id,
+          alias: bizAlias,
+        });
+        bizCustomer = null;
+      }
+
+      if (bizCustomer) {
+        // Update existing biz customer
+        bizCustomer.subType = subType;
+        if (bizName && !bizCustomer.name) bizCustomer.name = bizName;
+        if (bizPhone && !bizCustomer.phone) bizCustomer.phone = bizPhone;
+        if (bizAvatar && !bizCustomer.avatar) bizCustomer.avatar = bizAvatar;
+        bizCustomer.extraInfo = {
+          ...bizCustomer.extraInfo,
+          thirdPartyBizId: payload.id || null,
+          country: payload.country || null,
+          orderType: order.type || null,
+          orderCode: order.code || null,
+          timeEnd: order.time_end || null,
+        };
+        await bizCustomer.save();
+
+        logger.info("Biz plan expired — existing biz customer updated", {
+          customerId: bizCustomer.id,
+          alias: bizAlias,
+          subType,
+        });
+      } else {
+        // Create new biz customer
+        const { customer: created } = await this.#findOrCreateBizCustomer({
+          email: bizEmail,
+          phone: bizPhone,
+          name: bizName || "Unknown Biz",
+          alias: bizAlias,
+          avatar: bizAvatar || getDefaultAvatar(bizName),
+          mainType: CUSTOMER_MAIN_TYPES.BIZ,
+          subType,
+          type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+          platforms: ["SmaxAi"],
+          registeredAt: payload.created_at
+            ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+            : "",
+          tags: ["#Webhook", `#${order.type || "FREE"}`],
+          extraInfo: {
+            thirdPartyBizId: payload.id || null,
+            country: payload.country || null,
+            orderType: order.type || null,
+            orderCode: order.code || null,
+            timeEnd: order.time_end || null,
+          },
+        });
+        bizCustomer = created;
+
+        logger.info("Biz plan expired — new biz customer created", {
+          customerId: bizCustomer.id,
+          alias: bizAlias,
+          subType,
+        });
+      }
+
+      // ─── 2. Upsert USER customers from payload.users[] ───────────────────
+      for (const u of users) {
+        const userEmail = (u.email || "").trim().toLowerCase();
+        const userPhone = (u.phone || "").trim();
+        const userName = u.name || "";
+        const userAvatar = u.picture || "";
+
+        if (!userEmail && !userPhone) continue;
+
+        try {
+          const orConds = [];
+          if (userEmail) orConds.push({ email: userEmail, mainType: CUSTOMER_MAIN_TYPES.USER });
+          if (userPhone) orConds.push({ phone: userPhone, mainType: CUSTOMER_MAIN_TYPES.USER });
+          let userCustomer = await Customer.findOneWithDeleted({ $or: orConds });
+
+          if (userCustomer?.isDeleted) {
+            logger.warn("Biz plan expired — user customer soft-deleted, skipping", {
+              email: userEmail,
+            });
+            continue;
+          }
+
+          if (userCustomer) {
+            // Update: link biz name if not already linked
+            const bizLabel = bizName || bizAlias || "";
+            if (bizLabel && !userCustomer.biz.includes(bizLabel)) {
+              userCustomer.biz.push(bizLabel);
+            }
+            if (!userCustomer.platforms?.includes("SmaxAi")) {
+              userCustomer.platforms = [...(userCustomer.platforms || []), "SmaxAi"];
+            }
+            if (!userCustomer.mainType || userCustomer.mainType === CUSTOMER_MAIN_TYPES.USER) {
+              userCustomer.mainType = CUSTOMER_MAIN_TYPES.USER;
+            }
+
+            // Link bizDetails robustly
+            if (!userCustomer.bizDetails) {
+              userCustomer.bizDetails = [];
+            }
+            const existingEntry = userCustomer.bizDetails.find(b => b.bizId === bizCustomer.id);
+            if (existingEntry) {
+              existingEntry.role = u.role || "";
+              existingEntry.bizName = bizCustomer.name;
+              existingEntry.bizAlias = bizCustomer.alias;
+              existingEntry.thirdPartyBizId = payload.id;
+            } else {
+              userCustomer.bizDetails.push({
+                bizId: bizCustomer.id,
+                thirdPartyBizId: payload.id,
+                role: u.role || "",
+                bizName: bizCustomer.name,
+                bizAlias: bizCustomer.alias
+              });
+            }
+
+            await userCustomer.save();
+
+            logger.info("Biz plan expired — existing user customer updated", {
+              customerId: userCustomer.id,
+              email: userEmail,
+            });
+          } else {
+            // Create new user customer
+            const { customer: created } = await this.#findOrCreateCustomer({
+              email: userEmail,
+              phone: userPhone,
+              name: userName || "Unknown",
+              avatar: userAvatar || getDefaultAvatar(userName),
+              mainType: CUSTOMER_MAIN_TYPES.USER,
+              subType: "",
+              type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+              biz: bizName ? [bizName] : [],
+              platforms: ["SmaxAi"],
+              registeredAt: payload.created_at
+                ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+                : "",
+              tags: ["#Webhook"],
+              extraInfo: {
+                thirdPartyId: u.id || null,
+                roles: u.role ? [u.role] : [],
+                country: payload.country || null,
+              },
+              bizDetails: [{
+                bizId: bizCustomer.id,
+                thirdPartyBizId: payload.id,
+                role: u.role || "",
+                bizName: bizCustomer.name,
+                bizAlias: bizCustomer.alias
+              }]
+            });
+
+            logger.info("Biz plan expired — new user customer created", {
+              customerId: created.id,
+              email: userEmail,
+            });
+          }
+        } catch (err) {
+          logger.error("Biz plan expired — failed to upsert user customer", {
+            email: userEmail,
+            error: err.message,
+          });
+        }
+      }
+
+      // ─── 3. Resolve Subscription from order ───────────────────────────────
+      let subscription = null;
+
+      if (order.id) {
+        subscription = await Subscription.findOne({ externalId: order.id });
+
+        if (!subscription) {
+          const now = new Date();
+          const endDate = order.time_end ? new Date(order.time_end) : null;
+          const status = endDate && endDate > now ? "active" : "expired";
+
+          subscription = await Subscription.create({
+            id: await generateMonotonicId(ID_PREFIXES.SUBSCRIPTION),
+            externalId: order.id,
+            source: "SmaxAi",
+            code: order.code || "",
+            planType: order.type || "FREE",
+            name: `${order.code || "N/A"} (${order.type || "FREE"})`,
+            months: order.months || 0,
+            startDate: order.time_start ? new Date(order.time_start) : null,
+            endDate,
+            maxMembers: order.members || 0,
+            maxPages: order.pages || 0,
+            maxCustomers: order.customers || 0,
+            maxCards: order.cards || 0,
+            usedCards: order.used_cards || 0,
+            totalCustomers: order.total_customers || 0,
+            botAvailable: order.bot_available || false,
+            chatAvailable: order.chat_available || false,
+            customerId: bizCustomer?.id || null,
+            status,
+            metadata: order,
+          });
+
+          logger.info("Biz plan expired — subscription created", {
+            subscriptionId: subscription.id,
+            externalId: order.id,
+            planType: order.type,
+          });
+        } else {
+          if (!subscription.customerId && bizCustomer) {
+            subscription.customerId = bizCustomer.id;
+          }
+          // update subscription details
+          const endDate = order.time_end ? new Date(order.time_end) : null;
+          if (endDate) subscription.endDate = endDate;
+          if (order.members) subscription.maxMembers = order.members;
+          if (order.pages) subscription.maxPages = order.pages;
+          if (order.customers) subscription.maxCustomers = order.customers;
+          if (order.cards) subscription.maxCards = order.cards;
+          if (order.used_cards !== undefined) subscription.usedCards = order.used_cards;
+          if (order.total_customers !== undefined) subscription.totalCustomers = order.total_customers;
+          if (order.bot_available !== undefined) subscription.botAvailable = order.bot_available;
+          if (order.chat_available !== undefined) subscription.chatAvailable = order.chat_available;
+          if (order.months) subscription.months = order.months;
+          await subscription.save();
+        }
+      }
+
+      // ─── 4. Build plan snapshot ────────────────────────────────────────────
+      const endDate = order.time_end ? new Date(order.time_end) : null;
+      const daysLeft = payload.remaining_day !== undefined
+        ? payload.remaining_day
+        : (endDate ? Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0);
+
+      const plan = {
+        name: `${order.code || "N/A"} (${order.type || "FREE"})`,
+        cycle: `${order.months || 0} tháng`,
+        price: order.type === "FREE" ? "0 đ" : "",
+        daysLeft,
+        expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+        timeStart: order.time_start || "",
+        timeEnd: order.time_end || "",
+      };
+
+      // ─── 5. Build services & quotas ───────────────────────────────────────
+      const services = [
+        { name: "Bot", active: order.bot_available || false },
+        { name: "Chat", active: order.chat_available || false },
+      ];
+
+      const quotas = [
+        { name: "Members", used: users.length, total: order.members || 0, color: "blue" },
+        { name: "Pages", used: (payload.page_pids || []).length, total: order.pages || 0, color: "green" },
+        { name: "Customers", used: order.total_customers || 0, total: order.customers || 0, color: "purple" },
+        { name: "Cards", used: order.used_cards || 0, total: order.cards || 0, color: "orange" },
+      ];
+
+      // ─── 6. Resolve assignee ──────────────────────────────────────────────
+      const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+
+      // ─── 7. Create Event ──────────────────────────────────────────────────
+      const event = await Event.create({
+        id: await generateMonotonicId(ID_PREFIXES.EVENT),
+        name: payload.name || `Sắp hết hạn: ${bizName || bizAlias || "Biz N/A"}`,
+        sub: payload.desc || "",
+        group: WEBHOOK_EVENT_TYPES.PLAN_EXPIRED,
+        customerId: bizCustomer?.id || null,
+        customer: {
+          name: bizCustomer?.name || bizName || "Unknown",
+          avatar: bizCustomer?.avatar || bizAvatar || "",
+          role: "",
+          email: bizCustomer?.email || bizEmail || "",
+          phone: bizCustomer?.phone || bizPhone || "",
+          source: "SmaxAi",
+          address: "",
         },
-      ],
-    });
+        biz: {
+          id: bizAlias || bizName || "",
+          tags: [],
+        },
+        assignees: assigneeId ? [{
+          userId: assigneeId,
+          userName: assignee.name,
+          userAvatar: assignee.avatar,
+          functionId: null,
+          functionTitle: "",
+        }] : [],
+        stage: payload.stage || "",
+        source: "SmaxAi",
+        subscriptionId: subscription?.id || null,
+        tags: ["#Webhook", `#${order.type || "FREE"}`, "#SapHetHan"],
+        plan,
+        services,
+        quotas,
+        timeline: [
+          {
+            type: "event",
+            title: "Sự kiện tạo tự động từ Webhook",
+            time: new Date().toLocaleString("vi-VN"),
+            content: `Biz "${bizName || bizAlias || "N/A"}" sắp hết hạn gói ${order.type || "FREE"} (${order.code || "N/A"}). Còn lại ${daysLeft} ngày.`,
+            createdBy: "Webhook System",
+          },
+        ],
+      });
 
-    return {
-      eventId: event.id,
-      customerId: existingCustomer?.id || null,
-      event,
-    };
+      return {
+        eventId: event.id,
+        customerId: bizCustomer?.id || null,
+        event,
+      };
+    } else {
+      // ─── OLD Flexible Payload Fallback ───
+      const customerData = this.#extractCustomerData(payload);
+      const existingCustomer = await this.#findCustomer(customerData);
+      const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+
+      const event = await Event.create({
+        id: await generateMonotonicId(ID_PREFIXES.EVENT),
+        name: payload.name || `Sắp hết hạn: ${payload.biz?.id || customerData.name || "N/A"}`,
+        sub: payload.sub || "",
+        group: WEBHOOK_EVENT_TYPES.PLAN_EXPIRED,
+        customerId: existingCustomer?.id || null,
+        customer: {
+          name: customerData.name || existingCustomer?.name || "Unknown",
+          avatar: customerData.avatar || existingCustomer?.avatar || "",
+          role: customerData.role || "",
+          email: customerData.email || existingCustomer?.email || "",
+          phone: customerData.phone || existingCustomer?.phone || "",
+          source: customerData.source || "Webhook",
+          address: customerData.address || "",
+        },
+        assignees: assigneeId ? [{
+          userId: assigneeId,
+          userName: assignee.name,
+          userAvatar: assignee.avatar,
+          functionId: null,
+          functionTitle: "",
+        }] : [],
+        biz: payload.biz || { id: "", tags: [] },
+        stage: payload.stage || "",
+        source: "Webhook",
+        tags: payload.tags || [],
+        plan: payload.plan || {},
+        services: payload.services || [],
+        quotas: payload.quotas || [],
+        timeline: [
+          {
+            type: "event",
+            title: "Sự kiện tạo tự động từ Webhook",
+            time: new Date().toLocaleString("vi-VN"),
+            content: `Biz cần gia hạn: ${payload.biz?.id || "N/A"}`,
+            createdBy: "Webhook System",
+          },
+        ],
+      });
+
+      return {
+        eventId: event.id,
+        customerId: existingCustomer?.id || null,
+        event,
+      };
+    }
   }
 
   /**
@@ -743,55 +1161,393 @@ class WebhookService {
    * Tạo Event group 'can_nang_cap'.
    */
   async #processPlanUpgrade(payload) {
-    const customerData = this.#extractCustomerData(payload);
-    const existingCustomer = await this.#findCustomer(customerData);
-    const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+    const isSmaxBizPayload = payload.users || payload.order || payload.alias || payload.picture;
 
-    const event = await Event.create({
-      id: await generateMonotonicId(ID_PREFIXES.EVENT),
-      name: payload.name || `Cần nâng cấp: ${payload.biz?.id || customerData.name || "N/A"}`,
-      sub: payload.sub || "",
-      group: WEBHOOK_EVENT_TYPES.PLAN_UPGRADE,
-      customerId: existingCustomer?.id || null,
-      customer: {
-        name: customerData.name || existingCustomer?.name || "Unknown",
-        avatar: customerData.avatar || existingCustomer?.avatar || "",
-        role: customerData.role || "",
-        email: customerData.email || existingCustomer?.email || "",
-        phone: customerData.phone || existingCustomer?.phone || "",
-        source: customerData.source || "Webhook",
-        address: customerData.address || "",
-      },
-      assignees: assigneeId ? [{
-        userId: assigneeId,
-        userName: assignee.name,
-        userAvatar: assignee.avatar,
-        functionId: null,
-        functionTitle: "",
-      }] : [],
-      biz: payload.biz || { id: "", tags: [] },
-      stage: payload.stage || "",
-      source: "Webhook",
-      tags: payload.tags || [],
-      plan: payload.plan || {},
-      services: payload.services || [],
-      quotas: payload.quotas || [],
-      timeline: [
-        {
-          type: "event",
-          title: "Sự kiện tạo tự động từ Webhook",
-          time: new Date().toLocaleString("vi-VN"),
-          content: `Biz cần nâng cấp: ${payload.biz?.id || "N/A"}`,
-          createdBy: "Webhook System",
+    if (isSmaxBizPayload) {
+      // ─── NEW SmaxAI style Business Payload ───
+      const order = payload.order || {};
+      const users = Array.isArray(payload.users) ? payload.users : [];
+
+      // ─── 1. Upsert BIZ customer ───────────────────────────────────────────
+      const bizEmail = (payload.email || "").trim().toLowerCase();
+      const bizPhone = (payload.phone || "").trim();
+      const bizName = (payload.name || "").trim();
+      const bizAlias = (payload.alias || "").trim();
+      const bizAvatar = payload.picture || "";
+      const subType = classifyBizSubType(order);
+
+      let bizCustomer = null;
+
+      // Dedup biz: prefer alias match, then email/phone
+      if (bizAlias) {
+        bizCustomer = await Customer.findOneWithDeleted({ alias: bizAlias, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+      }
+      if (!bizCustomer && (bizEmail || bizPhone)) {
+        const orConds = [];
+        if (bizEmail) orConds.push({ email: bizEmail, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+        if (bizPhone) orConds.push({ phone: bizPhone, mainType: CUSTOMER_MAIN_TYPES.BIZ });
+        bizCustomer = await Customer.findOneWithDeleted({ $or: orConds });
+      }
+
+      if (bizCustomer?.isDeleted) {
+        logger.warn("Biz plan upgrade — biz customer soft-deleted, skipping link", {
+          customerId: bizCustomer.id,
+          alias: bizAlias,
+        });
+        bizCustomer = null;
+      }
+
+      if (bizCustomer) {
+        // Update existing biz customer
+        bizCustomer.subType = subType;
+        if (bizName && !bizCustomer.name) bizCustomer.name = bizName;
+        if (bizPhone && !bizCustomer.phone) bizCustomer.phone = bizPhone;
+        if (bizAvatar && !bizCustomer.avatar) bizCustomer.avatar = bizAvatar;
+        bizCustomer.extraInfo = {
+          ...bizCustomer.extraInfo,
+          thirdPartyBizId: payload.id || null,
+          country: payload.country || null,
+          orderType: order.type || null,
+          orderCode: order.code || null,
+          timeEnd: order.time_end || null,
+        };
+        await bizCustomer.save();
+
+        logger.info("Biz plan upgrade — existing biz customer updated", {
+          customerId: bizCustomer.id,
+          alias: bizAlias,
+          subType,
+        });
+      } else {
+        // Create new biz customer
+        const { customer: created } = await this.#findOrCreateBizCustomer({
+          email: bizEmail,
+          phone: bizPhone,
+          name: bizName || "Unknown Biz",
+          alias: bizAlias,
+          avatar: bizAvatar || getDefaultAvatar(bizName),
+          mainType: CUSTOMER_MAIN_TYPES.BIZ,
+          subType,
+          type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+          platforms: ["SmaxAi"],
+          registeredAt: payload.created_at
+            ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+            : "",
+          tags: ["#Webhook", `#${order.type || "FREE"}`],
+          extraInfo: {
+            thirdPartyBizId: payload.id || null,
+            country: payload.country || null,
+            orderType: order.type || null,
+            orderCode: order.code || null,
+            timeEnd: order.time_end || null,
+          },
+        });
+        bizCustomer = created;
+
+        logger.info("Biz plan upgrade — new biz customer created", {
+          customerId: bizCustomer.id,
+          alias: bizAlias,
+          subType,
+        });
+      }
+
+      // ─── 2. Upsert USER customers from payload.users[] ───────────────────
+      for (const u of users) {
+        const userEmail = (u.email || "").trim().toLowerCase();
+        const userPhone = (u.phone || "").trim();
+        const userName = u.name || "";
+        const userAvatar = u.picture || "";
+
+        if (!userEmail && !userPhone) continue;
+
+        try {
+          const orConds = [];
+          if (userEmail) orConds.push({ email: userEmail, mainType: CUSTOMER_MAIN_TYPES.USER });
+          if (userPhone) orConds.push({ phone: userPhone, mainType: CUSTOMER_MAIN_TYPES.USER });
+          let userCustomer = await Customer.findOneWithDeleted({ $or: orConds });
+
+          if (userCustomer?.isDeleted) {
+            logger.warn("Biz plan upgrade — user customer soft-deleted, skipping", {
+              email: userEmail,
+            });
+            continue;
+          }
+
+          if (userCustomer) {
+            // Update: link biz name if not already linked
+            const bizLabel = bizName || bizAlias || "";
+            if (bizLabel && !userCustomer.biz.includes(bizLabel)) {
+              userCustomer.biz.push(bizLabel);
+            }
+            if (!userCustomer.platforms?.includes("SmaxAi")) {
+              userCustomer.platforms = [...(userCustomer.platforms || []), "SmaxAi"];
+            }
+            if (!userCustomer.mainType || userCustomer.mainType === CUSTOMER_MAIN_TYPES.USER) {
+              userCustomer.mainType = CUSTOMER_MAIN_TYPES.USER;
+            }
+
+            // Link bizDetails robustly
+            if (!userCustomer.bizDetails) {
+              userCustomer.bizDetails = [];
+            }
+            const existingEntry = userCustomer.bizDetails.find(b => b.bizId === bizCustomer.id);
+            if (existingEntry) {
+              existingEntry.role = u.role || "";
+              existingEntry.bizName = bizCustomer.name;
+              existingEntry.bizAlias = bizCustomer.alias;
+              existingEntry.thirdPartyBizId = payload.id;
+            } else {
+              userCustomer.bizDetails.push({
+                bizId: bizCustomer.id,
+                thirdPartyBizId: payload.id,
+                role: u.role || "",
+                bizName: bizCustomer.name,
+                bizAlias: bizCustomer.alias
+              });
+            }
+
+            await userCustomer.save();
+
+            logger.info("Biz plan upgrade — existing user customer updated", {
+              customerId: userCustomer.id,
+              email: userEmail,
+            });
+          } else {
+            // Create new user customer
+            const { customer: created } = await this.#findOrCreateCustomer({
+              email: userEmail,
+              phone: userPhone,
+              name: userName || "Unknown",
+              avatar: userAvatar || getDefaultAvatar(userName),
+              mainType: CUSTOMER_MAIN_TYPES.USER,
+              subType: "",
+              type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
+              biz: bizName ? [bizName] : [],
+              platforms: ["SmaxAi"],
+              registeredAt: payload.created_at
+                ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+                : "",
+              tags: ["#Webhook"],
+              extraInfo: {
+                thirdPartyId: u.id || null,
+                roles: u.role ? [u.role] : [],
+                country: payload.country || null,
+              },
+              bizDetails: [{
+                bizId: bizCustomer.id,
+                thirdPartyBizId: payload.id,
+                role: u.role || "",
+                bizName: bizCustomer.name,
+                bizAlias: bizCustomer.alias
+              }]
+            });
+
+            logger.info("Biz plan upgrade — new user customer created", {
+              customerId: created.id,
+              email: userEmail,
+            });
+          }
+        } catch (err) {
+          logger.error("Biz plan upgrade — failed to upsert user customer", {
+            email: userEmail,
+            error: err.message,
+          });
+        }
+      }
+
+      // ─── 3. Resolve Subscription from order ───────────────────────────────
+      let subscription = null;
+
+      if (order.id) {
+        subscription = await Subscription.findOne({ externalId: order.id });
+
+        if (!subscription) {
+          const now = new Date();
+          const endDate = order.time_end ? new Date(order.time_end) : null;
+          const status = endDate && endDate > now ? "active" : "expired";
+
+          subscription = await Subscription.create({
+            id: await generateMonotonicId(ID_PREFIXES.SUBSCRIPTION),
+            externalId: order.id,
+            source: "SmaxAi",
+            code: order.code || "",
+            planType: order.type || "FREE",
+            name: `${order.type || "FREE"} — ${order.code || "N/A"}`,
+            months: order.months || 0,
+            startDate: order.time_start ? new Date(order.time_start) : null,
+            endDate,
+            maxMembers: order.members || 0,
+            maxPages: order.pages || 0,
+            maxCustomers: order.customers || 0,
+            maxCards: order.cards || 0,
+            usedCards: order.used_cards || 0,
+            totalCustomers: order.total_customers || 0,
+            botAvailable: order.bot_available || false,
+            chatAvailable: order.chat_available || false,
+            customerId: bizCustomer?.id || null,
+            status,
+            metadata: order,
+          });
+
+          logger.info("Biz plan upgrade — subscription created", {
+            subscriptionId: subscription.id,
+            externalId: order.id,
+            planType: order.type,
+          });
+        } else {
+          if (!subscription.customerId && bizCustomer) {
+            subscription.customerId = bizCustomer.id;
+          }
+          // update subscription details
+          const endDate = order.time_end ? new Date(order.time_end) : null;
+          if (endDate) subscription.endDate = endDate;
+          if (order.members) subscription.maxMembers = order.members;
+          if (order.pages) subscription.maxPages = order.pages;
+          if (order.customers) subscription.maxCustomers = order.customers;
+          if (order.cards) subscription.maxCards = order.cards;
+          if (order.used_cards !== undefined) subscription.usedCards = order.used_cards;
+          if (order.total_customers !== undefined) subscription.totalCustomers = order.total_customers;
+          if (order.bot_available !== undefined) subscription.botAvailable = order.bot_available;
+          if (order.chat_available !== undefined) subscription.chatAvailable = order.chat_available;
+          if (order.months) subscription.months = order.months;
+          await subscription.save();
+        }
+      }
+
+      // ─── 4. Build plan snapshot ────────────────────────────────────────────
+      const endDate = order.time_end ? new Date(order.time_end) : null;
+      const daysLeft = payload.remaining_day !== undefined
+        ? payload.remaining_day
+        : (endDate ? Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0);
+
+      const plan = {
+        name: `${order.type || "FREE"} - ${order.code || "N/A"}`,
+        cycle: `${order.months || 0} tháng`,
+        price: order.type === "FREE" ? "0 đ" : "",
+        daysLeft,
+        expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+        timeStart: order.time_start || "",
+        timeEnd: order.time_end || "",
+      };
+
+      // ─── 5. Build services & quotas ───────────────────────────────────────
+      const services = [
+        { name: "Bot", active: order.bot_available || false },
+        { name: "Chat", active: order.chat_available || false },
+      ];
+
+      const quotas = [
+        { name: "Members", used: users.length, total: order.members || 0, color: "blue" },
+        { name: "Pages", used: (payload.page_pids || []).length, total: order.pages || 0, color: "green" },
+        { name: "Customers", used: order.total_customers || 0, total: order.customers || 0, color: "purple" },
+        { name: "Cards", used: order.used_cards || 0, total: order.cards || 0, color: "orange" },
+      ];
+
+      // ─── 6. Resolve assignee ──────────────────────────────────────────────
+      const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+
+      // ─── 7. Create Event ──────────────────────────────────────────────────
+      const event = await Event.create({
+        id: await generateMonotonicId(ID_PREFIXES.EVENT),
+        name: payload.name || `Cần nâng cấp: ${bizName || bizAlias || "Biz N/A"}`,
+        sub: payload.desc || "",
+        group: WEBHOOK_EVENT_TYPES.PLAN_UPGRADE,
+        customerId: bizCustomer?.id || null,
+        customer: {
+          name: bizCustomer?.name || bizName || "Unknown",
+          avatar: bizCustomer?.avatar || bizAvatar || "",
+          role: "",
+          email: bizCustomer?.email || bizEmail || "",
+          phone: bizCustomer?.phone || bizPhone || "",
+          source: "SmaxAi",
+          address: "",
         },
-      ],
-    });
+        biz: {
+          id: bizAlias || bizName || "",
+          tags: [],
+        },
+        assignees: assigneeId ? [{
+          userId: assigneeId,
+          userName: assignee.name,
+          userAvatar: assignee.avatar,
+          functionId: null,
+          functionTitle: "",
+        }] : [],
+        stage: payload.stage || "",
+        source: "SmaxAi",
+        subscriptionId: subscription?.id || null,
+        tags: ["#Webhook", `#${order.type || "FREE"}`, "#CanNangCap"],
+        plan,
+        services,
+        quotas,
+        timeline: [
+          {
+            type: "event",
+            title: "Sự kiện tạo tự động từ Webhook",
+            time: new Date().toLocaleString("vi-VN"),
+            content: `Biz "${bizName || bizAlias || "N/A"}" cần nâng cấp gói ${order.type || "FREE"} (${order.code || "N/A"}).`,
+            createdBy: "Webhook System",
+          },
+        ],
+      });
 
-    return {
-      eventId: event.id,
-      customerId: existingCustomer?.id || null,
-      event,
-    };
+      return {
+        eventId: event.id,
+        customerId: bizCustomer?.id || null,
+        event,
+      };
+    } else {
+      // ─── OLD Flexible Payload Fallback ───
+      const customerData = this.#extractCustomerData(payload);
+      const existingCustomer = await this.#findCustomer(customerData);
+      const { assigneeId, assignee } = await this.#resolveAssignee(payload);
+
+      const event = await Event.create({
+        id: await generateMonotonicId(ID_PREFIXES.EVENT),
+        name: payload.name || `Cần nâng cấp: ${payload.biz?.id || customerData.name || "N/A"}`,
+        sub: payload.sub || "",
+        group: WEBHOOK_EVENT_TYPES.PLAN_UPGRADE,
+        customerId: existingCustomer?.id || null,
+        customer: {
+          name: customerData.name || existingCustomer?.name || "Unknown",
+          avatar: customerData.avatar || existingCustomer?.avatar || "",
+          role: customerData.role || "",
+          email: customerData.email || existingCustomer?.email || "",
+          phone: customerData.phone || existingCustomer?.phone || "",
+          source: customerData.source || "Webhook",
+          address: customerData.address || "",
+        },
+        assignees: assigneeId ? [{
+          userId: assigneeId,
+          userName: assignee.name,
+          userAvatar: assignee.avatar,
+          functionId: null,
+          functionTitle: "",
+        }] : [],
+        biz: payload.biz || { id: "", tags: [] },
+        stage: payload.stage || "",
+        source: "Webhook",
+        tags: payload.tags || [],
+        plan: payload.plan || {},
+        services: payload.services || [],
+        quotas: payload.quotas || [],
+        timeline: [
+          {
+            type: "event",
+            title: "Sự kiện tạo tự động từ Webhook",
+            time: new Date().toLocaleString("vi-VN"),
+            content: `Biz cần nâng cấp: ${payload.biz?.id || "N/A"}`,
+            createdBy: "Webhook System",
+          },
+        ],
+      });
+
+      return {
+        eventId: event.id,
+        customerId: existingCustomer?.id || null,
+        event,
+      };
+    }
   }
 
   /**
@@ -1125,6 +1881,7 @@ class WebhookService {
         lastLoginAt: data.lastLoginAt || "",
         tags: data.tags || ["#Webhook"],
         extraInfo: data.extraInfo || {},
+        bizDetails: data.bizDetails || [],
       });
       return { customer, existed: false };
     } catch (err) {

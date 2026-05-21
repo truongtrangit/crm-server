@@ -34,6 +34,18 @@ const customerSchema = new mongoose.Schema(
     email: { type: String, required: true, trim: true, lowercase: true },
     phone: { type: String, sparse: true },
     biz: { type: [String], default: [] },
+    bizDetails: {
+      type: [
+        {
+          bizId: { type: String, required: true },
+          thirdPartyBizId: { type: String },
+          role: { type: String },
+          bizName: { type: String },
+          bizAlias: { type: String }
+        }
+      ],
+      default: []
+    },
     platforms: { type: [String], default: [] },
     group: { type: String, default: "" },
     registeredAt: { type: String, default: "" },
