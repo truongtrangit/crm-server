@@ -54,9 +54,6 @@ class FunnelService {
   }
 
   async createGroup(data) {
-    if (data.folderId === SYSTEM_IDS.FOLDER) {
-      throw createHttpError(400, "Không thể thêm nhóm phễu vào thư mục hệ thống.");
-    }
     const newGroup = new FunnelGroup({
       ...data,
       id: await generateMonotonicId(ID_PREFIXES.FUNNEL_GROUP),
@@ -93,11 +90,19 @@ class FunnelService {
   }
 
   async createFunnel(data) {
-    if (data.groupId === SYSTEM_IDS.GROUP) {
-      throw createHttpError(400, "Không thể thêm phễu vào nhóm phễu hệ thống.");
+    const cleaned = { ...data };
+    if (!cleaned.groupId || cleaned.groupId === "") cleaned.groupId = null;
+    if (!cleaned.folderId || cleaned.folderId === "") cleaned.folderId = null;
+
+    if (cleaned.groupId && cleaned.folderId) {
+      throw createHttpError(400, "Phễu không thể vừa thuộc thư mục vừa thuộc nhóm phễu.");
     }
+    if (!cleaned.groupId && !cleaned.folderId) {
+      throw createHttpError(400, "Phễu phải thuộc thư mục hoặc nhóm phễu.");
+    }
+
     const newFunnel = new Funnel({
-      ...data,
+      ...cleaned,
       id: await generateMonotonicId(ID_PREFIXES.FUNNEL),
     });
     await newFunnel.save();
@@ -107,7 +112,19 @@ class FunnelService {
 
   async updateFunnel(id, data) {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa phễu hệ thống.");
-    const updated = await Funnel.findOneAndUpdate({ id }, data, { new: true });
+
+    const cleaned = { ...data };
+    if (!cleaned.groupId || cleaned.groupId === "") cleaned.groupId = null;
+    if (!cleaned.folderId || cleaned.folderId === "") cleaned.folderId = null;
+
+    if (cleaned.groupId && cleaned.folderId) {
+      throw createHttpError(400, "Phễu không thể vừa thuộc thư mục vừa thuộc nhóm phễu.");
+    }
+    if (!cleaned.groupId && !cleaned.folderId) {
+      throw createHttpError(400, "Phễu phải thuộc thư mục hoặc nhóm phễu.");
+    }
+
+    const updated = await Funnel.findOneAndUpdate({ id }, cleaned, { new: true });
     if (!updated) throw createHttpError(404, "Không tìm thấy phễu");
     await CacheService.bumpNamespaceVersion("funnels:funnels");
     return updated;
