@@ -69,6 +69,8 @@ const eventSchema = new mongoose.Schema(
       price: { type: String, default: "0 đ" },
       daysLeft: { type: Number, default: 30 },
       expiryDate: { type: String, default: "" },
+      timeStart: { type: String, default: "" },
+      timeEnd: { type: String, default: "" },
     },
     services: [
       {
