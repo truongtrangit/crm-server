@@ -1,5 +1,5 @@
 const { sendError } = require("../utils/http");
-const { getManagerSubordinateIds } = require("../utils/managerScope");
+const { getManagerSubordinateIds, isUserManagerial } = require("../utils/managerScope");
 const { buildResourceScopeFilter } = require("../utils/resourceScope");
 
 /**
@@ -68,8 +68,9 @@ function requireResourceAccess(options) {
       const allowUnassigned = options.allowUnassigned ?? false;
       if (options.getAssigneeIds && allowUnassigned && assigneeIds.length === 0 && !options.getTargetUserId) return next();
 
-      // 6. Manager subordinate check (department-based):
-      if (role === "MANAGER") {
+      // 6. Manager subordinate check (department-based/group-based):
+      const isManagerial = isUserManagerial(user);
+      if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
 
         // Check: resource's assignee is a subordinate?
@@ -136,7 +137,8 @@ function enforceAssignmentRules(options) {
       const allowSelfAssignment = options.allowSelfAssignment ?? false;
       const allowManagerSubordinateAssignment = options.allowManagerSubordinateAssignment ?? false;
 
-      if (role === "MANAGER") {
+      const isManagerial = isUserManagerial(user);
+      if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
         const isAssigningInvalidUser = addedAssigneeIds.some((id) => {
           if (id === user.id) return !allowSelfAssignment;
@@ -211,7 +213,8 @@ function enforceUnassignmentRules(options) {
       const allowSelfUnassignment = options.allowSelfUnassignment ?? false;
       const allowManagerSubordinateUnassignment = options.allowManagerSubordinateUnassignment ?? false;
 
-      if (role === "MANAGER") {
+      const isManagerial = isUserManagerial(user);
+      if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
 
         for (const targetUserId of removedAssigneeIds) {
@@ -266,7 +269,8 @@ function scopeAssignmentList(options = {}) {
 
         if (!["OWNER", "ADMIN"].includes(role) && !req.mlacGranted) {
           const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
-          if (role === "MANAGER" && allowManagerSubordinateScope) {
+          const isManagerial = isUserManagerial(user);
+          if (isManagerial && allowManagerSubordinateScope) {
             const subIds = await getManagerSubordinateIds(user);
             req.query.scopedUserIds = [user.id, ...subIds];
           } else {

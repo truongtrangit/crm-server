@@ -1,4 +1,4 @@
-const { getManagerSubordinateIds } = require("./managerScope");
+const { getManagerSubordinateIds, isUserManagerial } = require("./managerScope");
 
 /**
  * Build MongoDB query filter for resource-level scoping.
@@ -33,10 +33,12 @@ async function buildResourceScopeFilter(currentUser, options = {}) {
   const allowCreator = options.allowCreator ?? false;
   const allowManagerSubordinateCreator = options.allowManagerSubordinateCreator ?? false;
 
+  const isManagerial = isUserManagerial(currentUser);
+
   // Collect allowed user IDs for Assignee
   const assigneeUserIds = [];
   if (allowAssignee) assigneeUserIds.push(currentUser.id);
-  if (role === "MANAGER" && allowManagerSubordinateAssignee) {
+  if (isManagerial && allowManagerSubordinateAssignee) {
     const subIds = await getManagerSubordinateIds(currentUser);
     assigneeUserIds.push(...subIds);
   }
@@ -44,7 +46,7 @@ async function buildResourceScopeFilter(currentUser, options = {}) {
   // Collect allowed user IDs for Creator
   const creatorUserIds = [];
   if (allowCreator) creatorUserIds.push(currentUser.id);
-  if (role === "MANAGER" && allowManagerSubordinateCreator) {
+  if (isManagerial && allowManagerSubordinateCreator) {
     const subIds = await getManagerSubordinateIds(currentUser);
     creatorUserIds.push(...subIds);
   }
