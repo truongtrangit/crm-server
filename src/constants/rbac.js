@@ -263,7 +263,14 @@ const MODULE_DEFINITIONS = {
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
-  "customers": {
+  "customers.biz": {
+    "view": ["customers_read"],
+    "create": ["customers_create"],
+    "edit": ["customers_update"],
+    "delete": ["customers_delete"],
+    "export": ["customers_read"]
+  },
+  "customers.user": {
     "view": ["customers_read"],
     "create": ["customers_create"],
     "edit": ["customers_update"],
@@ -296,13 +303,30 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "edit": ["meta_update"],
     "delete": ["meta_delete"]
   },
-  "staff": {
-    "view": ["users_read", "organization_read", "functions_read"],
-    "create": ["users_create", "organization_manage", "functions_create"],
-    "edit": ["users_update", "organization_update", "functions_update"],
-    "delete": ["users_delete", "functions_delete"]
+  "staff.users": {
+    "view": ["users_read"],
+    "create": ["users_create"],
+    "edit": ["users_update"],
+    "delete": ["users_delete"]
   },
-  "logs": {
+  "staff.organization": {
+    "view": ["organization_read"],
+    "create": ["organization_manage", "organization_update"],
+    "edit": ["organization_update"]
+  },
+  "staff.functions": {
+    "view": ["functions_read"],
+    "create": ["functions_create"],
+    "edit": ["functions_update"],
+    "delete": ["functions_delete"]
+  },
+  "logs.system": {
+    "view": ["logs_read"]
+  },
+  "logs.webhook": {
+    "view": ["logs_read"]
+  },
+  "logs.blockautomation": {
     "view": ["logs_read"]
   }
 };
