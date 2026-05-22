@@ -27,27 +27,67 @@ async function buildResourceScopeFilter(currentUser, options = {}) {
   const includeUnassigned = options.includeUnassigned ?? true;
   const assigneesArrayField = options.assigneesArrayField || "assignees";
 
-  // Collect allowed user IDs (self + department-based subordinates for MANAGER)
-  const allowedUserIds = [currentUser.id];
+  // Behavioral Flags (matching requireResourceAccess)
+  const allowAssignee = options.allowAssignee ?? true;
+  const allowManagerSubordinateAssignee = options.allowManagerSubordinateAssignee ?? true;
+  const allowCreator = options.allowCreator ?? false;
+  const allowManagerSubordinateCreator = options.allowManagerSubordinateCreator ?? false;
 
-  if (role === "MANAGER") {
+  // Collect allowed user IDs for Assignee
+  const assigneeUserIds = [];
+  if (allowAssignee) assigneeUserIds.push(currentUser.id);
+  if (role === "MANAGER" && allowManagerSubordinateAssignee) {
     const subIds = await getManagerSubordinateIds(currentUser);
-    allowedUserIds.push(...subIds);
+    assigneeUserIds.push(...subIds);
   }
 
-  // Deduplicate
-  const uniqueIds = [...new Set(allowedUserIds)];
+  // Collect allowed user IDs for Creator
+  const creatorUserIds = [];
+  if (allowCreator) creatorUserIds.push(currentUser.id);
+  if (role === "MANAGER" && allowManagerSubordinateCreator) {
+    const subIds = await getManagerSubordinateIds(currentUser);
+    creatorUserIds.push(...subIds);
+  }
 
-  const orConditions = [
-    { [assigneeField]: { $in: uniqueIds } },
-    { [creatorField]: { $in: uniqueIds } },
-  ];
+  const orConditions = [];
+
+  if (assigneeUserIds.length > 0) {
+    orConditions.push({ [assigneeField]: { $in: [...new Set(assigneeUserIds)] } });
+  }
+
+  if (creatorUserIds.length > 0) {
+    orConditions.push({ [creatorField]: { $in: [...new Set(creatorUserIds)] } });
+  }
 
   if (includeUnassigned) {
     orConditions.push({ [assigneesArrayField]: { $size: 0 } });
     orConditions.push({ [assigneesArrayField]: { $exists: false } });
   }
 
+  const filter = {};
+  
+  if (options.moduleTypeFilter) {
+    const { field, mapping } = options.moduleTypeFilter;
+    const moduleAccess = currentUser.moduleAccess || [];
+    const allowedValues = [];
+    
+    for (const [moduleId, value] of Object.entries(mapping)) {
+      if (moduleAccess.some(e => e.isEnabled && e.moduleId === moduleId)) {
+        allowedValues.push(value);
+      }
+    }
+
+    if (allowedValues.length === 0) {
+      return { _id: null }; // Cannot match anything
+    } else if (allowedValues.length < Object.keys(mapping).length) {
+      filter[field] = { $in: allowedValues };
+    }
+  }
+
+  if (Object.keys(filter).length > 0) {
+    return { $and: [filter, { $or: orConditions }] };
+  }
+  
   return { $or: orConditions };
 }
 
