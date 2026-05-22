@@ -22,7 +22,7 @@ const {
   getUserRoleName,
   getUserRoleWithPermissions,
 } = require("../utils/rbac");
-const { PERMISSIONS } = require("../constants/rbac");
+const { PERMISSIONS, MODULE_TO_PERMISSIONS_MAP, ROLE_DEFINITIONS } = require("../constants/rbac");
 const { DEFAULT_PASSWORD_STRENGTH, COMPANIES } = require("../constants/appData");
 const env = require("../config/env");
 const {
@@ -61,9 +61,49 @@ function ensurePasswordStrength(password) {
   ) {
     throw createHttpError(
       400,
-      `password must be at least ${DEFAULT_PASSWORD_STRENGTH} characters`,
+      `Password must be at least ${DEFAULT_PASSWORD_STRENGTH} characters long`,
     );
   }
+}
+
+function computePermissionsFromModuleAccess(moduleAccess, roleName) {
+  if (!Array.isArray(moduleAccess) || moduleAccess.length === 0) {
+    return [];
+  }
+
+  const permissions = new Set();
+  const role = ROLE_DEFINITIONS[roleName];
+
+  for (const entry of moduleAccess) {
+    if (!entry.isEnabled) continue;
+
+    const moduleKey = entry.moduleId;
+    const actionMap = MODULE_TO_PERMISSIONS_MAP[moduleKey];
+
+    if (actionMap) {
+      if (entry.customPermissions !== null && Array.isArray(entry.customPermissions)) {
+        // Explicitly granted custom actions
+        for (const action of entry.customPermissions) {
+          if (actionMap[action]) {
+            actionMap[action].forEach((p) => permissions.add(p));
+          }
+        }
+      } else {
+        // Fallback to role permissions for this module
+        if (role && Array.isArray(role.permissions)) {
+          for (const action of Object.keys(actionMap)) {
+            const requiredPerms = actionMap[action];
+            const hasAllPerms = requiredPerms.every(p => role.permissions.includes(p));
+            if (hasAllPerms) {
+              requiredPerms.forEach(p => permissions.add(p));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return Array.from(permissions);
 }
 
 function ensureDepartmentByRole(role, department) {
@@ -241,6 +281,7 @@ function serializeUser(user) {
     departmentAliases: item.departmentAliases || [],
     groupAliases: item.groupAliases || [],
     preferences: item.preferences || {},
+    permissions: item.permissions || [],
     moduleAccess: item.moduleAccess || [],
   };
 }
@@ -501,6 +542,10 @@ async function createUserAccount(actor, payload = {}) {
     roleId: targetRole.id,
     functions: Array.isArray(payload.functions) ? payload.functions : [],
     moduleAccess: Array.isArray(payload.moduleAccess) ? payload.moduleAccess : [],
+    permissions: computePermissionsFromModuleAccess(
+      payload.moduleAccess,
+      targetRole.name
+    ),
 
     createdBy: actor.id,
   });
@@ -646,7 +691,21 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       : targetUser.phone;
   targetUser.roleId = nextRole.id;
   targetUser.functions = payload.functions !== undefined && Array.isArray(payload.functions) ? payload.functions : targetUser.functions;
-  targetUser.moduleAccess = payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess) ? payload.moduleAccess : targetUser.moduleAccess;
+  
+  if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess)) {
+    targetUser.moduleAccess = payload.moduleAccess;
+    targetUser.permissions = computePermissionsFromModuleAccess(
+      payload.moduleAccess,
+      nextRole.name
+    );
+  } else if (nextRole.id !== targetRole.id) {
+    // Recompute permissions if role changed but moduleAccess didn't
+    targetUser.permissions = computePermissionsFromModuleAccess(
+      targetUser.moduleAccess,
+      nextRole.name
+    );
+  }
+
   targetUser.isActive =
     payload.isActive !== undefined
       ? payload.isActive

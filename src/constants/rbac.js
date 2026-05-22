@@ -240,15 +240,78 @@ const ROLE_DEFINITIONS = {
 // `parentKey` links sub-modules to their root module for sidebar grouping.
 
 const MODULE_DEFINITIONS = {
-  customers:          { key: "customers",          label: "Khách hàng",        type: "root",   actions: ["view", "create", "edit", "delete", "export"] },
-  operations:         { key: "operations",         label: "Quản lý",           type: "root",   actions: [] },
-  "operations.tasks": { key: "operations.tasks",   label: "Quản lý Tác vụ",   type: "sub",    parentKey: "operations", actions: ["view", "create", "edit", "delete"] },
-  "operations.events":{ key: "operations.events",  label: "Quản lý Sự kiện",  type: "sub",    parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
-  "operations.leads": { key: "operations.leads",   label: "Quản lý Lead",      type: "sub",    parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
-  meta:               { key: "meta",               label: "Hợp tác Meta",      type: "root",   actions: ["view", "create", "edit", "delete"] },
-  staff:              { key: "staff",              label: "Nhân viên",         type: "root",   actions: ["view", "create", "edit"] },
-  logs:               { key: "logs",               label: "Logs Hệ thống",    type: "root",   actions: ["view"] },
+  customers: { key: "customers", label: "Khách hàng", type: "root", actions: [] },
+  "customers.biz": { key: "customers.biz", label: "Doanh nghiệp", type: "sub", parentKey: "customers", actions: ["view", "create", "edit", "delete", "export"] },
+  "customers.user": { key: "customers.user", label: "Cá nhân", type: "sub", parentKey: "customers", actions: ["view", "create", "edit", "delete", "export"] },
+
+  operations: { key: "operations", label: "Quản lý", type: "root", actions: [] },
+  "operations.tasks": { key: "operations.tasks", label: "Quản lý Tác vụ", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete"] },
+  "operations.events": { key: "operations.events", label: "Quản lý Sự kiện", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
+  "operations.leads": { key: "operations.leads", label: "Quản lý Lead", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
+
+  meta: { key: "meta", label: "Hợp tác Meta", type: "root", actions: ["view", "create", "edit", "delete"] },
+
+  staff: { key: "staff", label: "Nhân viên", type: "root", actions: [] },
+  "staff.users": { key: "staff.users", label: "Tài khoản", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
+  "staff.organization": { key: "staff.organization", label: "Sơ đồ tổ chức", type: "sub", parentKey: "staff", actions: ["view", "create", "edit"] },
+  "staff.functions": { key: "staff.functions", label: "Chức năng", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
+
+  logs: { key: "logs", label: "Logs Hệ thống", type: "root", actions: [] },
+  "logs.system": { key: "logs.system", label: "System Logs", type: "sub", parentKey: "logs", actions: ["view"] },
+  "logs.webhook": { key: "logs.webhook", label: "Webhook Logs", type: "sub", parentKey: "logs", actions: ["view"] },
+  "logs.blockautomation": { key: "logs.blockautomation", label: "Block Automation Logs", type: "sub", parentKey: "logs", actions: ["view"] },
 };
+
+const MODULE_TO_PERMISSIONS_MAP = {
+  "customers": {
+    "view": ["customers_read"],
+    "create": ["customers_create"],
+    "edit": ["customers_update"],
+    "delete": ["customers_delete"],
+    "export": ["customers_read"]
+  },
+  "operations.tasks": {
+    "view": ["tasks_read", "task_chains_read", "actions_cfg_read"],
+    "create": ["tasks_create", "task_chains_create"],
+    "edit": ["tasks_update", "task_chains_update"],
+    "delete": ["tasks_delete", "task_chains_delete"]
+  },
+  "operations.events": {
+    "view": ["events_read", "event_chains_read", "actions_cfg_read"],
+    "create": ["events_create", "event_chains_create"],
+    "edit": ["events_update", "event_chains_update"],
+    "delete": ["events_delete", "event_chains_delete"],
+    "configure": ["actions_cfg_read", "actions_cfg_update", "actions_cfg_create", "actions_cfg_delete"]
+  },
+  "operations.leads": {
+    "view": ["leads_read", "actions_cfg_read"],
+    "create": ["leads_create"],
+    "edit": ["leads_update"],
+    "delete": ["leads_delete"],
+    "configure": ["leads_cfg_manage"]
+  },
+  "meta": {
+    "view": ["meta_read"],
+    "create": ["meta_create"],
+    "edit": ["meta_update"],
+    "delete": ["meta_delete"]
+  },
+  "staff": {
+    "view": ["users_read", "organization_read", "functions_read"],
+    "create": ["users_create", "organization_manage", "functions_create"],
+    "edit": ["users_update", "organization_update", "functions_update"],
+    "delete": ["users_delete", "functions_delete"]
+  },
+  "logs": {
+    "view": ["logs_read"]
+  }
+};
+
+const VALID_ASSIGNABLE_PERMISSIONS = Array.from(new Set(
+  Object.values(MODULE_TO_PERMISSIONS_MAP).flatMap(actionMap =>
+    Object.values(actionMap).flat()
+  )
+));
 
 module.exports = {
   RESOURCES,
@@ -256,4 +319,6 @@ module.exports = {
   PERMISSIONS,
   ROLE_DEFINITIONS,
   MODULE_DEFINITIONS,
+  MODULE_TO_PERMISSIONS_MAP,
+  VALID_ASSIGNABLE_PERMISSIONS,
 };

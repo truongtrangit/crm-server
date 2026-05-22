@@ -74,6 +74,7 @@ const userSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     preferences: { type: mongoose.Schema.Types.Mixed, default: {} },
     moduleAccess: { type: [moduleAccessEntrySchema], default: [] },
+
   },
   {
     timestamps: true,

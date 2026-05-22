@@ -51,9 +51,8 @@ function requireResourceAccess(options) {
       }
 
       // 2. Bypass roles (OWNER, ADMIN mặc định)
-      //    Also bypass if MLAC already granted access for this module
       const bypassRoles = options.bypassRoles || ["OWNER", "ADMIN"];
-      if (bypassRoles.includes(role) || req.mlacGranted) return next();
+      if (bypassRoles.includes(role)) return next();
 
       // 3. Check creator — user tạo ra resource
       const creatorId = options?.getCreatorId?.(resource);

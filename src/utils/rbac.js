@@ -68,9 +68,8 @@ async function hasPermission(user, permission) {
     return false;
   }
 
-  // If user has the permission directly
-  if (permissionListIncludes(user.permissions || [], permission)) {
-    return true;
+  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+    return permissionListIncludes(user.permissions, permission);
   }
 
   // Check if user's role has the permission
@@ -138,8 +137,11 @@ async function getUserRoleLevel(user) {
  * Get all permissions of a user
  */
 async function getUserPermissions(user) {
-  const permissions = new Set(user.permissions || []);
+  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+    return user.permissions;
+  }
 
+  const permissions = new Set();
   const role = await resolveUserRole(user);
 
   if (role && role.permissions) {
