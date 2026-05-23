@@ -249,7 +249,9 @@ const MODULE_DEFINITIONS = {
   "operations.events": { key: "operations.events", label: "Quản lý Sự kiện", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
   "operations.leads": { key: "operations.leads", label: "Quản lý Lead", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
 
-  meta: { key: "meta", label: "Hợp tác Meta", type: "root", actions: ["view", "create", "edit", "delete"] },
+  meta: { key: "meta", label: "Hợp tác Meta", type: "root", actions: [] },
+  "meta.program": { key: "meta.program", label: "Chương trình", type: "sub", parentKey: "meta", actions: ["view", "create", "edit", "delete"] },
+  "meta.config": { key: "meta.config", label: "Cấu hình", type: "sub", parentKey: "meta", actions: ["view", "create", "edit", "delete"] },
 
   staff: { key: "staff", label: "Nhân viên", type: "root", actions: [] },
   "staff.users": { key: "staff.users", label: "Tài khoản", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
@@ -297,11 +299,17 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "delete": [PERMISSIONS.LEADS_DELETE],
     "configure": [PERMISSIONS.LEADS_CFG_MANAGE]
   },
-  "meta": {
+  "meta.program": {
     "view": [PERMISSIONS.META_READ],
     "create": [PERMISSIONS.META_CREATE],
     "edit": [PERMISSIONS.META_UPDATE],
     "delete": [PERMISSIONS.META_DELETE]
+  },
+  "meta.config": {
+    "view": [PERMISSIONS.META_READ],
+    "create": [PERMISSIONS.META_MANAGE],
+    "edit": [PERMISSIONS.META_MANAGE],
+    "delete": [PERMISSIONS.META_MANAGE]
   },
   "staff.users": {
     "view": [PERMISSIONS.USERS_READ],
