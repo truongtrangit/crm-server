@@ -113,7 +113,9 @@ async function parseDecoupledAssignments(payload = {}) {
       });
 
       assignedGroupAliases.forEach(groupAlias => {
-        const role = groupRoles[groupAlias] || "member";
+        const deptAlias = groupAlias.split("__")[0];
+        const groupKey = `${deptAlias}:${groupAlias}`;
+        const role = groupRoles[groupKey] || groupRoles[groupAlias] || "member";
         groups.push({ groupAlias, role });
       });
 
