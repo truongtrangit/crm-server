@@ -529,6 +529,95 @@ async function listUsers(actor, scopedUserIds, filters) {
   });
 }
 
+function validateDepartmentAndGroupRules(actor, actorRoleName, targetUser, parsed) {
+  const isOwnerOrAdmin = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName);
+  if (isOwnerOrAdmin) return;
+
+  const currentDepts = targetUser ? (targetUser.departments || []) : [];
+  const nextDepts = parsed.departments || [];
+
+  // Rule 1: Only Owner/Admin can update a staff to be a lead/member of a department
+  const hasDeptChanges = () => {
+    if (currentDepts.length !== nextDepts.length) return true;
+    const currentMap = new Map(currentDepts.map(d => [d.deptAlias, d.role]));
+    for (const d of nextDepts) {
+      if (!currentMap.has(d.deptAlias) || currentMap.get(d.deptAlias) !== d.role) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if (hasDeptChanges()) {
+    throw createHttpError(403, "Chỉ có Owner hoặc Admin mới có quyền cập nhật thành viên hoặc vai trò trong phòng ban");
+  }
+
+  // Rule 2: Only Lead of the department can update staff of the department to be a lead/member of a group (under that department)
+  const currentGroups = targetUser ? (targetUser.groups || []) : [];
+  const nextGroups = parsed.groups || [];
+
+  const getGroupChanges = () => {
+    const changes = new Set();
+    const currentMap = new Map(currentGroups.map(g => [g.groupAlias, g.role]));
+    const nextMap = new Map(nextGroups.map(g => [g.groupAlias, g.role]));
+
+    for (const [groupAlias, role] of nextMap.entries()) {
+      if (!currentMap.has(groupAlias) || currentMap.get(groupAlias) !== role) {
+        changes.add(groupAlias);
+      }
+    }
+    for (const groupAlias of currentMap.keys()) {
+      if (!nextMap.has(groupAlias)) {
+        changes.add(groupAlias);
+      }
+    }
+    return Array.from(changes);
+  };
+
+  const changedGroupAliases = getGroupChanges();
+  const actorDepts = actor.departments || [];
+
+  for (const groupAlias of changedGroupAliases) {
+    const deptAlias = groupAlias.split("__")[0];
+    const isDeptLeadOfGroupParent = actorDepts.some(d => d.deptAlias === deptAlias && d.role === "lead");
+    if (!isDeptLeadOfGroupParent) {
+      throw createHttpError(
+        403,
+        `Chỉ có Trưởng phòng ban mới có quyền cập nhật, gán hoặc hủy gán thành viên/vai trò nhóm thuộc phòng ban đó`
+      );
+    }
+  }
+
+  if (targetUser) {
+    // Rule 3: Lead of a department does NOT have the right to update/assign/unassign another lead of that same department
+    const isTargetDeptLeadOfSameDept = currentDepts.some(d =>
+      d.role === "lead" && actorDepts.some(ad => ad.deptAlias === d.deptAlias && ad.role === "lead")
+    );
+    if (isTargetDeptLeadOfSameDept) {
+      throw createHttpError(
+        403,
+        "Trưởng phòng ban không có quyền cập nhật, gán hoặc hủy gán Trưởng phòng ban khác trong cùng phòng ban"
+      );
+    }
+
+    // Rule 4: Lead of a group does NOT have the right to update/assign/unassign another lead of that same group
+    const actorGroups = actor.groups || [];
+    const isTargetGroupLeadOfSameGroup = currentGroups.some(g => {
+      if (g.role !== "lead") return false;
+      const deptAlias = g.groupAlias.split("__")[0];
+      const isActorDeptLead = actorDepts.some(d => d.deptAlias === deptAlias && d.role === "lead");
+      if (isActorDeptLead) return false;
+      return actorGroups.some(ag => ag.groupAlias === g.groupAlias && ag.role === "lead");
+    });
+    if (isTargetGroupLeadOfSameGroup) {
+      throw createHttpError(
+        403,
+        "Trưởng nhóm không có quyền cập nhật, gán hoặc hủy gán Trưởng nhóm khác trong cùng nhóm"
+      );
+    }
+  }
+}
+
 async function createUserAccount(actor, payload = {}) {
   await ensureOrgDirectoryCache();
   if (
@@ -557,6 +646,8 @@ async function createUserAccount(actor, payload = {}) {
 
   const actorRole = await getUserRoleWithPermissions(actor);
   const actorRoleName = actorRole?.name || null;
+
+  validateDepartmentAndGroupRules(actor, actorRoleName, null, parsed);
 
   if (!name || !email) {
     throw createHttpError(400, "name and email are required");
@@ -703,6 +794,8 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       functions: payload.functions !== undefined ? payload.functions : targetUser.functions || []
     });
   }
+
+  validateDepartmentAndGroupRules(actor, actorRoleName, targetUser, parsed);
 
   const nextDepts = parsed.departments.map(d => d.deptAlias);
   ensureDepartmentByRole(nextRole.name, nextDepts);
