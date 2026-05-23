@@ -31,8 +31,15 @@ beforeAll(async () => {
     stage: "Tiếp cận",
     customer: { name: "Test Customer VIP", email: "vip@test.com", phone: "0901 000 111" },
     customerId: IDS.CUST1,
-    assigneeId: IDS.USER_STAFF1,
-    assignee: { name: "Test Staff One", avatar: "", role: "Nhân viên" },
+    assignees: [
+      {
+        userId: IDS.USER_STAFF1,
+        userName: "Test Staff One",
+        userAvatar: "",
+        functionId: IDS.FUNC1,
+        functionTitle: "Test Function",
+      },
+    ],
   });
 });
 

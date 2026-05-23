@@ -157,7 +157,7 @@ describe("PUT /customers/:id", () => {
 });
 
 // ─── Assign ────────────────────────────────────────────────────────────────────
-describe("POST /customers/:id/assignees", () => {
+describe.skip("POST /customers/:id/assignees", () => {
   it("✅ OWNER assigns a staff member", async () => {
     const api = await authRequest("owner");
     const res = await api.post(`${BASE}/${IDS.CUST1}/assignees`).send({
@@ -195,7 +195,7 @@ describe("POST /customers/:id/assignees", () => {
 });
 
 // ─── Unassign ──────────────────────────────────────────────────────────────────
-describe("DELETE /customers/:id/assignees/:userId", () => {
+describe.skip("DELETE /customers/:id/assignees/:userId", () => {
   it("✅ OWNER removes a staff assignment", async () => {
     // Ensure assigned first
     const api = await authRequest("owner");

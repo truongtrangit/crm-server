@@ -488,10 +488,7 @@ class EventActionChainController {
       const deptAliases = deptsArray.map(normalizeOrganizationKey);
 
       const deptUsers = await User.find({
-        $or: [
-          { department: { $in: deptsArray } },
-          { departmentAliases: { $in: deptAliases } }
-        ]
+        "departments.deptAlias": { $in: deptAliases }
       }).select("id");
       const deptUserIds = deptUsers.map((u) => u.id);
       eventQuery["assignees.userId"] = { $in: deptUserIds };
@@ -504,10 +501,7 @@ class EventActionChainController {
       const grpAliasesRegex = grpsArray.map(g => new RegExp(normalizeOrganizationKey(g) + "$", "i"));
 
       const groupUsers = await User.find({
-        $or: [
-          { group: { $in: grpsArray } },
-          { groupAliases: { $in: grpAliasesRegex } }
-        ]
+        "groups.groupAlias": { $in: grpAliasesRegex }
       }).select("id");
       const groupUserIds = groupUsers.map((u) => u.id);
       // Nếu đã filter dept, giao nhau với assignees.userId.$in

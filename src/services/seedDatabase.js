@@ -56,22 +56,66 @@ async function seedUsers() {
     return;
   }
 
+  const organizations = await Organization.find({}, { id: 1, alias: 1, parent: 1, children: 1 }).lean();
+  const directory = buildOrganizationDirectory(organizations);
+
   const items = await Promise.all(
-    missingSeedUsers.map(async (item) => ({
-      ...item,
-      email: String(item.email).trim().toLowerCase(),
-      roleId: String(item.role || "STAFF")
-        .trim()
-        .toLowerCase(),
-      passwordHash: await hashPassword(item.password),
-      password: undefined,
-      sessions: [],
-      lastLoginAt: null,
-      createdBy: null,
-    })),
+    missingSeedUsers.map(async (item) => {
+      const resolvedDepts = (item.department || [])
+        .map((d) => resolveDepartmentReference(directory, d))
+        .filter(Boolean);
+      const resolvedGroups = (item.group || [])
+        .map((g) => resolveGroupReference(directory, g))
+        .filter(Boolean);
+
+      const deptToFuncMap = {
+        "phong-marketing": "FUNC1",
+        "phong-sale": "FUNC2",
+        "phong-ky-thuat": "FUNC3",
+        "phong-cskh": "FUNC4"
+      };
+
+      const functions = [];
+      const departments = [];
+      const groups = [];
+
+      resolvedDepts.forEach(dept => {
+        const functionId = deptToFuncMap[dept.alias] || "FUNC1";
+        if (!functions.includes(functionId)) {
+          functions.push(functionId);
+        }
+        departments.push({
+          deptAlias: dept.alias,
+          role: "member"
+        });
+      });
+
+      resolvedGroups.forEach(grp => {
+        groups.push({
+          groupAlias: grp.alias,
+          role: "member"
+        });
+      });
+
+      return {
+        ...item,
+        email: String(item.email).trim().toLowerCase(),
+        roleId: String(item.role || "STAFF")
+          .trim()
+          .toLowerCase(),
+        passwordHash: await hashPassword(item.password),
+        password: undefined,
+        sessions: [],
+        lastLoginAt: null,
+        createdBy: null,
+        functions,
+        departments,
+        groups,
+      };
+    })
   );
 
-  await User.insertMany(items.map(({ password, ...item }) => item));
+  await User.insertMany(items.map(({ password, role, ...item }) => item));
   console.log(`Seeded ${items.length} users`);
 }
 
@@ -120,49 +164,72 @@ async function syncUserOrganizationReferences() {
   let updated = 0;
 
   for (const user of users) {
-    const resolvedDepartments = (user.department || [])
-      .map((item) => resolveDepartmentReference(directory, item))
-      .filter(Boolean);
-    const resolvedGroups = (user.group || [])
-      .map((item) => resolveGroupReference(directory, item))
-      .filter(Boolean);
-    const departmentAliases = [
-      ...new Set(resolvedDepartments.map((item) => item.alias)),
-    ];
-    const groupAliases = [...new Set(resolvedGroups.map((item) => item.alias))];
+    if (Array.isArray(user.departments) && user.departments.length > 0) {
+      continue;
+    }
 
-    if (
-      JSON.stringify(user.departmentAliases || []) !==
-      JSON.stringify(departmentAliases) ||
-      JSON.stringify(user.groupAliases || []) !== JSON.stringify(groupAliases)
-    ) {
-      user.departmentAliases = departmentAliases;
-      user.groupAliases = groupAliases;
+    const legacyDept = user.toObject().department || [];
+    const legacyGroup = user.toObject().group || [];
+
+    if (legacyDept.length > 0 || legacyGroup.length > 0) {
+      const resolvedDepts = legacyDept
+        .map((item) => resolveDepartmentReference(directory, item))
+        .filter(Boolean);
+      const resolvedGroups = legacyGroup
+        .map((item) => resolveGroupReference(directory, item))
+        .filter(Boolean);
+
+      const deptToFuncMap = {
+        "phong-marketing": "FUNC1",
+        "phong-sale": "FUNC2",
+        "phong-ky-thuat": "FUNC3",
+        "phong-cskh": "FUNC4"
+      };
+
+      const functions = [];
+      const departments = [];
+      const groups = [];
+
+      resolvedDepts.forEach(dept => {
+        const functionId = deptToFuncMap[dept.alias] || "FUNC1";
+        if (!functions.includes(functionId)) {
+          functions.push(functionId);
+        }
+        departments.push({ deptAlias: dept.alias, role: "member" });
+      });
+
+      resolvedGroups.forEach(g => {
+        groups.push({ groupAlias: g.alias, role: "member" });
+      });
+
+      user.functions = functions;
+      user.departments = departments;
+      user.groups = groups;
       await user.save();
       updated += 1;
     }
   }
 
   if (updated > 0) {
-    console.log(`Synced ${updated} users with organization aliases`);
+    console.log(`Synced ${updated} users to decoupled structure`);
   }
 }
 
 async function seedDatabase() {
   await seedCollection(Organization, seedData.organizations, "organization items");
   await syncOrganizationAliases();
-  // await seedUsers();
+  await seedUsers();
   await syncUserOrganizationReferences();
-  // await seedCollection(Customer, seedData.customers, "customers");
+  await seedCollection(Customer, seedData.customers, "customers");
 
-  // await seedCollection(Event, seedData.events, "events");
+  await seedCollection(Event, seedData.events, "events");
   await seedCollection(StaffFunction, seedData.staffFunctions, "staff functions");
 
   // ── Action config — thứ tự: Reason → Result → Action → ActionChain ──────
   await seedCollection(Reason, seedData.reasons, "reasons");
   await seedCollection(Result, seedData.results, "results");
   await seedCollection(Action, seedData.actions, "actions");
-  // await seedCollection(ActionChain, seedData.actionChains, "action chains");
+  await seedCollection(ActionChain, seedData.actionChains, "action chains");
 
   // Seed RBAC
   await seedRbac();

@@ -20,12 +20,21 @@ const createUserSchema = Joi.object({
   functions: Joi.array().items(Joi.string()).optional(),
   department: Joi.array().items(Joi.string()).optional(),
   departmentRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  departmentAliases: Joi.array().items(Joi.string()).optional(),
-  departmentIds: Joi.array().items(Joi.string()).optional(),
   group: Joi.array().items(Joi.string()).optional(),
   groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  groupAliases: Joi.array().items(Joi.string()).optional(),
-  groupIds: Joi.array().items(Joi.string()).optional(),
+
+  departments: Joi.array().items(
+    Joi.object({
+      deptAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
+  groups: Joi.array().items(
+    Joi.object({
+      groupAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
   moduleAccess: Joi.array().items(
     Joi.object({
       moduleId: Joi.string().required(),
@@ -52,12 +61,21 @@ const updateUserSchema = Joi.object({
   functions: Joi.array().items(Joi.string()).optional(),
   department: Joi.array().items(Joi.string()).optional(),
   departmentRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  departmentAliases: Joi.array().items(Joi.string()).optional(),
-  departmentIds: Joi.array().items(Joi.string()).optional(),
   group: Joi.array().items(Joi.string()).optional(),
   groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  groupAliases: Joi.array().items(Joi.string()).optional(),
-  groupIds: Joi.array().items(Joi.string()).optional(),
+
+  departments: Joi.array().items(
+    Joi.object({
+      deptAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
+  groups: Joi.array().items(
+    Joi.object({
+      groupAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
   moduleAccess: Joi.array().items(
     Joi.object({
       moduleId: Joi.string().required(),

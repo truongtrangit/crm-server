@@ -262,30 +262,30 @@ function enforceUnassignmentRules(options) {
 function scopeAssignmentList(options = {}) {
   return async (req, res, next) => {
     try {
-      if (req.query.assignmentScope === "true") {
-        const user = req.user;
-        if (!user) return next();
-        const role = (user.roleId || "").toUpperCase();
+      // if (req.query.assignmentScope === "true") {
+      const user = req.user;
+      if (!user) return next();
+      const role = (user.roleId || "").toUpperCase();
 
-        if (!["OWNER", "ADMIN"].includes(role)) {
-          const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
-          const isManagerial = isUserManagerial(user);
-          let allowedIds = [];
-          if (isManagerial && allowManagerSubordinateScope) {
-            const subIds = await getManagerSubordinateIds(user);
-            allowedIds = [user.id, ...subIds];
-          } else {
-            allowedIds = [user.id];
-          }
-
-          if (req.query.scopedUserIds) {
-            const requestedIds = Array.isArray(req.query.scopedUserIds) ? req.query.scopedUserIds : [req.query.scopedUserIds];
-            const intersectedIds = requestedIds.filter(id => allowedIds.includes(id));
-            req.scopedUserIds = intersectedIds.length > 0 ? intersectedIds : ["_NO_MATCH_"];
-          } else {
-            req.scopedUserIds = allowedIds;
-          }
+      if (!["OWNER", "ADMIN"].includes(role)) {
+        const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
+        const isManagerial = isUserManagerial(user);
+        let allowedIds = [];
+        if (isManagerial && allowManagerSubordinateScope) {
+          const subIds = await getManagerSubordinateIds(user);
+          allowedIds = [user.id, ...subIds];
+        } else {
+          allowedIds = [user.id];
         }
+
+        if (req.query.scopedUserIds) {
+          const requestedIds = Array.isArray(req.query.scopedUserIds) ? req.query.scopedUserIds : [req.query.scopedUserIds];
+          const intersectedIds = requestedIds.filter(id => allowedIds.includes(id));
+          req.scopedUserIds = intersectedIds.length > 0 ? intersectedIds : ["_NO_MATCH_"];
+        } else {
+          req.scopedUserIds = allowedIds;
+        }
+        // }
       }
       next();
     } catch (err) {

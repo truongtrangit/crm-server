@@ -94,7 +94,9 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
-  eventResourceAccess,
+  eventResourceAccess.with({
+    allowUnassigned: true
+  }),
   eventAssignmentRules,
   eventUnassignmentRules,
   validate(updateEventSchema),

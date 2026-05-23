@@ -119,6 +119,35 @@ async function seedUsers() {
         .map((g) => resolveGroupReference(directory, g))
         .filter(Boolean);
 
+      const staffFunctions = seedData.staffFunctions || [];
+
+      const functions = [];
+      const departments = [];
+      const groups = [];
+
+      resolvedDepts.forEach(dept => {
+        const matchingFunc = staffFunctions.find(f => 
+          dept.alias.toLowerCase().includes(f.type.toLowerCase()) || 
+          (f.type === "tech" && dept.alias.toLowerCase().includes("ky-thuat"))
+        );
+        const functionId = matchingFunc ? matchingFunc.id : "FUNC1";
+        if (!functions.includes(functionId)) {
+          functions.push(functionId);
+        }
+        
+        departments.push({
+          deptAlias: dept.alias,
+          role: "member"
+        });
+      });
+
+      resolvedGroups.forEach(g => {
+        groups.push({
+          groupAlias: g.alias,
+          role: "member"
+        });
+      });
+
       return {
         ...item,
         email: String(item.email).trim().toLowerCase(),
@@ -128,8 +157,9 @@ async function seedUsers() {
         sessions:    [],
         lastLoginAt: null,
         createdBy:   null,
-        departmentAliases: [...new Set(resolvedDepts.map((d) => d.alias))],
-        groupAliases:      [...new Set(resolvedGroups.map((g) => g.alias))],
+        functions,
+        departments,
+        groups,
       };
     })
   );

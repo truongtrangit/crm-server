@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Organization = require("../models/Organization");
 const Role = require("../models/Role");
 const Event = require("../models/Event");
+const StaffFunction = require("../models/StaffFunction");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
@@ -34,6 +35,15 @@ const { computeChanges } = require("../utils/diff");
 const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
 
+let orgDirectoryCache = null;
+
+async function ensureOrgDirectoryCache(force = false) {
+  if (!orgDirectoryCache || force) {
+    const orgs = await Organization.find({}).lean();
+    orgDirectoryCache = buildOrganizationDirectory(orgs);
+  }
+}
+
 const DEFAULT_ROLE_NAME = "STAFF";
 const OWNER_ROLE_NAME = "OWNER";
 const ADMIN_ROLE_NAME = "ADMIN";
@@ -52,6 +62,80 @@ function normalizeStringList(value) {
   return [
     ...new Set(value.map((item) => normalizeString(item)).filter(Boolean)),
   ];
+}
+function getGroupNameFromAlias(alias) {
+  const cleanAlias = alias.includes("__") ? alias.split("__")[1] : alias;
+  return cleanAlias;
+}
+
+async function parseDecoupledAssignments(payload = {}) {
+  let functions = [];
+  if (Array.isArray(payload.functions)) {
+    functions = payload.functions;
+  }
+
+  let departments = [];
+  let groups = [];
+
+  // Direct modern format
+  if (Array.isArray(payload.departments) && payload.departments.length > 0 && typeof payload.departments[0] === "object") {
+    departments = payload.departments.map(d => ({
+      deptAlias: d.deptAlias,
+      role: d.role || "member"
+    }));
+  }
+  if (Array.isArray(payload.groups) && payload.groups.length > 0 && typeof payload.groups[0] === "object") {
+    groups = payload.groups.map(g => ({
+      groupAlias: g.groupAlias,
+      role: g.role || "member"
+    }));
+  }
+
+
+  // Fallback to legacy structure
+  if (departments.length === 0 && groups.length === 0) {
+    const hasLegacyInput = payload.department || payload.group;
+    if (hasLegacyInput) {
+      const organizationAssignments = await validateOrganizationAssignments({
+        departments: payload.department,
+        groups: payload.group,
+      });
+
+      const assignedDeptAliases = organizationAssignments.departmentAliases || [];
+      const assignedGroupAliases = organizationAssignments.groupAliases || [];
+
+      const deptRoles = payload.departmentRoles || {};
+      const groupRoles = payload.groupRoles || {};
+
+      assignedDeptAliases.forEach(deptAlias => {
+        const role = deptRoles[deptAlias] || "member";
+        departments.push({ deptAlias, role });
+      });
+
+      assignedGroupAliases.forEach(groupAlias => {
+        const role = groupRoles[groupAlias] || "member";
+        groups.push({ groupAlias, role });
+      });
+
+      if (functions.length === 0) {
+        const staffFunctions = await StaffFunction.find({}).lean();
+        assignedDeptAliases.forEach(deptAlias => {
+          const matchingFunc = staffFunctions.find(f =>
+            deptAlias.toLowerCase().includes(f.type.toLowerCase()) ||
+            (f.type === "tech" && deptAlias.toLowerCase().includes("ky-thuat"))
+          );
+          if (matchingFunc && !functions.includes(matchingFunc.id)) {
+            functions.push(matchingFunc.id);
+          }
+        });
+        if (functions.length === 0) {
+          functions.push("FUNC1");
+        }
+      }
+    }
+  }
+
+  return { functions, departments, groups };
 }
 
 function ensurePasswordStrength(password) {
@@ -118,27 +202,14 @@ function ensureDepartmentByRole(role, department) {
 async function validateOrganizationAssignments(payload = {}) {
   const normalizedDepartments = normalizeStringList(payload.departments);
   const normalizedGroups = normalizeStringList(payload.groups);
-  const normalizedDepartmentAliases = normalizeStringList(
-    payload.departmentAliases,
-  );
-  const normalizedGroupAliases = normalizeStringList(payload.groupAliases);
-  const normalizedDepartmentIds = normalizeStringList(payload.departmentIds);
-  const normalizedGroupIds = normalizeStringList(payload.groupIds);
 
   if (normalizedDepartments.length === 0 && normalizedGroups.length === 0) {
-    if (
-      normalizedDepartmentAliases.length === 0 &&
-      normalizedGroupAliases.length === 0 &&
-      normalizedDepartmentIds.length === 0 &&
-      normalizedGroupIds.length === 0
-    ) {
-      return {
-        departments: normalizedDepartments,
-        groups: normalizedGroups,
-        departmentAliases: [],
-        groupAliases: [],
-      };
-    }
+    return {
+      departments: normalizedDepartments,
+      groups: normalizedGroups,
+      departmentAliases: [],
+      groupAliases: [],
+    };
   }
 
   const organizations = await Organization.find(
@@ -150,16 +221,8 @@ async function validateOrganizationAssignments(payload = {}) {
   const directory = buildOrganizationDirectory(organizations);
   const resolvedDepartments = [];
   const resolvedGroups = [];
-  const departmentReferences = [
-    ...normalizedDepartments,
-    ...normalizedDepartmentAliases,
-    ...normalizedDepartmentIds,
-  ];
-  const groupReferences = [
-    ...normalizedGroups,
-    ...normalizedGroupAliases,
-    ...normalizedGroupIds,
-  ];
+  const departmentReferences = normalizedDepartments;
+  const groupReferences = normalizedGroups;
 
   for (const reference of departmentReferences) {
     const department = resolveDepartmentReference(directory, reference);
@@ -273,13 +336,47 @@ function serializeUser(user) {
   delete item.passwordReset;
   delete item.sessions;
 
+  const functions = item.functions || [];
+  const departmentAliases = (item.departments || []).map(d => d.deptAlias).filter(Boolean);
+  const groupAliases = (item.groups || []).map(g => g.groupAlias).filter(Boolean);
+
+  const department = departmentAliases.map(alias => {
+    if (orgDirectoryCache) {
+      const dept = orgDirectoryCache.departmentByAlias.get(alias);
+      if (dept) return dept.name;
+    }
+    return alias;
+  });
+
+  const group = groupAliases.map(alias => {
+    if (orgDirectoryCache) {
+      const g = orgDirectoryCache.groupByAlias.get(alias);
+      if (g) return g.name;
+    }
+    return getGroupNameFromAlias(alias);
+  });
+
+  const departmentRoles = {};
+  (item.departments || []).forEach(d => {
+    departmentRoles[d.deptAlias] = d.role || "member";
+  });
+
+  const groupRoles = {};
+  (item.groups || []).forEach(g => {
+    const deptAlias = g.groupAlias.split("__")[0];
+    groupRoles[`${deptAlias}:${g.groupAlias}`] = g.role || "member";
+  });
+
   return {
     ...item,
-    // Derive display label directly from roleId (e.g. "staff" → "Staff")
     roleLabel: formatRoleLabel(item.roleId),
-    functions: item.functions || [],
-    departmentAliases: item.departmentAliases || [],
-    groupAliases: item.groupAliases || [],
+    functions,
+    department,
+    departmentAliases,
+    departmentRoles,
+    group,
+    groupAliases,
+    groupRoles,
     preferences: item.preferences || {},
     permissions: item.permissions || [],
     moduleAccess: item.moduleAccess || [],
@@ -336,12 +433,7 @@ async function buildUserListQuery(actor, scopedUserIds, filters = {}) {
 
     query.$and = [
       ...(query.$and || []),
-      {
-        $or: [
-          { department: resolvedDepartment.name },
-          { departmentAliases: resolvedDepartment.alias },
-        ],
-      },
+      { "departments.deptAlias": resolvedDepartment.alias }
     ];
   }
 
@@ -359,26 +451,19 @@ async function buildUserListQuery(actor, scopedUserIds, filters = {}) {
     const actorRoleName = await getUserRoleName(actor);
 
     if (actorRoleName === MANAGER_ROLE_NAME) {
-      const managerDeptAliases = Array.isArray(actor.departmentAliases) && actor.departmentAliases.length > 0
-        ? actor.departmentAliases
-        : Array.isArray(actor.department)
-          ? actor.department
-          : [];
-      const managerGroupAliases = Array.isArray(actor.groupAliases) && actor.groupAliases.length > 0
-        ? actor.groupAliases
-        : Array.isArray(actor.group)
-          ? actor.group
-          : [];
+      const managerDepts = actor.departments || [];
+      const managerGroups = actor.groups || [];
+      const managerDeptAliases = managerDepts.filter(d => d.role === "lead").map(d => d.deptAlias);
+      const managerGroupAliases = managerGroups.filter(g => g.role === "lead").map(g => g.groupAlias);
+
 
       if (managerDeptAliases.length > 0 || managerGroupAliases.length > 0) {
         const orConditions = [];
         if (managerDeptAliases.length > 0) {
-          orConditions.push({ departmentAliases: { $in: managerDeptAliases } });
-          orConditions.push({ department: { $in: managerDeptAliases } });
+          orConditions.push({ "departments.deptAlias": { $in: managerDeptAliases } });
         }
         if (managerGroupAliases.length > 0) {
-          orConditions.push({ groupAliases: { $in: managerGroupAliases } });
-          orConditions.push({ group: { $in: managerGroupAliases } });
+          orConditions.push({ "groups.groupAlias": { $in: managerGroupAliases } });
         }
 
         query.$and = [
@@ -411,6 +496,7 @@ function serializeUserBasic(user) {
 
 async function listUsers(actor, scopedUserIds, filters) {
   return CacheService.withVersionedCache("users", { actorId: actor.id, role: actor.roleId, scopedUserIds, ...filters }, CACHE_TTL.SHORT, async () => {
+    await ensureOrgDirectoryCache();
     const { query, hasReadPermission } = await buildUserListQuery(actor, scopedUserIds, filters);
     const { page, limit, skip } = resolvePagination(filters);
 
@@ -442,6 +528,7 @@ async function listUsers(actor, scopedUserIds, filters) {
 }
 
 async function createUserAccount(actor, payload = {}) {
+  await ensureOrgDirectoryCache();
   if (
     !(await hasAnyPermission(actor, [
       PERMISSIONS.USERS_CREATE,
@@ -462,16 +549,10 @@ async function createUserAccount(actor, payload = {}) {
     payload.roleId ?? payload.role,
     DEFAULT_ROLE_NAME,
   );
-  const organizationAssignments = await validateOrganizationAssignments({
-    departments: payload.department,
-    groups: payload.group,
-    departmentAliases: payload.departmentAliases,
-    groupAliases: payload.groupAliases,
-    departmentIds: payload.departmentIds,
-    groupIds: payload.groupIds,
-  });
-  const department = organizationAssignments.departments;
-  const group = organizationAssignments.groups;
+
+  const parsed = await parseDecoupledAssignments(payload);
+  const assignedDepts = parsed.departments.map(d => d.deptAlias);
+
   const actorRole = await getUserRoleWithPermissions(actor);
   const actorRoleName = actorRole?.name || null;
 
@@ -492,9 +573,6 @@ async function createUserAccount(actor, payload = {}) {
   }
 
   // Unified role assignment check:
-  // - Nobody can create a user with the OWNER role.
-  // - The actor must be able to assign the target role (strictly higher level).
-  // canAssignRole is the single source of truth for whether the assignment is valid.
   if (!canAssignRole(actorRole, targetRole)) {
     throw createHttpError(
       403,
@@ -503,7 +581,6 @@ async function createUserAccount(actor, payload = {}) {
   }
 
   // Additional check for actors that only have USERS_CREATE (not USERS_MANAGE):
-  // They can ONLY create STAFF-level users.
   const hasManageUsers = await hasPermission(actor, PERMISSIONS.USERS_MANAGE);
   const hasManageRoles = await hasPermission(actor, PERMISSIONS.ROLES_MANAGE);
   if (!hasManageUsers && !hasManageRoles && targetRole.name !== STAFF_ROLE_NAME) {
@@ -513,24 +590,22 @@ async function createUserAccount(actor, payload = {}) {
     );
   }
 
-  ensureDepartmentByRole(targetRole.name, department);
+  ensureDepartmentByRole(targetRole.name, assignedDepts);
+
+  const scopePayload = {
+    departmentAliases: parsed.departments.map(d => d.deptAlias),
+    groupAliases: parsed.groups.map(g => g.groupAlias)
+  };
 
   if (
     actorRoleName === MANAGER_ROLE_NAME &&
-    !isWithinManagerScope(actor, {
-      department,
-      group,
-      departmentAliases: organizationAssignments.departmentAliases,
-      groupAliases: organizationAssignments.groupAliases,
-    })
+    !isWithinManagerScope(actor, scopePayload)
   ) {
     throw createHttpError(
       403,
       "Manager chỉ được tạo nhân viên trong phạm vi quản lý của mình",
     );
   }
-
-
 
   const user = await User.create({
     id: await generateMonotonicId(ID_PREFIXES.USER),
@@ -540,22 +615,17 @@ async function createUserAccount(actor, payload = {}) {
     avatar:
       normalizeString(payload.avatar) ||
       getDefaultAvatar(name || email),
-    department,
-    departmentRoles: payload.departmentRoles || {},
-    departmentAliases: organizationAssignments.departmentAliases,
-    group,
-    groupRoles: payload.groupRoles || {},
-    groupAliases: organizationAssignments.groupAliases,
     companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
-    functions: Array.isArray(payload.functions) ? payload.functions : [],
+    functions: parsed.functions,
+    departments: parsed.departments,
+    groups: parsed.groups,
     moduleAccess: Array.isArray(payload.moduleAccess) ? payload.moduleAccess : [],
     permissions: computePermissionsFromModuleAccess(
       payload.moduleAccess,
       targetRole.name
     ),
-
     createdBy: actor.id,
   });
 
@@ -564,6 +634,7 @@ async function createUserAccount(actor, payload = {}) {
 }
 
 async function updateUserAccount(actor, targetUser, payload = {}) {
+  await ensureOrgDirectoryCache();
   const actorRole = await getUserRoleWithPermissions(actor);
   const targetCurrentRole = await getUserRoleWithPermissions(targetUser);
   const actorRoleName = actorRole?.name || null;
@@ -577,8 +648,6 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
   }
 
-
-
   // ── Determine next role ───────────────────────────────────────────────────
   const nextRole =
     payload.role !== undefined || payload.roleId !== undefined
@@ -590,8 +659,6 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   }
 
   // ── Guard 4: Validate the actor is allowed to assign the requested role ───
-  // Only enforce this when role is explicitly being changed.
-  // canAssignRole blocks OWNER assignment and requires strictly higher level.
   const isRoleBeingChanged =
     (payload.role !== undefined || payload.roleId !== undefined) && nextRole.id !== targetCurrentRole?.id;
 
@@ -611,52 +678,41 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     }
   }
 
-  // Treat department-related fields as a package: if any one is provided,
-  // don't fall back to targetUser for the others (to avoid re-adding removed items).
-  const hasDeptPayload =
+  const hasAssignmentsPayload =
+    payload.departments !== undefined ||
+    payload.groups !== undefined ||
     payload.department !== undefined ||
     payload.departmentAliases !== undefined ||
-    payload.departmentIds !== undefined;
-  const department = hasDeptPayload
-    ? normalizeStringList(payload.department)
-    : targetUser.department;
-  const departmentAliases = hasDeptPayload
-    ? normalizeStringList(payload.departmentAliases)
-    : targetUser.departmentAliases;
-
-  // Same for group-related fields.
-  const hasGroupPayload =
+    payload.departmentIds !== undefined ||
     payload.group !== undefined ||
     payload.groupAliases !== undefined ||
-    payload.groupIds !== undefined;
-  const group = hasGroupPayload
-    ? normalizeStringList(payload.group)
-    : targetUser.group;
-  const groupAliases = hasGroupPayload
-    ? normalizeStringList(payload.groupAliases)
-    : targetUser.groupAliases;
+    payload.groupIds !== undefined ||
+    payload.functions !== undefined;
 
-  const organizationAssignments = await validateOrganizationAssignments({
-    departments: department,
-    groups: group,
-    departmentAliases,
-    groupAliases,
-    departmentIds: hasDeptPayload
-      ? normalizeStringList(payload.departmentIds)
-      : [],
-    groupIds: hasGroupPayload ? normalizeStringList(payload.groupIds) : [],
-  });
+  let parsed = {
+    functions: targetUser.functions || [],
+    departments: targetUser.departments || [],
+    groups: targetUser.groups || []
+  };
 
-  ensureDepartmentByRole(nextRole.name, organizationAssignments.departments);
+  if (hasAssignmentsPayload) {
+    parsed = await parseDecoupledAssignments({
+      ...payload,
+      functions: payload.functions !== undefined ? payload.functions : targetUser.functions || []
+    });
+  }
+
+  const nextDepts = parsed.departments.map(d => d.deptAlias);
+  ensureDepartmentByRole(nextRole.name, nextDepts);
+
+  const scopePayload = {
+    departmentAliases: parsed.departments.map(d => d.deptAlias),
+    groupAliases: parsed.groups.map(g => g.groupAlias)
+  };
 
   if (
     actorRoleName === MANAGER_ROLE_NAME &&
-    !isWithinManagerScope(actor, {
-      department: organizationAssignments.departments,
-      group: organizationAssignments.groups,
-      departmentAliases: organizationAssignments.departmentAliases,
-      groupAliases: organizationAssignments.groupAliases,
-    })
+    !isWithinManagerScope(actor, scopePayload)
   ) {
     throw createHttpError(
       403,
@@ -684,12 +740,11 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     payload.avatar !== undefined
       ? normalizeString(payload.avatar)
       : targetUser.avatar;
-  targetUser.department = organizationAssignments.departments;
-  targetUser.departmentRoles = payload.departmentRoles !== undefined ? payload.departmentRoles : targetUser.departmentRoles;
-  targetUser.departmentAliases = organizationAssignments.departmentAliases;
-  targetUser.group = organizationAssignments.groups;
-  targetUser.groupRoles = payload.groupRoles !== undefined ? payload.groupRoles : targetUser.groupRoles;
-  targetUser.groupAliases = organizationAssignments.groupAliases;
+
+  targetUser.functions = parsed.functions;
+  targetUser.departments = parsed.departments;
+  targetUser.groups = parsed.groups;
+
   targetUser.companies =
     payload.companies !== undefined && Array.isArray(payload.companies)
       ? payload.companies.filter(c => COMPANIES.includes(c))
@@ -699,7 +754,6 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? normalizeString(payload.phone)
       : targetUser.phone;
   targetUser.roleId = nextRole.id;
-  targetUser.functions = payload.functions !== undefined && Array.isArray(payload.functions) ? payload.functions : targetUser.functions;
 
   let forceLogout = false;
   if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess)) {
@@ -710,7 +764,6 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     );
     forceLogout = true;
   } else if (nextRole.id !== targetCurrentRole?.id) {
-    // Recompute permissions if role changed but moduleAccess didn't
     targetUser.permissions = computePermissionsFromModuleAccess(
       targetUser.moduleAccess,
       nextRole.name
@@ -727,12 +780,10 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? payload.isActive
       : targetUser.isActive;
 
-
-
   await targetUser.save();
 
   const newState = targetUser.toObject();
-  const keysToCheck = ["name", "email", "avatar", "department", "departmentAliases", "group", "groupAliases", "companies", "phone", "roleId", "functions", "isActive"];
+  const keysToCheck = ["name", "email", "avatar", "companies", "phone", "roleId", "isActive"];
   const changes = computeChanges(oldState, newState, keysToCheck);
 
   await CacheService.bumpNamespaceVersion("users");
@@ -740,11 +791,11 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
 }
 
 async function updateOwnProfile(actor, payload = {}) {
+  await ensureOrgDirectoryCache();
   const actorRoleName = await getUserRoleName(actor);
   const safePayload = { ...payload };
   delete safePayload.role;
   delete safePayload.roleId;
-
 
   if (safePayload.password !== undefined) {
     ensurePasswordStrength(safePayload.password);
@@ -777,102 +828,59 @@ async function updateOwnProfile(actor, payload = {}) {
       : actor.preferences;
 
   if ([OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
-    const hasDeptPayload =
+    const hasAssignmentsPayload =
+      safePayload.departments !== undefined ||
+      safePayload.groups !== undefined ||
       safePayload.department !== undefined ||
       safePayload.departmentAliases !== undefined ||
-      safePayload.departmentIds !== undefined;
-    const hasGroupPayload =
+      safePayload.departmentIds !== undefined ||
       safePayload.group !== undefined ||
       safePayload.groupAliases !== undefined ||
-      safePayload.groupIds !== undefined;
+      safePayload.groupIds !== undefined ||
+      safePayload.functions !== undefined;
 
-    if (hasDeptPayload || hasGroupPayload) {
-      const organizationAssignments = await validateOrganizationAssignments({
-        departments:
-          safePayload.department !== undefined
-            ? normalizeStringList(safePayload.department)
-            : actor.department,
-        groups:
-          safePayload.group !== undefined
-            ? normalizeStringList(safePayload.group)
-            : actor.group,
-        departmentAliases:
-          safePayload.departmentAliases !== undefined
-            ? normalizeStringList(safePayload.departmentAliases)
-            : actor.departmentAliases,
-        groupAliases:
-          safePayload.groupAliases !== undefined
-            ? normalizeStringList(safePayload.groupAliases)
-            : actor.groupAliases,
-        departmentIds:
-          safePayload.departmentIds !== undefined
-            ? normalizeStringList(safePayload.departmentIds)
-            : [],
-        groupIds:
-          safePayload.groupIds !== undefined
-            ? normalizeStringList(safePayload.groupIds)
-            : [],
+    if (hasAssignmentsPayload) {
+      const parsed = await parseDecoupledAssignments({
+        ...safePayload,
+        functions: safePayload.functions !== undefined ? safePayload.functions : actor.functions || []
       });
-
-      actor.department = organizationAssignments.departments;
-      actor.departmentAliases = organizationAssignments.departmentAliases;
-      actor.group = organizationAssignments.groups;
-      actor.groupAliases = organizationAssignments.groupAliases;
+      actor.functions = parsed.functions;
+      actor.departments = parsed.departments;
+      actor.groups = parsed.groups;
     }
   } else if (actorRoleName === MANAGER_ROLE_NAME) {
-    const requestedDepartment = normalizeStringList(safePayload.department);
-    const requestedGroup = normalizeStringList(safePayload.group);
-    const hasDeptPayload =
+    const hasAssignmentsPayload =
+      safePayload.departments !== undefined ||
+      safePayload.groups !== undefined ||
       safePayload.department !== undefined ||
       safePayload.departmentAliases !== undefined ||
-      safePayload.departmentIds !== undefined;
-    const hasGroupPayload =
+      safePayload.departmentIds !== undefined ||
       safePayload.group !== undefined ||
       safePayload.groupAliases !== undefined ||
-      safePayload.groupIds !== undefined;
+      safePayload.groupIds !== undefined ||
+      safePayload.functions !== undefined;
 
-    if (hasDeptPayload || hasGroupPayload) {
-      const requestedAssignments = await validateOrganizationAssignments({
-        departments: requestedDepartment.length
-          ? requestedDepartment
-          : actor.department,
-        groups: requestedGroup.length ? requestedGroup : actor.group,
-        departmentAliases:
-          safePayload.departmentAliases !== undefined
-            ? normalizeStringList(safePayload.departmentAliases)
-            : actor.departmentAliases,
-        groupAliases:
-          safePayload.groupAliases !== undefined
-            ? normalizeStringList(safePayload.groupAliases)
-            : actor.groupAliases,
-        departmentIds:
-          safePayload.departmentIds !== undefined
-            ? normalizeStringList(safePayload.departmentIds)
-            : [],
-        groupIds:
-          safePayload.groupIds !== undefined
-            ? normalizeStringList(safePayload.groupIds)
-            : [],
+    if (hasAssignmentsPayload) {
+      const parsed = await parseDecoupledAssignments({
+        ...safePayload,
+        functions: safePayload.functions !== undefined ? safePayload.functions : actor.functions || []
       });
 
-      if (
-        !isWithinManagerScope(actor, {
-          department: requestedAssignments.departments,
-          group: requestedAssignments.groups,
-          departmentAliases: requestedAssignments.departmentAliases,
-          groupAliases: requestedAssignments.groupAliases,
-        })
-      ) {
+      const scopePayload = {
+        departmentAliases: parsed.departments.map(d => d.deptAlias),
+        groupAliases: parsed.groups.map(g => g.groupAlias)
+      };
+
+      if (!isWithinManagerScope(actor, scopePayload)) {
         throw createHttpError(
           403,
           "Manager can only update profile within assigned department/group scope",
         );
       }
 
-      actor.department = requestedAssignments.departments;
-      actor.departmentAliases = requestedAssignments.departmentAliases;
-      actor.group = requestedAssignments.groups;
-      actor.groupAliases = requestedAssignments.groupAliases;
+      actor.functions = parsed.functions;
+      actor.departments = parsed.departments;
+      actor.groups = parsed.groups;
     }
   }
 
@@ -1039,6 +1047,7 @@ async function getOrgOptions(actor) {
 module.exports = {
   createUserAccount,
   deleteUserAccount,
+  ensureOrgDirectoryCache,
   getOrgOptions,
   listUsers,
   permanentDeleteUserAccount,
