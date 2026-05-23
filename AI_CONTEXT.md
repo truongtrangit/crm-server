@@ -57,6 +57,9 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
     - *Chỉ Trưởng phòng ban (Lead của phòng ban đó)* mới được phép thay đổi nhóm con hoặc cập nhật vai trò Lead/Member của nhóm thuộc phòng ban đó cho nhân sự.
     - *Trưởng phòng ban không được phép* thay đổi/gán/gỡ thông tin của Trưởng phòng ban khác thuộc cùng phòng ban.
     - *Trưởng nhóm không được phép* thay đổi/gán/gỡ thông tin của Trưởng nhóm khác thuộc cùng nhóm.
+    - **Quy tắc phân quyền Module trực tiếp (Module Access Rules)**:
+      - *Chỉ OWNER/ADMIN* mới được phép cấu hình, thay đổi hoặc gán quyền hạn trực tiếp (`moduleAccess`) cho nhân sự ở cả Backend và Frontend.
+      - Ẩn hoàn toàn bảng cấu hình Module Access (`ModuleAccessPanel`) trên giao diện người dùng nếu tài khoản đang đăng nhập không phải là OWNER hoặc ADMIN.
 
 ---
 

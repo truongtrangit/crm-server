@@ -649,6 +649,15 @@ async function createUserAccount(actor, payload = {}) {
 
   validateDepartmentAndGroupRules(actor, actorRoleName, null, parsed);
 
+  if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess) && payload.moduleAccess.length > 0) {
+    if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+      throw createHttpError(
+        403,
+        "Chỉ có Owner hoặc Admin mới có quyền cấu hình phân quyền module cho nhân viên"
+      );
+    }
+  }
+
   if (!name || !email) {
     throw createHttpError(400, "name and email are required");
   }
@@ -852,6 +861,32 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
 
   let forceLogout = false;
   if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess)) {
+    const isChangingModuleAccess = () => {
+      const currentAccess = targetUser.moduleAccess || [];
+      const nextAccess = payload.moduleAccess || [];
+      if (currentAccess.length !== nextAccess.length) return true;
+      for (let i = 0; i < currentAccess.length; i++) {
+        const c = currentAccess[i];
+        const n = nextAccess.find(x => x.moduleId === c.moduleId);
+        if (!n) return true;
+        if (n.isEnabled !== c.isEnabled) return true;
+        const cPerms = c.customPermissions || [];
+        const nPerms = n.customPermissions || [];
+        if (cPerms.length !== nPerms.length) return true;
+        if (cPerms.some((p, idx) => p !== nPerms[idx])) return true;
+      }
+      return false;
+    };
+
+    if (isChangingModuleAccess()) {
+      if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+        throw createHttpError(
+          403,
+          "Chỉ có Owner hoặc Admin mới có quyền cấu hình phân quyền module cho nhân viên"
+        );
+      }
+    }
+
     targetUser.moduleAccess = payload.moduleAccess;
     targetUser.permissions = computePermissionsFromModuleAccess(
       payload.moduleAccess,
