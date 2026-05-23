@@ -692,18 +692,25 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
   targetUser.roleId = nextRole.id;
   targetUser.functions = payload.functions !== undefined && Array.isArray(payload.functions) ? payload.functions : targetUser.functions;
   
+  let forceLogout = false;
   if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess)) {
     targetUser.moduleAccess = payload.moduleAccess;
     targetUser.permissions = computePermissionsFromModuleAccess(
       payload.moduleAccess,
       nextRole.name
     );
-  } else if (nextRole.id !== targetRole.id) {
+    forceLogout = true;
+  } else if (nextRole.id !== targetCurrentRole?.id) {
     // Recompute permissions if role changed but moduleAccess didn't
     targetUser.permissions = computePermissionsFromModuleAccess(
       targetUser.moduleAccess,
       nextRole.name
     );
+    forceLogout = true;
+  }
+
+  if (forceLogout) {
+    targetUser.sessions = [];
   }
 
   targetUser.isActive =
