@@ -125,7 +125,7 @@ function enforceAssignmentRules(options) {
       if (!user) return next();
 
       const role = (user.roleId || "").toUpperCase();
-      if (["OWNER", "ADMIN"].includes(role) || req.mlacGranted) return next();
+      if (["OWNER", "ADMIN"].includes(role)) return next();
 
       const newAssigneeIds = options.getNewAssigneeIds(req) || [];
       const currentAssignees = req.resource && options.getCurrentAssigneeIds ? options.getCurrentAssigneeIds(req.resource) : [];
@@ -194,7 +194,7 @@ function enforceUnassignmentRules(options) {
       if (!user) return next();
 
       const role = (user.roleId || "").toUpperCase();
-      if (["OWNER", "ADMIN"].includes(role) || req.mlacGranted) return next();
+      if (["OWNER", "ADMIN"].includes(role)) return next();
 
       let removedAssigneeIds = [];
       if (options.getNewAssigneeIds && options.getCurrentAssigneeIds) {
@@ -267,14 +267,23 @@ function scopeAssignmentList(options = {}) {
         if (!user) return next();
         const role = (user.roleId || "").toUpperCase();
 
-        if (!["OWNER", "ADMIN"].includes(role) && !req.mlacGranted) {
+        if (!["OWNER", "ADMIN"].includes(role)) {
           const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
           const isManagerial = isUserManagerial(user);
+          let allowedIds = [];
           if (isManagerial && allowManagerSubordinateScope) {
             const subIds = await getManagerSubordinateIds(user);
-            req.query.scopedUserIds = [user.id, ...subIds];
+            allowedIds = [user.id, ...subIds];
           } else {
-            req.query.scopedUserIds = [user.id];
+            allowedIds = [user.id];
+          }
+
+          if (req.query.scopedUserIds) {
+            const requestedIds = Array.isArray(req.query.scopedUserIds) ? req.query.scopedUserIds : [req.query.scopedUserIds];
+            const intersectedIds = requestedIds.filter(id => allowedIds.includes(id));
+            req.scopedUserIds = intersectedIds.length > 0 ? intersectedIds : ["_NO_MATCH_"];
+          } else {
+            req.scopedUserIds = allowedIds;
           }
         }
       }
@@ -293,11 +302,6 @@ function scopeAssignmentList(options = {}) {
 function scopeResourceList(options = {}) {
   const middleware = async (req, res, next) => {
     try {
-      // MLAC-granted users see everything (same as OWNER/ADMIN)
-      if (req.mlacGranted) {
-        req.resourceScopeFilter = {};
-        return next();
-      }
       const filter = await buildResourceScopeFilter(req.user, options);
       req.resourceScopeFilter = filter || {};
       next();

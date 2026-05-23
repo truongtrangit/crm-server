@@ -15,7 +15,7 @@ const { RESOURCES } = require("../constants/rbac");
 
 class UserController {
   async listUsers(req, res) {
-    const staff = await listUsers(req.user, req.query || {});
+    const staff = await listUsers(req.user, req.scopedUserIds, req.query || {});
     return sendSuccess(res, 200, "Get staff list success", staff);
   }
 

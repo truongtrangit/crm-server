@@ -66,9 +66,6 @@ async function authenticateRequest(req, res, next) {
  * Middleware to check if user has specific permission(s)
  * Usage: requirePermission(PERMISSIONS.USERS_MANAGE)
  *        requirePermission([PERMISSIONS.USERS_READ, PERMISSIONS.USERS_CREATE], 'any')
- *
- * NOTE: If MLAC has already granted access (req.mlacGranted === true),
- *       this middleware is bypassed entirely — MLAC supersedes RBAC.
  */
 function requirePermission(...permissionsOrOptions) {
   return async (req, res, next) => {
@@ -77,9 +74,6 @@ function requirePermission(...permissionsOrOptions) {
         code: "AUTHENTICATION_REQUIRED",
       });
     }
-
-    // MLAC supersedes RBAC — if module access was already granted, skip permission check
-    if (req.mlacGranted) return next();
 
     let permissions = [];
     let checkType = "all"; // 'all' or 'any'
@@ -119,9 +113,6 @@ function requirePermission(...permissionsOrOptions) {
 /**
  * Middleware to check if user has specific role(s)
  * Usage: requireRole(["OWNER", "ADMIN"])
- *
- * NOTE: If MLAC has already granted access (req.mlacGranted === true),
- *       this middleware is bypassed entirely — MLAC supersedes role checks.
  */
 function requireRole(allowedRoles) {
   return async (req, res, next) => {
@@ -130,9 +121,6 @@ function requireRole(allowedRoles) {
         code: "AUTHENTICATION_REQUIRED",
       });
     }
-
-    // MLAC supersedes role checks
-    if (req.mlacGranted) return next();
 
     const roleName = (req.user.roleId || "").toUpperCase();
     

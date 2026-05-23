@@ -286,7 +286,7 @@ function serializeUser(user) {
   };
 }
 
-async function buildUserListQuery(actor, filters = {}) {
+async function buildUserListQuery(actor, scopedUserIds, filters = {}) {
   const hasReadPermission = await hasAnyPermission(actor, [
     PERMISSIONS.USERS_READ,
     PERMISSIONS.USERS_MANAGE,
@@ -299,7 +299,7 @@ async function buildUserListQuery(actor, filters = {}) {
   // but will receive only basic fields (handled in listUsers).
   // We still build the query normally so pagination works.
 
-  const { search = "", department, role, scopedUserIds, functionId } = filters;
+  const { search = "", department, role, functionId } = filters;
   const searchRegex = buildSearchRegex(search);
   const query = {};
 
@@ -359,24 +359,34 @@ async function buildUserListQuery(actor, filters = {}) {
     const actorRoleName = await getUserRoleName(actor);
 
     if (actorRoleName === MANAGER_ROLE_NAME) {
-      const managerDeptAliases = Array.isArray(actor.departmentAliases)
+      const managerDeptAliases = Array.isArray(actor.departmentAliases) && actor.departmentAliases.length > 0
         ? actor.departmentAliases
         : Array.isArray(actor.department)
           ? actor.department
           : [];
+      const managerGroupAliases = Array.isArray(actor.groupAliases) && actor.groupAliases.length > 0
+        ? actor.groupAliases
+        : Array.isArray(actor.group)
+          ? actor.group
+          : [];
 
-      if (managerDeptAliases.length > 0) {
+      if (managerDeptAliases.length > 0 || managerGroupAliases.length > 0) {
+        const orConditions = [];
+        if (managerDeptAliases.length > 0) {
+          orConditions.push({ departmentAliases: { $in: managerDeptAliases } });
+          orConditions.push({ department: { $in: managerDeptAliases } });
+        }
+        if (managerGroupAliases.length > 0) {
+          orConditions.push({ groupAliases: { $in: managerGroupAliases } });
+          orConditions.push({ group: { $in: managerGroupAliases } });
+        }
+
         query.$and = [
           ...(query.$and || []),
-          {
-            $or: [
-              { departmentAliases: { $in: managerDeptAliases } },
-              { department: { $in: managerDeptAliases } },
-            ],
-          },
+          { $or: orConditions },
         ];
       } else {
-        // Manager has no departments assigned — return nothing
+        // Manager has no departments/groups assigned — return nothing
         query._id = null;
       }
     }
@@ -399,10 +409,9 @@ function serializeUserBasic(user) {
   };
 }
 
-async function listUsers(actor, filters) {
-
-  return CacheService.withVersionedCache("users", { actorId: actor.id, role: actor.roleId, ...filters }, CACHE_TTL.SHORT, async () => {
-    const { query, hasReadPermission } = await buildUserListQuery(actor, filters);
+async function listUsers(actor, scopedUserIds, filters) {
+  return CacheService.withVersionedCache("users", { actorId: actor.id, role: actor.roleId, scopedUserIds, ...filters }, CACHE_TTL.SHORT, async () => {
+    const { query, hasReadPermission } = await buildUserListQuery(actor, scopedUserIds, filters);
     const { page, limit, skip } = resolvePagination(filters);
 
     // Owner/Admin can see deleted users
@@ -593,7 +602,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
         "Bạn không thể tự thay đổi quyền của chính mình",
       );
     }
-    
+
     if (!canAssignRole(actorRole, nextRole)) {
       throw createHttpError(
         403,
@@ -691,7 +700,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       : targetUser.phone;
   targetUser.roleId = nextRole.id;
   targetUser.functions = payload.functions !== undefined && Array.isArray(payload.functions) ? payload.functions : targetUser.functions;
-  
+
   let forceLogout = false;
   if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess)) {
     targetUser.moduleAccess = payload.moduleAccess;

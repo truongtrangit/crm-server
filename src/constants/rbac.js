@@ -264,70 +264,70 @@ const MODULE_DEFINITIONS = {
 
 const MODULE_TO_PERMISSIONS_MAP = {
   "customers.biz": {
-    "view": ["customers_read"],
-    "create": ["customers_create"],
-    "edit": ["customers_update"],
-    "delete": ["customers_delete"],
-    "export": ["customers_read"]
+    "view": [PERMISSIONS.CUSTOMERS_READ],
+    "create": [PERMISSIONS.CUSTOMERS_CREATE],
+    "edit": [PERMISSIONS.CUSTOMERS_UPDATE],
+    "delete": [PERMISSIONS.CUSTOMERS_DELETE],
+    // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
   "customers.user": {
-    "view": ["customers_read"],
-    "create": ["customers_create"],
-    "edit": ["customers_update"],
-    "delete": ["customers_delete"],
-    "export": ["customers_read"]
+    "view": [PERMISSIONS.CUSTOMERS_READ],
+    "create": [PERMISSIONS.CUSTOMERS_CREATE],
+    "edit": [PERMISSIONS.CUSTOMERS_UPDATE],
+    "delete": [PERMISSIONS.CUSTOMERS_DELETE],
+    // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
   "operations.tasks": {
-    "view": ["tasks_read", "task_chains_read", "actions_cfg_read"],
-    "create": ["tasks_create", "task_chains_create"],
-    "edit": ["tasks_update", "task_chains_update"],
-    "delete": ["tasks_delete", "task_chains_delete"]
+    "view": [PERMISSIONS.TASKS_READ, PERMISSIONS.TASK_CHAINS_READ, PERMISSIONS.ACTIONS_CFG_READ],
+    "create": [PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASK_CHAINS_CREATE],
+    "edit": [PERMISSIONS.TASKS_UPDATE, PERMISSIONS.TASK_CHAINS_UPDATE],
+    "delete": [PERMISSIONS.TASKS_DELETE, PERMISSIONS.TASK_CHAINS_DELETE]
   },
   "operations.events": {
-    "view": ["events_read", "event_chains_read", "actions_cfg_read"],
-    "create": ["events_create", "event_chains_create"],
-    "edit": ["events_update", "event_chains_update"],
-    "delete": ["events_delete", "event_chains_delete"],
-    "configure": ["actions_cfg_read", "actions_cfg_update", "actions_cfg_create", "actions_cfg_delete"]
+    "view": [PERMISSIONS.EVENTS_READ, PERMISSIONS.EVENT_CHAINS_READ, PERMISSIONS.ACTIONS_CFG_READ],
+    "create": [PERMISSIONS.EVENTS_CREATE, PERMISSIONS.EVENT_CHAINS_CREATE],
+    "edit": [PERMISSIONS.EVENTS_UPDATE, PERMISSIONS.EVENT_CHAINS_UPDATE],
+    "delete": [PERMISSIONS.EVENTS_DELETE, PERMISSIONS.EVENT_CHAINS_DELETE],
+    "configure": [PERMISSIONS.ACTIONS_CFG_MANAGE]
   },
   "operations.leads": {
-    "view": ["leads_read", "actions_cfg_read"],
-    "create": ["leads_create"],
-    "edit": ["leads_update"],
-    "delete": ["leads_delete"],
-    "configure": ["leads_cfg_manage"]
+    "view": [PERMISSIONS.LEADS_READ, PERMISSIONS.ACTIONS_CFG_READ],
+    "create": [PERMISSIONS.LEADS_CREATE],
+    "edit": [PERMISSIONS.LEADS_UPDATE],
+    "delete": [PERMISSIONS.LEADS_DELETE],
+    "configure": [PERMISSIONS.LEADS_CFG_MANAGE]
   },
   "meta": {
-    "view": ["meta_read"],
-    "create": ["meta_create"],
-    "edit": ["meta_update"],
-    "delete": ["meta_delete"]
+    "view": [PERMISSIONS.META_READ],
+    "create": [PERMISSIONS.META_CREATE],
+    "edit": [PERMISSIONS.META_UPDATE],
+    "delete": [PERMISSIONS.META_DELETE]
   },
   "staff.users": {
-    "view": ["users_read"],
-    "create": ["users_create"],
-    "edit": ["users_update"],
-    "delete": ["users_delete"]
+    "view": [PERMISSIONS.USERS_READ],
+    "create": [PERMISSIONS.USERS_CREATE],
+    "edit": [PERMISSIONS.USERS_UPDATE],
+    "delete": [PERMISSIONS.USERS_DELETE]
   },
   "staff.organization": {
-    "view": ["organization_read"],
-    "create": ["organization_manage", "organization_update"],
-    "edit": ["organization_update"]
+    "view": [PERMISSIONS.ORGANIZATION_READ],
+    "create": [PERMISSIONS.ORGANIZATION_MANAGE, PERMISSIONS.ORGANIZATION_UPDATE],
+    "edit": [PERMISSIONS.ORGANIZATION_UPDATE]
   },
   "staff.functions": {
-    "view": ["functions_read"],
-    "create": ["functions_create"],
-    "edit": ["functions_update"],
-    "delete": ["functions_delete"]
+    "view": [PERMISSIONS.FUNCTIONS_READ],
+    "create": [PERMISSIONS.FUNCTIONS_CREATE],
+    "edit": [PERMISSIONS.FUNCTIONS_UPDATE],
+    "delete": [PERMISSIONS.FUNCTIONS_DELETE]
   },
   "logs.system": {
-    "view": ["logs_read"]
+    "view": [PERMISSIONS.LOGS_READ]
   },
   "logs.webhook": {
-    "view": ["logs_read"]
+    "view": [PERMISSIONS.LOGS_READ]
   },
   "logs.blockautomation": {
-    "view": ["logs_read"]
+    "view": [PERMISSIONS.LOGS_READ]
   }
 };
 
