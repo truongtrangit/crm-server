@@ -137,14 +137,14 @@ async function seedUsers() {
         
         departments.push({
           deptAlias: dept.alias,
-          role: "member"
+          role: item.role === "MANAGER" ? "lead" : "member"
         });
       });
 
       resolvedGroups.forEach(g => {
         groups.push({
           groupAlias: g.alias,
-          role: "member"
+          role: item.role === "MANAGER" ? "lead" : "member"
         });
       });
 

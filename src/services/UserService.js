@@ -455,27 +455,35 @@ async function buildUserListQuery(actor, scopedUserIds, filters = {}) {
     if (actorRoleName === MANAGER_ROLE_NAME) {
       const managerDepts = actor.departments || [];
       const managerGroups = actor.groups || [];
-      const managerDeptAliases = managerDepts.filter(d => d.role === "lead").map(d => d.deptAlias);
-      const managerGroupAliases = managerGroups.filter(g => g.role === "lead").map(g => g.groupAlias);
+      let managerDeptAliases = managerDepts.filter(d => d.role === "lead").map(d => d.deptAlias);
+      let managerGroupAliases = managerGroups.filter(g => g.role === "lead").map(g => g.groupAlias);
 
-
-      if (managerDeptAliases.length > 0 || managerGroupAliases.length > 0) {
-        const orConditions = [];
-        if (managerDeptAliases.length > 0) {
-          orConditions.push({ "departments.deptAlias": { $in: managerDeptAliases } });
+      // Fallback: if MANAGER has no explicit lead departments or groups, they fall back to the departments they belong to
+      if (managerDeptAliases.length === 0 && managerGroupAliases.length === 0) {
+        if (managerDepts.length > 0) {
+          managerDeptAliases = managerDepts.map(d => d.deptAlias).filter(Boolean);
+        } else if (Array.isArray(actor.department)) {
+          managerDeptAliases = actor.department;
+        } else if (Array.isArray(actor.departmentAliases)) {
+          managerDeptAliases = actor.departmentAliases;
         }
-        if (managerGroupAliases.length > 0) {
-          orConditions.push({ "groups.groupAlias": { $in: managerGroupAliases } });
-        }
-
-        query.$and = [
-          ...(query.$and || []),
-          { $or: orConditions },
-        ];
-      } else {
-        // Manager has no departments/groups assigned — return nothing
-        query._id = null;
       }
+
+      const orConditions = [
+        { id: actor.id }
+      ];
+
+      if (managerDeptAliases.length > 0) {
+        orConditions.push({ "departments.deptAlias": { $in: managerDeptAliases } });
+      }
+      if (managerGroupAliases.length > 0) {
+        orConditions.push({ "groups.groupAlias": { $in: managerGroupAliases } });
+      }
+
+      query.$and = [
+        ...(query.$and || []),
+        { $or: orConditions },
+      ];
     }
   }
 
@@ -536,20 +544,47 @@ function validateDepartmentAndGroupRules(actor, actorRoleName, targetUser, parse
   const currentDepts = targetUser ? (targetUser.departments || []) : [];
   const nextDepts = parsed.departments || [];
 
-  // Rule 1: Only Owner/Admin can update a staff to be a lead/member of a department
-  const hasDeptChanges = () => {
-    if (currentDepts.length !== nextDepts.length) return true;
+  // Rule 1: Only Owner/Admin can update a staff to be a lead/member of a department.
+  // EXCEPT: A Department Lead is allowed to add/remove a staff as a member in their own department.
+  const getDeptChanges = () => {
+    const changes = new Set();
     const currentMap = new Map(currentDepts.map(d => [d.deptAlias, d.role]));
-    for (const d of nextDepts) {
-      if (!currentMap.has(d.deptAlias) || currentMap.get(d.deptAlias) !== d.role) {
-        return true;
+    const nextMap = new Map(nextDepts.map(d => [d.deptAlias, d.role]));
+
+    for (const [deptAlias, role] of nextMap.entries()) {
+      if (!currentMap.has(deptAlias) || currentMap.get(deptAlias) !== role) {
+        changes.add(deptAlias);
       }
     }
-    return false;
+    for (const deptAlias of currentMap.keys()) {
+      if (!nextMap.has(deptAlias)) {
+        changes.add(deptAlias);
+      }
+    }
+    return Array.from(changes);
   };
 
-  if (hasDeptChanges()) {
-    throw createHttpError(403, "Chỉ có Owner hoặc Admin mới có quyền cập nhật thành viên hoặc vai trò trong phòng ban");
+  const changedDeptAliases = getDeptChanges();
+  const actorDepts = actor.departments || [];
+
+  for (const deptAlias of changedDeptAliases) {
+    const isActorLeadOfThisDept = actorDepts.some(ad => ad.deptAlias === deptAlias && ad.role === "lead");
+    if (!isActorLeadOfThisDept) {
+      throw createHttpError(
+        403,
+        "Chỉ có Owner hoặc Admin mới có quyền cập nhật thành viên hoặc vai trò trong phòng ban"
+      );
+    }
+
+    const currentRole = currentDepts.find(d => d.deptAlias === deptAlias)?.role;
+    const nextRole = nextDepts.find(d => d.deptAlias === deptAlias)?.role;
+
+    if (currentRole === "lead" || nextRole === "lead") {
+      throw createHttpError(
+        403,
+        "Trưởng phòng ban không có quyền cập nhật, gán hoặc hủy gán Trưởng phòng ban khác trong cùng phòng ban"
+      );
+    }
   }
 
   // Rule 2: Only Lead of the department can update staff of the department to be a lead/member of a group (under that department)
@@ -575,7 +610,6 @@ function validateDepartmentAndGroupRules(actor, actorRoleName, targetUser, parse
   };
 
   const changedGroupAliases = getGroupChanges();
-  const actorDepts = actor.departments || [];
 
   for (const groupAlias of changedGroupAliases) {
     const deptAlias = groupAlias.split("__")[0];

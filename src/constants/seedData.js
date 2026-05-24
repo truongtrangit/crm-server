@@ -271,7 +271,7 @@ const staffFunctions = [
   },
   {
     id: "FUNC2",
-    title: "Sale (Bán hàng)",
+    title: "Sale",
     desc: "Tiếp nhận Lead từ Marketing, chăm sóc và chốt đơn.",
     type: "sale",
   },

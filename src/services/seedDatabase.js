@@ -86,14 +86,14 @@ async function seedUsers() {
         }
         departments.push({
           deptAlias: dept.alias,
-          role: "member"
+          role: item.role === "MANAGER" ? "lead" : "member"
         });
       });
 
       resolvedGroups.forEach(grp => {
         groups.push({
           groupAlias: grp.alias,
-          role: "member"
+          role: item.role === "MANAGER" ? "lead" : "member"
         });
       });
 
@@ -195,11 +195,11 @@ async function syncUserOrganizationReferences() {
         if (!functions.includes(functionId)) {
           functions.push(functionId);
         }
-        departments.push({ deptAlias: dept.alias, role: "member" });
+        departments.push({ deptAlias: dept.alias, role: user.roleId === "manager" ? "lead" : "member" });
       });
 
       resolvedGroups.forEach(g => {
-        groups.push({ groupAlias: g.alias, role: "member" });
+        groups.push({ groupAlias: g.alias, role: user.roleId === "manager" ? "lead" : "member" });
       });
 
       user.functions = functions;

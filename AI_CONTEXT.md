@@ -53,13 +53,20 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
   - RBAC cấp phát linh hoạt, kết hợp kiểm soát đa phiên (multi-session) với access token và refresh token ở `AuthService`.
   - `OrganizationService`: Duy trì và cấp phát dạng cây phòng ban, phân quyền quản lý (Manager).
   - **Quy tắc phân quyền phòng ban & nhóm (Lead/Member Rules)**:
-    - *Chỉ OWNER/ADMIN* mới được phép thay đổi danh sách phòng ban hoặc cập nhật vai trò Lead/Member của phòng ban cho nhân sự.
+    - *Chỉ OWNER/ADMIN* mới được phép thay đổi danh sách phòng ban hoặc cập nhật vai trò Lead của phòng ban. Tuy nhiên, *Trưởng phòng ban (Lead)* được quyền thêm hoặc gỡ nhân viên khác vào phòng ban do họ quản lý với vai trò là `member` (bao gồm cả khi tạo nhân viên mới hoặc chỉnh sửa nhân viên cũ).
     - *Chỉ Trưởng phòng ban (Lead của phòng ban đó)* mới được phép thay đổi nhóm con hoặc cập nhật vai trò Lead/Member của nhóm thuộc phòng ban đó cho nhân sự.
     - *Trưởng phòng ban không được phép* thay đổi/gán/gỡ thông tin của Trưởng phòng ban khác thuộc cùng phòng ban.
     - *Trưởng nhóm không được phép* thay đổi/gán/gỡ thông tin của Trưởng nhóm khác thuộc cùng nhóm.
+    - **Quy tắc lấy danh sách nhân viên của Trưởng phòng (Manager list query)**:
+      - Khi Trưởng phòng ban (MANAGER) truy cập danh sách nhân viên, hệ thống chỉ hiển thị các nhân sự thuộc phòng ban hoặc nhóm mà Manager đó làm Trưởng phòng (Lead), đồng thời luôn hiển thị chính tài khoản Manager đó.
+      - Nếu Manager chưa được gán bất kỳ vai trò `lead` cụ thể nào trong cấu trúc `departments` hoặc `groups`, hệ thống sẽ tự động đối chiếu ngược (fallback) để gán quyền quản lý của các phòng ban họ đang thuộc về làm phạm vi hiển thị, đảm bảo không bị rỗng danh sách.
     - **Quy tắc phân quyền Module trực tiếp (Module Access Rules)**:
       - *Chỉ OWNER/ADMIN* mới được phép cấu hình, thay đổi hoặc gán quyền hạn trực tiếp (`moduleAccess`) cho nhân sự ở cả Backend và Frontend.
       - Ẩn hoàn toàn bảng cấu hình Module Access (`ModuleAccessPanel`) trên giao diện người dùng nếu tài khoản đang đăng nhập không phải là OWNER hoặc ADMIN.
+    - **Quy tắc phân quyền phân hệ Logs (Logs Permission & Tab access)**:
+      - Phân hệ Logs được phân rã thành 3 module con độc lập: `logs.system` (System Logs), `logs.webhook` (Webhook Logs) và `logs.blockautomation` (Block Automation Logs).
+      - Backend gán 3 quyền tương ứng là `logs_system_read`, `logs_webhook_read`, và `logs_automation_read`, bảo vệ chặt chẽ độc lập các đầu API `/api/v1/logs/*`.
+      - Giao diện UI (`LogsPage.tsx`) chỉ hiển thị đúng các tab được cấp quyền trong `moduleAccess` của tài khoản, tự động chọn tab khả dụng đầu tiên làm mặc định khi truy cập.
 
 ---
 
