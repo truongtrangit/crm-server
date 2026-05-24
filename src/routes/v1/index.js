@@ -56,19 +56,22 @@ v1Router.use("/webhooks", webhooksRouter);
 // ─── Protected ───────────────────────────────────────────────────────────────
 v1Router.use(authenticateRequest);
 
+// ─── Module APIs (RBAC applied in individual routers) ────────────────────────
 v1Router.use("/customers", customersRouter);
 v1Router.use("/users", usersRouter);
 v1Router.use("/events", eventsRouter);
+v1Router.use("/meta", metaRouter);
+v1Router.use("/lead-config", leadConfigRouter);
+v1Router.use("/leads", leadRouter);
+v1Router.use("/tasks", taskRouter);
+v1Router.use("/logs", logsRouter);
+
+// ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use("/organization", organizationRouter);
 v1Router.use("/metadata", metadataRouter);
 v1Router.use("/functions", functionsRouter);
 v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
-v1Router.use("/logs", logsRouter);
-v1Router.use("/meta", metaRouter);
-v1Router.use("/lead-config", leadConfigRouter);
-v1Router.use("/leads", leadRouter);
-v1Router.use("/tasks", taskRouter);
 v1Router.use("/funnels", funnelsRouter);
 v1Router.use("/event-chains", globalEventChainsRouter);
 

@@ -65,6 +65,19 @@ const updateProfileSchema = Joi.object({
   groupIds: Joi.array().items(Joi.string()).optional(),
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
+
+  departments: Joi.array().items(
+    Joi.object({
+      deptAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
+  groups: Joi.array().items(
+    Joi.object({
+      groupAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
   preferences: Joi.object().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
@@ -95,6 +108,19 @@ const registerSchema = Joi.object({
   groupIds: Joi.array().items(Joi.string()).optional(),
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
+
+  departments: Joi.array().items(
+    Joi.object({
+      deptAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
+  groups: Joi.array().items(
+    Joi.object({
+      groupAlias: Joi.string().required(),
+      role: Joi.string().valid("lead", "member").default("member"),
+    })
+  ).optional(),
 });
 
 module.exports = {

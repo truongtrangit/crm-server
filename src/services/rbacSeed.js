@@ -17,7 +17,9 @@ async function seedRbac() {
     console.log("Starting RBAC seed...");
 
     const permissionDocs = Object.entries(PERMISSIONS).map(([key, value]) => {
-      const [resource, action] = value.split("_");
+      const lastUnderscore = value.lastIndexOf("_");
+      const resource = lastUnderscore !== -1 ? value.slice(0, lastUnderscore) : value;
+      const action = lastUnderscore !== -1 ? value.slice(lastUnderscore + 1) : "read";
       return {
         id: value,
         name: key,

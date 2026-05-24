@@ -42,7 +42,7 @@ const leadAssignmentRules = enforceAssignmentRules({
   // Hành vi (Behaviors)
   allowSelfAssignment: true,
   allowManagerSubordinateAssignment: true,
-  allowStaffReassignment: false,
+  allowSameFunctionAssignment: true,
 });
 
 const leadUnassignmentRules = enforceUnassignmentRules({

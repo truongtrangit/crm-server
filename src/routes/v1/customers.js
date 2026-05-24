@@ -30,7 +30,18 @@ const customerScopeList = scopeResourceList({
   creatorField: "createdBy",
 
   // Hành vi (Behaviors)
+  allowCreator: true,
+  allowManagerSubordinateCreator: true,
   includeUnassigned: true,
+
+  // Module filter
+  moduleTypeFilter: {
+    field: "mainType",
+    mapping: {
+      "customers.biz": "biz",
+      "customers.user": "user",
+    }
+  }
 });
 
 

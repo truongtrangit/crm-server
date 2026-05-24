@@ -108,8 +108,7 @@ describe("POST /events", () => {
       address: "",
     },
     customerId: IDS.CUST1,
-    assigneeId: IDS.USER_STAFF1,
-    assignee: { name: "Test Staff One", avatar: "", role: "" },
+    assignees: [{ userId: IDS.USER_STAFF1, functionId: IDS.FUNC1 }],
   };
 
   it("✅ OWNER creates event → 201", async () => {
@@ -205,7 +204,7 @@ describe("POST /events/:id/timeline", () => {
 describe("POST /events/:id/self-assign", () => {
   it("✅ STAFF self-assigns the unassigned event (if exists)", async () => {
     const api = await authRequest("staff1");
-    const res = await api.post(`${BASE}/${IDS.EVT2}/self-assign`);
+    const res = await api.post(`${BASE}/${IDS.EVT2}/self-assign`).send({ functionId: IDS.FUNC1 });
     // Event may have been deleted or already assigned in prior tests
     expect([200, 404, 422]).toContain(res.status);
   });
@@ -220,7 +219,7 @@ describe("POST /events/:id/self-assign", () => {
 describe("DELETE /events/:id/assignee", () => {
   it("✅ OWNER unassigns staff from event", async () => {
     const api = await authRequest("owner");
-    const res = await api.delete(`${BASE}/${IDS.EVT1}/assignee`);
+    const res = await api.delete(`${BASE}/${IDS.EVT1}/assignee`).send({ userId: IDS.USER_STAFF1 });
     expect(res.status).toBe(200);
   });
 

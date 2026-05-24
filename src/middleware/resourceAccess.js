@@ -1,5 +1,6 @@
+const User = require("../models/User");
 const { sendError } = require("../utils/http");
-const { getManagerSubordinateIds } = require("../utils/managerScope");
+const { getManagerSubordinateIds, isUserManagerial } = require("../utils/managerScope");
 const { buildResourceScopeFilter } = require("../utils/resourceScope");
 
 /**
@@ -68,8 +69,9 @@ function requireResourceAccess(options) {
       const allowUnassigned = options.allowUnassigned ?? false;
       if (options.getAssigneeIds && allowUnassigned && assigneeIds.length === 0 && !options.getTargetUserId) return next();
 
-      // 6. Manager subordinate check (department-based):
-      if (role === "MANAGER") {
+      // 6. Manager subordinate check (department-based/group-based):
+      const isManagerial = isUserManagerial(user);
+      if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
 
         // Check: resource's assignee is a subordinate?
@@ -136,7 +138,8 @@ function enforceAssignmentRules(options) {
       const allowSelfAssignment = options.allowSelfAssignment ?? false;
       const allowManagerSubordinateAssignment = options.allowManagerSubordinateAssignment ?? false;
 
-      if (role === "MANAGER") {
+      const isManagerial = isUserManagerial(user);
+      if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
         const isAssigningInvalidUser = addedAssigneeIds.some((id) => {
           if (id === user.id) return !allowSelfAssignment;
@@ -148,22 +151,59 @@ function enforceAssignmentRules(options) {
             code: "ASSIGN_FORBIDDEN",
           });
         }
+
+        const allowSameFunctionAssignment = options.allowSameFunctionAssignment ?? false;
+        const isAssigningSomeoneElse = addedAssigneeIds.some((id) => id !== user.id);
+
+        // Ensure Managers also share a function with the target user (if they are assigning someone else)
+        if (allowSameFunctionAssignment) {
+          if (isAssigningSomeoneElse) {
+            const targetUsers = await User.find({ id: { $in: addedAssigneeIds } }).lean();
+            const userFunctions = user.functions || [];
+
+            const hasInvalidTarget = targetUsers.some(t => {
+              const targetFunctions = t.functions || [];
+              return !targetFunctions.some(f => userFunctions.includes(f));
+            });
+
+            if (hasInvalidTarget) {
+              return sendError(res, 403, "Bạn chỉ có thể phân công cho nhân viên có chung chức năng/vai trò với mình.", {
+                code: "ASSIGN_FORBIDDEN",
+              });
+            }
+          }
+        }
+
         return next();
       }
 
-      // STAFF role
-      const allowStaffReassignment = options.allowStaffReassignment ?? false;
-      if (req.resource && !allowStaffReassignment) {
-        if (currentAssignees.length > 0) {
-          return sendError(res, 403, "Tài nguyên này đã có người phụ trách. Chỉ Manager hoặc Admin mới có quyền thêm người khác.", {
+      // Check if target users share at least one function with the assigner
+      // and enforce role-based rules.
+
+      if (isAssigningSomeoneElse) {
+        if (!allowSameFunctionAssignment) {
+          return sendError(res, 403, "Bạn không có quyền phân công cho người khác.", {
+            code: "ASSIGN_FORBIDDEN",
+          });
+        }
+
+        const targetUsers = await User.find({ id: { $in: addedAssigneeIds } }).lean();
+        const userFunctions = user.functions || [];
+
+        const hasInvalidTarget = targetUsers.some(t => {
+          const targetFunctions = t.functions || [];
+          return !targetFunctions.some(f => userFunctions.includes(f));
+        });
+
+        if (hasInvalidTarget) {
+          return sendError(res, 403, "Bạn chỉ có thể phân công cho nhân viên có chung chức năng/vai trò với mình.", {
             code: "ASSIGN_FORBIDDEN",
           });
         }
       }
 
-      const isAssigningSomeoneElse = addedAssigneeIds.some((id) => id !== user.id);
-      if (isAssigningSomeoneElse || (!allowSelfAssignment && addedAssigneeIds.includes(user.id))) {
-        return sendError(res, 403, "Bạn chỉ có thể tự nhận phân công cho chính mình.", {
+      if (!allowSelfAssignment && addedAssigneeIds.includes(user.id)) {
+        return sendError(res, 403, "Bạn không được phép tự nhận phân công.", {
           code: "ASSIGN_FORBIDDEN",
         });
       }
@@ -211,7 +251,8 @@ function enforceUnassignmentRules(options) {
       const allowSelfUnassignment = options.allowSelfUnassignment ?? false;
       const allowManagerSubordinateUnassignment = options.allowManagerSubordinateUnassignment ?? false;
 
-      if (role === "MANAGER") {
+      const isManagerial = isUserManagerial(user);
+      if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
 
         for (const targetUserId of removedAssigneeIds) {
@@ -259,20 +300,30 @@ function enforceUnassignmentRules(options) {
 function scopeAssignmentList(options = {}) {
   return async (req, res, next) => {
     try {
-      if (req.query.assignmentScope === "true") {
-        const user = req.user;
-        if (!user) return next();
-        const role = (user.roleId || "").toUpperCase();
+      // if (req.query.assignmentScope === "true") {
+      const user = req.user;
+      if (!user) return next();
+      const role = (user.roleId || "").toUpperCase();
 
-        if (!["OWNER", "ADMIN"].includes(role)) {
-          const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
-          if (role === "MANAGER" && allowManagerSubordinateScope) {
-            const subIds = await getManagerSubordinateIds(user);
-            req.query.scopedUserIds = [user.id, ...subIds];
-          } else {
-            req.query.scopedUserIds = [user.id];
-          }
+      if (!["OWNER", "ADMIN"].includes(role)) {
+        const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
+        const isManagerial = isUserManagerial(user);
+        let allowedIds = [];
+        if (isManagerial && allowManagerSubordinateScope) {
+          const subIds = await getManagerSubordinateIds(user);
+          allowedIds = [user.id, ...subIds];
+        } else {
+          allowedIds = [user.id];
         }
+
+        if (req.query.scopedUserIds) {
+          const requestedIds = Array.isArray(req.query.scopedUserIds) ? req.query.scopedUserIds : [req.query.scopedUserIds];
+          const intersectedIds = requestedIds.filter(id => allowedIds.includes(id));
+          req.scopedUserIds = intersectedIds.length > 0 ? intersectedIds : ["_NO_MATCH_"];
+        } else {
+          req.scopedUserIds = allowedIds;
+        }
+        // }
       }
       next();
     } catch (err) {

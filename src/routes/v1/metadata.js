@@ -5,7 +5,7 @@ const MetadataController = require("../../controllers/MetadataController");
 
 const router = express.Router();
 
-router.use(requirePermission(PERMISSIONS.METADATA_READ));
+// Metadata is shared for all authenticated users to populate dropdowns
 
 router.get("/", MetadataController.getMetadata);
 router.get("/roles", MetadataController.getRoles);

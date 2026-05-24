@@ -37,7 +37,7 @@ const eventAssignmentRules = enforceAssignmentRules({
   // Hành vi (Behaviors)
   allowSelfAssignment: true,
   allowManagerSubordinateAssignment: true,
-  allowStaffReassignment: false,
+  allowSameFunctionAssignment: true,
 });
 
 const eventUnassignmentRules = enforceUnassignmentRules({
@@ -94,7 +94,9 @@ router.post(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.EVENTS_UPDATE),
-  eventResourceAccess,
+  eventResourceAccess.with({
+    allowUnassigned: true
+  }),
   eventAssignmentRules,
   eventUnassignmentRules,
   validate(updateEventSchema),

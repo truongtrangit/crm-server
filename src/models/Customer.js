@@ -28,11 +28,11 @@ const customerSchema = new mongoose.Schema(
      * alias: định danh không dấu của biz (dùng để phân biệt khi name/phone/email trùng).
      * Lấy từ payload.alias của webhook biz_create.
      */
-    alias: { type: String, default: "", trim: true, sparse: true, index: true },
+    alias: { type: String, default: "", trim: true },
     /** Loại khách hàng (legacy field, giữ để backward-compat) */
     type: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true, lowercase: true },
-    phone: { type: String, sparse: true },
+    phone: { type: String },
     biz: { type: [String], default: [] },
     bizDetails: {
       type: [
@@ -73,8 +73,33 @@ customerSchema.pre("save", function () {
   }
 });
 
-customerSchema.index({ email: 1, mainType: 1 }, { unique: true });
-customerSchema.index({ phone: 1, mainType: 1 }, { unique: true, sparse: true });
+// Unique email and phone only for 'user' customers to allow multiple businesses (mainType: 'biz') to share emails/phones
+customerSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+  }
+);
+
+customerSchema.index(
+  { phone: 1 },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+  }
+);
+
+// Unique alias only for 'biz' customers to guarantee unique business handles
+customerSchema.index(
+  { alias: 1 },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.BIZ }
+  }
+);
 
 customerSchema.plugin(softDeletePlugin);
 module.exports = mongoose.model("Customer", customerSchema);

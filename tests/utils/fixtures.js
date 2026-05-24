@@ -89,8 +89,9 @@ async function seedTestFixtures() {
       email: CREDENTIALS.owner.email,
       passwordHash: await pwHash(CREDENTIALS.owner.password),
       roleId: IDS.ROLE_OWNER,
-      department: [],
-      group: [],
+      functions: [],
+      departments: [],
+      groups: [],
       sessions: [],
     },
     {
@@ -99,8 +100,9 @@ async function seedTestFixtures() {
       email: CREDENTIALS.admin.email,
       passwordHash: await pwHash(CREDENTIALS.admin.password),
       roleId: IDS.ROLE_ADMIN,
-      department: ["Phòng Kỹ Thuật"],
-      group: [],
+      functions: [IDS.FUNC1],
+      departments: [{ deptAlias: "phong-ky-thuat", role: "member" }],
+      groups: [],
       sessions: [],
     },
     {
@@ -109,8 +111,9 @@ async function seedTestFixtures() {
       email: CREDENTIALS.manager.email,
       passwordHash: await pwHash(CREDENTIALS.manager.password),
       roleId: IDS.ROLE_MANAGER,
-      department: ["Phòng Sale"],
-      group: ["Nhóm Sale HN"],
+      functions: [IDS.FUNC1],
+      departments: [{ deptAlias: "phong-sale", role: "lead" }],
+      groups: [{ groupAlias: "phong-sale-nhom-sale-hn", role: "lead" }],
       sessions: [],
     },
     {
@@ -119,8 +122,9 @@ async function seedTestFixtures() {
       email: CREDENTIALS.staff1.email,
       passwordHash: await pwHash(CREDENTIALS.staff1.password),
       roleId: IDS.ROLE_STAFF,
-      department: ["Phòng Sale"],
-      group: ["Nhóm Sale HN"],
+      functions: [IDS.FUNC1],
+      departments: [{ deptAlias: "phong-sale", role: "member" }],
+      groups: [{ groupAlias: "phong-sale-nhom-sale-hn", role: "member" }],
       managerId: IDS.USER_MANAGER,
       sessions: [],
     },
@@ -130,8 +134,9 @@ async function seedTestFixtures() {
       email: CREDENTIALS.staff2.email,
       passwordHash: await pwHash(CREDENTIALS.staff2.password),
       roleId: IDS.ROLE_STAFF,
-      department: ["Phòng Sale"],
-      group: ["Nhóm Sale HN"],
+      functions: [IDS.FUNC1],
+      departments: [{ deptAlias: "phong-sale", role: "member" }],
+      groups: [{ groupAlias: "phong-sale-nhom-sale-hn", role: "member" }],
       managerId: IDS.USER_MANAGER,
       sessions: [],
     },
@@ -242,6 +247,7 @@ async function seedTestFixtures() {
       group: "Nhóm Sale HN",
       registeredAt: "01/01/2026",
       tags: ["#VIP"],
+      createdBy: IDS.USER_STAFF2,
     },
     {
       id: IDS.CUST2,
@@ -254,6 +260,7 @@ async function seedTestFixtures() {
       group: "Nhóm Sale HN",
       registeredAt: "10/04/2026",
       tags: [],
+      createdBy: IDS.USER_STAFF1,
     },
   ]);
 
@@ -270,12 +277,15 @@ async function seedTestFixtures() {
         phone: "0901 000 111",
       },
       customerId: IDS.CUST1,
-      assigneeId: IDS.USER_STAFF1,
-      assignee: {
-        name: "Test Staff One",
-        avatar: "",
-        role: "Nhân viên",
-      },
+      assignees: [
+        {
+          userId: IDS.USER_STAFF1,
+          userName: "Test Staff One",
+          userAvatar: "",
+          functionId: IDS.FUNC1,
+          functionTitle: "Test Function",
+        },
+      ],
     },
     {
       id: IDS.EVT2,
@@ -288,8 +298,7 @@ async function seedTestFixtures() {
         phone: "0901 000 222",
       },
       customerId: null,
-      assigneeId: null,
-      assignee: null,
+      assignees: [],
     },
   ]);
 

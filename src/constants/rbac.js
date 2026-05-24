@@ -104,7 +104,9 @@ const PERMISSIONS = {
   ACTIONS_CFG_MANAGE: `${RESOURCES.ACTIONS_CFG}_${ACTIONS.MANAGE}`,
 
   // Logs (read-only — append-only audit trail, no create/update/delete via API)
-  LOGS_READ: `${RESOURCES.LOGS}_${ACTIONS.READ}`,
+  LOGS_SYSTEM_READ: `${RESOURCES.LOGS}_system_${ACTIONS.READ}`,
+  LOGS_WEBHOOK_READ: `${RESOURCES.LOGS}_webhook_${ACTIONS.READ}`,
+  LOGS_AUTOMATION_READ: `${RESOURCES.LOGS}_automation_${ACTIONS.READ}`,
 
   // Meta integration
   META_CREATE: `${RESOURCES.META}_${ACTIONS.CREATE}`,
@@ -147,7 +149,6 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.EVENTS_READ,
   PERMISSIONS.EVENTS_CREATE,
   PERMISSIONS.EVENTS_UPDATE,      // Có thể update event được assign cho mình
-  PERMISSIONS.EVENTS_DELETE,
   PERMISSIONS.EVENT_CHAINS_READ,
   PERMISSIONS.EVENT_CHAINS_CREATE,
   PERMISSIONS.EVENT_CHAINS_UPDATE,
@@ -156,7 +157,6 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.METADATA_READ,
   PERMISSIONS.FUNCTIONS_READ,
   PERMISSIONS.ACTIONS_CFG_READ,
-  PERMISSIONS.ACTIONS_CFG_UPDATE,
   PERMISSIONS.META_READ,
   PERMISSIONS.META_CREATE,
   PERMISSIONS.META_UPDATE,
@@ -181,9 +181,9 @@ const MANAGER_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.USERS_CREATE,
   PERMISSIONS.USERS_READ,
   PERMISSIONS.USERS_UPDATE,
-  PERMISSIONS.USERS_DELETE,
   PERMISSIONS.ORGANIZATION_READ,
   PERMISSIONS.ACTIONS_CFG_CREATE,
+  PERMISSIONS.ACTIONS_CFG_UPDATE,
 ]));
 
 const ADMIN_PERMISSIONS = Array.from(new Set([
@@ -196,7 +196,9 @@ const ADMIN_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.PERMISSIONS_READ,
   PERMISSIONS.FUNCTIONS_MANAGE,
   PERMISSIONS.ACTIONS_CFG_MANAGE,
-  PERMISSIONS.LOGS_READ,
+  PERMISSIONS.LOGS_SYSTEM_READ,
+  PERMISSIONS.LOGS_WEBHOOK_READ,
+  PERMISSIONS.LOGS_AUTOMATION_READ,
   PERMISSIONS.META_MANAGE,
   PERMISSIONS.LEADS_CFG_MANAGE,
   PERMISSIONS.LEADS_MANAGE,
@@ -233,9 +235,124 @@ const ROLE_DEFINITIONS = {
   },
 };
 
+
+// ─── Module-Level Access Control (MLAC) Definitions ────────────────────────────
+// Defines the modules visible in the FE sidebar and the per-module permissions
+// that can be granted to individual users.
+// `parentKey` links sub-modules to their root module for sidebar grouping.
+
+const MODULE_DEFINITIONS = {
+  customers: { key: "customers", label: "Khách hàng", type: "root", actions: [] },
+  "customers.biz": { key: "customers.biz", label: "Doanh nghiệp", type: "sub", parentKey: "customers", actions: ["view", "create", "edit", "delete", "export"] },
+  "customers.user": { key: "customers.user", label: "Cá nhân", type: "sub", parentKey: "customers", actions: ["view", "create", "edit", "delete", "export"] },
+
+  operations: { key: "operations", label: "Quản lý", type: "root", actions: [] },
+  "operations.tasks": { key: "operations.tasks", label: "Quản lý Tác vụ", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete"] },
+  "operations.events": { key: "operations.events", label: "Quản lý Sự kiện", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
+  "operations.leads": { key: "operations.leads", label: "Quản lý Lead", type: "sub", parentKey: "operations", actions: ["view", "create", "edit", "delete", "configure"] },
+
+  meta: { key: "meta", label: "Hợp tác Meta", type: "root", actions: [] },
+  "meta.program": { key: "meta.program", label: "Chương trình", type: "sub", parentKey: "meta", actions: ["view", "create", "edit", "delete"] },
+  "meta.config": { key: "meta.config", label: "Cấu hình", type: "sub", parentKey: "meta", actions: ["view", "create", "edit", "delete"] },
+
+  staff: { key: "staff", label: "Nhân viên", type: "root", actions: [] },
+  "staff.users": { key: "staff.users", label: "Tài khoản", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
+  "staff.organization": { key: "staff.organization", label: "Sơ đồ tổ chức", type: "sub", parentKey: "staff", actions: ["view", "create", "edit"] },
+  "staff.functions": { key: "staff.functions", label: "Chức năng", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
+
+  logs: { key: "logs", label: "Logs Hệ thống", type: "root", actions: [] },
+  "logs.system": { key: "logs.system", label: "System Logs", type: "sub", parentKey: "logs", actions: ["view"] },
+  "logs.webhook": { key: "logs.webhook", label: "Webhook Logs", type: "sub", parentKey: "logs", actions: ["view"] },
+  "logs.blockautomation": { key: "logs.blockautomation", label: "Block Automation Logs", type: "sub", parentKey: "logs", actions: ["view"] },
+};
+
+const MODULE_TO_PERMISSIONS_MAP = {
+  "customers.biz": {
+    "view": [PERMISSIONS.CUSTOMERS_READ],
+    "create": [PERMISSIONS.CUSTOMERS_CREATE],
+    "edit": [PERMISSIONS.CUSTOMERS_UPDATE],
+    "delete": [PERMISSIONS.CUSTOMERS_DELETE],
+    // "export": [PERMISSIONS.CUSTOMERS_READ]
+  },
+  "customers.user": {
+    "view": [PERMISSIONS.CUSTOMERS_READ],
+    "create": [PERMISSIONS.CUSTOMERS_CREATE],
+    "edit": [PERMISSIONS.CUSTOMERS_UPDATE],
+    "delete": [PERMISSIONS.CUSTOMERS_DELETE],
+    // "export": [PERMISSIONS.CUSTOMERS_READ]
+  },
+  "operations.tasks": {
+    "view": [PERMISSIONS.TASKS_READ, PERMISSIONS.TASK_CHAINS_READ, PERMISSIONS.ACTIONS_CFG_READ],
+    "create": [PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASK_CHAINS_CREATE],
+    "edit": [PERMISSIONS.TASKS_UPDATE, PERMISSIONS.TASK_CHAINS_UPDATE],
+    "delete": [PERMISSIONS.TASKS_DELETE, PERMISSIONS.TASK_CHAINS_DELETE]
+  },
+  "operations.events": {
+    "view": [PERMISSIONS.EVENTS_READ, PERMISSIONS.EVENT_CHAINS_READ, PERMISSIONS.ACTIONS_CFG_READ, PERMISSIONS.USERS_READ],
+    "create": [PERMISSIONS.EVENTS_CREATE, PERMISSIONS.EVENT_CHAINS_CREATE],
+    "edit": [PERMISSIONS.EVENTS_UPDATE, PERMISSIONS.EVENT_CHAINS_UPDATE],
+    "delete": [PERMISSIONS.EVENTS_DELETE, PERMISSIONS.EVENT_CHAINS_DELETE],
+    "configure": [PERMISSIONS.ACTIONS_CFG_MANAGE]
+  },
+  "operations.leads": {
+    "view": [PERMISSIONS.LEADS_READ, PERMISSIONS.ACTIONS_CFG_READ, PERMISSIONS.USERS_READ],
+    "create": [PERMISSIONS.LEADS_CREATE],
+    "edit": [PERMISSIONS.LEADS_UPDATE],
+    "delete": [PERMISSIONS.LEADS_DELETE],
+    "configure": [PERMISSIONS.LEADS_CFG_MANAGE]
+  },
+  "meta.program": {
+    "view": [PERMISSIONS.META_READ],
+    "create": [PERMISSIONS.META_CREATE],
+    "edit": [PERMISSIONS.META_UPDATE],
+    "delete": [PERMISSIONS.META_DELETE]
+  },
+  "meta.config": {
+    "view": [PERMISSIONS.META_READ],
+    "create": [PERMISSIONS.META_MANAGE],
+    "edit": [PERMISSIONS.META_MANAGE],
+    "delete": [PERMISSIONS.META_MANAGE]
+  },
+  "staff.users": {
+    "view": [PERMISSIONS.USERS_READ],
+    "create": [PERMISSIONS.USERS_CREATE],
+    "edit": [PERMISSIONS.USERS_UPDATE],
+    "delete": [PERMISSIONS.USERS_DELETE]
+  },
+  "staff.organization": {
+    "view": [PERMISSIONS.ORGANIZATION_READ],
+    "create": [PERMISSIONS.ORGANIZATION_MANAGE, PERMISSIONS.ORGANIZATION_UPDATE],
+    "edit": [PERMISSIONS.ORGANIZATION_UPDATE]
+  },
+  "staff.functions": {
+    "view": [PERMISSIONS.FUNCTIONS_READ],
+    "create": [PERMISSIONS.FUNCTIONS_CREATE],
+    "edit": [PERMISSIONS.FUNCTIONS_UPDATE],
+    "delete": [PERMISSIONS.FUNCTIONS_DELETE]
+  },
+  "logs.system": {
+    "view": [PERMISSIONS.LOGS_SYSTEM_READ]
+  },
+  "logs.webhook": {
+    "view": [PERMISSIONS.LOGS_WEBHOOK_READ]
+  },
+  "logs.blockautomation": {
+    "view": [PERMISSIONS.LOGS_AUTOMATION_READ]
+  }
+};
+
+const VALID_ASSIGNABLE_PERMISSIONS = Array.from(new Set(
+  Object.values(MODULE_TO_PERMISSIONS_MAP).flatMap(actionMap =>
+    Object.values(actionMap).flat()
+  )
+));
+
 module.exports = {
   RESOURCES,
   ACTIONS,
   PERMISSIONS,
   ROLE_DEFINITIONS,
+  MODULE_DEFINITIONS,
+  MODULE_TO_PERMISSIONS_MAP,
+  VALID_ASSIGNABLE_PERMISSIONS,
 };

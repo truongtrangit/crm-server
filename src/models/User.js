@@ -31,6 +31,40 @@ const passwordResetSchema = new mongoose.Schema(
   },
 );
 
+const moduleAccessEntrySchema = new mongoose.Schema(
+  {
+    moduleId: { type: String, required: true },
+    isEnabled: { type: Boolean, default: true },
+    customPermissions: { type: [String], default: null }, // null = fallback to RBAC role
+  },
+  {
+    _id: false,
+    id: false,
+  },
+);
+
+const userDepartmentSchema = new mongoose.Schema(
+  {
+    deptAlias: { type: String, required: true },
+    role: { type: String, enum: ["lead", "member"], default: "member" },
+  },
+  {
+    _id: false,
+    id: false,
+  }
+);
+
+const userGroupSchema = new mongoose.Schema(
+  {
+    groupAlias: { type: String, required: true },
+    role: { type: String, enum: ["lead", "member"], default: "member" },
+  },
+  {
+    _id: false,
+    id: false,
+  }
+);
+
 const userSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -44,31 +78,63 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: { type: String, required: true },
     avatar: { type: String, default: "" },
-    department: { type: [String], default: [] },
-    departmentRoles: { type: mongoose.Schema.Types.Mixed, default: {} },
-    departmentAliases: { type: [String], default: [] },
-    group: { type: [String], default: [] },
-    groupRoles: { type: mongoose.Schema.Types.Mixed, default: {} },
-    groupAliases: { type: [String], default: [] },
     phone: { type: String, default: "" },
     companies: { type: [String], default: [] },
     roleId: { type: String, default: null, index: true }, // Reference to Role model for RBAC
     permissions: { type: [String], default: [] }, // Additional custom permissions
-    functions: { type: [String], default: [] }, // Reference to StaffFunction ids
+    functions: { type: [String], default: [] },
+    departments: { type: [userDepartmentSchema], default: [] },
+    groups: { type: [userGroupSchema], default: [] },
     createdBy: { type: String, default: null },
     lastLoginAt: { type: Date, default: null },
     passwordReset: { type: passwordResetSchema, default: () => ({}) },
     sessions: { type: [sessionSchema], default: [] },
     isActive: { type: Boolean, default: true },
     preferences: { type: mongoose.Schema.Types.Mixed, default: {} },
+    moduleAccess: { type: [moduleAccessEntrySchema], default: [] },
+
   },
   {
     timestamps: true,
     versionKey: false,
     id: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   },
 );
 
+userSchema.virtual("departmentAliases").get(function () {
+  return Array.isArray(this.departments)
+    ? [...new Set(this.departments.map(d => d.deptAlias).filter(Boolean))]
+    : [];
+});
+
+userSchema.virtual("groupAliases").get(function () {
+  return Array.isArray(this.groups)
+    ? [...new Set(this.groups.map(g => g.groupAlias).filter(Boolean))]
+    : [];
+});
+
+userSchema.virtual("departmentRoles").get(function () {
+  const roles = {};
+  if (Array.isArray(this.departments)) {
+    this.departments.forEach(d => {
+      roles[d.deptAlias] = d.role || "member";
+    });
+  }
+  return roles;
+});
+
+userSchema.virtual("groupRoles").get(function () {
+  const roles = {};
+  if (Array.isArray(this.groups)) {
+    this.groups.forEach(g => {
+      const deptAlias = g.groupAlias.split("__")[0];
+      roles[`${deptAlias}:${g.groupAlias}`] = g.role || "member";
+    });
+  }
+  return roles;
+});
 userSchema.plugin(softDeletePlugin);
 
 // Performance indexes for list queries

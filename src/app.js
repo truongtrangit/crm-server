@@ -26,6 +26,7 @@ const authLimiter = rateLimit({
   max: 30, // tối đa 30 requests / 60 giây / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: () => env.nodeEnv === "test",
   message: {
     success: false,
     message:
@@ -40,6 +41,7 @@ const apiLimiter = rateLimit({
   max: 100, // tối đa 100 requests / 1 phút / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: () => env.nodeEnv === "test",
   message: {
     success: false,
     message:
@@ -53,6 +55,7 @@ const webhookLimiter = rateLimit({
   max: 200, // tối đa 100 webhook requests / phút / IP
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: () => env.nodeEnv === "test",
   message: {
     success: false,
     message: "Too many webhook requests, please try again later.",

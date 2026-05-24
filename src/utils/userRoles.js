@@ -36,31 +36,39 @@ function normalizeUserRole(value, fallback = null) {
 }
 
 function isWithinManagerScope(manager, payload) {
-  const departments = Array.isArray(payload.departmentAliases)
-    ? payload.departmentAliases
-    : Array.isArray(payload.department)
-      ? payload.department
-      : [];
-  const groups = Array.isArray(payload.groupAliases)
-    ? payload.groupAliases
-    : Array.isArray(payload.group)
-      ? payload.group
-      : [];
-  const managerDepartments = Array.isArray(manager.departmentAliases)
-    ? manager.departmentAliases
-    : Array.isArray(manager.department)
-      ? manager.department
-      : [];
+  let targetDeptAliases = [];
+  let targetGroupAliases = [];
 
-  const isDepartmentAllowed = departments.every((item) =>
-    managerDepartments.includes(item),
+  if (Array.isArray(payload)) {
+    targetDeptAliases = payload.map(a => a.deptAlias || a).filter(Boolean);
+    targetGroupAliases = payload.flatMap(a => a.groups?.map(g => g.groupAlias || g) || []).filter(Boolean);
+  } else if (payload) {
+    targetDeptAliases = Array.isArray(payload.departmentAliases)
+      ? payload.departmentAliases
+      : Array.isArray(payload.departments)
+      ? payload.departments.map(d => d.deptAlias || d)
+      : [];
+    targetGroupAliases = Array.isArray(payload.groupAliases)
+      ? payload.groupAliases
+      : Array.isArray(payload.groups)
+      ? payload.groups.map(g => g.groupAlias || g)
+      : [];
+  }
+
+  let managerDeptAliases = [];
+  if (Array.isArray(manager.departments)) {
+    const managerLeadDepts = manager.departments.filter(d => d.role === "lead").map(d => d.deptAlias);
+    managerDeptAliases = managerLeadDepts.length > 0
+      ? managerLeadDepts
+      : manager.departments.map(d => d.deptAlias);
+  }
+
+  const isDepartmentAllowed = targetDeptAliases.every((item) =>
+    managerDeptAliases.includes(item),
   );
 
-  // Groups are scoped by department (alias format: "dept-alias__group-name").
-  // If all target departments are within the manager's departments,
-  // then groups within those departments are implicitly allowed.
-  const isGroupAllowed = groups.every((groupAlias) =>
-    managerDepartments.some(
+  const isGroupAllowed = targetGroupAliases.every((groupAlias) =>
+    managerDeptAliases.some(
       (deptAlias) =>
         groupAlias === deptAlias || groupAlias.startsWith(deptAlias + "__"),
     ),

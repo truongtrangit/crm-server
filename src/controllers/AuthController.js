@@ -12,11 +12,13 @@ const {
   createUserAccount,
   serializeUser,
   updateOwnProfile,
+  ensureOrgDirectoryCache,
 } = require("../services/UserService");
 
 class AuthController {
   login = async (req, res) => {
     try {
+      await ensureOrgDirectoryCache();
       const { user, tokens } = await AuthService.login(req.body, req);
       logger.info("Login success", { userId: user.id, email: user.email });
 
@@ -39,6 +41,7 @@ class AuthController {
     const { sessionId, refreshToken } = getRefreshContext(req);
 
     try {
+      await ensureOrgDirectoryCache();
       const { user, tokens } = await AuthService.refresh(sessionId, refreshToken, req);
       setRefreshCookies(res, tokens);
       return sendSuccess(
@@ -108,6 +111,7 @@ class AuthController {
   };
 
   getMe = async (req, res) => {
+    await ensureOrgDirectoryCache();
     return sendSuccess(res, 200, "Get current user success", {
       user: serializeUser(req.user),
     });
