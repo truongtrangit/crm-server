@@ -98,8 +98,46 @@ async function getManagerSubordinateIds(manager) {
         ]
       };
 
-      const subordinates = await User.find(query).select("id").lean();
-      return subordinates.map((u) => u.id);
+      const subordinates = await User.find(query).lean();
+
+      const filtered = subordinates.filter(sub => {
+        let isSubordinateInSomeDomain = false;
+
+        for (const dept of leadDepts) {
+          const inDept = Array.isArray(sub.departments)
+            ? sub.departments.some(d => d.deptAlias === dept)
+            : (sub.departmentAliases || sub.department || []).includes(dept);
+
+          if (inDept) {
+            const isLead = (Array.isArray(sub.departments) && sub.departments.some(d => d.deptAlias === dept && d.role === 'lead')) ||
+              (sub.departmentRoles && sub.departmentRoles[dept] === 'lead');
+            if (!isLead) {
+              isSubordinateInSomeDomain = true;
+              break;
+            }
+          }
+        }
+
+        if (!isSubordinateInSomeDomain) {
+          for (const group of leadGroups) {
+            const inGroup = Array.isArray(sub.groups)
+              ? sub.groups.some(g => g.groupAlias === group)
+              : (sub.groupAliases || []).includes(group);
+
+            if (inGroup) {
+              const isLead = (Array.isArray(sub.groups) && sub.groups.some(g => g.groupAlias === group && g.role === 'lead')) ||
+                (sub.groupRoles && sub.groupRoles[group] === 'lead');
+              if (!isLead) {
+                isSubordinateInSomeDomain = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return isSubordinateInSomeDomain;
+      });
+      return filtered.map((u) => u.id);
     }
   );
 }

@@ -63,6 +63,12 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
     - **Quy tắc lấy danh sách nhân viên của Trưởng phòng (Manager list query)**:
       - Khi Trưởng phòng ban (MANAGER) truy cập danh sách nhân viên, hệ thống chỉ hiển thị các nhân sự thuộc phòng ban hoặc nhóm mà Manager đó làm Trưởng phòng (Lead), đồng thời luôn hiển thị chính tài khoản Manager đó.
       - Nếu Manager chưa được gán bất kỳ vai trò `lead` cụ thể nào trong cấu trúc `departments` hoặc `groups`, hệ thống sẽ tự động đối chiếu ngược (fallback) để gán quyền quản lý của các phòng ban họ đang thuộc về làm phạm vi hiển thị, đảm bảo không bị rỗng danh sách.
+      - **Manager KHÔNG bao gồm các Lead khác cùng cấp**: Nghĩa là Lead của phòng Sale không có quyền quản lý một Lead khác cũng thuộc phòng Sale, và Lead của nhóm A không có quyền quản lý Lead khác của nhóm A. Tuy nhiên, Lead của phòng thì toàn quyền với tất cả các nhóm con bên trong (nghĩa là quản lý được cả Lead của nhóm con đó).
+    - **Quy tắc phân công công việc (Assignment Rules)**:
+      - **"Chung vai trò và dưới quyền quản lý"**: Một user (kể cả Manager hay Staff) chỉ được phép phân công (assign) Task/Event/Lead cho người khác nếu thỏa mãn đồng thời 2 điều kiện:
+        1. Người được giao phải có **chung ít nhất một vai trò (function)** với người giao.
+        2. Người được giao phải nằm **dưới quyền quản lý** của người giao (thuộc danh sách Subordinates đã loại bỏ Lead cùng cấp ở trên).
+      - Mọi thao tác gán không hợp lệ sẽ bị Backend chặn (Lỗi 403) qua middleware `enforceAssignmentRules` (sử dụng cờ `allowSameFunctionAssignment: true`). Trên Frontend, các dropdown chọn "Vai trò" (Function) chỉ hiển thị các vai trò mà chính user đang sở hữu (ngăn việc User A chọn một vai trò mà mình không có để gán cho người khác).
     - **Quy tắc phân quyền Module trực tiếp (Module Access Rules)**:
       - *Chỉ OWNER/ADMIN* mới được phép cấu hình, thay đổi hoặc gán quyền hạn trực tiếp (`moduleAccess`) cho nhân sự ở cả Backend và Frontend.
       - Ẩn hoàn toàn bảng cấu hình Module Access (`ModuleAccessPanel`) trên giao diện người dùng nếu tài khoản đang đăng nhập không phải là OWNER hoặc ADMIN.

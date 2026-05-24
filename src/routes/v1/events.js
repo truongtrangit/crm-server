@@ -37,7 +37,7 @@ const eventAssignmentRules = enforceAssignmentRules({
   // Hành vi (Behaviors)
   allowSelfAssignment: true,
   allowManagerSubordinateAssignment: true,
-  allowStaffReassignment: false,
+  allowSameFunctionAssignment: true,
 });
 
 const eventUnassignmentRules = enforceUnassignmentRules({

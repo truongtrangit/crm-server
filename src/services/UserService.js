@@ -501,6 +501,7 @@ function serializeUserBasic(user) {
     id: item.id,
     name: item.name,
     avatar: item.avatar || "",
+    functions: item.functions || [],
   };
 }
 

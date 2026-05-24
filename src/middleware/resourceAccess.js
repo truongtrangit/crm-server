@@ -1,3 +1,4 @@
+const User = require("../models/User");
 const { sendError } = require("../utils/http");
 const { getManagerSubordinateIds, isUserManagerial } = require("../utils/managerScope");
 const { buildResourceScopeFilter } = require("../utils/resourceScope");
@@ -150,22 +151,59 @@ function enforceAssignmentRules(options) {
             code: "ASSIGN_FORBIDDEN",
           });
         }
+
+        const allowSameFunctionAssignment = options.allowSameFunctionAssignment ?? false;
+        const isAssigningSomeoneElse = addedAssigneeIds.some((id) => id !== user.id);
+
+        // Ensure Managers also share a function with the target user (if they are assigning someone else)
+        if (allowSameFunctionAssignment) {
+          if (isAssigningSomeoneElse) {
+            const targetUsers = await User.find({ id: { $in: addedAssigneeIds } }).lean();
+            const userFunctions = user.functions || [];
+
+            const hasInvalidTarget = targetUsers.some(t => {
+              const targetFunctions = t.functions || [];
+              return !targetFunctions.some(f => userFunctions.includes(f));
+            });
+
+            if (hasInvalidTarget) {
+              return sendError(res, 403, "Bạn chỉ có thể phân công cho nhân viên có chung chức năng/vai trò với mình.", {
+                code: "ASSIGN_FORBIDDEN",
+              });
+            }
+          }
+        }
+
         return next();
       }
 
-      // STAFF role
-      const allowStaffReassignment = options.allowStaffReassignment ?? false;
-      if (req.resource && !allowStaffReassignment) {
-        if (currentAssignees.length > 0) {
-          return sendError(res, 403, "Tài nguyên này đã có người phụ trách. Chỉ Manager hoặc Admin mới có quyền thêm người khác.", {
+      // Check if target users share at least one function with the assigner
+      // and enforce role-based rules.
+
+      if (isAssigningSomeoneElse) {
+        if (!allowSameFunctionAssignment) {
+          return sendError(res, 403, "Bạn không có quyền phân công cho người khác.", {
+            code: "ASSIGN_FORBIDDEN",
+          });
+        }
+
+        const targetUsers = await User.find({ id: { $in: addedAssigneeIds } }).lean();
+        const userFunctions = user.functions || [];
+
+        const hasInvalidTarget = targetUsers.some(t => {
+          const targetFunctions = t.functions || [];
+          return !targetFunctions.some(f => userFunctions.includes(f));
+        });
+
+        if (hasInvalidTarget) {
+          return sendError(res, 403, "Bạn chỉ có thể phân công cho nhân viên có chung chức năng/vai trò với mình.", {
             code: "ASSIGN_FORBIDDEN",
           });
         }
       }
 
-      const isAssigningSomeoneElse = addedAssigneeIds.some((id) => id !== user.id);
-      if (isAssigningSomeoneElse || (!allowSelfAssignment && addedAssigneeIds.includes(user.id))) {
-        return sendError(res, 403, "Bạn chỉ có thể tự nhận phân công cho chính mình.", {
+      if (!allowSelfAssignment && addedAssigneeIds.includes(user.id)) {
+        return sendError(res, 403, "Bạn không được phép tự nhận phân công.", {
           code: "ASSIGN_FORBIDDEN",
         });
       }

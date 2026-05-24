@@ -38,7 +38,7 @@ const taskAssignmentRules = enforceAssignmentRules({
   // Hành vi (Behaviors)
   allowSelfAssignment: true,
   allowManagerSubordinateAssignment: true,
-  allowStaffReassignment: false,
+  allowSameFunctionAssignment: true,
 });
 
 const taskUnassignmentRules = enforceUnassignmentRules({
@@ -117,7 +117,9 @@ router.get(
 router.put(
   "/:id",
   requirePermission(PERMISSIONS.TASKS_UPDATE),
-  taskResourceAccess,
+  taskResourceAccess.with({
+    allowUnassigned: true
+  }),
   taskAssignmentRules,
   taskUnassignmentRules,
   validate(updateTaskSchema),
