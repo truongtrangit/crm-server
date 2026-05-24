@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const LogController = require("../../controllers/LogController");
-const { requirePermission } = require("../../middleware/auth");
+const { requirePermission, requireRole } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
 
 const router = Router();
@@ -14,7 +14,7 @@ router.get(
 
 router.post(
   "/webhook/:id/retry",
-  requirePermission(PERMISSIONS.LOGS_WEBHOOK_READ),
+  requireRole(["OWNER", "ADMIN"]),
   LogController.retryWebhook,
 );
 
