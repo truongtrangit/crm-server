@@ -82,26 +82,26 @@ router.post(
 // ─── Search Events / Leads (for linking) ───
 router.get(
   "/search-events",
-  requirePermission(PERMISSIONS.TASKS_READ),
+  requirePermission([PERMISSIONS.TASKS_READ, PERMISSIONS.EVENTS_READ]),
   TaskController.searchEvents,
 );
 
 router.get(
   "/search-leads",
-  requirePermission(PERMISSIONS.TASKS_READ),
+  requirePermission([PERMISSIONS.TASKS_READ, PERMISSIONS.LEADS_READ]),
   TaskController.searchLeads,
 );
 
 // ─── Tasks by Event / Lead (for tab display) ───
 router.get(
   "/by-event/:eventId",
-  requirePermission(PERMISSIONS.TASKS_READ),
+  requirePermission([PERMISSIONS.TASKS_READ, PERMISSIONS.EVENTS_READ]),
   TaskController.getTasksByEvent,
 );
 
 router.get(
   "/by-lead/:leadId",
-  requirePermission(PERMISSIONS.TASKS_READ),
+  requirePermission([PERMISSIONS.TASKS_READ, PERMISSIONS.LEADS_READ]),
   TaskController.getTasksByLead,
 );
 
