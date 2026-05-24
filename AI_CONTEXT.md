@@ -35,6 +35,9 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
 ### 3.1 Khách hàng & Phễu (Customers, Leads, Funnels)
 - **Logic**:
   - `CustomerService`: Phân tách rạch ròi Khách Doanh nghiệp (BIZ) và Cá nhân (USER). Với BIZ, tự động nối thông tin gói `Subscription` và `members`. Xóa phải check referential integrity (nếu còn gắn Event thì chặn xóa).
+  - **Chỉ mục độc bản (Unique Indexes)**:
+    - Để hỗ trợ một khách hàng cá nhân (`mainType: 'user'`) có thể tạo hoặc sở hữu nhiều doanh nghiệp (`mainType: 'biz'`) dùng chung email/phone cá nhân, các chỉ mục độc bản (`unique: true`) trên `email` và `phone` là **Chỉ mục bán phần (Partial Indexes)** chỉ áp dụng cho tài khoản có `mainType === 'user'`.
+    - Đối với tài khoản doanh nghiệp (`mainType: 'biz'`), hệ thống áp dụng chỉ mục độc bản bán phần trên trường `alias` để đảm bảo định danh của mỗi Biz luôn luôn là duy nhất.
   - `LeadService`: Khi tạo Lead, tự dò (auto-map) `customerId` nếu email/phone trùng khớp. Hệ thống tự log chi tiết mọi hành vi cập nhật qua `computeChanges()`. Khi archive lead, bắt buộc phải ở trạng thái cuối của phễu.
   - `FunnelService`: Khởi tạo và vận hành phễu chăm sóc khách hàng (Stage mapping).
 
