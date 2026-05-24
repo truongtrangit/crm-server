@@ -123,7 +123,9 @@ router.post(
 router.put(
   "/programs/:id",
   requirePermission(PERMISSIONS.META_UPDATE),
-  metaProgramAccess,
+  metaProgramAccess.with({
+    allowUnassigned: true
+  }),
   metaAssignmentRules,
   metaUnassignmentRules,
   validate(updateMetaProgramSchema),
