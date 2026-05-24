@@ -138,6 +138,9 @@ function enforceAssignmentRules(options) {
       const allowSelfAssignment = options.allowSelfAssignment ?? false;
       const allowManagerSubordinateAssignment = options.allowManagerSubordinateAssignment ?? false;
 
+      const isAssigningSomeoneElse = addedAssigneeIds.some((id) => id !== user.id);
+      const allowSameFunctionAssignment = options.allowSameFunctionAssignment ?? false;
+
       const isManagerial = isUserManagerial(user);
       if (isManagerial) {
         const subIds = await getManagerSubordinateIds(user);
@@ -152,8 +155,6 @@ function enforceAssignmentRules(options) {
           });
         }
 
-        const allowSameFunctionAssignment = options.allowSameFunctionAssignment ?? false;
-        const isAssigningSomeoneElse = addedAssigneeIds.some((id) => id !== user.id);
 
         // Ensure Managers also share a function with the target user (if they are assigning someone else)
         if (allowSameFunctionAssignment) {
