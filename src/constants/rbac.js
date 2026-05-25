@@ -17,6 +17,7 @@ const RESOURCES = {
   PERMISSIONS: "permissions",
   METADATA: "metadata",
   FUNCTIONS: "functions",
+  FUNCTIONAL_GROUPS: "functional_groups",
   LOGS: "logs",                   // System / Automation / Webhook logs (read-only)
   META: "meta",                    // Meta integration programs
   LEADS_CFG: "leads_cfg",         // Cấu hình trạng thái Lead

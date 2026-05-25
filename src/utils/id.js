@@ -21,6 +21,7 @@ const ID_PREFIXES = Object.freeze({
 
   // Staff / Org
   FUNCTION: "FUNC",
+  FUNCTIONAL_GROUP: "FNG",
 
   // Meta
   META_CONFIG: "MCFG",
