@@ -21,16 +21,16 @@ class SalaryService {
 
     for (const staff of staffs) {
       // Bỏ qua nhân sự nghỉ việc TRƯỚC tháng sinh lương
-      if (staff.status === 'Resigned' && staff.resignationDate) {
+      if (staff.status === 'Đã nghỉ việc' && staff.resignationDate) {
         const resignDate = new Date(staff.resignationDate);
         if (resignDate < startOfMonth) {
           continue; // Đã nghỉ việc trước tháng này, không tính lương
         }
       }
       
-      // Bỏ qua nhân sự chưa vào làm ở tháng sinh lương (onboardingDate sau cuối tháng)
-      if (staff.onboardingDate) {
-         const obDate = new Date(staff.onboardingDate);
+      // Bỏ qua nhân sự chưa vào làm ở tháng sinh lương (onboardDate sau cuối tháng)
+      if (staff.onboardDate) {
+         const obDate = new Date(staff.onboardDate);
          if (obDate > endOfMonth) {
             continue;
          }

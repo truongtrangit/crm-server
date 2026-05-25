@@ -70,6 +70,11 @@ class StaffService {
       throw createHttpError(404, "Không tìm thấy nhân sự");
     }
 
+    // Nếu chuyển trạng thái từ Đã nghỉ việc -> Đang làm việc thì xóa ngày nghỉ việc
+    if (data.status === 'Đang làm việc' && staff.status === 'Đã nghỉ việc') {
+      staff.resignationDate = undefined;
+    }
+
     Object.assign(staff, data);
     await staff.save();
     return staff;
