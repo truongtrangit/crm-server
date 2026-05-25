@@ -67,6 +67,7 @@ v1Router.use("/leads", leadRouter);
 v1Router.use("/tasks", taskRouter);
 v1Router.use("/logs", logsRouter);
 v1Router.use("/staffs", require("./staffs"));
+v1Router.use("/salaries", require("./salaries"));
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use("/organization", organizationRouter);

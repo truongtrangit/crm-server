@@ -22,7 +22,8 @@ const RESOURCES = {
   META: "meta",                    // Meta integration programs
   LEADS_CFG: "leads_cfg",         // Cấu hình trạng thái Lead
   LEADS: "leads",                  // Quản lý Lead
-  STAFFS: "staffs",                // Cấu hình lương nhân sự
+  STAFFS: "staffs",                // Cấu hình nhân sự
+  SALARIES: "salaries",            // Cấu hình và bảng lương
 };
 
 // Actions
@@ -148,6 +149,13 @@ const PERMISSIONS = {
   STAFFS_UPDATE: `${RESOURCES.STAFFS}_${ACTIONS.UPDATE}`,
   STAFFS_DELETE: `${RESOURCES.STAFFS}_${ACTIONS.DELETE}`,
   STAFFS_MANAGE: `${RESOURCES.STAFFS}_${ACTIONS.MANAGE}`,
+
+  // Salaries
+  SALARIES_CREATE: `${RESOURCES.SALARIES}_${ACTIONS.CREATE}`,
+  SALARIES_READ: `${RESOURCES.SALARIES}_${ACTIONS.READ}`,
+  SALARIES_UPDATE: `${RESOURCES.SALARIES}_${ACTIONS.UPDATE}`,
+  SALARIES_DELETE: `${RESOURCES.SALARIES}_${ACTIONS.DELETE}`,
+  SALARIES_MANAGE: `${RESOURCES.SALARIES}_${ACTIONS.MANAGE}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -197,6 +205,10 @@ const MANAGER_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.STAFFS_CREATE,
   PERMISSIONS.STAFFS_UPDATE,
   PERMISSIONS.STAFFS_DELETE,
+  PERMISSIONS.SALARIES_READ,
+  PERMISSIONS.SALARIES_CREATE,
+  PERMISSIONS.SALARIES_UPDATE,
+  PERMISSIONS.SALARIES_DELETE,
 ]));
 
 const ADMIN_PERMISSIONS = Array.from(new Set([
@@ -217,6 +229,8 @@ const ADMIN_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.LEADS_MANAGE,
   PERMISSIONS.TASKS_MANAGE,
   PERMISSIONS.TASK_CHAINS_MANAGE,
+  PERMISSIONS.STAFFS_MANAGE,
+  PERMISSIONS.SALARIES_MANAGE,
 ]));
 
 // Role definitions with their permissions
