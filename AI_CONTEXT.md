@@ -79,6 +79,16 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       - Backend gán 3 quyền tương ứng là `logs_system_read`, `logs_webhook_read`, và `logs_automation_read`, bảo vệ chặt chẽ độc lập các đầu API `/api/v1/logs/*`.
       - Giao diện UI (`LogsPage.tsx`) chỉ hiển thị đúng các tab được cấp quyền trong `moduleAccess` của tài khoản, tự động chọn tab khả dụng đầu tiên làm mặc định khi truy cập.
 
+### 3.4 Quản lý Lương & Tài chính (Finance & Salary)
+- **Logic Tính lương**:
+  - `SalaryService`: Chịu trách nhiệm sinh bảng lương (`generateSalaryForMonth`). Tự động đối chiếu `onboardDate` và `resignationDate` để loại trừ các nhân sự chưa vào hoặc đã nghỉ việc trước tháng tính lương.
+  - Tự động lấy `basicSalary` (Lương cơ bản) dựa trên lịch sử `salaryConfigs` của nhân sự, chọn bản ghi có `effectiveDate` phù hợp nhất tính tới cuối tháng đó.
+  - Lương cơ bản mặc định được lấy từ cấu hình, tuy nhiên hệ thống cho phép **sửa trực tiếp** Lương cơ bản trong bảng lương tháng đó qua `batchUpdateSalaries`.
+  - **Công thức tính toán (Đã Fix Fixes)**:
+    - `total` (Thực nhận) = `basicSalary` (Lương cơ bản) + `allowance` (Phụ cấp) + `bonus` (Thưởng) - `penalty` (Phạt) + `ot` (OT).
+    - `finalReceivedAmount` (Về tay) = `total` (Thực nhận) - `deduction` (Khấu trừ).
+  - Khi thanh toán lương (`paySalary`), hệ thống tự động lưu trữ thông tin **Người duyệt chi** (`paidBy`) bằng `req.user._id`.
+
 ---
 
 ## 4. Quy tắc & Ràng buộc (Conventions)

@@ -35,8 +35,9 @@ class SalaryController {
   async paySalary(req, res) {
     const { id } = req.params;
     const { paymentMethod } = req.body;
+    const userId = req.user._id;
 
-    const record = await SalaryService.paySalary(id, paymentMethod);
+    const record = await SalaryService.paySalary(id, paymentMethod, userId);
     return sendSuccess(res, 200, "Pay salary success", record);
   }
 

@@ -20,7 +20,15 @@ const salaryRecordSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    allowance: {
+      type: Number,
+      default: 0,
+    },
     penalty: {
+      type: Number,
+      default: 0,
+    },
+    deduction: {
       type: Number,
       default: 0,
     },
@@ -29,6 +37,11 @@ const salaryRecordSchema = new mongoose.Schema(
       default: 0,
     },
     total: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    finalReceivedAmount: {
       type: Number,
       required: true,
       default: 0,
@@ -43,6 +56,10 @@ const salaryRecordSchema = new mongoose.Schema(
     },
     paidAt: {
       type: Date,
+    },
+    paidBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {

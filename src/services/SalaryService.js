@@ -73,9 +73,12 @@ class SalaryService {
         month,
         basicSalary,
         bonus: 0,
+        allowance: 0,
         penalty: 0,
+        deduction: 0,
         ot: 0,
         total,
+        finalReceivedAmount: total,
         status: 'pending',
       });
 
@@ -101,6 +104,7 @@ class SalaryService {
           model: 'FunctionalGroup'
         }
       })
+      .populate('paidBy', 'name email avatar')
       .sort({ 'staffId.name': 1 })
       .lean();
 
@@ -119,19 +123,36 @@ class SalaryService {
    * Cập nhật hàng loạt bảng lương
    */
   async batchUpdateSalaries(updates) {
-    const bulkOps = updates.map(update => ({
-      updateOne: {
-        filter: { _id: update._id },
-        update: {
-          $set: {
-            bonus: update.bonus,
-            penalty: update.penalty,
-            ot: update.ot,
-            total: update.total,
+    const bulkOps = updates.map(update => {
+      // Re-calculate to ensure data integrity
+      const basicSalary = update.basicSalary || 0;
+      const allowance = update.allowance || 0;
+      const bonus = update.bonus || 0;
+      const ot = update.ot || 0;
+      const penalty = update.penalty || 0;
+      const deduction = update.deduction || 0;
+      
+      const total = basicSalary + allowance + bonus - penalty + ot;
+      const finalReceivedAmount = total - deduction;
+
+      return {
+        updateOne: {
+          filter: { _id: update._id },
+          update: {
+            $set: {
+              basicSalary,
+              bonus,
+              allowance,
+              penalty,
+              deduction,
+              ot,
+              total,
+              finalReceivedAmount,
+            }
           }
         }
-      }
-    }));
+      };
+    });
 
     if (bulkOps.length > 0) {
       await SalaryRecord.bulkWrite(bulkOps);
@@ -141,7 +162,7 @@ class SalaryService {
   /**
    * Thanh toán lương
    */
-  async paySalary(id, paymentMethod) {
+  async paySalary(id, paymentMethod, userId) {
     const record = await SalaryRecord.findById(id);
     if (!record) {
       throw new Error('Salary record not found');
@@ -154,6 +175,7 @@ class SalaryService {
     record.status = 'paid';
     record.paymentMethod = paymentMethod;
     record.paidAt = new Date();
+    record.paidBy = userId;
     
     await record.save();
     return record;
@@ -163,8 +185,9 @@ class SalaryService {
    * Lấy lịch sử nhận lương của 1 nhân sự
    */
   async getStaffSalaryHistory(staffId) {
-    return await SalaryRecord.find({ staffId })
+    return await SalaryRecord.find({ staffId, status: 'paid' })
       .sort({ month: -1 })
+      .populate('paidBy', 'name email avatar')
       .lean();
   }
 }
