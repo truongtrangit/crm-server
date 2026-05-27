@@ -6,12 +6,14 @@ const { connectDatabase } = require("./config/database");
 const { connectRedis, closeRedis } = require("./config/redis");
 const { seedDatabase } = require("./services/seedDatabase");
 const logger = require("./utils/logger");
+const { seedRbac } = require("./services/rbacSeed");
 
 async function bootstrap() {
   try {
     await connectDatabase();
     await connectRedis();
-    await seedDatabase();
+    await seedRbac()
+    // await seedDatabase();
   } catch (error) {
     logger.error("Failed to start CRM server", { error: error.message, stack: error.stack });
     process.exit(1);

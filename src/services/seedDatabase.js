@@ -14,7 +14,6 @@ const MetaConfig = require("../models/MetaConfig");
 const MetaProgram = require("../models/MetaProgram");
 const seedData = require("../constants/seedData");
 const { hashPassword } = require("../utils/auth");
-const { seedRbac, migrateUsersToRbac } = require("./rbacSeed");
 const { seedSystemFunnel } = require("../scripts/seedSystemFunnel");
 const {
   buildDepartmentAlias,
@@ -232,12 +231,6 @@ async function seedDatabase() {
   await seedCollection(Result, seedData.results, "results");
   await seedCollection(Action, seedData.actions, "actions");
   await seedCollection(ActionChain, seedData.actionChains, "action chains");
-
-  // Seed RBAC
-  await seedRbac();
-
-  // Migrate existing users to RBAC
-  // await migrateUsersToRbac();
 
   // Seed counters if not present (ensures monotonic IDs start correctly)
   await seedCounters();
