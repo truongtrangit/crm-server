@@ -8,6 +8,7 @@ const eventsRouter = require("./events");
 const organizationRouter = require("./organization");
 const metadataRouter = require("./metadata");
 const functionsRouter = require("./functions");
+const functionalGroupsRouter = require("./functionalGroups");
 const rbacRouter = require("./rbac");
 const actionConfigRouter = require("./actionConfig");
 const eventChainsRouter = require("./eventChains");
@@ -65,11 +66,14 @@ v1Router.use("/lead-config", leadConfigRouter);
 v1Router.use("/leads", leadRouter);
 v1Router.use("/tasks", taskRouter);
 v1Router.use("/logs", logsRouter);
+v1Router.use("/staffs", require("./staffs"));
+v1Router.use("/salaries", require("./salaries"));
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use("/organization", organizationRouter);
 v1Router.use("/metadata", metadataRouter);
 v1Router.use("/functions", functionsRouter);
+v1Router.use("/functional-groups", functionalGroupsRouter);
 v1Router.use("/rbac", rbacRouter);
 v1Router.use("/action-config", actionConfigRouter);
 v1Router.use("/funnels", funnelsRouter);

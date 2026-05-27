@@ -55,6 +55,8 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
   - `TaskService`: Giao việc, chuyển trạng thái. Đặc biệt: Tự động `close` hàng loạt Task nếu như Lead liên kết với Task đó bị xóa mềm hoặc lưu trữ.
   - RBAC cấp phát linh hoạt, kết hợp kiểm soát đa phiên (multi-session) với access token và refresh token ở `AuthService`.
   - `OrganizationService`: Duy trì và cấp phát dạng cây phòng ban, phân quyền quản lý (Manager).
+  - `FunctionalGroupService`: Quản lý các Khối chức năng (BOD, Sale, Kỹ thuật...). ID được cấp phát tuần tự với tiền tố `FNG`. Các khối này đóng vai trò phân nhóm cấp cao cho hệ thống tổ chức. Việc quản lý (CRUD) bị giới hạn chặt chẽ (hiện tại do giao diện ràng buộc chỉ cấp cho `OWNER` và `ADMIN`, bảo vệ qua RBAC bằng module `staff.organization`).
+  - `StaffService`: Quản lý hồ sơ nhân sự và cấu hình lương. Nhân sự (Staff) được liên kết với `userId` (tuỳ chọn) nhưng tổ chức lưu trữ hoàn toàn tách biệt với User đăng nhập. Chứa danh sách các cấu hình lương (`salaryConfigs`) chia tỉ lệ chi trả theo công ty (companyProportions). Dữ liệu này hiển thị dưới dạng Kanban tại màn hình Tài chính (Finance).
   - **Quy tắc phân quyền phòng ban & nhóm (Lead/Member Rules)**:
     - *Chỉ OWNER/ADMIN* mới được phép thay đổi danh sách phòng ban hoặc cập nhật vai trò Lead của phòng ban. Tuy nhiên, *Trưởng phòng ban (Lead)* được quyền thêm hoặc gỡ nhân viên khác vào phòng ban do họ quản lý với vai trò là `member` (bao gồm cả khi tạo nhân viên mới hoặc chỉnh sửa nhân viên cũ).
     - *Chỉ Trưởng phòng ban (Lead của phòng ban đó)* mới được phép thay đổi nhóm con hoặc cập nhật vai trò Lead/Member của nhóm thuộc phòng ban đó cho nhân sự.
@@ -76,6 +78,16 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       - Phân hệ Logs được phân rã thành 3 module con độc lập: `logs.system` (System Logs), `logs.webhook` (Webhook Logs) và `logs.blockautomation` (Block Automation Logs).
       - Backend gán 3 quyền tương ứng là `logs_system_read`, `logs_webhook_read`, và `logs_automation_read`, bảo vệ chặt chẽ độc lập các đầu API `/api/v1/logs/*`.
       - Giao diện UI (`LogsPage.tsx`) chỉ hiển thị đúng các tab được cấp quyền trong `moduleAccess` của tài khoản, tự động chọn tab khả dụng đầu tiên làm mặc định khi truy cập.
+
+### 3.4 Quản lý Lương & Tài chính (Finance & Salary)
+- **Logic Tính lương**:
+  - `SalaryService`: Chịu trách nhiệm sinh bảng lương (`generateSalaryForMonth`). Tự động đối chiếu `onboardDate` và `resignationDate` để loại trừ các nhân sự chưa vào hoặc đã nghỉ việc trước tháng tính lương.
+  - Tự động lấy `basicSalary` (Lương cơ bản) dựa trên lịch sử `salaryConfigs` của nhân sự, chọn bản ghi có `effectiveDate` phù hợp nhất tính tới cuối tháng đó.
+  - Lương cơ bản mặc định được lấy từ cấu hình, tuy nhiên hệ thống cho phép **sửa trực tiếp** Lương cơ bản trong bảng lương tháng đó qua `batchUpdateSalaries`.
+  - **Công thức tính toán (Đã Fix Fixes)**:
+    - `total` (Thực nhận) = `basicSalary` (Lương cơ bản) + `allowance` (Phụ cấp) + `bonus` (Thưởng) - `penalty` (Phạt) + `ot` (OT).
+    - `finalReceivedAmount` (Về tay) = `total` (Thực nhận) - `deduction` (Khấu trừ).
+  - Khi thanh toán lương (`paySalary`), hệ thống tự động lưu trữ thông tin **Người duyệt chi** (`paidBy`) bằng `req.user._id`.
 
 ---
 
