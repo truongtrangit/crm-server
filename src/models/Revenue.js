@@ -6,7 +6,7 @@ const revenueSchema = new mongoose.Schema(
   {
     orderId: { type: String, required: true, unique: true }, // e.g., RVC-2605-01
     customerName: { type: String, required: true, trim: true },
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "RevenueCategory", required: true },
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "RevenueCategory", default: null },
     details: { type: String, default: "", trim: true },
     amount: { type: Number, required: true, min: 0 },
     recordDate: { type: Date, required: true },

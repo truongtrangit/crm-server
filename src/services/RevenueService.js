@@ -35,16 +35,22 @@ class RevenueService {
     return category;
   }
 
-  async deleteCategory(id) {
+  async deleteCategory(id, force = false) {
     // Check if category is used
     const category = await RevenueCategory.findOne({ id }).lean();
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
     const isUsed = await Revenue.exists({ category: category._id });
-    if (isUsed) {
-      throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa");
+    if (isUsed && !force) {
+      throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa", { code: "RESOURCE_IN_USE" });
     }
+    
+    if (isUsed && force) {
+      // Remove category reference from all revenues using this category
+      await Revenue.updateMany({ category: category._id }, { $set: { category: null } });
+    }
+    
     await RevenueCategory.deleteOne({ id });
     return { success: true };
   }
@@ -63,10 +69,14 @@ class RevenueService {
       ];
     }
     if (query.category && query.category !== "all") {
-      // Find category by ID first if query passes the string id
-      const cat = await RevenueCategory.findOne({ id: query.category }).lean();
-      if (cat) {
-        filter.category = cat._id;
+      if (query.category === "empty") {
+        filter.category = null; // matches null or unset
+      } else {
+        // Find category by ID first if query passes the string id
+        const cat = await RevenueCategory.findOne({ id: query.category }).lean();
+        if (cat) {
+          filter.category = cat._id;
+        }
       }
     }
     if (query.status && query.status !== "all") {

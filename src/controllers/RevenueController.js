@@ -20,7 +20,8 @@ class RevenueController {
   }
 
   async deleteCategory(req, res) {
-    await revenueService.deleteCategory(req.params.id);
+    const force = req.query.force === "true";
+    await revenueService.deleteCategory(req.params.id, force);
     return sendSuccess(res, 200, "Xóa danh mục thành công");
   }
 
