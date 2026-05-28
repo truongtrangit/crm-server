@@ -270,6 +270,16 @@ class ExpenseService {
   }
 
   async updateExpense(id, data) {
+    const existingExpense = await Expense.findById(id).lean();
+    if (!existingExpense) throw createHttpError(404, "Không tìm thấy chi phí");
+
+    if (existingExpense.isExpected) {
+      const expense = await Expense.findByIdAndUpdate(id, { status: data.status }, { new: true })
+        .populate("category", "id name")
+        .lean();
+      return expense;
+    }
+
     const updateData = { ...data };
     if (data.categoryId !== undefined) {
       if (data.categoryId) {
@@ -285,7 +295,6 @@ class ExpenseService {
       .populate("category", "id name")
       .lean();
     
-    if (!expense) throw createHttpError(404, "Không tìm thấy chi phí");
     return expense;
   }
 
