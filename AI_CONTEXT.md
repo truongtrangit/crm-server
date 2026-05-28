@@ -80,7 +80,11 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       - Giao diện UI (`LogsPage.tsx`) chỉ hiển thị đúng các tab được cấp quyền trong `moduleAccess` của tài khoản, tự động chọn tab khả dụng đầu tiên làm mặc định khi truy cập.
 
 ### 3.4 Quản lý Lương & Tài chính (Finance & Salary)
-- **Logic Tính lương**:
+- **Logic Doanh thu (Revenue)**:
+  - `RevenueService`: Quản lý danh mục doanh thu (`RevenueCategory`) và các khoản thu (`Revenue`).
+  - **Tự động sinh ID**: Danh mục sẽ tự động cấp ID dạng `RVCxxx`. Các khoản thu tự động cấp mã đơn (orderId) dạng `[PREFIX]-[YYMM]-[STT]`, trong đó `PREFIX` được nội suy (extract) từ các chữ cái đầu của tên danh mục (Ví dụ: "Gói cước CRM" -> `GCC`).
+  - **Thống kê (Stats)**: Tính toán tổng doanh thu theo tháng/năm, và gom nhóm (group) theo từng danh mục. Tự động loại bỏ các khoản thu có trạng thái `Đã hủy` khỏi biểu đồ KPI tổng.
+- **Logic Tính lương (Salary)**:
   - `SalaryService`: Chịu trách nhiệm sinh bảng lương (`generateSalaryForMonth`). Tự động đối chiếu `onboardDate` và `resignationDate` để loại trừ các nhân sự chưa vào hoặc đã nghỉ việc trước tháng tính lương.
   - Tự động lấy `basicSalary` (Lương cơ bản) dựa trên lịch sử `salaryConfigs` của nhân sự, chọn bản ghi có `effectiveDate` phù hợp nhất tính tới cuối tháng đó.
   - Lương cơ bản mặc định được lấy từ cấu hình, tuy nhiên hệ thống cho phép **sửa trực tiếp** Lương cơ bản trong bảng lương tháng đó qua `batchUpdateSalaries`.
@@ -91,8 +95,12 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
 
 ---
 
-## 4. Quy tắc & Ràng buộc (Conventions)
-1. **Tuyệt đối không** tương tác với Database trực tiếp tại Controller.
-2. 100% sử dụng **Soft Delete** (`isDeleted=true` hoặc `isArchived=true`), không được xóa dữ liệu thật để bảo toàn dữ liệu tham chiếu (Analytics).
-3. Luôn bọc logic Controller/Service bằng `try/catch` và ném lỗi qua `createHttpError()` để error handler tổng hứng.
-4. Naming convention: Variable/Function là `camelCase`, Model/Schema là `PascalCase`.
+## 4. Quy tắc & Ràng buộc (Conventions) thực tế đang áp dụng
+1. **Tương tác Database**: Phần lớn hệ thống định tuyến logic xử lý Database vào tầng Service. Tuy nhiên, một số Controller đặc thù (ví dụ: `EventActionChainController`, `TaskActionChainController`) vẫn đang trực tiếp tương tác với DB (gọi `findOne`, `save`, v.v.). Mục tiêu dài hạn là tách hoàn toàn logic DB khỏi Controller.
+2. **Quy tắc Xóa dữ liệu (Delete)**: Hiện tại, codebase đang kết hợp cả Soft Delete và Hard Delete:
+   - Các Model cốt lõi (`Event`, `Task`, `Lead`, `EventActionChain`...) sử dụng plugin Soft Delete (`isDeleted=true` hoặc `isArchived=true`) để bảo toàn dữ liệu tham chiếu (Analytics).
+   - Tuy nhiên, các cấu hình, meta, và danh mục (`ActionConfig`, `Funnel`, `RevenueCategory`, `LeadStatus`, v.v.) vẫn đang thực thi Hard Delete (`deleteOne`, `findOneAndDelete`).
+3. **Xử lý Lỗi (Error Handling)**: Express 5 tự động hứng async errors để chuyển sang Global Error Handler. Chuẩn mong muốn là Controller không chứa `try/catch`, chỉ gọi hàm service, ném `throw createHttpError(...)` từ Service và return `sendSuccess`. Trên thực tế, một số Controller (`AuthController`, `OrganizationController`, `RbacController`) vẫn đang sử dụng cấu trúc `try/catch`.
+4. **Primary Key (Định danh ID)**: Codebase sử dụng một trường custom tên là `id` dạng chuỗi (String) với logic sinh mã riêng (`generateMonotonicId` với các prefix như `EAC-`, `TAC-`, `RVC...`) làm định danh chính để tương tác API thay cho `_id` mặc định (ObjectId) của MongoDB.
+5. **Chuẩn hóa Response**: Toàn bộ kết quả trả về API được wrapper lại thông qua các hàm tiện ích `sendSuccess` và `sendError` (từ thư mục `utils/http`).
+6. **Naming convention**: Variable/Function là `camelCase`, Model/Schema là `PascalCase`.
