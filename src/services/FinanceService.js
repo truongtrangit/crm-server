@@ -14,27 +14,27 @@ class FinanceService {
     const revenueCats = await RevenueCategory.find().lean();
     const expenseCats = await ExpenseCategory.find().lean();
 
-    // Map category ID to Name
+    // Map category ID to { id, name }
     const revCatMap = {};
-    revenueCats.forEach(c => revCatMap[c._id.toString()] = c.name);
+    revenueCats.forEach(c => revCatMap[c._id.toString()] = { id: c.id, name: c.name });
 
     const expCatMap = {};
-    expenseCats.forEach(c => expCatMap[c._id.toString()] = c.name);
+    expenseCats.forEach(c => expCatMap[c._id.toString()] = { id: c.id, name: c.name });
 
     // Initialize yearlyData
     const yearlyData = {};
-    const categories = []; // { name: string, isIncome: boolean }
+    const categories = []; // { id: string, name: string, isIncome: boolean }
 
     // Helper to register category
-    const ensureCategory = (name, isIncome) => {
+    const ensureCategory = (id, name, isIncome) => {
       if (!categories.find(c => c.name === name)) {
-        categories.push({ name, isIncome });
+        categories.push({ id, name, isIncome });
         yearlyData[name] = new Array(12).fill(0);
       }
     };
 
     // Initialize the fixed "Lương nhân sự" category
-    ensureCategory("Lương nhân sự", false);
+    ensureCategory("salary", "Lương nhân sự", false);
 
     // Fetch Revenues
     const revenues = await Revenue.find({
@@ -43,8 +43,13 @@ class FinanceService {
     }).lean();
 
     revenues.forEach(rev => {
-      const catName = rev.category ? revCatMap[rev.category.toString()] || "Doanh thu khác" : "Doanh thu khác";
-      ensureCategory(catName, true);
+      let catId = "empty";
+      let catName = "Doanh thu khác";
+      if (rev.category && revCatMap[rev.category.toString()]) {
+        catId = revCatMap[rev.category.toString()].id;
+        catName = revCatMap[rev.category.toString()].name;
+      }
+      ensureCategory(catId, catName, true);
       const month = new Date(rev.recordDate).getMonth();
       yearlyData[catName][month] += (rev.amount || 0);
     });
@@ -56,8 +61,13 @@ class FinanceService {
     }).lean();
 
     expenses.forEach(exp => {
-      const catName = exp.category ? expCatMap[exp.category.toString()] || "Chi phí khác" : "Chi phí khác";
-      ensureCategory(catName, false);
+      let catId = "empty";
+      let catName = "Chi phí khác";
+      if (exp.category && expCatMap[exp.category.toString()]) {
+        catId = expCatMap[exp.category.toString()].id;
+        catName = expCatMap[exp.category.toString()].name;
+      }
+      ensureCategory(catId, catName, false);
       const month = new Date(exp.recordDate).getMonth();
       yearlyData[catName][month] += (exp.amount || 0);
     });
