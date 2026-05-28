@@ -35,6 +35,7 @@ const ACTIONS = {
   READ: "read",
   UPDATE: "update",
   DELETE: "delete",
+  CONFIG: "config",
   PERMANENT_DELETE: "permanent_delete",
   RESTORE: "restore",
   MANAGE: "manage", // Has all permissions for this resource
@@ -165,6 +166,7 @@ const PERMISSIONS = {
   REVENUES_READ: `${RESOURCES.REVENUES}_${ACTIONS.READ}`,
   REVENUES_UPDATE: `${RESOURCES.REVENUES}_${ACTIONS.UPDATE}`,
   REVENUES_DELETE: `${RESOURCES.REVENUES}_${ACTIONS.DELETE}`,
+  REVENUES_CONFIG: `${RESOURCES.REVENUES}_${ACTIONS.CONFIG}`,
   REVENUES_MANAGE: `${RESOURCES.REVENUES}_${ACTIONS.MANAGE}`,
 
   // Expenses

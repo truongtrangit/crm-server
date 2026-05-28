@@ -6,10 +6,16 @@ const { PERMISSIONS } = require('../../constants/rbac');
 const router = express.Router();
 
 // Categories
-router.get('/categories', requirePermission(PERMISSIONS.REVENUES_READ), RevenueController.getCategories);
-router.post('/categories', requirePermission(PERMISSIONS.REVENUES_CREATE), RevenueController.createCategory);
-router.put('/categories/:id', requirePermission(PERMISSIONS.REVENUES_UPDATE), RevenueController.updateCategory);
-router.delete('/categories/:id', requirePermission(PERMISSIONS.REVENUES_DELETE), RevenueController.deleteCategory);
+router.get('/categories', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.getCategories);
+router.post('/categories', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.createCategory);
+router.put('/categories/:id', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.updateCategory);
+router.delete('/categories/:id', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.deleteCategory);
+
+// Expected Revenues
+router.get('/expected', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.getExpectedRevenues);
+router.post('/expected', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.createExpectedRevenue);
+router.put('/expected/:id', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.updateExpectedRevenue);
+router.delete('/expected/:id', requirePermission(PERMISSIONS.REVENUES_CONFIG), RevenueController.deleteExpectedRevenue);
 
 // Stats
 router.get('/stats', requirePermission(PERMISSIONS.REVENUES_READ), RevenueController.getRevenueStats);

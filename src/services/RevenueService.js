@@ -1,5 +1,6 @@
 const Revenue = require("../models/Revenue");
 const RevenueCategory = require("../models/RevenueCategory");
+const ExpectedRevenue = require("../models/ExpectedRevenue");
 const Counter = require("../models/Counter");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
@@ -52,6 +53,55 @@ class RevenueService {
     }
     
     await RevenueCategory.deleteOne({ id });
+    return { success: true };
+  }
+
+  // ─── Expected Revenues ────────────────────────────────────────────────────
+
+  async getExpectedRevenues(query = {}) {
+    const filter = {};
+    if (query.search) {
+      filter.name = { $regex: query.search, $options: "i" };
+    }
+    const expected = await ExpectedRevenue.find(filter)
+      .populate("category", "id name")
+      .sort({ createdAt: -1 })
+      .lean();
+    return expected;
+  }
+
+  async createExpectedRevenue(data) {
+    const category = await RevenueCategory.findOne({ id: data.categoryId });
+    if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
+
+    const id = await generateMonotonicId(ID_PREFIXES.EXPECTED_REVENUE);
+    const expected = new ExpectedRevenue({
+      ...data,
+      id,
+      category: category._id
+    });
+    await expected.save();
+    return expected.populate("category", "id name");
+  }
+
+  async updateExpectedRevenue(id, data) {
+    const updateData = { ...data };
+    if (data.categoryId) {
+      const category = await RevenueCategory.findOne({ id: data.categoryId });
+      if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
+      updateData.category = category._id;
+    }
+
+    const expected = await ExpectedRevenue.findOneAndUpdate({ id }, updateData, { new: true })
+      .populate("category", "id name")
+      .lean();
+    if (!expected) throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
+    return expected;
+  }
+
+  async deleteExpectedRevenue(id) {
+    const expected = await ExpectedRevenue.findOneAndDelete({ id });
+    if (!expected) throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
     return { success: true };
   }
 

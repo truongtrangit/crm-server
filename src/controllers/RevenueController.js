@@ -25,6 +25,28 @@ class RevenueController {
     return sendSuccess(res, 200, "Xóa danh mục thành công");
   }
 
+  // ─── Expected Revenues ────────────────────────────────────────────────────
+
+  async getExpectedRevenues(req, res) {
+    const result = await revenueService.getExpectedRevenues(req.query);
+    return sendSuccess(res, 200, "Lấy danh sách doanh thu dự kiến thành công", result);
+  }
+
+  async createExpectedRevenue(req, res) {
+    const result = await revenueService.createExpectedRevenue(req.body);
+    return sendSuccess(res, 200, "Tạo doanh thu dự kiến thành công", result);
+  }
+
+  async updateExpectedRevenue(req, res) {
+    const result = await revenueService.updateExpectedRevenue(req.params.id, req.body);
+    return sendSuccess(res, 200, "Cập nhật doanh thu dự kiến thành công", result);
+  }
+
+  async deleteExpectedRevenue(req, res) {
+    await revenueService.deleteExpectedRevenue(req.params.id);
+    return sendSuccess(res, 200, "Xóa doanh thu dự kiến thành công");
+  }
+
   // ─── Revenues ─────────────────────────────────────────────────────────────
 
   async getRevenues(req, res) {
