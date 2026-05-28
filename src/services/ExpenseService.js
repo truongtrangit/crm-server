@@ -92,7 +92,7 @@ class ExpenseService {
       }
 
       const recordDate = new Date(currentYear, month - 1, 1);
-      const transactionId = await this._generateTransactionId();
+      const transactionId = await this._generateTransactionId(recordDate);
 
       const expense = new Expense({
         transactionId,
@@ -214,7 +214,7 @@ class ExpenseService {
       }, {});
       items.forEach(item => {
         if (item.assigneeId) {
-          item.assignee = userMap[item.assigneeId] || null;
+          item.assignee = userMap[item.assigneeId] || { fullName: item.assigneeId };
         }
       });
     }
@@ -227,13 +227,13 @@ class ExpenseService {
     if (!expense) throw createHttpError(404, "Không tìm thấy chi phí");
     if (expense.assigneeId) {
       const User = require("../models/User");
-      expense.assignee = await User.findOne({ id: expense.assigneeId }, "id fullName avatar").lean();
+      expense.assignee = await User.findOne({ id: expense.assigneeId }, "id fullName avatar").lean() || { fullName: expense.assigneeId };
     }
     return expense;
   }
 
-  async _generateTransactionId() {
-    const date = new Date();
+  async _generateTransactionId(inputDate = null) {
+    const date = inputDate ? new Date(inputDate) : new Date();
     const yy = String(date.getFullYear()).slice(-2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const yymm = `${yy}${mm}`;
@@ -258,7 +258,7 @@ class ExpenseService {
         if (!categoryObj) throw createHttpError(400, "Danh mục không hợp lệ");
     }
 
-    const transactionId = await this._generateTransactionId();
+    const transactionId = await this._generateTransactionId(data.recordDate);
 
     const expense = new Expense({
       ...data,
