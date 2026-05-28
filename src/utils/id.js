@@ -46,6 +46,8 @@ const ID_PREFIXES = Object.freeze({
   // Finance
   REVENUE_CATEGORY: "RVC",
   EXPECTED_REVENUE: "RVE",
+  EXPENSE_CATEGORY: "EPC",
+  EXPECTED_EXPENSE: "EPE",
 });
 
 /**

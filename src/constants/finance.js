@@ -19,8 +19,15 @@ const REVENUE_STATUSES = {
   CANCELLED: 'Đã hủy'
 };
 
+const EXPENSE_STATUSES = {
+  APPROVED: 'Đã duyệt chi',
+  PENDING: 'Chờ duyệt',
+  CANCELLED: 'Đã hủy'
+};
+
 module.exports = {
   STAFF_STATUS,
   SALARY_FORMATS,
-  REVENUE_STATUSES
+  REVENUE_STATUSES,
+  EXPENSE_STATUSES
 };
