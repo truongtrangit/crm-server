@@ -247,7 +247,7 @@ class ExpenseService {
       { new: true, upsert: true }
     );
 
-    const stt = String(counter.seq).padStart(2, '0');
+    const stt = String(counter.seq - 1).padStart(2, '0');
     return `${prefix}-${yymm}-${stt}`;
   }
 
