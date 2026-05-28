@@ -80,6 +80,7 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       - Phân hệ Logs được phân rã thành 3 module con độc lập: `logs.system` (System Logs), `logs.webhook` (Webhook Logs) và `logs.blockautomation` (Block Automation Logs).
       - Backend gán 3 quyền tương ứng là `logs_system_read`, `logs_webhook_read`, và `logs_automation_read`, bảo vệ chặt chẽ độc lập các đầu API `/api/v1/logs/*`.
       - Giao diện UI (`LogsPage.tsx`) chỉ hiển thị đúng các tab được cấp quyền trong `moduleAccess` của tài khoản, tự động chọn tab khả dụng đầu tiên làm mặc định khi truy cập.
+      - **Tương tự với phân hệ Tài chính (Finance)**: Tính năng Báo cáo Dashboard Tài chính thuộc `FINANCE_READ` (route `finance.dashboard`), bảo vệ API `/api/v1/finance/dashboard`. Các tính năng khác của finance bảo vệ riêng rẽ (`REVENUES_READ`, `EXPENSES_READ`, v.v.). Giao diện `FinancePage.tsx` dựa vào MLAC để hiển thị các tab.
 
 ### 3.4 Quản lý Lương & Tài chính (Finance & Salary)
 - **Logic Doanh thu (Revenue)**:

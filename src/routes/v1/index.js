@@ -27,6 +27,7 @@ const salaryConfigRouter = require("./salaryConfigs");
 const revenueRouter = require("./revenues");
 const expenseRouter = require("./expenses");
 const companiesRouter = require("./companies");
+const financeRouter = require("./finance");
 
 const { authenticateRequest } = require("../../middleware/auth");
 const { sendSuccess } = require("../../utils/http");
@@ -78,6 +79,7 @@ v1Router.use("/salary-configs", salaryConfigRouter);
 v1Router.use("/revenues", revenueRouter);
 v1Router.use("/expenses", expenseRouter);
 v1Router.use("/companies", companiesRouter);
+v1Router.use("/finance", financeRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use("/organization", organizationRouter);
