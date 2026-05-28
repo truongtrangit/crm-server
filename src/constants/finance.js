@@ -13,7 +13,14 @@ const SALARY_FORMATS = {
   CUSTOM: 'Deal riêng'
 };
 
+const REVENUE_STATUSES = {
+  COMPLETE: 'Hoàn thành',
+  PENDING: 'Chờ xử lý',
+  CANCELLED: 'Đã hủy'
+};
+
 module.exports = {
   STAFF_STATUS,
-  SALARY_FORMATS
+  SALARY_FORMATS,
+  REVENUE_STATUSES
 };

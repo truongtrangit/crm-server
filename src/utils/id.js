@@ -42,6 +42,9 @@ const ID_PREFIXES = Object.freeze({
 
   // Organization
   ORGANIZATION: "ORG",
+
+  // Finance
+  REVENUE_CATEGORY: "RVC",
 });
 
 /**
