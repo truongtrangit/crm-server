@@ -19,7 +19,8 @@ const ID_PREFIXES = Object.freeze({
   CHAIN: "CHN",
   BLOCK_AUTOMATION: "BLK",
 
-  // Staff / Org
+  // Staff / Org / Company
+  COMPANY: "COM",
   FUNCTION: "FUNC",
   FUNCTIONAL_GROUP: "FNG",
   STAFF: "STF",

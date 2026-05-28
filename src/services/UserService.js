@@ -3,6 +3,7 @@ const Organization = require("../models/Organization");
 const Role = require("../models/Role");
 const Event = require("../models/Event");
 const StaffFunction = require("../models/StaffFunction");
+const Company = require("../models/Company");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
@@ -752,7 +753,7 @@ async function createUserAccount(actor, payload = {}) {
     avatar:
       normalizeString(payload.avatar) ||
       getDefaultAvatar(name || email),
-    companies: Array.isArray(payload.companies) ? payload.companies.filter(c => COMPANIES.includes(c)) : [],
+    companies: Array.isArray(payload.companies) ? payload.companies : [],
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
     functions: parsed.functions,
@@ -886,7 +887,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
 
   targetUser.companies =
     payload.companies !== undefined && Array.isArray(payload.companies)
-      ? payload.companies.filter(c => COMPANIES.includes(c))
+      ? payload.companies
       : targetUser.companies;
   targetUser.phone =
     payload.phone !== undefined
@@ -985,7 +986,7 @@ async function updateOwnProfile(actor, payload = {}) {
       : actor.phone;
   actor.companies =
     safePayload.companies !== undefined && Array.isArray(safePayload.companies)
-      ? safePayload.companies.filter(c => COMPANIES.includes(c))
+      ? safePayload.companies
       : actor.companies;
   actor.preferences =
     safePayload.preferences !== undefined
