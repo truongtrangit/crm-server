@@ -23,6 +23,10 @@ const salaryConfigSchema = Joi.object({
   note: Joi.string().allow(null, ""),
 });
 
+const addSalaryConfigSchema = Joi.object({
+  staffId: Joi.string().required(),
+}).concat(salaryConfigSchema);
+
 const createStaffSchema = Joi.object({
   name: Joi.string().required(),
   userId: Joi.string().allow(null, ""),
@@ -66,4 +70,5 @@ module.exports = {
   updateStaffSchema,
   getStaffsQuerySchema,
   salaryConfigSchema,
+  addSalaryConfigSchema,
 };

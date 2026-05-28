@@ -23,6 +23,7 @@ const taskChainsRouter = require("./taskChains");
 const funnelsRouter = require("./funnels");
 const staffRouter = require("./staffs");
 const salaryRouter = require("./salaries");
+const salaryConfigRouter = require("./salaryConfigs");
 const revenueRouter = require("./revenues");
 
 const { authenticateRequest } = require("../../middleware/auth");
@@ -71,6 +72,7 @@ v1Router.use("/tasks", taskRouter);
 v1Router.use("/logs", logsRouter);
 v1Router.use("/staffs", staffRouter);
 v1Router.use("/salaries", salaryRouter);
+v1Router.use("/salary-configs", salaryConfigRouter);
 v1Router.use("/revenues", revenueRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────

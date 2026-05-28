@@ -45,11 +45,5 @@ router.delete(
   StaffController.deleteStaff
 );
 
-router.post(
-  "/:staffId/salary-config",
-  requirePermission(PERMISSIONS.STAFFS_MANAGE),
-  validate(salaryConfigSchema),
-  StaffController.addSalaryConfig
-);
 
 module.exports = router;
