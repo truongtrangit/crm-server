@@ -1,7 +1,9 @@
 # Bản đồ Kiến trúc & Logic Backend (AI_CONTEXT.md)
 
-> **QUAN TRỌNG:** File này chứa TOÀN BỘ kiến trúc, luồng xử lý, và chi tiết nghiệp vụ sau khi gộp (merge) tính năng. Phải chủ động cập nhật mỗi khi thay đổi cấu trúc hoặc logic cốt lõi.
-
+> **QUAN TRỌNG (AI WORKFLOW INSTRUCTION):** 
+> 1. Trợ lý AI **BẮT BUỘC** phải đọc qua file `AI_CONTEXT.md` này trước khi implement bất kỳ tính năng nào để hiểu rõ cấu trúc source code, quy tắc (rules), và conventions. Sau đó mới tiến hành code.
+> 2. Sau khi thực thi xong, nếu có phát sinh logic mới, component mới hoặc convention mới, **BẮT BUỘC** phải ghi chép lại/cập nhật vào file `AI_CONTEXT.md` này để giữ đồng bộ kiến thức cho các phiên làm việc tiếp theo.
+> 3. Sau khi implement tính năng hoặc sửa bug, **BẮT BUỘC** phải kiểm tra cú pháp (syntax/linter) và đảm bảo server BE khởi động thành công, không bị crash trước khi kết thúc công việc.
 ---
 
 ## 1. Kiến trúc luồng xử lý (Data Flow)
