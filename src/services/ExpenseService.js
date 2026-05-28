@@ -68,6 +68,50 @@ class ExpenseService {
     return expected;
   }
 
+  async _generateExpectedExpenses(expected) {
+    const currentYear = new Date().getFullYear();
+    const months = expected.allocatedMonths || [];
+    if (months.length === 0) return;
+
+    let baseAmount = expected.amount;
+    let remainder = 0;
+
+    if (expected.type === "yearly") {
+      baseAmount = Math.floor(expected.amount / months.length);
+      remainder = expected.amount - (baseAmount * months.length);
+    }
+
+    const sortedMonths = [...months].sort((a, b) => a - b);
+
+    for (let i = 0; i < sortedMonths.length; i++) {
+      const month = sortedMonths[i];
+      let monthAmount = baseAmount;
+
+      if (expected.type === "yearly" && i === sortedMonths.length - 1) {
+        monthAmount += remainder;
+      }
+
+      const recordDate = new Date(currentYear, month - 1, 1);
+      const transactionId = await this._generateTransactionId();
+
+      const expense = new Expense({
+        transactionId,
+        recordDate,
+        category: expected.category,
+        description: expected.name,
+        amount: monthAmount,
+        status: "Chờ duyệt",
+        isExpected: true,
+        expectedExpenseId: expected._id
+      });
+      await expense.save();
+    }
+  }
+
+  async _removeExpectedExpenses(expectedExpenseId) {
+    await Expense.deleteMany({ expectedExpenseId });
+  }
+
   async createExpectedExpense(data) {
     const category = await ExpenseCategory.findOne({ id: data.categoryId });
     if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
@@ -79,6 +123,7 @@ class ExpenseService {
       category: category._id
     });
     await expected.save();
+    await this._generateExpectedExpenses(expected);
     return expected.populate("category", "id name");
   }
 
@@ -94,12 +139,17 @@ class ExpenseService {
       .populate("category", "id name")
       .lean();
     if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
+    
+    await this._removeExpectedExpenses(expected._id);
+    await this._generateExpectedExpenses(expected);
+    
     return expected;
   }
 
   async deleteExpectedExpense(id) {
     const expected = await ExpectedExpense.findOneAndDelete({ id });
     if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
+    await this._removeExpectedExpenses(expected._id);
     return { success: true };
   }
 

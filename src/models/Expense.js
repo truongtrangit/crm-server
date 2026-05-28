@@ -15,6 +15,8 @@ const expenseSchema = new mongoose.Schema(
       required: true,
       default: EXPENSE_STATUSES.PENDING
     },
+    isExpected: { type: Boolean, default: false },
+    expectedExpenseId: { type: mongoose.Schema.Types.ObjectId, ref: "ExpectedExpense", default: null }
   },
   {
     timestamps: true,
