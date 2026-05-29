@@ -5,6 +5,7 @@ const Counter = require("../models/Counter");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
+const { REVENUE_STATUSES } = require("../constants/finance");
 
 class RevenueService {
   // ─── Revenue Categories ──────────────────────────────────────────────────
@@ -238,7 +239,7 @@ class RevenueService {
 
     for (const rev of revenues) {
       // Only count Complete (Hoàn thành) revenue for main stats, or all? Let's count all that are not cancelled.
-      if (rev.status === 'Đã hủy') continue;
+      if (rev.status === REVENUE_STATUSES.CANCELLED) continue;
 
       totalAmount += rev.amount || 0;
       

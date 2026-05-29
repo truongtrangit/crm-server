@@ -14,15 +14,15 @@ const SALARY_FORMATS = {
 };
 
 const REVENUE_STATUSES = {
-  COMPLETE: 'Hoàn thành',
-  PENDING: 'Chờ xử lý',
-  CANCELLED: 'Đã hủy'
+  COMPLETE: 'completed',
+  PENDING: 'pending',
+  CANCELLED: 'cancelled'
 };
 
 const EXPENSE_STATUSES = {
-  APPROVED: 'Đã duyệt chi',
-  PENDING: 'Chờ duyệt',
-  CANCELLED: 'Đã hủy'
+  APPROVED: 'approved',
+  PENDING: 'pending',
+  CANCELLED: 'cancelled'
 };
 
 module.exports = {

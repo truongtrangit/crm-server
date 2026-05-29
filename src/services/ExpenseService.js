@@ -5,6 +5,7 @@ const Counter = require("../models/Counter");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
+const { EXPENSE_STATUSES } = require("../constants/finance");
 
 class ExpenseService {
   // ─── Expense Categories ──────────────────────────────────────────────────
@@ -322,7 +323,7 @@ class ExpenseService {
     const categoryMap = {};
 
     for (const exp of expenses) {
-      if (exp.status === 'Đã hủy') continue;
+      if (exp.status === EXPENSE_STATUSES.CANCELLED) continue;
 
       totalAmount += exp.amount || 0;
       

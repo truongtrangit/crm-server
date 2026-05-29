@@ -3,6 +3,7 @@ const Expense = require("../models/Expense");
 const SalaryRecord = require("../models/SalaryRecord");
 const RevenueCategory = require("../models/RevenueCategory");
 const ExpenseCategory = require("../models/ExpenseCategory");
+const { REVENUE_STATUSES, EXPENSE_STATUSES } = require("../constants/finance");
 
 class FinanceService {
   async getDashboard(year) {
@@ -39,7 +40,7 @@ class FinanceService {
     // Fetch Revenues
     const revenues = await Revenue.find({
       recordDate: { $gte: startDate, $lt: endDate },
-      status: { $ne: "Đã hủy" }
+      status: { $ne: REVENUE_STATUSES.CANCELLED }
     }).lean();
 
     revenues.forEach(rev => {
@@ -57,7 +58,7 @@ class FinanceService {
     // Fetch Expenses
     const expenses = await Expense.find({
       recordDate: { $gte: startDate, $lt: endDate },
-      status: { $ne: "Đã hủy" }
+      status: { $ne: EXPENSE_STATUSES.CANCELLED }
     }).lean();
 
     expenses.forEach(exp => {
