@@ -2,6 +2,7 @@ const Expense = require("../models/Expense");
 const ExpenseCategory = require("../models/ExpenseCategory");
 const ExpectedExpense = require("../models/ExpectedExpense");
 const Counter = require("../models/Counter");
+const User = require("../models/User");
 const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
@@ -46,11 +47,11 @@ class ExpenseService {
     if (isUsed && !force) {
       throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa", { code: "RESOURCE_IN_USE" });
     }
-    
+
     if (isUsed && force) {
       await Expense.updateMany({ category: category._id }, { $set: { category: null } });
     }
-    
+
     await ExpenseCategory.deleteOne({ id });
     return { success: true };
   }
@@ -101,7 +102,7 @@ class ExpenseService {
         category: expected.category,
         description: expected.name,
         amount: monthAmount,
-        status: "Chờ duyệt",
+        status: EXPENSE_STATUSES.PENDING,
         isExpected: true,
         expectedExpenseId: expected._id
       });
@@ -140,10 +141,10 @@ class ExpenseService {
       .populate("category", "id name")
       .lean();
     if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
-    
+
     await this._removeExpectedExpenses(expected._id);
     await this._generateExpectedExpenses(expected);
-    
+
     return expected;
   }
 
@@ -207,7 +208,6 @@ class ExpenseService {
     // I'll fetch Users manually.
     const userIds = [...new Set(items.map(i => i.assigneeId).filter(Boolean))];
     if (userIds.length > 0) {
-      const User = require("../models/User");
       const users = await User.find({ id: { $in: userIds } }, "id fullName avatar").lean();
       const userMap = users.reduce((acc, u) => {
         acc[u.id] = u;
@@ -227,7 +227,6 @@ class ExpenseService {
     const expense = await Expense.findById(id).populate("category", "id name").lean();
     if (!expense) throw createHttpError(404, "Không tìm thấy chi phí");
     if (expense.assigneeId) {
-      const User = require("../models/User");
       expense.assignee = await User.findOne({ id: expense.assigneeId }, "id fullName avatar").lean() || { fullName: expense.assigneeId };
     }
     return expense;
@@ -255,8 +254,8 @@ class ExpenseService {
   async createExpense(data) {
     let categoryObj = null;
     if (data.categoryId) {
-        categoryObj = await ExpenseCategory.findOne({ id: data.categoryId });
-        if (!categoryObj) throw createHttpError(400, "Danh mục không hợp lệ");
+      categoryObj = await ExpenseCategory.findOne({ id: data.categoryId });
+      if (!categoryObj) throw createHttpError(400, "Danh mục không hợp lệ");
     }
 
     const transactionId = await this._generateTransactionId(data.recordDate);
@@ -295,7 +294,7 @@ class ExpenseService {
     const expense = await Expense.findByIdAndUpdate(id, updateData, { new: true })
       .populate("category", "id name")
       .lean();
-    
+
     return expense;
   }
 
@@ -311,7 +310,7 @@ class ExpenseService {
     const filter = {};
     if (query.year) {
       const startDate = new Date(parseInt(query.year), parseInt(query.month || 1) - 1, 1);
-      const endDate = query.month 
+      const endDate = query.month
         ? new Date(parseInt(query.year), parseInt(query.month), 1)
         : new Date(parseInt(query.year) + 1, 0, 1);
       filter.recordDate = { $gte: startDate, $lt: endDate };
@@ -326,7 +325,7 @@ class ExpenseService {
       if (exp.status === EXPENSE_STATUSES.CANCELLED) continue;
 
       totalAmount += exp.amount || 0;
-      
+
       const catName = exp.category?.name || "Chưa phân loại";
       if (!categoryMap[catName]) {
         categoryMap[catName] = 0;
