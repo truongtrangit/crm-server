@@ -21,6 +21,11 @@ const SalaryConfigSchema = new mongoose.Schema(
     effectiveDate: { type: Date, required: true },
     companyProportions: [CompanyProportionSchema],
     insuranceSalary: { type: Number },
+    insuranceAmount: { type: Number },
+    isCompanyPayInsurance: { type: Boolean, default: false },
+    companyInsuranceAmount: { type: Number },
+    isStaffPayInsurance: { type: Boolean, default: false },
+    staffInsuranceAmount: { type: Number },
     note: { type: String },
     createdBy: { type: String }, // user id
   },

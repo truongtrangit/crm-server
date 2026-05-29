@@ -20,7 +20,26 @@ const salaryConfigSchema = Joi.object({
     return value;
   }),
   insuranceSalary: Joi.number().allow(null, ""),
+  insuranceAmount: Joi.number().allow(null, ""),
+  isCompanyPayInsurance: Joi.boolean().optional(),
+  companyInsuranceAmount: Joi.number().allow(null, ""),
+  isStaffPayInsurance: Joi.boolean().optional(),
+  staffInsuranceAmount: Joi.number().allow(null, ""),
   note: Joi.string().allow(null, ""),
+}).custom((value, helpers) => {
+  const companyAmount = value.isCompanyPayInsurance ? (value.companyInsuranceAmount || 0) : 0;
+  const staffAmount = value.isStaffPayInsurance ? (value.staffInsuranceAmount || 0) : 0;
+  const insuranceAmount = value.insuranceAmount || 0;
+  const insuranceSalary = value.insuranceSalary || 0;
+  
+  if (insuranceAmount > insuranceSalary) {
+    return helpers.message("Số tiền đóng bảo hiểm không được lớn hơn mức lương đóng bảo hiểm.");
+  }
+  
+  if (companyAmount + staffAmount > insuranceAmount) {
+    return helpers.message("Tổng số tiền công ty và nhân sự đóng bảo hiểm không được vượt quá số tiền đóng bảo hiểm.");
+  }
+  return value;
 });
 
 const addSalaryConfigSchema = Joi.object({
