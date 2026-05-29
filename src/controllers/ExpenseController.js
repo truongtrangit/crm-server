@@ -38,12 +38,14 @@ class ExpenseController {
   }
 
   async updateExpectedExpense(req, res) {
-    const result = await expenseService.updateExpectedExpense(req.params.id, req.body);
+    const force = req.query.force === "true" || req.body.force === true;
+    const result = await expenseService.updateExpectedExpense(req.params.id, req.body, force);
     return sendSuccess(res, 200, "Cập nhật chi phí dự kiến thành công", result);
   }
 
   async deleteExpectedExpense(req, res) {
-    await expenseService.deleteExpectedExpense(req.params.id);
+    const force = req.query.force === "true";
+    await expenseService.deleteExpectedExpense(req.params.id, force);
     return sendSuccess(res, 200, "Xóa chi phí dự kiến thành công");
   }
 

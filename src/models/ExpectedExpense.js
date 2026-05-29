@@ -8,13 +8,13 @@ const expectedExpenseSchema = new mongoose.Schema(
     type: { type: String, enum: ["monthly", "yearly"], required: true },
     amount: { type: Number, required: true, min: 0 },
     allocatedMonths: {
-      type: [Number],
+      type: [String], // Array of "MM/YYYY"
       required: true,
       validate: {
         validator: function(v) {
-          return v.length > 0 && v.every(m => m >= 1 && m <= 12);
+          return v.length > 0 && v.every(m => /^(0[1-9]|1[0-2])\/\d{4}$/.test(m));
         },
-        message: "allocatedMonths must contain valid month numbers (1-12) and cannot be empty."
+        message: 'Tháng phân bổ không hợp lệ (định dạng MM/YYYY)'
       }
     }
   },

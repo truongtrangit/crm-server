@@ -83,17 +83,32 @@ class ExpenseService {
       remainder = expected.amount - (baseAmount * months.length);
     }
 
-    const sortedMonths = [...months].sort((a, b) => a - b);
+    const sortedMonths = [...months].sort((a, b) => {
+      if (typeof a === 'number') return a - b
+      const [mA, yA] = String(a).split('/');
+      const [mB, yB] = String(b).split('/');
+      if (yA !== yB) return Number(yA) - Number(yB);
+      return Number(mA) - Number(mB);
+    });
 
     for (let i = 0; i < sortedMonths.length; i++) {
-      const month = sortedMonths[i];
+      let m, y;
+      if (typeof sortedMonths[i] === 'number') {
+        m = sortedMonths[i];
+        y = currentYear;
+      } else {
+        const parts = String(sortedMonths[i]).split('/');
+        m = Number(parts[0]);
+        y = Number(parts[1]);
+      }
+
       let monthAmount = baseAmount;
 
       if (expected.type === "yearly" && i === sortedMonths.length - 1) {
         monthAmount += remainder;
       }
 
-      const recordDate = new Date(currentYear, month - 1, 1);
+      const recordDate = new Date(y, m - 1, 1);
       const transactionId = await this._generateTransactionId(recordDate);
 
       const expense = new Expense({
@@ -110,7 +125,16 @@ class ExpenseService {
     }
   }
 
-  async _removeExpectedExpenses(expectedExpenseId) {
+  async _removeExpectedExpenses(expectedExpenseId, force = false) {
+    if (!force) {
+      const approved = await Expense.findOne({
+        expectedExpenseId,
+        status: EXPENSE_STATUSES.APPROVED
+      }).lean();
+      if (approved) {
+        throw createHttpError(400, "Đã có chi phí được duyệt cho khoản này. Vui lòng xác nhận ghi đè.", { code: "RESOURCE_APPROVED_FORCE_REQUIRED" });
+      }
+    }
     await Expense.deleteMany({ expectedExpenseId });
   }
 
@@ -129,7 +153,7 @@ class ExpenseService {
     return expected.populate("category", "id name");
   }
 
-  async updateExpectedExpense(id, data) {
+  async updateExpectedExpense(id, data, force = false) {
     const updateData = { ...data };
     if (data.categoryId) {
       const category = await ExpenseCategory.findOne({ id: data.categoryId });
@@ -137,21 +161,25 @@ class ExpenseService {
       updateData.category = category._id;
     }
 
-    const expected = await ExpectedExpense.findOneAndUpdate({ id }, updateData, { new: true })
-      .populate("category", "id name")
-      .lean();
+    const expected = await ExpectedExpense.findOne({ id }).populate("category", "id name").lean();
     if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
 
-    await this._removeExpectedExpenses(expected._id);
-    await this._generateExpectedExpenses(expected);
+    await this._removeExpectedExpenses(expected._id, force);
 
-    return expected;
+    const updatedExpected = await ExpectedExpense.findOneAndUpdate({ id }, updateData, { new: true })
+      .populate("category", "id name");
+
+    await this._generateExpectedExpenses(updatedExpected);
+
+    return updatedExpected;
   }
 
-  async deleteExpectedExpense(id) {
-    const expected = await ExpectedExpense.findOneAndDelete({ id });
+  async deleteExpectedExpense(id, force = false) {
+    const expected = await ExpectedExpense.findOne({ id });
     if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
-    await this._removeExpectedExpenses(expected._id);
+
+    await this._removeExpectedExpenses(expected._id, force);
+    await ExpectedExpense.findByIdAndDelete(expected._id);
     return { success: true };
   }
 

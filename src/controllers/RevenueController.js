@@ -38,12 +38,14 @@ class RevenueController {
   }
 
   async updateExpectedRevenue(req, res) {
-    const result = await revenueService.updateExpectedRevenue(req.params.id, req.body);
+    const force = req.query.force === "true" || req.body.force === true;
+    const result = await revenueService.updateExpectedRevenue(req.params.id, req.body, force);
     return sendSuccess(res, 200, "Cập nhật doanh thu dự kiến thành công", result);
   }
 
   async deleteExpectedRevenue(req, res) {
-    await revenueService.deleteExpectedRevenue(req.params.id);
+    const force = req.query.force === "true";
+    await revenueService.deleteExpectedRevenue(req.params.id, force);
     return sendSuccess(res, 200, "Xóa doanh thu dự kiến thành công");
   }
 

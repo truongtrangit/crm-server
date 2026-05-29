@@ -17,6 +17,8 @@ const revenueSchema = new mongoose.Schema(
       default: REVENUE_STATUSES.PENDING
     },
     notes: { type: String, default: "", trim: true },
+    expectedRevenueId: { type: mongoose.Schema.Types.ObjectId, ref: "ExpectedRevenue", default: null },
+    isExpected: { type: Boolean, default: false }
   },
   {
     timestamps: true,

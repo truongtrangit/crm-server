@@ -6,14 +6,16 @@ const expectedRevenueSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "RevenueCategory", required: true },
     amount: { type: Number, required: true, min: 0 },
-    expectedDate: { type: Date, required: true },
+    type: { type: String, enum: ["single", "allocated"], default: "single" },
+    expectedDate: { type: Date },
     allocatedMonths: { 
-      type: [Number], 
+      type: [String], // Array of "MM/YYYY"
       validate: {
         validator: function(v) {
-          return v.every(month => month >= 1 && month <= 12);
+          if (this.type === 'single') return true;
+          return v.length > 0 && v.every(m => /^(0[1-9]|1[0-2])\/\d{4}$/.test(m));
         },
-        message: 'Tháng phân bổ phải từ 1 đến 12'
+        message: 'Tháng phân bổ không hợp lệ (định dạng MM/YYYY)'
       },
       default: []
     }

@@ -71,6 +71,73 @@ class RevenueService {
     return expected;
   }
 
+  async _removeExpectedRevenues(expectedRevenueId, force = false) {
+    if (!force) {
+      const completed = await Revenue.findOne({
+        expectedRevenueId,
+        status: REVENUE_STATUSES.COMPLETE
+      }).lean();
+      if (completed) {
+        throw createHttpError(400, "Đã có doanh thu được ghi nhận cho khoản này. Vui lòng xác nhận ghi đè.", { code: "RESOURCE_APPROVED_FORCE_REQUIRED" });
+      }
+    }
+    await Revenue.deleteMany({ expectedRevenueId });
+  }
+
+  async _generateExpectedRevenues(expected) {
+    if (expected.type === "single") {
+      if (!expected.expectedDate) return;
+      const orderId = await this._generateOrderId(expected.category);
+      const revenue = new Revenue({
+        orderId,
+        customerName: expected.name,
+        category: expected.category,
+        amount: expected.amount,
+        recordDate: expected.expectedDate,
+        status: REVENUE_STATUSES.PENDING,
+        isExpected: true,
+        expectedRevenueId: expected._id
+      });
+      await revenue.save();
+    } else if (expected.type === "allocated") {
+      const months = expected.allocatedMonths || [];
+      if (months.length === 0) return;
+
+      const sortedMonths = [...months].sort((a, b) => {
+        const [mA, yA] = a.split('/');
+        const [mB, yB] = b.split('/');
+        if (yA !== yB) return Number(yA) - Number(yB);
+        return Number(mA) - Number(mB);
+      });
+
+      const baseAmount = Math.floor(expected.amount / months.length);
+      const remainder = expected.amount - (baseAmount * months.length);
+
+      for (let i = 0; i < sortedMonths.length; i++) {
+        const [m, y] = sortedMonths[i].split('/');
+        let monthAmount = baseAmount;
+        
+        if (i === sortedMonths.length - 1) {
+          monthAmount += remainder;
+        }
+
+        const recordDate = new Date(Number(y), Number(m) - 1, 1);
+        const orderId = await this._generateOrderId(expected.category);
+        const revenue = new Revenue({
+          orderId,
+          customerName: expected.name,
+          category: expected.category,
+          amount: monthAmount,
+          recordDate,
+          status: REVENUE_STATUSES.PENDING,
+          isExpected: true,
+          expectedRevenueId: expected._id
+        });
+        await revenue.save();
+      }
+    }
+  }
+
   async createExpectedRevenue(data) {
     const category = await RevenueCategory.findOne({ id: data.categoryId });
     if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
@@ -82,10 +149,11 @@ class RevenueService {
       category: category._id
     });
     await expected.save();
+    await this._generateExpectedRevenues(expected);
     return expected.populate("category", "id name");
   }
 
-  async updateExpectedRevenue(id, data) {
+  async updateExpectedRevenue(id, data, force = false) {
     const updateData = { ...data };
     if (data.categoryId) {
       const category = await RevenueCategory.findOne({ id: data.categoryId });
@@ -93,16 +161,24 @@ class RevenueService {
       updateData.category = category._id;
     }
 
-    const expected = await ExpectedRevenue.findOneAndUpdate({ id }, updateData, { new: true })
-      .populate("category", "id name")
-      .lean();
+    const expected = await ExpectedRevenue.findOne({ id }).populate("category", "id name").lean();
     if (!expected) throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
-    return expected;
+
+    await this._removeExpectedRevenues(expected._id, force);
+
+    const updatedExpected = await ExpectedRevenue.findOneAndUpdate({ id }, updateData, { new: true })
+      .populate("category", "id name");
+    
+    await this._generateExpectedRevenues(updatedExpected);
+    return updatedExpected;
   }
 
-  async deleteExpectedRevenue(id) {
-    const expected = await ExpectedRevenue.findOneAndDelete({ id });
+  async deleteExpectedRevenue(id, force = false) {
+    const expected = await ExpectedRevenue.findOne({ id });
     if (!expected) throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
+    
+    await this._removeExpectedRevenues(expected._id, force);
+    await ExpectedRevenue.findByIdAndDelete(expected._id);
     return { success: true };
   }
 
