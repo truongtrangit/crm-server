@@ -7,7 +7,6 @@ const {
   createStaffSchema,
   updateStaffSchema,
   getStaffsQuerySchema,
-  salaryConfigSchema,
 } = require("../../validations/staffs");
 
 const router = express.Router();

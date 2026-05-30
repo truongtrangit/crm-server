@@ -105,6 +105,13 @@ const PERMISSIONS = {
   FUNCTIONS_DELETE: `${RESOURCES.FUNCTIONS}_${ACTIONS.DELETE}`,
   FUNCTIONS_MANAGE: `${RESOURCES.FUNCTIONS}_${ACTIONS.MANAGE}`,
 
+  // Functional Groups
+  FUNCTIONAL_GROUPS_CREATE: `${RESOURCES.FUNCTIONAL_GROUPS}_${ACTIONS.CREATE}`,
+  FUNCTIONAL_GROUPS_READ: `${RESOURCES.FUNCTIONAL_GROUPS}_${ACTIONS.READ}`,
+  FUNCTIONAL_GROUPS_UPDATE: `${RESOURCES.FUNCTIONAL_GROUPS}_${ACTIONS.UPDATE}`,
+  FUNCTIONAL_GROUPS_DELETE: `${RESOURCES.FUNCTIONAL_GROUPS}_${ACTIONS.DELETE}`,
+  FUNCTIONAL_GROUPS_MANAGE: `${RESOURCES.FUNCTIONAL_GROUPS}_${ACTIONS.MANAGE}`,
+
   // Actions Config (actions, results, reasons, action chains)
   ACTIONS_CFG_CREATE: `${RESOURCES.ACTIONS_CFG}_${ACTIONS.CREATE}`,
   ACTIONS_CFG_READ: `${RESOURCES.ACTIONS_CFG}_${ACTIONS.READ}`,
@@ -149,6 +156,9 @@ const PERMISSIONS = {
   TASK_CHAINS_CLOSE: `${RESOURCES.TASK_CHAINS}_close`,
   TASK_CHAINS_MANAGE: `${RESOURCES.TASK_CHAINS}_${ACTIONS.MANAGE}`,
 
+  // Finance Dashboard
+  FINANCE_READ: `${RESOURCES.FINANCE}_${ACTIONS.READ}`,
+
   // Staffs
   STAFFS_CREATE: `${RESOURCES.STAFFS}_${ACTIONS.CREATE}`,
   STAFFS_READ: `${RESOURCES.STAFFS}_${ACTIONS.READ}`,
@@ -191,10 +201,7 @@ const PERMISSIONS = {
   COMPANIES_READ: `${RESOURCES.COMPANIES}_${ACTIONS.READ}`,
   COMPANIES_UPDATE: `${RESOURCES.COMPANIES}_${ACTIONS.UPDATE}`,
   COMPANIES_DELETE: `${RESOURCES.COMPANIES}_${ACTIONS.DELETE}`,
-  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`,
-
-  // Finance Dashboard
-  FINANCE_READ: `${RESOURCES.FINANCE}_${ACTIONS.READ}`,
+  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`
 };
 
 const STAFF_PERMISSIONS = [
@@ -212,6 +219,7 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.EVENT_CHAINS_DELETE,
   PERMISSIONS.METADATA_READ,
   PERMISSIONS.FUNCTIONS_READ,
+  PERMISSIONS.FUNCTIONAL_GROUPS_READ,
   PERMISSIONS.ACTIONS_CFG_READ,
   PERMISSIONS.META_READ,
   PERMISSIONS.META_CREATE,
@@ -237,13 +245,27 @@ const MANAGER_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.USERS_CREATE,
   PERMISSIONS.USERS_READ,
   PERMISSIONS.USERS_UPDATE,
+  PERMISSIONS.USERS_DELETE,
+  PERMISSIONS.USER_RESTORE,
+  PERMISSIONS.USERS_PERMANENT_DELETE,
+  PERMISSIONS.CUSTOMERS_DELETE,
+  PERMISSIONS.CUSTOMER_RESTORE,
+  PERMISSIONS.CUSTOMERS_PERMANENT_DELETE,
   PERMISSIONS.ORGANIZATION_READ,
+  PERMISSIONS.ORGANIZATION_UPDATE,
+  PERMISSIONS.ORGANIZATION_MANAGE,
   PERMISSIONS.ACTIONS_CFG_CREATE,
   PERMISSIONS.ACTIONS_CFG_UPDATE,
   PERMISSIONS.STAFFS_READ,
   PERMISSIONS.STAFFS_CREATE,
   PERMISSIONS.STAFFS_UPDATE,
   PERMISSIONS.STAFFS_DELETE,
+  PERMISSIONS.FUNCTIONS_CREATE,
+  PERMISSIONS.FUNCTIONS_UPDATE,
+  PERMISSIONS.FUNCTIONS_DELETE,
+  PERMISSIONS.FUNCTIONAL_GROUPS_CREATE,
+  PERMISSIONS.FUNCTIONAL_GROUPS_UPDATE,
+  PERMISSIONS.FUNCTIONAL_GROUPS_DELETE,
   PERMISSIONS.SALARIES_READ,
   PERMISSIONS.SALARIES_CREATE,
   PERMISSIONS.SALARIES_UPDATE,
@@ -348,6 +370,7 @@ const MODULE_DEFINITIONS = {
   "staff.users": { key: "staff.users", label: "Tài khoản", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
   "staff.organization": { key: "staff.organization", label: "Sơ đồ tổ chức", type: "sub", parentKey: "staff", actions: ["view", "create", "edit"] },
   "staff.functions": { key: "staff.functions", label: "Chức năng", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
+  "staff.functional_groups": { key: "staff.functional_groups", label: "Khối chức năng", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
   "staff.companies": { key: "staff.companies", label: "Công ty", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
 
   logs: { key: "logs", label: "Logs Hệ thống", type: "root", actions: [] },
@@ -356,6 +379,7 @@ const MODULE_DEFINITIONS = {
   "logs.blockautomation": { key: "logs.blockautomation", label: "Block Automation Logs", type: "sub", parentKey: "logs", actions: ["view"] },
 
   finance: { key: "finance", label: "Tài chính", type: "root", actions: [] },
+  "finance.dashboard": { key: "finance.dashboard", label: "Tổng quan", type: "sub", parentKey: "finance", actions: ["view"] },
   "finance.revenue": { key: "finance.revenue", label: "Doanh thu", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
   "finance.expense": { key: "finance.expense", label: "Chi phí", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
   "finance.salary": { key: "finance.salary", label: "Lương", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
@@ -378,7 +402,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
   "operations.tasks": {
-    "view": [PERMISSIONS.TASKS_READ, PERMISSIONS.TASK_CHAINS_READ, PERMISSIONS.ACTIONS_CFG_READ],
+    "view": [PERMISSIONS.TASKS_READ, PERMISSIONS.TASK_CHAINS_READ, PERMISSIONS.ACTIONS_CFG_READ, PERMISSIONS.USERS_READ],
     "create": [PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASK_CHAINS_CREATE],
     "edit": [PERMISSIONS.TASKS_UPDATE, PERMISSIONS.TASK_CHAINS_UPDATE],
     "delete": [PERMISSIONS.TASKS_DELETE, PERMISSIONS.TASK_CHAINS_DELETE]
@@ -426,6 +450,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "edit": [PERMISSIONS.FUNCTIONS_UPDATE],
     "delete": [PERMISSIONS.FUNCTIONS_DELETE]
   },
+  "staff.functional_groups": {
+    "view": [PERMISSIONS.FUNCTIONAL_GROUPS_READ],
+    "create": [PERMISSIONS.FUNCTIONAL_GROUPS_CREATE],
+    "edit": [PERMISSIONS.FUNCTIONAL_GROUPS_UPDATE],
+    "delete": [PERMISSIONS.FUNCTIONAL_GROUPS_DELETE]
+  },
   "staff.companies": {
     "view": [PERMISSIONS.COMPANIES_READ],
     "create": [PERMISSIONS.COMPANIES_CREATE],
@@ -440,6 +470,9 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   "logs.blockautomation": {
     "view": [PERMISSIONS.LOGS_AUTOMATION_READ]
+  },
+  "finance.dashboard": {
+    "view": [PERMISSIONS.FINANCE_READ]
   },
   "finance.revenue": {
     "view": [PERMISSIONS.REVENUES_READ],
@@ -463,7 +496,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "configure": [PERMISSIONS.SALARIES_MANAGE]
   },
   "finance.salary_config": {
-    "view": [PERMISSIONS.SALARY_CONFIGS_READ],
+    "view": [PERMISSIONS.SALARY_CONFIGS_READ, PERMISSIONS.STAFFS_READ, PERMISSIONS.COMPANIES_READ, PERMISSIONS.FUNCTIONS_READ, PERMISSIONS.FUNCTIONAL_GROUPS_READ],
     "create": [PERMISSIONS.SALARY_CONFIGS_CREATE],
     "edit": [PERMISSIONS.SALARY_CONFIGS_UPDATE],
     "delete": [PERMISSIONS.SALARY_CONFIGS_DELETE],
