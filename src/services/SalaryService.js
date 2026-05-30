@@ -15,9 +15,19 @@ class SalaryService {
     const startOfMonth = new Date(monthYearStr);
     const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0);
 
-    // Lấy tất cả staff
-    const staffs = await Staff.find().lean();
+    // Lấy tất cả staff và các bảng lương đã có trong tháng
+    const [staffs, existingRecords] = await Promise.all([
+      Staff.find().lean(),
+      SalaryRecord.find({ month }).lean()
+    ]);
+
+    const existingRecordMap = new Map();
+    for (const record of existingRecords) {
+      existingRecordMap.set(record.staffId.toString(), record);
+    }
+
     let generatedCount = 0;
+    const bulkOps = [];
 
     for (const staff of staffs) {
       // Bỏ qua nhân sự nghỉ việc TRƯỚC tháng sinh lương
@@ -34,12 +44,6 @@ class SalaryService {
          if (obDate > endOfMonth) {
             continue;
          }
-      }
-
-      // Kiểm tra xem đã có record cho tháng này chưa
-      const existingRecord = await SalaryRecord.findOne({ staffId: staff._id, month });
-      if (existingRecord) {
-        continue; // Đã sinh rồi thì bỏ qua
       }
 
       // Lấy lương cơ bản từ cấu hình (salaryConfigs) có effectiveDate gần nhất <= endOfMonth
@@ -64,28 +68,60 @@ class SalaryService {
         }
       }
 
+      // Kiểm tra xem đã có record cho tháng này chưa
+      const existingRecord = existingRecordMap.get(staff._id.toString());
+      if (existingRecord) {
+        // Nếu đã có nhưng đang pending và lương cơ bản thay đổi -> Cập nhật lại
+        if (existingRecord.status === 'pending' && existingRecord.basicSalary !== basicSalary) {
+          const newTotal = basicSalary + (existingRecord.allowance || 0) + (existingRecord.bonus || 0) - (existingRecord.penalty || 0) + (existingRecord.ot || 0);
+          const newFinalReceivedAmount = newTotal - (existingRecord.deduction || 0);
+          
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: existingRecord._id },
+              update: {
+                $set: {
+                  basicSalary,
+                  total: newTotal,
+                  finalReceivedAmount: newFinalReceivedAmount
+                }
+              }
+            }
+          });
+          generatedCount++;
+        }
+        continue; // Bỏ qua việc tạo mới
+      }
+
       // Tính tổng thực nhận mặc định
       const total = basicSalary;
 
       // Tạo record
-      await SalaryRecord.create({
-        staffId: staff._id,
-        month,
-        basicSalary,
-        bonus: 0,
-        allowance: 0,
-        penalty: 0,
-        deduction: 0,
-        ot: 0,
-        total,
-        finalReceivedAmount: total,
-        status: 'pending',
+      bulkOps.push({
+        insertOne: {
+          document: {
+            staffId: staff._id,
+            month,
+            basicSalary,
+            bonus: 0,
+            allowance: 0,
+            penalty: 0,
+            deduction: 0,
+            ot: 0,
+            total,
+            finalReceivedAmount: total,
+            status: 'pending',
+          }
+        }
       });
-
       generatedCount++;
     }
 
-    console.log(`Completed salary generation for month ${month}. Created ${generatedCount} records.`);
+    if (bulkOps.length > 0) {
+      await SalaryRecord.bulkWrite(bulkOps);
+    }
+
+    console.log(`Completed salary generation for month ${month}. Processed ${generatedCount} records.`);
     return generatedCount;
   }
 

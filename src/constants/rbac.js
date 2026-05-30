@@ -24,6 +24,11 @@ const RESOURCES = {
   LEADS: "leads",                  // Quản lý Lead
   STAFFS: "staffs",                // Cấu hình nhân sự
   SALARIES: "salaries",            // Cấu hình và bảng lương
+  REVENUES: "revenues",            // Doanh thu
+  EXPENSES: "expenses",            // Chi phí
+  SALARY_CONFIGS: "salary_configs", // Cấu hình lương
+  COMPANIES: "companies",          // Cấu hình công ty
+  FINANCE: "finance",              // Báo cáo tài chính
 };
 
 // Actions
@@ -32,6 +37,7 @@ const ACTIONS = {
   READ: "read",
   UPDATE: "update",
   DELETE: "delete",
+  CONFIG: "config",
   PERMANENT_DELETE: "permanent_delete",
   RESTORE: "restore",
   MANAGE: "manage", // Has all permissions for this resource
@@ -156,6 +162,39 @@ const PERMISSIONS = {
   SALARIES_UPDATE: `${RESOURCES.SALARIES}_${ACTIONS.UPDATE}`,
   SALARIES_DELETE: `${RESOURCES.SALARIES}_${ACTIONS.DELETE}`,
   SALARIES_MANAGE: `${RESOURCES.SALARIES}_${ACTIONS.MANAGE}`,
+
+  // Revenues
+  REVENUES_CREATE: `${RESOURCES.REVENUES}_${ACTIONS.CREATE}`,
+  REVENUES_READ: `${RESOURCES.REVENUES}_${ACTIONS.READ}`,
+  REVENUES_UPDATE: `${RESOURCES.REVENUES}_${ACTIONS.UPDATE}`,
+  REVENUES_DELETE: `${RESOURCES.REVENUES}_${ACTIONS.DELETE}`,
+  REVENUES_CONFIG: `${RESOURCES.REVENUES}_${ACTIONS.CONFIG}`,
+  REVENUES_MANAGE: `${RESOURCES.REVENUES}_${ACTIONS.MANAGE}`,
+
+  // Expenses
+  EXPENSES_CREATE: `${RESOURCES.EXPENSES}_${ACTIONS.CREATE}`,
+  EXPENSES_READ: `${RESOURCES.EXPENSES}_${ACTIONS.READ}`,
+  EXPENSES_UPDATE: `${RESOURCES.EXPENSES}_${ACTIONS.UPDATE}`,
+  EXPENSES_DELETE: `${RESOURCES.EXPENSES}_${ACTIONS.DELETE}`,
+  EXPENSES_CONFIG: `${RESOURCES.EXPENSES}_${ACTIONS.CONFIG}`,
+  EXPENSES_MANAGE: `${RESOURCES.EXPENSES}_${ACTIONS.MANAGE}`,
+
+  // Salary Configs
+  SALARY_CONFIGS_CREATE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.CREATE}`,
+  SALARY_CONFIGS_READ: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.READ}`,
+  SALARY_CONFIGS_UPDATE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.UPDATE}`,
+  SALARY_CONFIGS_DELETE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.DELETE}`,
+  SALARY_CONFIGS_MANAGE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.MANAGE}`,
+
+  // Companies
+  COMPANIES_CREATE: `${RESOURCES.COMPANIES}_${ACTIONS.CREATE}`,
+  COMPANIES_READ: `${RESOURCES.COMPANIES}_${ACTIONS.READ}`,
+  COMPANIES_UPDATE: `${RESOURCES.COMPANIES}_${ACTIONS.UPDATE}`,
+  COMPANIES_DELETE: `${RESOURCES.COMPANIES}_${ACTIONS.DELETE}`,
+  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`,
+
+  // Finance Dashboard
+  FINANCE_READ: `${RESOURCES.FINANCE}_${ACTIONS.READ}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -209,6 +248,25 @@ const MANAGER_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.SALARIES_CREATE,
   PERMISSIONS.SALARIES_UPDATE,
   PERMISSIONS.SALARIES_DELETE,
+  PERMISSIONS.REVENUES_READ,
+  PERMISSIONS.REVENUES_CREATE,
+  PERMISSIONS.REVENUES_UPDATE,
+  PERMISSIONS.REVENUES_DELETE,
+  PERMISSIONS.REVENUES_CONFIG,
+  PERMISSIONS.EXPENSES_READ,
+  PERMISSIONS.EXPENSES_CREATE,
+  PERMISSIONS.EXPENSES_UPDATE,
+  PERMISSIONS.EXPENSES_DELETE,
+  PERMISSIONS.EXPENSES_CONFIG,
+  PERMISSIONS.SALARY_CONFIGS_READ,
+  PERMISSIONS.SALARY_CONFIGS_CREATE,
+  PERMISSIONS.SALARY_CONFIGS_UPDATE,
+  PERMISSIONS.SALARY_CONFIGS_DELETE,
+  PERMISSIONS.COMPANIES_READ,
+  PERMISSIONS.COMPANIES_CREATE,
+  PERMISSIONS.COMPANIES_UPDATE,
+  PERMISSIONS.COMPANIES_DELETE,
+  PERMISSIONS.FINANCE_READ,
 ]));
 
 const ADMIN_PERMISSIONS = Array.from(new Set([
@@ -231,6 +289,10 @@ const ADMIN_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.TASK_CHAINS_MANAGE,
   PERMISSIONS.STAFFS_MANAGE,
   PERMISSIONS.SALARIES_MANAGE,
+  PERMISSIONS.REVENUES_MANAGE,
+  PERMISSIONS.EXPENSES_MANAGE,
+  PERMISSIONS.SALARY_CONFIGS_MANAGE,
+  PERMISSIONS.COMPANIES_MANAGE,
 ]));
 
 // Role definitions with their permissions
@@ -286,11 +348,18 @@ const MODULE_DEFINITIONS = {
   "staff.users": { key: "staff.users", label: "Tài khoản", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
   "staff.organization": { key: "staff.organization", label: "Sơ đồ tổ chức", type: "sub", parentKey: "staff", actions: ["view", "create", "edit"] },
   "staff.functions": { key: "staff.functions", label: "Chức năng", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
+  "staff.companies": { key: "staff.companies", label: "Công ty", type: "sub", parentKey: "staff", actions: ["view", "create", "edit", "delete"] },
 
   logs: { key: "logs", label: "Logs Hệ thống", type: "root", actions: [] },
   "logs.system": { key: "logs.system", label: "System Logs", type: "sub", parentKey: "logs", actions: ["view"] },
   "logs.webhook": { key: "logs.webhook", label: "Webhook Logs", type: "sub", parentKey: "logs", actions: ["view"] },
   "logs.blockautomation": { key: "logs.blockautomation", label: "Block Automation Logs", type: "sub", parentKey: "logs", actions: ["view"] },
+
+  finance: { key: "finance", label: "Tài chính", type: "root", actions: [] },
+  "finance.revenue": { key: "finance.revenue", label: "Doanh thu", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
+  "finance.expense": { key: "finance.expense", label: "Chi phí", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
+  "finance.salary": { key: "finance.salary", label: "Lương", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
+  "finance.salary_config": { key: "finance.salary_config", label: "Cấu hình lương", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
@@ -357,6 +426,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "edit": [PERMISSIONS.FUNCTIONS_UPDATE],
     "delete": [PERMISSIONS.FUNCTIONS_DELETE]
   },
+  "staff.companies": {
+    "view": [PERMISSIONS.COMPANIES_READ],
+    "create": [PERMISSIONS.COMPANIES_CREATE],
+    "edit": [PERMISSIONS.COMPANIES_UPDATE],
+    "delete": [PERMISSIONS.COMPANIES_DELETE]
+  },
   "logs.system": {
     "view": [PERMISSIONS.LOGS_SYSTEM_READ]
   },
@@ -365,6 +440,34 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   "logs.blockautomation": {
     "view": [PERMISSIONS.LOGS_AUTOMATION_READ]
+  },
+  "finance.revenue": {
+    "view": [PERMISSIONS.REVENUES_READ],
+    "create": [PERMISSIONS.REVENUES_CREATE],
+    "edit": [PERMISSIONS.REVENUES_UPDATE],
+    "delete": [PERMISSIONS.REVENUES_DELETE],
+    "configure": [PERMISSIONS.REVENUES_MANAGE]
+  },
+  "finance.expense": {
+    "view": [PERMISSIONS.EXPENSES_READ],
+    "create": [PERMISSIONS.EXPENSES_CREATE],
+    "edit": [PERMISSIONS.EXPENSES_UPDATE],
+    "delete": [PERMISSIONS.EXPENSES_DELETE],
+    "configure": [PERMISSIONS.EXPENSES_CONFIG, PERMISSIONS.EXPENSES_MANAGE]
+  },
+  "finance.salary": {
+    "view": [PERMISSIONS.SALARIES_READ],
+    "create": [PERMISSIONS.SALARIES_CREATE],
+    "edit": [PERMISSIONS.SALARIES_UPDATE],
+    "delete": [PERMISSIONS.SALARIES_DELETE],
+    "configure": [PERMISSIONS.SALARIES_MANAGE]
+  },
+  "finance.salary_config": {
+    "view": [PERMISSIONS.SALARY_CONFIGS_READ],
+    "create": [PERMISSIONS.SALARY_CONFIGS_CREATE],
+    "edit": [PERMISSIONS.SALARY_CONFIGS_UPDATE],
+    "delete": [PERMISSIONS.SALARY_CONFIGS_DELETE],
+    "configure": [PERMISSIONS.SALARY_CONFIGS_MANAGE]
   }
 };
 

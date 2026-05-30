@@ -33,3 +33,4 @@ vps_*.md
 vps_deploy_guide.md
 deploy.sh
 .rsyncignore
+*.html

@@ -1,7 +1,9 @@
 # Bản đồ Kiến trúc & Logic Backend (AI_CONTEXT.md)
 
-> **QUAN TRỌNG:** File này chứa TOÀN BỘ kiến trúc, luồng xử lý, và chi tiết nghiệp vụ sau khi gộp (merge) tính năng. Phải chủ động cập nhật mỗi khi thay đổi cấu trúc hoặc logic cốt lõi.
-
+> **QUAN TRỌNG (AI WORKFLOW INSTRUCTION):** 
+> 1. Trợ lý AI **BẮT BUỘC** phải đọc qua file `AI_CONTEXT.md` này trước khi implement bất kỳ tính năng nào để hiểu rõ cấu trúc source code, quy tắc (rules), và conventions. Sau đó mới tiến hành code.
+> 2. Sau khi thực thi xong, nếu có phát sinh logic mới, component mới hoặc convention mới, **BẮT BUỘC** phải ghi chép lại/cập nhật vào file `AI_CONTEXT.md` này để giữ đồng bộ kiến thức cho các phiên làm việc tiếp theo.
+> 3. Sau khi implement tính năng hoặc sửa bug, **BẮT BUỘC** phải kiểm tra cú pháp (syntax/linter) và đảm bảo server BE khởi động thành công, không bị crash trước khi kết thúc công việc.
 ---
 
 ## 1. Kiến trúc luồng xử lý (Data Flow)
@@ -78,9 +80,14 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       - Phân hệ Logs được phân rã thành 3 module con độc lập: `logs.system` (System Logs), `logs.webhook` (Webhook Logs) và `logs.blockautomation` (Block Automation Logs).
       - Backend gán 3 quyền tương ứng là `logs_system_read`, `logs_webhook_read`, và `logs_automation_read`, bảo vệ chặt chẽ độc lập các đầu API `/api/v1/logs/*`.
       - Giao diện UI (`LogsPage.tsx`) chỉ hiển thị đúng các tab được cấp quyền trong `moduleAccess` của tài khoản, tự động chọn tab khả dụng đầu tiên làm mặc định khi truy cập.
+      - **Tương tự với phân hệ Tài chính (Finance)**: Tính năng Báo cáo Dashboard Tài chính thuộc `FINANCE_READ` (route `finance.dashboard`), bảo vệ API `/api/v1/finance/dashboard`. Các tính năng khác của finance bảo vệ riêng rẽ (`REVENUES_READ`, `EXPENSES_READ`, v.v.). Giao diện `FinancePage.tsx` dựa vào MLAC để hiển thị các tab.
 
 ### 3.4 Quản lý Lương & Tài chính (Finance & Salary)
-- **Logic Tính lương**:
+- **Logic Doanh thu (Revenue)**:
+  - `RevenueService`: Quản lý danh mục doanh thu (`RevenueCategory`) và các khoản thu (`Revenue`).
+  - **Tự động sinh ID**: Danh mục sẽ tự động cấp ID dạng `RVCxxx`. Các khoản thu tự động cấp mã đơn (orderId) dạng `[PREFIX]-[YYMM]-[STT]`, trong đó `PREFIX` được nội suy (extract) từ các chữ cái đầu của tên danh mục (Ví dụ: "Gói cước CRM" -> `GCC`).
+  - **Thống kê (Stats)**: Tính toán tổng doanh thu theo tháng/năm, và gom nhóm (group) theo từng danh mục. Tự động loại bỏ các khoản thu có trạng thái `Đã hủy` khỏi biểu đồ KPI tổng.
+- **Logic Tính lương (Salary)**:
   - `SalaryService`: Chịu trách nhiệm sinh bảng lương (`generateSalaryForMonth`). Tự động đối chiếu `onboardDate` và `resignationDate` để loại trừ các nhân sự chưa vào hoặc đã nghỉ việc trước tháng tính lương.
   - Tự động lấy `basicSalary` (Lương cơ bản) dựa trên lịch sử `salaryConfigs` của nhân sự, chọn bản ghi có `effectiveDate` phù hợp nhất tính tới cuối tháng đó.
   - Lương cơ bản mặc định được lấy từ cấu hình, tuy nhiên hệ thống cho phép **sửa trực tiếp** Lương cơ bản trong bảng lương tháng đó qua `batchUpdateSalaries`.
@@ -91,8 +98,14 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
 
 ---
 
-## 4. Quy tắc & Ràng buộc (Conventions)
-1. **Tuyệt đối không** tương tác với Database trực tiếp tại Controller.
-2. 100% sử dụng **Soft Delete** (`isDeleted=true` hoặc `isArchived=true`), không được xóa dữ liệu thật để bảo toàn dữ liệu tham chiếu (Analytics).
-3. Luôn bọc logic Controller/Service bằng `try/catch` và ném lỗi qua `createHttpError()` để error handler tổng hứng.
-4. Naming convention: Variable/Function là `camelCase`, Model/Schema là `PascalCase`.
+## 4. Quy tắc & Ràng buộc (Conventions) thực tế đang áp dụng
+1. **Tương tác Database**: Phần lớn hệ thống định tuyến logic xử lý Database vào tầng Service. Tuy nhiên, một số Controller đặc thù (ví dụ: `EventActionChainController`, `TaskActionChainController`) vẫn đang trực tiếp tương tác với DB (gọi `findOne`, `save`, v.v.). Mục tiêu dài hạn là tách hoàn toàn logic DB khỏi Controller.
+2. **Quy tắc Xóa dữ liệu (Delete)**: Hiện tại, codebase đang kết hợp cả Soft Delete và Hard Delete:
+   - Các Model cốt lõi (`Event`, `Task`, `Lead`, `EventActionChain`...) sử dụng plugin Soft Delete (`isDeleted=true` hoặc `isArchived=true`) để bảo toàn dữ liệu tham chiếu (Analytics).
+   - Tuy nhiên, các cấu hình, meta, và danh mục (`ActionConfig`, `Funnel`, `RevenueCategory`, `LeadStatus`, v.v.) vẫn đang thực thi Hard Delete (`deleteOne`, `findOneAndDelete`). 
+   - **Xóa danh mục đang sử dụng (Force Delete)**: Khi một danh mục (ví dụ `RevenueCategory`) đang được sử dụng (có records liên kết), thao tác xóa mặc định sẽ bị chặn và trả về lỗi `RESOURCE_IN_USE`. Nếu User chọn "Force Delete" (gửi `?force=true`), backend sẽ tự động cập nhật tất cả records liên quan thành trạng thái `null` (Chưa phân loại/Empty) trước khi thực hiện Hard Delete danh mục đó.
+3. **Xử lý Lỗi (Error Handling)**: Express 5 tự động hứng async errors để chuyển sang Global Error Handler. Chuẩn mong muốn là Controller không chứa `try/catch`, chỉ gọi hàm service, ném `throw createHttpError(...)` từ Service và return `sendSuccess`. Trên thực tế, một số Controller (`AuthController`, `OrganizationController`, `RbacController`) vẫn đang sử dụng cấu trúc `try/catch`.
+4. **Primary Key (Định danh ID)**: Codebase sử dụng một trường custom tên là `id` dạng chuỗi (String) với logic sinh mã riêng (`generateMonotonicId` với các prefix như `EAC-`, `TAC-`, `RVC...`) làm định danh chính để tương tác API thay cho `_id` mặc định (ObjectId) của MongoDB.
+5. **Chuẩn hóa Response**: Toàn bộ kết quả trả về API được wrapper lại thông qua các hàm tiện ích `sendSuccess` và `sendError` (từ thư mục `utils/http`).
+6. **Naming convention**: Variable/Function là `camelCase`, Model/Schema là `PascalCase`.
+7. **Quy tắc phân quyền cấu hình (RBAC Config)**: Các API liên quan đến thao tác cài đặt, cấu hình của một phân hệ (ví dụ Cấu hình loại doanh thu, doanh thu dự kiến) sẽ sử dụng quyền có hậu tố `_CONFIG` (ví dụ `REVENUES_CONFIG`) thay vì các quyền Read/Create/Update/Delete cụ thể. Điều này giúp tách biệt rạch ròi quyền "Quản trị hệ thống/cấu hình" khỏi quyền "Tương tác dữ liệu hằng ngày".

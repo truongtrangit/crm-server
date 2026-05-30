@@ -45,12 +45,13 @@ class StaffController {
   }
 
   async addSalaryConfig(req, res) {
+    const { staffId, ...rest } = req.body;
     const body = {
-      ...req.body,
+      ...rest,
       createdBy: req.user.id
     };
     
-    const staff = await StaffService.addSalaryConfig(req.params.staffId, body);
+    const staff = await StaffService.addSalaryConfig(staffId, body);
 
     SystemLogService.log({ action: "update", resource: RESOURCES.STAFFS, resourceId: staff.id, resourceName: staff.name, description: `Thêm cấu hình lương mới cho nhân sự: ${staff.name}`, metadata: { changes: body }, req });
 
