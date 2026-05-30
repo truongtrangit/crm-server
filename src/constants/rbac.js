@@ -149,6 +149,9 @@ const PERMISSIONS = {
   TASK_CHAINS_CLOSE: `${RESOURCES.TASK_CHAINS}_close`,
   TASK_CHAINS_MANAGE: `${RESOURCES.TASK_CHAINS}_${ACTIONS.MANAGE}`,
 
+  // Finance Dashboard
+  FINANCE_READ: `${RESOURCES.FINANCE}_${ACTIONS.READ}`,
+
   // Staffs
   STAFFS_CREATE: `${RESOURCES.STAFFS}_${ACTIONS.CREATE}`,
   STAFFS_READ: `${RESOURCES.STAFFS}_${ACTIONS.READ}`,
@@ -191,10 +194,7 @@ const PERMISSIONS = {
   COMPANIES_READ: `${RESOURCES.COMPANIES}_${ACTIONS.READ}`,
   COMPANIES_UPDATE: `${RESOURCES.COMPANIES}_${ACTIONS.UPDATE}`,
   COMPANIES_DELETE: `${RESOURCES.COMPANIES}_${ACTIONS.DELETE}`,
-  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`,
-
-  // Finance Dashboard
-  FINANCE_READ: `${RESOURCES.FINANCE}_${ACTIONS.READ}`,
+  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`
 };
 
 const STAFF_PERMISSIONS = [
@@ -356,6 +356,7 @@ const MODULE_DEFINITIONS = {
   "logs.blockautomation": { key: "logs.blockautomation", label: "Block Automation Logs", type: "sub", parentKey: "logs", actions: ["view"] },
 
   finance: { key: "finance", label: "Tài chính", type: "root", actions: [] },
+  "finance.dashboard": { key: "finance.dashboard", label: "Tổng quan", type: "sub", parentKey: "finance", actions: ["view"] },
   "finance.revenue": { key: "finance.revenue", label: "Doanh thu", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
   "finance.expense": { key: "finance.expense", label: "Chi phí", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
   "finance.salary": { key: "finance.salary", label: "Lương", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
@@ -440,6 +441,9 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   "logs.blockautomation": {
     "view": [PERMISSIONS.LOGS_AUTOMATION_READ]
+  },
+  "finance.dashboard": {
+    "view": [PERMISSIONS.FINANCE_READ]
   },
   "finance.revenue": {
     "view": [PERMISSIONS.REVENUES_READ],
