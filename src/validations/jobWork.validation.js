@@ -29,7 +29,7 @@ const checklistItemSchema = Joi.object({
 const createJobTaskSchema = Joi.object({
   name: Joi.string().trim().min(1).max(300).required(),
   folderId: Joi.string().allow(null, "").optional(),
-  jobChannelId: Joi.string().allow(null, "").optional(),
+  jobChannelIds: Joi.array().items(Joi.string()).optional(),
   jobTaskTypeId: Joi.string().allow(null, "").optional(),
   statusId: Joi.string().required(),
   assignees: Joi.array().items(Joi.string()).optional(),
@@ -43,7 +43,7 @@ const createJobTaskSchema = Joi.object({
 const updateJobTaskSchema = Joi.object({
   name: Joi.string().trim().min(1).max(300).optional(),
   folderId: Joi.string().allow(null, "").optional(),
-  jobChannelId: Joi.string().allow(null, "").optional(),
+  jobChannelIds: Joi.array().items(Joi.string()).optional(),
   jobTaskTypeId: Joi.string().allow(null, "").optional(),
   statusId: Joi.string().optional(),
   assignees: Joi.array().items(Joi.string()).optional(),

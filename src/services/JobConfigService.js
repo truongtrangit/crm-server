@@ -125,7 +125,12 @@ class JobConfigService {
       throw createHttpError(400, "Không thể xoá kênh đang chứa kênh con. Vui lòng xoá kênh con trước.");
     }
     // Check if channel is used by repeat rules
-    const usedByRules = await JobConfigRepeatRule.exists({ channelId: id });
+    const usedByRules = await JobConfigRepeatRule.exists({
+      $or: [
+        { channelId: id },
+        { channelIds: id }
+      ]
+    });
     if (usedByRules) {
       throw createHttpError(400, "Kênh đang được sử dụng bởi Quy tắc lặp lại. Không thể xoá.");
     }
@@ -147,9 +152,16 @@ class JobConfigService {
   }
 
   async createRepeatRule(data, currentUser) {
-    // Validate channel
-    const channel = await JobConfigChannel.findOne({ id: data.channelId });
-    if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
+    // Validate channels
+    if (data.channelIds && data.channelIds.length > 0) {
+      const channels = await JobConfigChannel.find({ id: { $in: data.channelIds } });
+      if (channels.length !== data.channelIds.length) {
+        throw createHttpError(404, "Một hoặc nhiều kênh triển khai không tồn tại");
+      }
+    } else if (data.channelId) {
+      const channel = await JobConfigChannel.findOne({ id: data.channelId });
+      if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
+    }
 
     const id = await generateMonotonicId(ID_PREFIXES.JOB_REPEAT_RULE);
     const rule = new JobConfigRepeatRule({ ...data, id });
@@ -167,7 +179,12 @@ class JobConfigService {
     const rule = await JobConfigRepeatRule.findOne({ id });
     if (!rule) throw createHttpError(404, "Không tìm thấy quy tắc lặp lại");
 
-    if (data.channelId && data.channelId !== rule.channelId) {
+    if (data.channelIds && data.channelIds.length > 0) {
+      const channels = await JobConfigChannel.find({ id: { $in: data.channelIds } });
+      if (channels.length !== data.channelIds.length) {
+        throw createHttpError(404, "Một hoặc nhiều kênh triển khai không tồn tại");
+      }
+    } else if (data.channelId && data.channelId !== rule.channelId) {
       const channel = await JobConfigChannel.findOne({ id: data.channelId });
       if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
     }

@@ -9,7 +9,7 @@ const jobChannelSchema = new mongoose.Schema(
     icon: { type: String, default: "fa-solid fa-share-nodes" },
     color: { type: String, default: "#1f2937" },
     parentId: { type: String, ref: "JobConfigChannel", default: null }, // Self-referencing ID (not ObjectId)
-    url: { type: String, default: "" },
+    urls: { type: [String], default: [] },
   },
   {
     timestamps: true,

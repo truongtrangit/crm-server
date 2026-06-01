@@ -13,7 +13,7 @@ const jobRepeatRuleSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true }, // JRR...
     name: { type: String, required: true, trim: true },
-    channelId: { type: String, ref: "JobConfigChannel", required: true },
+    channelIds: [{ type: String, ref: "JobConfigChannel" }], // Multiple channels support
     taskTypeId: { type: String, ref: "JobConfigTaskType", required: true },
     assignees: [{ type: String, ref: "User" }], // Array of User IDs
     cycleType: { type: String, enum: ["weekly", "monthly"], required: true },

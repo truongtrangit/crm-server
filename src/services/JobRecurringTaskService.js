@@ -2,7 +2,7 @@ const JobTask = require("../models/JobTask");
 const JobConfigRepeatRule = require("../models/JobConfigRepeatRule");
 const JobConfigStatus = require("../models/JobConfigStatus");
 const TaskService = require("./TaskService");
-const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
+const { ID_PREFIXES, generateMonotonicId, generateMonotonicIdsBatch } = require("../utils/id");
 
 class JobRecurringTaskService {
   /**
@@ -43,7 +43,7 @@ class JobRecurringTaskService {
    * Sinh các task mới dựa trên rule và danh sách các ngày
    */
   async _generateTasksForDates(rule, dates, currentUser) {
-    if (!rule.isActive) return;
+    if (!rule.isActive || !dates || dates.length === 0) return;
 
     // Lấy trạng thái mặc định
     const defaultStatusId = await this._getDefaultStatusId();
@@ -55,24 +55,49 @@ class JobRecurringTaskService {
     // Resolve assignees
     const resolvedAssignees = rule.assignees || [];
 
+    // Resolve channels array
+    const taskChannelIds = [];
+    if (rule.channelIds && rule.channelIds.length > 0) {
+      taskChannelIds.push(...rule.channelIds);
+    } else if (rule.channelId) {
+      taskChannelIds.push(rule.channelId);
+    }
+
+    // 1. Bulk check existing tasks in the date range to avoid N database queries inside the loop
+    const minTime = Math.min(...dates.map(d => d.getTime()));
+    const maxTime = Math.max(...dates.map(d => d.getTime()));
+    
+    const minDate = new Date(minTime);
+    minDate.setHours(0, 0, 0, 0);
+    
+    const maxDate = new Date(maxTime);
+    maxDate.setHours(23, 59, 59, 999);
+
+    const existingTasks = await JobTask.find({
+      sourceRuleId: rule.id,
+      scheduledDate: { $gte: minDate, $lte: maxDate }
+    }, { scheduledDate: 1 }).lean();
+
+    const existingKeysSet = new Set(existingTasks.map(t => {
+      const d = new Date(t.scheduledDate);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    }));
+
+    const datesToGenerate = dates.filter(date => {
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      return !existingKeysSet.has(key);
+    });
+
+    if (datesToGenerate.length === 0) return; // All tasks already exist!
+
+    // 2. Batch generate monotonic IDs in a single DB operation to avoid N sequential operations
+    const generatedIds = await generateMonotonicIdsBatch(ID_PREFIXES.JOB_TASK || "JBT", datesToGenerate.length);
     const tasksToInsert = [];
 
-    for (const date of dates) {
-      // Check duplicate
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+    for (let idx = 0; idx < datesToGenerate.length; idx++) {
+      const date = datesToGenerate[idx];
+      const id = generatedIds[idx];
 
-      const exists = await JobTask.exists({
-        sourceRuleId: rule.id,
-        scheduledDate: { $gte: startOfDay, $lt: endOfDay }
-      });
-
-      if (exists) continue;
-
-      const id = await generateMonotonicId(ID_PREFIXES.JOB_TASK || "JBT");
-      
       const checklists = (rule.checklists || []).map(cl => ({
         title: cl.title,
         assignees: cl.assignees || [],
@@ -84,7 +109,7 @@ class JobRecurringTaskService {
         name: `${rule.name} - ${date.toLocaleDateString("vi-VN")}`,
         statusId: defaultStatusId,
         jobTaskTypeId: rule.taskTypeId || null,
-        jobChannelId: rule.channelId || null,
+        jobChannelIds: taskChannelIds,
         createdBy: currentUser?.id || null,
         assignees: resolvedAssignees,
         details: rule.details || "",
@@ -156,7 +181,7 @@ class JobRecurringTaskService {
   async runDailyCron() {
     console.log("[JobRecurringTask] Running daily generation cron...");
     const rules = await JobConfigRepeatRule.find({ isActive: true });
-    
+
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 30);
     targetDate.setHours(0, 0, 0, 0);

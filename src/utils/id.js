@@ -74,7 +74,32 @@ async function generateMonotonicId(prefix) {
   return `${prefix}${counter.seq}`;
 }
 
+/**
+ * Generate a batch of monotonic IDs atomicly.
+ * Increments the sequence once and returns the batch of generated IDs.
+ *
+ * @param {string} prefix - e.g. ID_PREFIXES.TASK
+ * @param {number} count - number of IDs to generate
+ * @returns {Promise<string[]>}
+ */
+async function generateMonotonicIdsBatch(prefix, count) {
+  if (count <= 0) return [];
+  const counter = await Counter.findByIdAndUpdate(
+    prefix,
+    { $inc: { seq: count } },
+    { new: true, upsert: true },
+  );
+  const endSeq = counter.seq;
+  const startSeq = endSeq - count + 1;
+  const ids = [];
+  for (let i = startSeq; i <= endSeq; i++) {
+    ids.push(`${prefix}${i}`);
+  }
+  return ids;
+}
+
 module.exports = {
   ID_PREFIXES,
   generateMonotonicId,
+  generateMonotonicIdsBatch,
 };
