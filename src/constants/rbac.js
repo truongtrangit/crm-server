@@ -29,6 +29,7 @@ const RESOURCES = {
   SALARY_CONFIGS: "salary_configs", // Cấu hình lương
   COMPANIES: "companies",          // Cấu hình công ty
   FINANCE: "finance",              // Báo cáo tài chính
+  JOBHUB: "jobhub",                // Job Hub
 };
 
 // Actions
@@ -201,7 +202,43 @@ const PERMISSIONS = {
   COMPANIES_READ: `${RESOURCES.COMPANIES}_${ACTIONS.READ}`,
   COMPANIES_UPDATE: `${RESOURCES.COMPANIES}_${ACTIONS.UPDATE}`,
   COMPANIES_DELETE: `${RESOURCES.COMPANIES}_${ACTIONS.DELETE}`,
-  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`
+  COMPANIES_MANAGE: `${RESOURCES.COMPANIES}_${ACTIONS.MANAGE}`,
+
+  // Job Hub
+  // Job Hub - Work (Chung)
+  JOBHUB_WORK_READ: `${RESOURCES.JOBHUB}_work_${ACTIONS.READ}`,
+  JOBHUB_WORK_MANAGE: `${RESOURCES.JOBHUB}_work_${ACTIONS.MANAGE}`,
+
+  // Job Hub - Folders
+  JOBHUB_FOLDER_CREATE: `${RESOURCES.JOBHUB}_folder_${ACTIONS.CREATE}`,
+  JOBHUB_FOLDER_UPDATE: `${RESOURCES.JOBHUB}_folder_${ACTIONS.UPDATE}`,
+  JOBHUB_FOLDER_DELETE: `${RESOURCES.JOBHUB}_folder_${ACTIONS.DELETE}`,
+
+  // Job Hub - Tasks
+  JOBHUB_TASK_CREATE: `${RESOURCES.JOBHUB}_task_${ACTIONS.CREATE}`,
+  JOBHUB_TASK_UPDATE: `${RESOURCES.JOBHUB}_task_${ACTIONS.UPDATE}`,
+  JOBHUB_TASK_DELETE: `${RESOURCES.JOBHUB}_task_${ACTIONS.DELETE}`,
+
+  // Job Hub - Config
+  JOBHUB_CONFIG_CHANNEL_READ: `${RESOURCES.JOBHUB}_channel_${ACTIONS.READ}`,
+  JOBHUB_CONFIG_CHANNEL_CREATE: `${RESOURCES.JOBHUB}_channel_${ACTIONS.CREATE}`,
+  JOBHUB_CONFIG_CHANNEL_UPDATE: `${RESOURCES.JOBHUB}_channel_${ACTIONS.UPDATE}`,
+  JOBHUB_CONFIG_CHANNEL_DELETE: `${RESOURCES.JOBHUB}_channel_${ACTIONS.DELETE}`,
+
+  JOBHUB_CONFIG_TASK_TYPE_READ: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.READ}`,
+  JOBHUB_CONFIG_TASK_TYPE_CREATE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.CREATE}`,
+  JOBHUB_CONFIG_TASK_TYPE_UPDATE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.UPDATE}`,
+  JOBHUB_CONFIG_TASK_TYPE_DELETE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.DELETE}`,
+
+  JOBHUB_CONFIG_STATUS_READ: `${RESOURCES.JOBHUB}_status_${ACTIONS.READ}`,
+  JOBHUB_CONFIG_STATUS_CREATE: `${RESOURCES.JOBHUB}_status_${ACTIONS.CREATE}`,
+  JOBHUB_CONFIG_STATUS_UPDATE: `${RESOURCES.JOBHUB}_status_${ACTIONS.UPDATE}`,
+  JOBHUB_CONFIG_STATUS_DELETE: `${RESOURCES.JOBHUB}_status_${ACTIONS.DELETE}`,
+
+  JOBHUB_CONFIG_REPEAT_RULE_READ: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.READ}`,
+  JOBHUB_CONFIG_REPEAT_RULE_CREATE: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.CREATE}`,
+  JOBHUB_CONFIG_REPEAT_RULE_UPDATE: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.UPDATE}`,
+  JOBHUB_CONFIG_REPEAT_RULE_DELETE: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.DELETE}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -238,6 +275,9 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.TASK_CHAINS_UPDATE,
   PERMISSIONS.TASK_CHAINS_CLOSE,
   PERMISSIONS.TASK_CHAINS_DELETE,
+  PERMISSIONS.JOBHUB_WORK_READ,
+  PERMISSIONS.JOBHUB_TASK_CREATE,
+  PERMISSIONS.JOBHUB_TASK_UPDATE,
 ];
 
 const MANAGER_PERMISSIONS = Array.from(new Set([
@@ -289,6 +329,26 @@ const MANAGER_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.COMPANIES_UPDATE,
   PERMISSIONS.COMPANIES_DELETE,
   PERMISSIONS.FINANCE_READ,
+  PERMISSIONS.JOBHUB_TASK_DELETE,
+  PERMISSIONS.JOBHUB_FOLDER_CREATE,
+  PERMISSIONS.JOBHUB_FOLDER_UPDATE,
+  PERMISSIONS.JOBHUB_FOLDER_DELETE,
+  PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ,
+  PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_CREATE,
+  PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_UPDATE,
+  PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_DELETE,
+  PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ,
+  PERMISSIONS.JOBHUB_CONFIG_CHANNEL_CREATE,
+  PERMISSIONS.JOBHUB_CONFIG_CHANNEL_UPDATE,
+  PERMISSIONS.JOBHUB_CONFIG_CHANNEL_DELETE,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_CREATE,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_UPDATE,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE,
+  PERMISSIONS.JOBHUB_CONFIG_STATUS_READ,
+  PERMISSIONS.JOBHUB_CONFIG_STATUS_CREATE,
+  PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE,
+  PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE,
 ]));
 
 const ADMIN_PERMISSIONS = Array.from(new Set([
@@ -315,6 +375,7 @@ const ADMIN_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.EXPENSES_MANAGE,
   PERMISSIONS.SALARY_CONFIGS_MANAGE,
   PERMISSIONS.COMPANIES_MANAGE,
+  PERMISSIONS.JOBHUB_WORK_MANAGE,
 ]));
 
 // Role definitions with their permissions
@@ -384,6 +445,13 @@ const MODULE_DEFINITIONS = {
   "finance.expense": { key: "finance.expense", label: "Chi phí", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
   "finance.salary": { key: "finance.salary", label: "Lương", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
   "finance.salary_config": { key: "finance.salary_config", label: "Cấu hình lương", type: "sub", parentKey: "finance", actions: ["view", "create", "edit", "delete", "configure"] },
+
+  jobhub: { key: "jobhub", label: "Job Hub", type: "root", actions: [] },
+  "jobhub.tasks": { key: "jobhub.tasks", label: "Công việc", type: "sub", parentKey: "jobhub", actions: ["view", "create_task", "edit_task", "delete_task", "manage_folders"] },
+  "jobhub.config.repeatRule": { key: "jobhub.config.repeatRule", label: "Quy tắc lặp lại", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.channel": { key: "jobhub.config.channel", label: "Kênh triển khai", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.taskType": { key: "jobhub.config.taskType", label: "Loại công việc", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.status": { key: "jobhub.config.status", label: "Trạng thái", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
@@ -501,6 +569,37 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "edit": [PERMISSIONS.SALARY_CONFIGS_UPDATE],
     "delete": [PERMISSIONS.SALARY_CONFIGS_DELETE],
     "configure": [PERMISSIONS.SALARY_CONFIGS_MANAGE]
+  },
+  "jobhub.tasks": {
+    "view": [PERMISSIONS.JOBHUB_WORK_READ],
+    "create_task": [PERMISSIONS.JOBHUB_TASK_CREATE],
+    "edit_task": [PERMISSIONS.JOBHUB_TASK_UPDATE],
+    "delete_task": [PERMISSIONS.JOBHUB_TASK_DELETE],
+    "manage_folders": [PERMISSIONS.JOBHUB_FOLDER_CREATE, PERMISSIONS.JOBHUB_FOLDER_UPDATE, PERMISSIONS.JOBHUB_FOLDER_DELETE]
+  },
+  "jobhub.config.repeatRule": {
+    "view": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ],
+    "create": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_CREATE],
+    "edit": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_UPDATE],
+    "delete": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_DELETE]
+  },
+  "jobhub.config.channel": {
+    "view": [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ],
+    "create": [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_CREATE],
+    "edit": [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_UPDATE],
+    "delete": [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_DELETE]
+  },
+  "jobhub.config.taskType": {
+    "view": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ],
+    "create": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_CREATE],
+    "edit": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_UPDATE],
+    "delete": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE]
+  },
+  "jobhub.config.status": {
+    "view": [PERMISSIONS.JOBHUB_CONFIG_STATUS_READ],
+    "create": [PERMISSIONS.JOBHUB_CONFIG_STATUS_CREATE],
+    "edit": [PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE],
+    "delete": [PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE]
   }
 };
 

@@ -1,0 +1,199 @@
+const { createHttpError } = require("../utils/http");
+const JobConfigStatus = require("../models/JobConfigStatus");
+const JobConfigTaskType = require("../models/JobConfigTaskType");
+const JobConfigChannel = require("../models/JobConfigChannel");
+const JobConfigRepeatRule = require("../models/JobConfigRepeatRule");
+const JobRecurringTaskService = require("./JobRecurringTaskService");
+const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
+
+class JobConfigService {
+  // ==========================================
+  // STATUS CONFIG
+  // ==========================================
+  async getStatuses() {
+    return JobConfigStatus.find().sort({ order: 1, createdAt: 1 }).lean();
+  }
+
+  async createStatus(data) {
+    const id = await generateMonotonicId(ID_PREFIXES.JOB_STATUS_CONFIG);
+    const status = new JobConfigStatus({ ...data, id });
+    await status.save();
+    return status;
+  }
+
+  async updateStatus(id, data) {
+    const status = await JobConfigStatus.findOne({ id });
+    if (!status) throw createHttpError(404, "Không tìm thấy trạng thái");
+    Object.assign(status, data);
+    await status.save();
+    return status;
+  }
+
+  async deleteStatus(id) {
+    const status = await JobConfigStatus.findOne({ id });
+    if (!status) throw createHttpError(404, "Không tìm thấy trạng thái");
+    // Optionally: check if status is in use by Tasks
+    await JobConfigStatus.deleteOne({ id });
+    return { success: true };
+  }
+
+  async reorderStatuses(orderedIds) {
+    if (!orderedIds || orderedIds.length === 0) return true;
+
+    // 1. Kiểm tra tồn tại
+    const existingStatuses = await JobConfigStatus.find({ id: { $in: orderedIds } });
+    if (existingStatuses.length !== orderedIds.length) {
+      throw Object.assign(new Error("Danh sách ID không hợp lệ hoặc chứa trạng thái không tồn tại"), { status: 400 });
+    }
+
+    // 2. Kiểm tra đủ số lượng
+    const totalInDb = await JobConfigStatus.countDocuments();
+    if (totalInDb !== orderedIds.length) {
+      throw Object.assign(new Error("Vui lòng gửi đầy đủ danh sách trạng thái để sắp xếp"), { status: 400 });
+    }
+
+    const promises = orderedIds.map((id, index) => 
+      JobConfigStatus.findOneAndUpdate({ id }, { order: index })
+    );
+    await Promise.all(promises);
+    return true;
+  }
+
+  // ==========================================
+  // TASK TYPE CONFIG
+  // ==========================================
+  async getTaskTypes() {
+    return JobConfigTaskType.find().sort({ createdAt: -1 }).lean();
+  }
+
+  async createTaskType(data) {
+    const id = await generateMonotonicId(ID_PREFIXES.JOB_TASK_TYPE);
+    const taskType = new JobConfigTaskType({ ...data, id });
+    await taskType.save();
+    return taskType;
+  }
+
+  async updateTaskType(id, data) {
+    const taskType = await JobConfigTaskType.findOne({ id });
+    if (!taskType) throw createHttpError(404, "Không tìm thấy loại công việc");
+    Object.assign(taskType, data);
+    await taskType.save();
+    return taskType;
+  }
+
+  async deleteTaskType(id) {
+    const taskType = await JobConfigTaskType.findOne({ id });
+    if (!taskType) throw createHttpError(404, "Không tìm thấy loại công việc");
+    if (taskType.isSystem) {
+      throw createHttpError(400, "Không thể xoá loại công việc mặc định của hệ thống");
+    }
+    await JobConfigTaskType.deleteOne({ id });
+    return { success: true };
+  }
+
+  // ==========================================
+  // CHANNEL CONFIG
+  // ==========================================
+  async getChannels() {
+    return JobConfigChannel.find().sort({ createdAt: -1 }).lean();
+  }
+
+  async createChannel(data) {
+    const id = await generateMonotonicId(ID_PREFIXES.JOB_CHANNEL);
+    const channel = new JobConfigChannel({ ...data, id });
+    await channel.save();
+    return channel;
+  }
+
+  async updateChannel(id, data) {
+    const channel = await JobConfigChannel.findOne({ id });
+    if (!channel) throw createHttpError(404, "Không tìm thấy kênh triển khai");
+    Object.assign(channel, data);
+    await channel.save();
+    return channel;
+  }
+
+  async deleteChannel(id) {
+    const channel = await JobConfigChannel.findOne({ id });
+    if (!channel) throw createHttpError(404, "Không tìm thấy kênh triển khai");
+    // Check if channel has children
+    const hasChildren = await JobConfigChannel.exists({ parentId: id });
+    if (hasChildren) {
+      throw createHttpError(400, "Không thể xoá kênh đang chứa kênh con. Vui lòng xoá kênh con trước.");
+    }
+    // Check if channel is used by repeat rules
+    const usedByRules = await JobConfigRepeatRule.exists({ channelId: id });
+    if (usedByRules) {
+      throw createHttpError(400, "Kênh đang được sử dụng bởi Quy tắc lặp lại. Không thể xoá.");
+    }
+    await JobConfigChannel.deleteOne({ id });
+    return { success: true };
+  }
+
+  // ==========================================
+  // REPEAT RULE CONFIG
+  // ==========================================
+  async getRepeatRules() {
+    return JobConfigRepeatRule.find().sort({ createdAt: -1 }).lean();
+  }
+
+  async getRepeatRuleById(id) {
+    const rule = await JobConfigRepeatRule.findOne({ id }).lean();
+    if (!rule) throw createHttpError(404, "Không tìm thấy quy tắc lặp lại");
+    return rule;
+  }
+
+  async createRepeatRule(data, currentUser) {
+    // Validate channel
+    const channel = await JobConfigChannel.findOne({ id: data.channelId });
+    if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
+
+    const id = await generateMonotonicId(ID_PREFIXES.JOB_REPEAT_RULE);
+    const rule = new JobConfigRepeatRule({ ...data, id });
+    await rule.save();
+
+    // Trigger Task Sync
+    await JobRecurringTaskService.syncTasksForUpdatedRule(rule, currentUser).catch(err => {
+      console.error("[JobRecurringTask] Failed to sync tasks for new rule", err);
+    });
+
+    return rule;
+  }
+
+  async updateRepeatRule(id, data, currentUser) {
+    const rule = await JobConfigRepeatRule.findOne({ id });
+    if (!rule) throw createHttpError(404, "Không tìm thấy quy tắc lặp lại");
+
+    if (data.channelId && data.channelId !== rule.channelId) {
+      const channel = await JobConfigChannel.findOne({ id: data.channelId });
+      if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
+    }
+
+    Object.assign(rule, data);
+    await rule.save();
+
+    // Trigger Task Sync
+    const JobRecurringTaskService = require("./JobRecurringTaskService");
+    await JobRecurringTaskService.syncTasksForUpdatedRule(rule, currentUser).catch(err => {
+      console.error("[JobRecurringTask] Failed to sync tasks for updated rule", err);
+    });
+
+    return rule;
+  }
+
+  async deleteRepeatRule(id, currentUser) {
+    const rule = await JobConfigRepeatRule.findOne({ id });
+    if (!rule) throw createHttpError(404, "Không tìm thấy quy tắc lặp lại");
+
+    // Trigger Task Cleanup
+    const JobRecurringTaskService = require("./JobRecurringTaskService");
+    await JobRecurringTaskService.syncTasksForDeletedRule(rule.id, currentUser).catch(err => {
+      console.error("[JobRecurringTask] Failed to cleanup tasks for deleted rule", err);
+    });
+
+    await JobConfigRepeatRule.deleteOne({ id });
+    return { success: true };
+  }
+}
+
+module.exports = new JobConfigService();

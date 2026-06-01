@@ -49,6 +49,12 @@ const ID_PREFIXES = Object.freeze({
   EXPECTED_REVENUE: "RVE",
   EXPENSE_CATEGORY: "EPC",
   EXPECTED_EXPENSE: "EPE",
+
+  // Job Hub
+  JOB_STATUS_CONFIG: "JSC",
+  JOB_TASK_TYPE: "JTT",
+  JOB_CHANNEL: "JCH",
+  JOB_REPEAT_RULE: "JRR",
 });
 
 /**
