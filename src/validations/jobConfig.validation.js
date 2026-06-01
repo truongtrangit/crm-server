@@ -5,7 +5,6 @@ const createJobConfigStatusSchema = Joi.object({
   description: Joi.string().allow("", null).max(500).optional(),
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
-  order: Joi.number().integer().min(0).optional(),
 });
 
 const updateJobConfigStatusSchema = Joi.object({
@@ -13,7 +12,6 @@ const updateJobConfigStatusSchema = Joi.object({
   description: Joi.string().allow("", null).max(500).optional(),
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
-  order: Joi.number().integer().min(0).optional(),
 });
 
 const reorderJobConfigStatusesSchema = Joi.object({
