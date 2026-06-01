@@ -16,12 +16,9 @@ const createUserSchema = Joi.object({
   phone: Joi.string().allow("").optional(),
   role: Joi.string().optional(),
   roleId: Joi.string().optional(),
-  companies: Joi.array().items(Joi.string().valid(...COMPANIES)).optional(),
+  companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
-  department: Joi.array().items(Joi.string()).optional(),
-  departmentRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  group: Joi.array().items(Joi.string()).optional(),
-  groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
+
 
   departments: Joi.array().items(
     Joi.object({
@@ -59,10 +56,7 @@ const updateUserSchema = Joi.object({
   roleId: Joi.string().optional(),
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
-  department: Joi.array().items(Joi.string()).optional(),
-  departmentRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  group: Joi.array().items(Joi.string()).optional(),
-  groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
+
 
   departments: Joi.array().items(
     Joi.object({

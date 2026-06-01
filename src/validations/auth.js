@@ -55,14 +55,7 @@ const updateProfileSchema = Joi.object({
   password: Joi.string().min(DEFAULT_PASSWORD_STRENGTH).optional().messages({
     "string.min": `password must be at least ${DEFAULT_PASSWORD_STRENGTH} characters`,
   }),
-  department: Joi.array().items(Joi.string()).optional(),
-  departmentRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  departmentAliases: Joi.array().items(Joi.string()).optional(),
-  departmentIds: Joi.array().items(Joi.string()).optional(),
-  group: Joi.array().items(Joi.string()).optional(),
-  groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  groupAliases: Joi.array().items(Joi.string()).optional(),
-  groupIds: Joi.array().items(Joi.string()).optional(),
+
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
 
@@ -98,14 +91,7 @@ const registerSchema = Joi.object({
   phone: Joi.string().allow("").optional(),
   role: Joi.string().optional(),
   roleId: Joi.string().optional(),
-  department: Joi.array().items(Joi.string()).optional(),
-  departmentRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  departmentAliases: Joi.array().items(Joi.string()).optional(),
-  departmentIds: Joi.array().items(Joi.string()).optional(),
-  group: Joi.array().items(Joi.string()).optional(),
-  groupRoles: Joi.object().pattern(Joi.string(), Joi.string().valid("lead", "member")).optional(),
-  groupAliases: Joi.array().items(Joi.string()).optional(),
-  groupIds: Joi.array().items(Joi.string()).optional(),
+
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
 

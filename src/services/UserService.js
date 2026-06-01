@@ -92,52 +92,6 @@ async function parseDecoupledAssignments(payload = {}) {
     }));
   }
 
-
-  // Fallback to legacy structure
-  if (departments.length === 0 && groups.length === 0) {
-    const hasLegacyInput = payload.department || payload.group;
-    if (hasLegacyInput) {
-      const organizationAssignments = await validateOrganizationAssignments({
-        departments: payload.department,
-        groups: payload.group,
-      });
-
-      const assignedDeptAliases = organizationAssignments.departmentAliases || [];
-      const assignedGroupAliases = organizationAssignments.groupAliases || [];
-
-      const deptRoles = payload.departmentRoles || {};
-      const groupRoles = payload.groupRoles || {};
-
-      assignedDeptAliases.forEach(deptAlias => {
-        const role = deptRoles[deptAlias] || "member";
-        departments.push({ deptAlias, role });
-      });
-
-      assignedGroupAliases.forEach(groupAlias => {
-        const deptAlias = groupAlias.split("__")[0];
-        const groupKey = `${deptAlias}:${groupAlias}`;
-        const role = groupRoles[groupKey] || groupRoles[groupAlias] || "member";
-        groups.push({ groupAlias, role });
-      });
-
-      if (functions.length === 0) {
-        const staffFunctions = await StaffFunction.find({}).lean();
-        assignedDeptAliases.forEach(deptAlias => {
-          const matchingFunc = staffFunctions.find(f =>
-            deptAlias.toLowerCase().includes(f.type.toLowerCase()) ||
-            (f.type === "tech" && deptAlias.toLowerCase().includes("ky-thuat"))
-          );
-          if (matchingFunc && !functions.includes(matchingFunc.id)) {
-            functions.push(matchingFunc.id);
-          }
-        });
-        if (functions.length === 0) {
-          functions.push("FUNC1");
-        }
-      }
-    }
-  }
-
   return { functions, departments, groups };
 }
 
@@ -340,46 +294,11 @@ function serializeUser(user) {
   delete item.sessions;
 
   const functions = item.functions || [];
-  const departmentAliases = (item.departments || []).map(d => d.deptAlias).filter(Boolean);
-  const groupAliases = (item.groups || []).map(g => g.groupAlias).filter(Boolean);
-
-  const department = departmentAliases.map(alias => {
-    if (orgDirectoryCache) {
-      const dept = orgDirectoryCache.departmentByAlias.get(alias);
-      if (dept) return dept.name;
-    }
-    return alias;
-  });
-
-  const group = groupAliases.map(alias => {
-    if (orgDirectoryCache) {
-      const g = orgDirectoryCache.groupByAlias.get(alias);
-      if (g) return g.name;
-    }
-    return getGroupNameFromAlias(alias);
-  });
-
-  const departmentRoles = {};
-  (item.departments || []).forEach(d => {
-    departmentRoles[d.deptAlias] = d.role || "member";
-  });
-
-  const groupRoles = {};
-  (item.groups || []).forEach(g => {
-    const deptAlias = g.groupAlias.split("__")[0];
-    groupRoles[`${deptAlias}:${g.groupAlias}`] = g.role || "member";
-  });
 
   return {
     ...item,
     roleLabel: formatRoleLabel(item.roleId),
     functions,
-    department,
-    departmentAliases,
-    departmentRoles,
-    group,
-    groupAliases,
-    groupRoles,
     preferences: item.preferences || {},
     permissions: item.permissions || [],
     moduleAccess: item.moduleAccess || [],
