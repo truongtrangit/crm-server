@@ -103,38 +103,7 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.virtual("departmentAliases").get(function () {
-  return Array.isArray(this.departments)
-    ? [...new Set(this.departments.map(d => d.deptAlias).filter(Boolean))]
-    : [];
-});
 
-userSchema.virtual("groupAliases").get(function () {
-  return Array.isArray(this.groups)
-    ? [...new Set(this.groups.map(g => g.groupAlias).filter(Boolean))]
-    : [];
-});
-
-userSchema.virtual("departmentRoles").get(function () {
-  const roles = {};
-  if (Array.isArray(this.departments)) {
-    this.departments.forEach(d => {
-      roles[d.deptAlias] = d.role || "member";
-    });
-  }
-  return roles;
-});
-
-userSchema.virtual("groupRoles").get(function () {
-  const roles = {};
-  if (Array.isArray(this.groups)) {
-    this.groups.forEach(g => {
-      const deptAlias = g.groupAlias.split("__")[0];
-      roles[`${deptAlias}:${g.groupAlias}`] = g.role || "member";
-    });
-  }
-  return roles;
-});
 userSchema.plugin(softDeletePlugin);
 
 // Performance indexes for list queries
