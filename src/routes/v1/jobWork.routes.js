@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const JobWorkController = require("../../controllers/JobWorkController");
-const { requirePermission } = require("../../middlewares/rbac");
+const { requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
-const validate = require("../../middlewares/validate");
+const validate = require("../../middleware/validate");
 const {
   createJobFolderSchema,
   updateJobFolderSchema,

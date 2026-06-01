@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const jobConfigController = require("../../controllers/JobConfigController");
-const validate = require("../../middlewares/validate");
-const { requirePermission } = require("../../middlewares/rbac");
+const validate = require("../../middleware/validate");
+const { requirePermission } = require("../../middleware/auth");
 const { PERMISSIONS } = require("../../constants/rbac");
 const {
   createJobConfigStatusSchema,
