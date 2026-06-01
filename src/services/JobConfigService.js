@@ -16,7 +16,10 @@ class JobConfigService {
 
   async createStatus(data) {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_STATUS_CONFIG);
-    const status = new JobConfigStatus({ ...data, id });
+    const maxStatus = await JobConfigStatus.findOne().sort({ order: -1 }).lean();
+    const nextOrder = maxStatus && maxStatus.order !== undefined ? maxStatus.order + 1 : 0;
+    
+    const status = new JobConfigStatus({ ...data, id, order: nextOrder });
     await status.save();
     return status;
   }

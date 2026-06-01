@@ -12,11 +12,13 @@ class JobWorkService {
 
   async createFolder(data) {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_FOLDER || "JBF");
-    const count = await JobFolder.countDocuments();
+    const maxFolder = await JobFolder.findOne({ parentId: data.parentId || null }).sort({ order: -1 }).lean();
+    const nextOrder = maxFolder && maxFolder.order !== undefined ? maxFolder.order + 1 : 0;
+    
     const newFolder = new JobFolder({
       ...data,
       id,
-      order: data.order || count + 1
+      order: data.order !== undefined ? data.order : nextOrder
     });
     return newFolder.save();
   }
