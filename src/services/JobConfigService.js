@@ -17,7 +17,7 @@ class JobConfigService {
   async createStatus(data) {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_STATUS_CONFIG);
     const maxStatus = await JobConfigStatus.findOne().sort({ order: -1 }).lean();
-    const nextOrder = maxStatus && maxStatus.order !== undefined ? maxStatus.order + 1 : 0;
+    const nextOrder = maxStatus && maxStatus.order !== undefined ? maxStatus.order + 1 : 1;
     
     const status = new JobConfigStatus({ ...data, id, order: nextOrder });
     await status.save();
@@ -56,7 +56,7 @@ class JobConfigService {
     }
 
     const promises = orderedIds.map((id, index) => 
-      JobConfigStatus.findOneAndUpdate({ id }, { order: index })
+      JobConfigStatus.findOneAndUpdate({ id }, { order: index + 1 })
     );
     await Promise.all(promises);
     return true;

@@ -13,7 +13,7 @@ class JobWorkService {
   async createFolder(data) {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_FOLDER || "JBF");
     const maxFolder = await JobFolder.findOne({ parentId: data.parentId || null }).sort({ order: -1 }).lean();
-    const nextOrder = maxFolder && maxFolder.order !== undefined ? maxFolder.order + 1 : 0;
+    const nextOrder = maxFolder && maxFolder.order !== undefined ? maxFolder.order + 1 : 1;
     
     const newFolder = new JobFolder({
       ...data,
@@ -65,7 +65,7 @@ class JobWorkService {
     }
 
     const promises = orderedIds.map((id, index) => 
-      JobFolder.findOneAndUpdate({ id }, { order: index })
+      JobFolder.findOneAndUpdate({ id }, { order: index + 1 })
     );
     await Promise.all(promises);
     return true;
