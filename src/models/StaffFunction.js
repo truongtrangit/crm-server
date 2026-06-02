@@ -6,6 +6,8 @@ const staffFunctionSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     desc: { type: String, default: "" },
     type: { type: String, default: "tech", trim: true },
+    icon: { type: String, default: "Zap", trim: true },
+    color: { type: String, default: "#3b82f6", trim: true },
   },
   {
     timestamps: true,
