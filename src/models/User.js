@@ -83,6 +83,7 @@ const userSchema = new mongoose.Schema(
     roleId: { type: String, default: null, index: true }, // Reference to Role model for RBAC
     permissions: { type: [String], default: [] }, // Additional custom permissions
     functions: { type: [String], default: [] },
+    functionalGroups: { type: [String], default: [] },
     departments: { type: [userDepartmentSchema], default: [] },
     groups: { type: [userGroupSchema], default: [] },
     createdBy: { type: String, default: null },
@@ -92,7 +93,6 @@ const userSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     preferences: { type: mongoose.Schema.Types.Mixed, default: {} },
     moduleAccess: { type: [moduleAccessEntrySchema], default: [] },
-
   },
   {
     timestamps: true,
