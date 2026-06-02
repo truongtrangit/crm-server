@@ -18,6 +18,7 @@ const createUserSchema = Joi.object({
   roleId: Joi.string().optional(),
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
+  functionalGroups: Joi.array().items(Joi.string()).optional(),
 
 
   departments: Joi.array().items(
@@ -56,6 +57,7 @@ const updateUserSchema = Joi.object({
   roleId: Joi.string().optional(),
   companies: Joi.array().items(Joi.string()).optional(),
   functions: Joi.array().items(Joi.string()).optional(),
+  functionalGroups: Joi.array().items(Joi.string()).optional(),
 
 
   departments: Joi.array().items(
