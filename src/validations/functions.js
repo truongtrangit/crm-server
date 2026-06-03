@@ -6,8 +6,21 @@ const createFunctionSchema = Joi.object({
   }),
   desc: Joi.string().allow("").optional(),
   type: Joi.string().allow("").optional(),
+  icon: Joi.string().allow("").optional(),
+  color: Joi.string().allow("").optional(),
+});
+
+const updateFunctionSchema = Joi.object({
+  title: Joi.string().trim().optional(),
+  desc: Joi.string().allow("").optional(),
+  type: Joi.string().allow("").optional(),
+  icon: Joi.string().allow("").optional(),
+  color: Joi.string().allow("").optional(),
+}).min(1).messages({
+  "object.min": "At least one field is required to update",
 });
 
 module.exports = {
   createFunctionSchema,
+  updateFunctionSchema,
 };

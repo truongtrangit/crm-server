@@ -4,6 +4,7 @@ const Role = require("../models/Role");
 const Event = require("../models/Event");
 const StaffFunction = require("../models/StaffFunction");
 const Company = require("../models/Company");
+const FunctionalGroup = require("../models/FunctionalGroup");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { hashPassword } = require("../utils/auth");
@@ -664,6 +665,31 @@ async function createUserAccount(actor, payload = {}) {
     );
   }
 
+  let validatedFunctionalGroups = [];
+  if (Array.isArray(payload.functionalGroups) && payload.functionalGroups.length > 0) {
+    const validGroups = await FunctionalGroup.find({ id: { $in: payload.functionalGroups } }).select('id').lean();
+    if (validGroups.length !== payload.functionalGroups.length) {
+      throw createHttpError(400, "One or more Functional Groups are invalid");
+    }
+    validatedFunctionalGroups = payload.functionalGroups;
+  }
+
+  let validatedCompanies = [];
+  if (Array.isArray(payload.companies) && payload.companies.length > 0) {
+    const validCompanies = await Company.find({ id: { $in: payload.companies } }).select('id').lean();
+    if (validCompanies.length !== payload.companies.length) {
+      throw createHttpError(400, "One or more Companies are invalid");
+    }
+    validatedCompanies = payload.companies;
+  }
+
+  if (Array.isArray(parsed.functions) && parsed.functions.length > 0) {
+    const validFunctions = await StaffFunction.find({ id: { $in: parsed.functions } }).select('id').lean();
+    if (validFunctions.length !== parsed.functions.length) {
+      throw createHttpError(400, "One or more Functions are invalid");
+    }
+  }
+
   const user = await User.create({
     id: await generateMonotonicId(ID_PREFIXES.USER),
     name,
@@ -672,10 +698,11 @@ async function createUserAccount(actor, payload = {}) {
     avatar:
       normalizeString(payload.avatar) ||
       getDefaultAvatar(name || email),
-    companies: Array.isArray(payload.companies) ? payload.companies : [],
+    companies: validatedCompanies,
     phone: normalizeString(payload.phone),
     roleId: targetRole.id,
     functions: parsed.functions,
+    functionalGroups: validatedFunctionalGroups,
     departments: parsed.departments,
     groups: parsed.groups,
     moduleAccess: Array.isArray(payload.moduleAccess) ? payload.moduleAccess : [],
@@ -800,14 +827,35 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
       ? normalizeString(payload.avatar)
       : targetUser.avatar;
 
+  if (Array.isArray(parsed.functions) && parsed.functions.length > 0) {
+    const validFunctions = await StaffFunction.find({ id: { $in: parsed.functions } }).select('id').lean();
+    if (validFunctions.length !== parsed.functions.length) {
+      throw createHttpError(400, "One or more Functions are invalid");
+    }
+  }
   targetUser.functions = parsed.functions;
   targetUser.departments = parsed.departments;
   targetUser.groups = parsed.groups;
+  
+  if (payload.functionalGroups !== undefined && Array.isArray(payload.functionalGroups)) {
+    if (payload.functionalGroups.length > 0) {
+      const validGroups = await FunctionalGroup.find({ id: { $in: payload.functionalGroups } }).select('id').lean();
+      if (validGroups.length !== payload.functionalGroups.length) {
+        throw createHttpError(400, "One or more Functional Groups are invalid");
+      }
+    }
+    targetUser.functionalGroups = payload.functionalGroups;
+  }
 
-  targetUser.companies =
-    payload.companies !== undefined && Array.isArray(payload.companies)
-      ? payload.companies
-      : targetUser.companies;
+  if (payload.companies !== undefined && Array.isArray(payload.companies)) {
+    if (payload.companies.length > 0) {
+      const validCompanies = await Company.find({ id: { $in: payload.companies } }).select('id').lean();
+      if (validCompanies.length !== payload.companies.length) {
+        throw createHttpError(400, "One or more Companies are invalid");
+      }
+    }
+    targetUser.companies = payload.companies;
+  }
   targetUser.phone =
     payload.phone !== undefined
       ? normalizeString(payload.phone)
