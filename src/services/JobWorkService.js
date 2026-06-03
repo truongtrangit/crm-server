@@ -34,11 +34,28 @@ class JobWorkService {
     if (!folder) throw Object.assign(new Error("Không tìm thấy thư mục"), { status: 404 });
     if (folder.isSystem) throw Object.assign(new Error("Không thể xoá thư mục hệ thống"), { status: 400 });
     
-    // Check if there are tasks
-    const taskCount = await JobTask.countDocuments({ folderId: id });
-    if (taskCount > 0) throw Object.assign(new Error("Thư mục đang chứa công việc, không thể xoá"), { status: 400 });
+    const allFolders = await JobFolder.find().lean();
+    
+    const getDescendants = (parentId) => {
+      const children = allFolders.filter(f => f.parentId === parentId).map(f => f.id);
+      let allDescendants = [...children];
+      for (const childId of children) {
+        allDescendants = [...allDescendants, ...getDescendants(childId)];
+      }
+      return allDescendants;
+    };
+    
+    const idsToDelete = [id, ...getDescendants(id)];
 
-    await JobFolder.deleteOne({ id });
+    // Cập nhật công việc: đưa ra khỏi thư mục
+    await JobTask.updateMany(
+      { folderId: { $in: idsToDelete } },
+      { $set: { folderId: null } }
+    );
+
+    // Xoá tất cả các thư mục con và chính nó
+    await JobFolder.deleteMany({ id: { $in: idsToDelete } });
+    
     return true;
   }
 
