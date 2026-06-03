@@ -98,11 +98,20 @@ class JobRecurringTaskService {
       const date = datesToGenerate[idx];
       const id = generatedIds[idx];
 
-      const checklists = (rule.checklists || []).map(cl => ({
-        title: cl.title,
-        assignees: cl.assignees || [],
-        isCompleted: false
-      }));
+      const checklists = (rule.checklists || []).map(cl => {
+        let dueDate = null;
+        if (cl.dueOffsetHours) {
+          dueDate = new Date(date);
+          dueDate.setHours(7, 0, 0, 0); // 7h sáng ngày sinh task
+          dueDate.setHours(dueDate.getHours() + cl.dueOffsetHours);
+        }
+        return {
+          title: cl.title,
+          assignees: cl.assignees || [],
+          isCompleted: false,
+          dueDate
+        };
+      });
 
       const newTask = {
         id,
@@ -152,8 +161,10 @@ class JobRecurringTaskService {
     const defaultStatusId = await this._getDefaultStatusId();
     await JobTask.deleteMany({
       sourceRuleId: rule.id,
+      scheduledDate: { $gte: today },
       statusId: defaultStatusId,
-      scheduledDate: { $gte: today }
+      "checklists.isCompleted": { $ne: true },
+      $expr: { $eq: [{ $size: "$logs" }, 1] }
     });
 
     if (rule.isActive) {
@@ -169,9 +180,14 @@ class JobRecurringTaskService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const defaultStatusId = await this._getDefaultStatusId();
+
     await JobTask.deleteMany({
       sourceRuleId: ruleId,
-      scheduledDate: { $gte: today }
+      scheduledDate: { $gte: today },
+      statusId: defaultStatusId,
+      "checklists.isCompleted": { $ne: true },
+      $expr: { $eq: [{ $size: "$logs" }, 1] }
     });
   }
 

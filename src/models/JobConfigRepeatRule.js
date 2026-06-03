@@ -5,6 +5,7 @@ const checklistItemSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     assignees: [{ type: String, ref: "User" }], // Array of User IDs (String)
     isCompleted: { type: Boolean, default: false },
+    dueOffsetHours: { type: Number, default: null }, // Mặc định + vào 7h sáng ngày sinh task
   },
   { _id: false }
 );
