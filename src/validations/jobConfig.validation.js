@@ -64,7 +64,8 @@ const createJobConfigRepeatRuleSchema = Joi.object({
   checklists: Joi.array().items(Joi.object({
     title: Joi.string().trim().required(),
     assignees: Joi.array().items(Joi.string()).optional(),
-    isCompleted: Joi.boolean().optional()
+    isCompleted: Joi.boolean().optional(),
+    dueDate: Joi.date().allow(null, "").optional()
   })).optional(),
   isActive: Joi.boolean().optional(),
 });
@@ -81,7 +82,8 @@ const updateJobConfigRepeatRuleSchema = Joi.object({
   checklists: Joi.array().items(Joi.object({
     title: Joi.string().trim().required(),
     assignees: Joi.array().items(Joi.string()).optional(),
-    isCompleted: Joi.boolean().optional()
+    isCompleted: Joi.boolean().optional(),
+    dueDate: Joi.date().allow(null, "").optional()
   })).optional(),
   isActive: Joi.boolean().optional(),
 });

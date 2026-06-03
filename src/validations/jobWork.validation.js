@@ -24,6 +24,7 @@ const checklistItemSchema = Joi.object({
   title: Joi.string().trim().min(1).max(200).required(),
   assignees: Joi.array().items(Joi.string()).optional(),
   isCompleted: Joi.boolean().optional(),
+  dueDate: Joi.date().allow(null, "").optional(),
 });
 
 const createJobTaskSchema = Joi.object({

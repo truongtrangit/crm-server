@@ -5,6 +5,7 @@ const checklistItemSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     assignees: [{ type: String, ref: "User" }], // Array of User IDs
     isCompleted: { type: Boolean, default: false },
+    dueDate: { type: Date, default: null },
   },
   { _id: false }
 );
