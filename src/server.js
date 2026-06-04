@@ -7,6 +7,7 @@ const { connectRedis, closeRedis } = require("./config/redis");
 const { seedDatabase } = require("./services/seedDatabase");
 const logger = require("./utils/logger");
 const { seedRbac } = require("./services/rbacSeed");
+const { startCronJobs } = require("./utils/cron");
 
 async function bootstrap() {
   try {
@@ -26,6 +27,9 @@ async function bootstrap() {
       port: env.port,
       env: env.nodeEnv,
     });
+
+    // Khởi động các Cronjob chạy ngầm
+    startCronJobs();
   });
 
   const shutdown = async (signal) => {
