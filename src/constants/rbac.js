@@ -220,6 +220,7 @@ const PERMISSIONS = {
   JOBHUB_TASK_DELETE: `${RESOURCES.JOBHUB}_task_${ACTIONS.DELETE}`,
 
   // Job Hub - Config
+  JOBHUB_CONFIG_READ: `${RESOURCES.JOBHUB}_config_${ACTIONS.READ}`,
   JOBHUB_CONFIG_CHANNEL_READ: `${RESOURCES.JOBHUB}_channel_${ACTIONS.READ}`,
   JOBHUB_CONFIG_CHANNEL_CREATE: `${RESOURCES.JOBHUB}_channel_${ACTIONS.CREATE}`,
   JOBHUB_CONFIG_CHANNEL_UPDATE: `${RESOURCES.JOBHUB}_channel_${ACTIONS.UPDATE}`,
@@ -278,6 +279,9 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.JOBHUB_WORK_READ,
   PERMISSIONS.JOBHUB_TASK_CREATE,
   PERMISSIONS.JOBHUB_TASK_UPDATE,
+  PERMISSIONS.JOBHUB_CONFIG_STATUS_READ,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ,
+  PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ,
 ];
 
 const MANAGER_PERMISSIONS = Array.from(new Set([
@@ -349,6 +353,7 @@ const MANAGER_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.JOBHUB_CONFIG_STATUS_CREATE,
   PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE,
   PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE,
+  PERMISSIONS.JOBHUB_CONFIG_READ,
 ]));
 
 const ADMIN_PERMISSIONS = Array.from(new Set([
@@ -448,10 +453,11 @@ const MODULE_DEFINITIONS = {
 
   jobhub: { key: "jobhub", label: "Job Hub", type: "root", actions: [] },
   "jobhub.tasks": { key: "jobhub.tasks", label: "Công việc", type: "sub", parentKey: "jobhub", actions: ["view", "create_task", "edit_task", "delete_task", "manage_folders"] },
-  "jobhub.config.repeatRule": { key: "jobhub.config.repeatRule", label: "Quy tắc lặp lại", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
-  "jobhub.config.channel": { key: "jobhub.config.channel", label: "Kênh triển khai", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
-  "jobhub.config.taskType": { key: "jobhub.config.taskType", label: "Loại công việc", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
-  "jobhub.config.status": { key: "jobhub.config.status", label: "Trạng thái", type: "sub", parentKey: "jobhub", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config": { key: "jobhub.config", label: "Cấu hình", type: "sub", parentKey: "jobhub", actions: ["view"] },
+  "jobhub.config.repeatRule": { key: "jobhub.config.repeatRule", label: "Quy tắc lặp lại", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.channel": { key: "jobhub.config.channel", label: "Kênh triển khai", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.taskType": { key: "jobhub.config.taskType", label: "Loại công việc", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.status": { key: "jobhub.config.status", label: "Trạng thái", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
@@ -571,14 +577,17 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "configure": [PERMISSIONS.SALARY_CONFIGS_MANAGE, PERMISSIONS.STAFFS_MANAGE]
   },
   "jobhub.tasks": {
-    "view": [PERMISSIONS.JOBHUB_WORK_READ],
+    "view": [PERMISSIONS.JOBHUB_WORK_READ, PERMISSIONS.JOBHUB_CONFIG_STATUS_READ, PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ, PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ],
     "create_task": [PERMISSIONS.JOBHUB_TASK_CREATE],
     "edit_task": [PERMISSIONS.JOBHUB_TASK_UPDATE],
     "delete_task": [PERMISSIONS.JOBHUB_TASK_DELETE],
     "manage_folders": [PERMISSIONS.JOBHUB_FOLDER_CREATE, PERMISSIONS.JOBHUB_FOLDER_UPDATE, PERMISSIONS.JOBHUB_FOLDER_DELETE]
   },
+  "jobhub.config": {
+    "view": [PERMISSIONS.JOBHUB_CONFIG_READ]
+  },
   "jobhub.config.repeatRule": {
-    "view": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ],
+    "view": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ, PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ, PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ],
     "create": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_CREATE],
     "edit": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_UPDATE],
     "delete": [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_DELETE]
