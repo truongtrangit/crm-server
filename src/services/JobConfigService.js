@@ -3,6 +3,7 @@ const JobConfigStatus = require("../models/JobConfigStatus");
 const JobConfigTaskType = require("../models/JobConfigTaskType");
 const JobConfigChannel = require("../models/JobConfigChannel");
 const JobConfigRepeatRule = require("../models/JobConfigRepeatRule");
+const JobTask = require("../models/JobTask");
 const JobRecurringTaskService = require("./JobRecurringTaskService");
 const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
 
@@ -18,7 +19,7 @@ class JobConfigService {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_STATUS_CONFIG);
     const maxStatus = await JobConfigStatus.findOne().sort({ order: -1 }).lean();
     const nextOrder = maxStatus && maxStatus.order !== undefined ? maxStatus.order + 1 : 1;
-    
+
     const status = new JobConfigStatus({ ...data, id, order: nextOrder });
     await status.save();
     return status;
@@ -32,10 +33,23 @@ class JobConfigService {
     return status;
   }
 
-  async deleteStatus(id) {
+  async deleteStatus(id, force = false) {
     const status = await JobConfigStatus.findOne({ id });
     if (!status) throw createHttpError(404, "Không tìm thấy trạng thái");
-    // Optionally: check if status is in use by Tasks
+
+    const taskCount = await JobTask.countDocuments({ statusId: id });
+
+    if (taskCount > 0 && !force) {
+      throw createHttpError(400, `Trạng thái này đang được sử dụng bởi ${taskCount} công việc. Bắt buộc xóa sẽ gỡ bỏ trạng thái của các công việc này.`, {
+        code: "STATUS_IN_USE",
+        details: { taskCount },
+      });
+    }
+
+    if (taskCount > 0 && force) {
+      await JobTask.updateMany({ statusId: id }, { $set: { statusId: null } });
+    }
+
     await JobConfigStatus.deleteOne({ id });
     return { success: true };
   }
@@ -55,7 +69,7 @@ class JobConfigService {
       throw Object.assign(new Error("Vui lòng gửi đầy đủ danh sách trạng thái để sắp xếp"), { status: 400 });
     }
 
-    const promises = orderedIds.map((id, index) => 
+    const promises = orderedIds.map((id, index) =>
       JobConfigStatus.findOneAndUpdate({ id }, { order: index + 1 })
     );
     await Promise.all(promises);
