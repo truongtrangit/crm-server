@@ -238,6 +238,27 @@ async function seedDatabase() {
   // Seed system funnel (idempotent)
   await seedSystemFunnel();
 
+  // Seed Job Task Type system defaults
+  const JobConfigTaskType = require("../models/JobConfigTaskType");
+  const jobTaskTypeCount = await JobConfigTaskType.countDocuments();
+  if (jobTaskTypeCount === 0) {
+    const defaultTaskType = {
+      id: "JTT1",
+      name: "Marketing",
+      description: "Loại công việc mặc định của hệ thống",
+      icon: "fa-solid fa-bullhorn",
+      color: "#be185d",
+      isSystem: true,
+    };
+    await JobConfigTaskType.create(defaultTaskType);
+    console.log(`Seeded 1 system Job Task Type`);
+    
+    const existingJTT = await Counter.findById("JTT");
+    if (!existingJTT) {
+      await Counter.create({ _id: "JTT", seq: 1 });
+    }
+  }
+
   // Seed Meta configurations and programs if they are empty
   const metaConfigCount = await MetaConfig.countDocuments();
   if (metaConfigCount === 0) {

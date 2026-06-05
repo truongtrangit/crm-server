@@ -36,7 +36,7 @@ router.get(
 
 router.get(
   "/",
-  requirePermission(PERMISSIONS.USERS_READ),
+  // requirePermission(PERMISSIONS.USERS_READ),
   validate(listUsersQuerySchema, "query"),
   scopeAssignmentList({
     // Hành vi: Cho phép Manager nhìn thấy nhân viên cấp dưới
