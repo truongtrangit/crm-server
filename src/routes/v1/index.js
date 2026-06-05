@@ -75,13 +75,17 @@ v1Router.use("/lead-config", leadConfigRouter);
 v1Router.use("/leads", leadRouter);
 v1Router.use("/tasks", taskRouter);
 v1Router.use("/logs", logsRouter);
+
+// --- IMPORTANT 
 v1Router.use("/staffs", staffRouter);
 v1Router.use("/salaries", salaryRouter);
 v1Router.use("/salary-configs", salaryConfigRouter);
 v1Router.use("/revenues", revenueRouter);
 v1Router.use("/expenses", expenseRouter);
-v1Router.use("/companies", companiesRouter);
 v1Router.use("/finance", financeRouter);
+// --- IMPORTANT
+
+v1Router.use("/companies", companiesRouter);
 v1Router.use("/job-hub/configs", jobConfigRouter);
 v1Router.use("/job-hub/work", jobWorkRouter);
 

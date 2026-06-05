@@ -21,7 +21,8 @@ class JobConfigController {
   }
 
   async deleteStatus(req, res) {
-    await JobConfigService.deleteStatus(req.params.id);
+    const force = req.query.force === 'true';
+    await JobConfigService.deleteStatus(req.params.id, force);
     return sendSuccess(res, 200, "Xóa thành công");
   }
 
