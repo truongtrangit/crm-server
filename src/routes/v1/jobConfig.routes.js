@@ -23,11 +23,14 @@ const {
 // ==========================================
 router
   .route("/statuses")
-  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_READ), jobConfigController.getStatuses)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_READ),
+    jobConfigController.getStatuses,
+  )
   .post(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_CREATE),
     validate(createJobConfigStatusSchema),
-    jobConfigController.createStatus
+    jobConfigController.createStatus,
   );
 
 router
@@ -35,7 +38,7 @@ router
   .patch(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE),
     validate(reorderJobConfigStatusesSchema),
-    jobConfigController.reorderStatuses
+    jobConfigController.reorderStatuses,
   );
 
 router
@@ -43,41 +46,53 @@ router
   .put(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE),
     validate(updateJobConfigStatusSchema),
-    jobConfigController.updateStatus
+    jobConfigController.updateStatus,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE), jobConfigController.deleteStatus);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE),
+    jobConfigController.deleteStatus,
+  );
 
 // ==========================================
 // TASK TYPE GROUP CONFIG
 // ==========================================
 router
   .route("/task-type-groups")
-  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE), jobConfigController.getTaskTypeGroups)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_READ),
+    jobConfigController.getTaskTypeGroups,
+  )
   .post(
-    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE),
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_CREATE),
     validate(createJobConfigTaskTypeGroupSchema),
-    jobConfigController.createTaskTypeGroup
+    jobConfigController.createTaskTypeGroup,
   );
 
 router
   .route("/task-type-groups/:id")
   .put(
-    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE),
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_UPDATE),
     validate(updateJobConfigTaskTypeGroupSchema),
-    jobConfigController.updateTaskTypeGroup
+    jobConfigController.updateTaskTypeGroup,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE), jobConfigController.deleteTaskTypeGroup);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_DELETE),
+    jobConfigController.deleteTaskTypeGroup,
+  );
 
 // ==========================================
 // TASK TYPE CONFIG
 // ==========================================
 router
   .route("/task-types")
-  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ), jobConfigController.getTaskTypes)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ),
+    jobConfigController.getTaskTypes,
+  )
   .post(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_CREATE),
     validate(createJobConfigTaskTypeSchema),
-    jobConfigController.createTaskType
+    jobConfigController.createTaskType,
   );
 
 router
@@ -85,20 +100,26 @@ router
   .put(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_UPDATE),
     validate(updateJobConfigTaskTypeSchema),
-    jobConfigController.updateTaskType
+    jobConfigController.updateTaskType,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE), jobConfigController.deleteTaskType);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE),
+    jobConfigController.deleteTaskType,
+  );
 
 // ==========================================
 // CHANNEL CONFIG
 // ==========================================
 router
   .route("/channels")
-  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ), jobConfigController.getChannels)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ),
+    jobConfigController.getChannels,
+  )
   .post(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_CHANNEL_CREATE),
     validate(createJobConfigChannelSchema),
-    jobConfigController.createChannel
+    jobConfigController.createChannel,
   );
 
 router
@@ -106,30 +127,42 @@ router
   .put(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_CHANNEL_UPDATE),
     validate(updateJobConfigChannelSchema),
-    jobConfigController.updateChannel
+    jobConfigController.updateChannel,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_CHANNEL_DELETE), jobConfigController.deleteChannel);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_CHANNEL_DELETE),
+    jobConfigController.deleteChannel,
+  );
 
 // ==========================================
 // REPEAT RULE CONFIG
 // ==========================================
 router
   .route("/repeat-rules")
-  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ), jobConfigController.getRepeatRules)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ),
+    jobConfigController.getRepeatRules,
+  )
   .post(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_CREATE),
     validate(createJobConfigRepeatRuleSchema),
-    jobConfigController.createRepeatRule
+    jobConfigController.createRepeatRule,
   );
 
 router
   .route("/repeat-rules/:id")
-  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ), jobConfigController.getRepeatRuleById)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ),
+    jobConfigController.getRepeatRuleById,
+  )
   .put(
     requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_UPDATE),
     validate(updateJobConfigRepeatRuleSchema),
-    jobConfigController.updateRepeatRule
+    jobConfigController.updateRepeatRule,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_DELETE), jobConfigController.deleteRepeatRule);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_DELETE),
+    jobConfigController.deleteRepeatRule,
+  );
 
 module.exports = router;

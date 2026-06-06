@@ -1,4 +1,5 @@
 const { getManagerSubordinateIds, isUserManagerial } = require("./managerScope");
+const { isOwnerOrAdmin } = require("./userRoles");
 
 /**
  * Build MongoDB query filter for resource-level scoping.
@@ -20,7 +21,7 @@ async function buildResourceScopeFilter(currentUser, options = {}) {
   const role = (currentUser?.roleId || "").toUpperCase();
 
   // OWNER/ADMIN → see everything
-  if (["OWNER", "ADMIN"].includes(role)) return {};
+  if (isOwnerOrAdmin(role)) return {};
 
   const assigneeField = options.assigneeField || "assignees.userId";
   const creatorField = options.creatorField || "createdBy";

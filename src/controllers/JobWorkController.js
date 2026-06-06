@@ -6,7 +6,7 @@ class JobWorkController {
   // JOB FOLDER
   // ==========================================
   async getFolders(req, res) {
-    const folders = await JobWorkService.getFolders();
+    const folders = await JobWorkService.getFolders(req.user);
     return sendSuccess(res, 200, "Lấy danh sách thư mục thành công", folders);
   }
 
@@ -34,12 +34,12 @@ class JobWorkController {
   // JOB TASK
   // ==========================================
   async getTasks(req, res) {
-    const tasks = await JobWorkService.getTasks(req.query);
+    const tasks = await JobWorkService.getTasks(req.query, req.user);
     return sendSuccess(res, 200, "Lấy danh sách công việc thành công", tasks);
   }
 
   async getTaskById(req, res) {
-    const task = await JobWorkService.getTaskById(req.params.id);
+    const task = await JobWorkService.getTaskById(req.params.id, req.user);
     return sendSuccess(res, 200, "Lấy chi tiết công việc thành công", task);
   }
 

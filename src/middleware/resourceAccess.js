@@ -2,6 +2,7 @@ const User = require("../models/User");
 const { sendError } = require("../utils/http");
 const { getManagerSubordinateIds, isUserManagerial } = require("../utils/managerScope");
 const { buildResourceScopeFilter } = require("../utils/resourceScope");
+const { isOwnerOrAdmin } = require("../utils/userRoles");
 
 /**
  * Universal resource-level access check middleware.
@@ -126,7 +127,7 @@ function enforceAssignmentRules(options) {
       if (!user) return next();
 
       const role = (user.roleId || "").toUpperCase();
-      if (["OWNER", "ADMIN"].includes(role)) return next();
+      if (isOwnerOrAdmin(role)) return next();
 
       const newAssigneeIds = options.getNewAssigneeIds(req) || [];
       const currentAssignees = req.resource && options.getCurrentAssigneeIds ? options.getCurrentAssigneeIds(req.resource) : [];
@@ -233,7 +234,7 @@ function enforceUnassignmentRules(options) {
       if (!user) return next();
 
       const role = (user.roleId || "").toUpperCase();
-      if (["OWNER", "ADMIN"].includes(role)) return next();
+      if (isOwnerOrAdmin(role)) return next();
 
       let removedAssigneeIds = [];
       if (options.getNewAssigneeIds && options.getCurrentAssigneeIds) {
@@ -306,7 +307,7 @@ function scopeAssignmentList(options = {}) {
       if (!user) return next();
       const role = (user.roleId || "").toUpperCase();
 
-      if (!["OWNER", "ADMIN"].includes(role)) {
+      if (!isOwnerOrAdmin(role)) {
         const allowManagerSubordinateScope = options.allowManagerSubordinateScope ?? false;
         const isManagerial = isUserManagerial(user);
         let allowedIds = [];

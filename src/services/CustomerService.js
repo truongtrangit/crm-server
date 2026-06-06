@@ -13,6 +13,7 @@ const {
   CUSTOMER_MAIN_TYPES,
 } = require("../constants/appData");
 const { getDefaultAvatar } = require("../utils/avatar");
+const { isOwnerOrAdmin } = require("../utils/userRoles");
 const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
 
@@ -67,7 +68,7 @@ class CustomerService {
 
       // Owner/Admin can see deleted customers
       const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
-      const canSeeDeleted = ["OWNER", "ADMIN"].includes(roleName) && queryParams.isDeleted === "true";
+      const canSeeDeleted = isOwnerOrAdmin(roleName) && queryParams.isDeleted === "true";
 
       const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "email", "type"]);
 
@@ -220,7 +221,7 @@ class CustomerService {
     // Only OWNER/ADMIN may change the subType field
     if (payload.subType !== undefined && payload.subType !== existing.subType) {
       const roleName = (await getUserRoleName(currentUser) || "").toUpperCase();
-      if (!["OWNER", "ADMIN"].includes(roleName)) {
+      if (!isOwnerOrAdmin(roleName)) {
         throw createHttpError(403, "Chỉ Owner hoặc Admin mới có thể thay đổi phân loại này", {
           code: "FORBIDDEN_SUBTYPE_UPDATE",
         });

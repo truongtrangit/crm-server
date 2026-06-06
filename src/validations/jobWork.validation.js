@@ -7,6 +7,7 @@ const createJobFolderSchema = Joi.object({
   color: Joi.string().allow("", null).max(30).optional(),
   order: Joi.number().integer().min(0).optional(),
   customStatuses: Joi.array().items(Joi.string()).allow(null).optional(),
+  assignees: Joi.array().items(Joi.string()).optional(),
 });
 
 const updateJobFolderSchema = Joi.object({
@@ -16,6 +17,7 @@ const updateJobFolderSchema = Joi.object({
   color: Joi.string().allow("", null).max(30).optional(),
   order: Joi.number().integer().min(0).optional(),
   customStatuses: Joi.array().items(Joi.string()).allow(null).optional(),
+  assignees: Joi.array().items(Joi.string()).optional(),
 });
 
 const reorderJobFoldersSchema = Joi.object({

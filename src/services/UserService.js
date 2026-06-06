@@ -18,6 +18,7 @@ const {
 const {
   isWithinManagerScope,
   normalizeUserRole,
+  isOwnerOrAdmin,
 } = require("../utils/userRoles");
 const {
   hasPermission,
@@ -434,7 +435,7 @@ async function listUsers(actor, scopedUserIds, filters) {
 
     // Owner/Admin can see deleted users
     const roleName = (await getUserRoleName(actor) || "").toUpperCase();
-    const canSeeDeleted = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName) && filters.isDeleted === "true";
+    const canSeeDeleted = isOwnerOrAdmin(roleName) && filters.isDeleted === "true";
 
     const sortObj = resolveSort(filters, ["createdAt", "name", "updatedAt", "email", "roleId"]);
 
@@ -460,8 +461,8 @@ async function listUsers(actor, scopedUserIds, filters) {
 }
 
 function validateDepartmentAndGroupRules(actor, actorRoleName, targetUser, parsed) {
-  const isOwnerOrAdmin = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName);
-  if (isOwnerOrAdmin) return;
+  const isOwnerOrAdminUser = isOwnerOrAdmin(actorRoleName);
+  if (isOwnerOrAdminUser) return;
 
   const currentDepts = targetUser ? (targetUser.departments || []) : [];
   const nextDepts = parsed.departments || [];
@@ -606,7 +607,7 @@ async function createUserAccount(actor, payload = {}) {
   validateDepartmentAndGroupRules(actor, actorRoleName, null, parsed);
 
   if (payload.moduleAccess !== undefined && Array.isArray(payload.moduleAccess) && payload.moduleAccess.length > 0) {
-    if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+    if (!isOwnerOrAdmin(actorRoleName)) {
       throw createHttpError(
         403,
         "Chỉ có Owner hoặc Admin mới có quyền cấu hình phân quyền module cho nhân viên"
@@ -882,7 +883,7 @@ async function updateUserAccount(actor, targetUser, payload = {}) {
     };
 
     if (isChangingModuleAccess()) {
-      if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+      if (!isOwnerOrAdmin(actorRoleName)) {
         throw createHttpError(
           403,
           "Chỉ có Owner hoặc Admin mới có quyền cấu hình phân quyền module cho nhân viên"
@@ -960,7 +961,7 @@ async function updateOwnProfile(actor, payload = {}) {
       ? safePayload.preferences
       : actor.preferences;
 
-  if ([OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+  if (isOwnerOrAdmin(actorRoleName)) {
     const hasAssignmentsPayload =
       safePayload.departments !== undefined ||
       safePayload.groups !== undefined ||
@@ -1099,7 +1100,7 @@ async function restoreUserAccount(actor, userId) {
   const actorRoleName = actorRole?.name || null;
 
   // Only OWNER/ADMIN can restore
-  if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+  if (!isOwnerOrAdmin(actorRoleName)) {
     throw createHttpError(403, "You do not have permission to restore users");
   }
 
@@ -1125,7 +1126,7 @@ async function permanentDeleteUserAccount(actor, userId) {
   const actorRoleName = actorRole?.name || null;
 
   // Only OWNER/ADMIN can permanently delete
-  if (![OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(actorRoleName)) {
+  if (!isOwnerOrAdmin(actorRoleName)) {
     throw createHttpError(403, "You do not have permission to permanently delete users");
   }
 
@@ -1157,7 +1158,7 @@ async function permanentDeleteUserAccount(actor, userId) {
 
 async function getOrgOptions(actor) {
   const roleName = await getUserRoleName(actor);
-  const isAdminOrOwner = [OWNER_ROLE_NAME, ADMIN_ROLE_NAME].includes(roleName);
+  const isAdminOrOwner = isOwnerOrAdmin(roleName);
   const isManager = roleName === MANAGER_ROLE_NAME;
 
   if (!isAdminOrOwner && !isManager) {
