@@ -178,7 +178,7 @@ class JobWorkService {
       });
 
     const isOwnerOrAdminUser = isOwnerOrAdmin(user);
-    if (!isOwnerOrAdminUser && user) {
+    if (!isOwnerOrAdminUser && user && !task.allowDirectLinkAccess) {
       const isAssignedToTask =
         task.assignees && task.assignees.includes(user.id);
       if (!isAssignedToTask && task.folderId) {
