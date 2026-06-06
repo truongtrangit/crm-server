@@ -21,8 +21,19 @@ const reorderJobConfigStatusesSchema = Joi.object({
   orderedIds: Joi.array().items(Joi.string().required()).min(1).unique().required(),
 });
 
+const createJobConfigTaskTypeGroupSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(100).required(),
+  description: Joi.string().allow("", null).max(500).optional(),
+});
+
+const updateJobConfigTaskTypeGroupSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(100).optional(),
+  description: Joi.string().allow("", null).max(500).optional(),
+});
+
 const createJobConfigTaskTypeSchema = Joi.object({
   name: Joi.string().trim().min(1).max(100).required(),
+  groupId: Joi.string().required(),
   description: Joi.string().allow("", null).max(500).optional(),
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
@@ -30,6 +41,7 @@ const createJobConfigTaskTypeSchema = Joi.object({
 
 const updateJobConfigTaskTypeSchema = Joi.object({
   name: Joi.string().trim().min(1).max(100).optional(),
+  groupId: Joi.string().optional(),
   description: Joi.string().allow("", null).max(500).optional(),
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
@@ -97,6 +109,8 @@ module.exports = {
   createJobConfigStatusSchema,
   updateJobConfigStatusSchema,
   reorderJobConfigStatusesSchema,
+  createJobConfigTaskTypeGroupSchema,
+  updateJobConfigTaskTypeGroupSchema,
   createJobConfigTaskTypeSchema,
   updateJobConfigTaskTypeSchema,
   createJobConfigChannelSchema,

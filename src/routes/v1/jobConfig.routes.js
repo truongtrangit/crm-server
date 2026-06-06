@@ -10,6 +10,8 @@ const {
   reorderJobConfigStatusesSchema,
   createJobConfigTaskTypeSchema,
   updateJobConfigTaskTypeSchema,
+  createJobConfigTaskTypeGroupSchema,
+  updateJobConfigTaskTypeGroupSchema,
   createJobConfigChannelSchema,
   updateJobConfigChannelSchema,
   createJobConfigRepeatRuleSchema,
@@ -44,6 +46,27 @@ router
     jobConfigController.updateStatus
   )
   .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE), jobConfigController.deleteStatus);
+
+// ==========================================
+// TASK TYPE GROUP CONFIG
+// ==========================================
+router
+  .route("/task-type-groups")
+  .get(requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE), jobConfigController.getTaskTypeGroups)
+  .post(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE),
+    validate(createJobConfigTaskTypeGroupSchema),
+    jobConfigController.createTaskTypeGroup
+  );
+
+router
+  .route("/task-type-groups/:id")
+  .put(
+    requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE),
+    validate(updateJobConfigTaskTypeGroupSchema),
+    jobConfigController.updateTaskTypeGroup
+  )
+  .delete(requirePermission(PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE), jobConfigController.deleteTaskTypeGroup);
 
 // ==========================================
 // TASK TYPE CONFIG

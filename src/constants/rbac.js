@@ -230,6 +230,7 @@ const PERMISSIONS = {
   JOBHUB_CONFIG_TASK_TYPE_CREATE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.CREATE}`,
   JOBHUB_CONFIG_TASK_TYPE_UPDATE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.UPDATE}`,
   JOBHUB_CONFIG_TASK_TYPE_DELETE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.DELETE}`,
+  JOBHUB_CONFIG_TASK_TYPE_MANAGE: `${RESOURCES.JOBHUB}_task_type_${ACTIONS.MANAGE}`,
 
   JOBHUB_CONFIG_STATUS_READ: `${RESOURCES.JOBHUB}_status_${ACTIONS.READ}`,
   JOBHUB_CONFIG_STATUS_CREATE: `${RESOURCES.JOBHUB}_status_${ACTIONS.CREATE}`,
@@ -363,6 +364,7 @@ const ADMIN_PERMISSIONS = Array.from(new Set([
   PERMISSIONS.SALARY_CONFIGS_MANAGE,
   PERMISSIONS.COMPANIES_MANAGE,
   PERMISSIONS.JOBHUB_WORK_MANAGE,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE,
 ]));
 
 // Role definitions with their permissions
@@ -438,7 +440,7 @@ const MODULE_DEFINITIONS = {
   "jobhub.config": { key: "jobhub.config", label: "Cấu hình", type: "sub", parentKey: "jobhub", actions: ["view"] },
   "jobhub.config.repeatRule": { key: "jobhub.config.repeatRule", label: "Quy tắc lặp lại", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
   "jobhub.config.channel": { key: "jobhub.config.channel", label: "Kênh triển khai", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
-  "jobhub.config.taskType": { key: "jobhub.config.taskType", label: "Loại công việc", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
+  "jobhub.config.taskType": { key: "jobhub.config.taskType", label: "Loại công việc", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete", "configure"] },
   "jobhub.config.status": { key: "jobhub.config.status", label: "Trạng thái", type: "sub-sub", parentKey: "jobhub.config", actions: ["view", "create", "edit", "delete"] },
 };
 
@@ -584,7 +586,8 @@ const MODULE_TO_PERMISSIONS_MAP = {
     "view": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ],
     "create": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_CREATE],
     "edit": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_UPDATE],
-    "delete": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE]
+    "delete": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE],
+    "configure": [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE]
   },
   "jobhub.config.status": {
     "view": [PERMISSIONS.JOBHUB_CONFIG_STATUS_READ],
