@@ -9,6 +9,7 @@ const jobFolderSchema = new mongoose.Schema(
     icon: { type: String, default: "fa-regular fa-folder" },
     color: { type: String, default: "#64748b" },
     isSystem: { type: Boolean, default: false }, // Ví dụ: Thư mục "Chung" không được xoá
+    customStatuses: { type: [String], default: null }, // Array of status IDs, null means use global
   },
   {
     timestamps: true,
