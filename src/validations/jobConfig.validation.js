@@ -1,7 +1,9 @@
 const Joi = require("joi");
+const { JOB_STATUS_TYPES } = require("../constants/jobConfig");
 
 const createJobConfigStatusSchema = Joi.object({
   name: Joi.string().trim().min(1).max(100).required(),
+  type: Joi.string().valid(...JOB_STATUS_TYPES).required(),
   description: Joi.string().allow("", null).max(500).optional(),
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
@@ -9,6 +11,7 @@ const createJobConfigStatusSchema = Joi.object({
 
 const updateJobConfigStatusSchema = Joi.object({
   name: Joi.string().trim().min(1).max(100).optional(),
+  type: Joi.string().valid(...JOB_STATUS_TYPES).optional(),
   description: Joi.string().allow("", null).max(500).optional(),
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
