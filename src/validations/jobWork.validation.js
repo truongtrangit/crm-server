@@ -43,6 +43,7 @@ const createJobTaskSchema = Joi.object({
   details: Joi.string().allow("", null).optional(),
   shortDescription: Joi.string().allow("", null).max(500).optional(),
   allowDirectLinkAccess: Joi.boolean().optional(),
+  linkAccessUsers: Joi.array().items(Joi.string()).optional(),
   checklists: Joi.array().items(checklistItemSchema).optional(),
 });
 
@@ -58,6 +59,7 @@ const updateJobTaskSchema = Joi.object({
   details: Joi.string().allow("", null).optional(),
   shortDescription: Joi.string().allow("", null).max(500).optional(),
   allowDirectLinkAccess: Joi.boolean().optional(),
+  linkAccessUsers: Joi.array().items(Joi.string()).optional(),
   checklists: Joi.array().items(checklistItemSchema).optional(),
 });
 
