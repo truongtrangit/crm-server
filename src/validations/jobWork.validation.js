@@ -6,6 +6,8 @@ const createJobFolderSchema = Joi.object({
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
   order: Joi.number().integer().min(0).optional(),
+  customStatuses: Joi.array().items(Joi.string()).allow(null).optional(),
+  assignees: Joi.array().items(Joi.string()).optional(),
 });
 
 const updateJobFolderSchema = Joi.object({
@@ -14,6 +16,8 @@ const updateJobFolderSchema = Joi.object({
   icon: Joi.string().allow("", null).max(100).optional(),
   color: Joi.string().allow("", null).max(30).optional(),
   order: Joi.number().integer().min(0).optional(),
+  customStatuses: Joi.array().items(Joi.string()).allow(null).optional(),
+  assignees: Joi.array().items(Joi.string()).optional(),
 });
 
 const reorderJobFoldersSchema = Joi.object({
@@ -38,6 +42,8 @@ const createJobTaskSchema = Joi.object({
   dueDate: Joi.date().allow(null, "").optional(),
   details: Joi.string().allow("", null).optional(),
   shortDescription: Joi.string().allow("", null).max(500).optional(),
+  allowDirectLinkAccess: Joi.boolean().optional(),
+  linkAccessUsers: Joi.array().items(Joi.string()).optional(),
   checklists: Joi.array().items(checklistItemSchema).optional(),
 });
 
@@ -52,6 +58,8 @@ const updateJobTaskSchema = Joi.object({
   dueDate: Joi.date().allow(null, "").optional(),
   details: Joi.string().allow("", null).optional(),
   shortDescription: Joi.string().allow("", null).max(500).optional(),
+  allowDirectLinkAccess: Joi.boolean().optional(),
+  linkAccessUsers: Joi.array().items(Joi.string()).optional(),
   checklists: Joi.array().items(checklistItemSchema).optional(),
 });
 

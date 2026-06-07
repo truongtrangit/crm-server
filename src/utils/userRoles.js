@@ -77,7 +77,23 @@ function isWithinManagerScope(manager, payload) {
   return isDepartmentAllowed && isGroupAllowed;
 }
 
+function isOwnerOrAdmin(userOrRole) {
+  if (!userOrRole) return false;
+  
+  let roleStr = "";
+  if (typeof userOrRole === "string") {
+    roleStr = userOrRole;
+  } else if (userOrRole.roleId) {
+    roleStr = userOrRole.roleId;
+  } else if (userOrRole.role?.name) {
+    roleStr = userOrRole.role.name;
+  }
+  
+  return [USER_ROLE_VALUES.OWNER, USER_ROLE_VALUES.ADMIN].includes(roleStr.toUpperCase());
+}
+
 module.exports = {
   isWithinManagerScope,
   normalizeUserRole,
+  isOwnerOrAdmin,
 };

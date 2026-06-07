@@ -41,6 +41,8 @@ const jobTaskSchema = new mongoose.Schema(
 
     details: { type: String, default: "" }, // Mô tả công việc (Rich Text)
     shortDescription: { type: String, default: "" },
+    allowDirectLinkAccess: { type: Boolean, default: false }, // Cho phép ai có link trực tiếp đều xem được
+    linkAccessUsers: [{ type: String, ref: "User" }], // Specific users allowed to view via link
 
     checklists: [checklistItemSchema],
     logs: [logSchema],

@@ -10,7 +10,7 @@ const {
 } = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
-
+const { isOwnerOrAdmin } = require("../utils/userRoles");
 
 class MetaService {
   // ─── Config CRUD ────────────────────────────────────────────────────────────
@@ -648,7 +648,7 @@ class MetaService {
     }
 
     // Only Owner/Admin or the comment author can delete
-    if (!["OWNER", "ADMIN"].includes(role) && comment.userId !== currentUser.id) {
+    if (!isOwnerOrAdmin(role) && comment.userId !== currentUser.id) {
       throw createHttpError(403, "Bạn không có quyền xóa bình luận này", {
         code: "META_FORBIDDEN",
       });

@@ -3,6 +3,7 @@ const Event = require("../models/Event");
 const { sendSuccess, sendError } = require("../utils/http");
 const SystemLogService = require("../services/SystemLogService");
 const { RESOURCES } = require("../constants/rbac");
+const { isOwnerOrAdmin } = require("../utils/userRoles");
 
 // Ownership check is now handled in EventService
 
@@ -53,7 +54,7 @@ class EventController {
   }
   async deleteEventTimeline(req, res) {
     const roleId = (req.user?.roleId || '').toUpperCase();
-    if (roleId !== 'OWNER' && roleId !== 'ADMIN') {
+    if (!isOwnerOrAdmin(roleId)) {
       return sendError(res, 403, "Chỉ Owner và Admin mới có quyền xoá bình luận/lịch sử");
     }
 

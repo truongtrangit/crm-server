@@ -3,8 +3,9 @@ const { requirePermission, requireRole } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const CustomerController = require("../../controllers/CustomerController");
-const { requireResourceAccess, scopeResourceList } = require("../../middleware/resourceAccess");
-const Customer = require("../../models/Customer");
+
+const { scopeFieldAccess } = require("../../middleware/fieldAccess");
+
 
 const {
   createCustomerSchema,
@@ -15,35 +16,7 @@ const {
 
 const router = express.Router();
 
-const customerResourceAccess = requireResourceAccess({
-  // Helper
-  getResource: (req) => Customer.findOne({ id: req.params.id }),
-  getCreatorId: (customer) => customer.createdBy,
-
-  // Behavior flags
-  allowCreator: true,
-  allowManagerSubordinateCreator: true,
-})
-
-const customerScopeList = scopeResourceList({
-  // Helpers — cấu trúc DB
-  creatorField: "createdBy",
-
-  // Hành vi (Behaviors)
-  allowCreator: true,
-  allowManagerSubordinateCreator: true,
-  includeUnassigned: true,
-
-  // Module filter
-  moduleTypeFilter: {
-    field: "mainType",
-    mapping: {
-      "customers.biz": "biz",
-      "customers.user": "user",
-    }
-  }
-});
-
+const { customerResourceAccess, customerScopeList } = require("../../middleware/customerAccess");
 
 /**
  * GET /api/customers
@@ -53,9 +26,16 @@ router.get(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
   validate(listCustomersQuerySchema, "query"),
-  CustomerController.getCustomers
+  customerScopeList,
+  scopeFieldAccess("customers", [
+    "id",
+    "name",
+    "avatar",
+    "mainType",
+    "isActive",
+  ]),
+  CustomerController.getCustomers,
 );
-
 
 /**
  * GET /api/customers/:id
@@ -64,8 +44,15 @@ router.get(
 router.get(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_READ),
-  customerScopeList,
-  CustomerController.getCustomerById
+  customerResourceAccess,
+  scopeFieldAccess("customers", [
+    "id",
+    "name",
+    "avatar",
+    "mainType",
+    "isActive",
+  ]),
+  CustomerController.getCustomerById,
 );
 
 /**
@@ -76,7 +63,7 @@ router.post(
   "/",
   requirePermission(PERMISSIONS.CUSTOMERS_CREATE),
   validate(createCustomerSchema),
-  CustomerController.createCustomer
+  CustomerController.createCustomer,
 );
 
 /**
@@ -88,7 +75,7 @@ router.put(
   requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
   customerResourceAccess,
   validate(updateCustomerSchema),
-  CustomerController.updateCustomer
+  CustomerController.updateCustomer,
 );
 
 /**
@@ -99,9 +86,8 @@ router.delete(
   "/:id",
   requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
   customerResourceAccess,
-  CustomerController.deleteCustomer
+  CustomerController.deleteCustomer,
 );
-
 
 /**
  * PUT /api/customers/:id/restore
@@ -111,7 +97,7 @@ router.put(
   "/:id/restore",
   requireRole(["OWNER", "ADMIN"]),
   requirePermission(PERMISSIONS.CUSTOMER_RESTORE),
-  CustomerController.restoreCustomer
+  CustomerController.restoreCustomer,
 );
 
 /**
@@ -122,7 +108,7 @@ router.delete(
   "/:id/permanent",
   requireRole(["OWNER", "ADMIN"]),
   requirePermission(PERMISSIONS.CUSTOMERS_PERMANENT_DELETE),
-  CustomerController.permanentDeleteCustomer
+  CustomerController.permanentDeleteCustomer,
 );
 
 module.exports = router;

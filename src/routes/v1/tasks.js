@@ -1,10 +1,10 @@
 const express = require("express");
 const { requirePermission, requireRole } = require("../../middleware/auth");
-const { requireResourceAccess, scopeResourceList, enforceAssignmentRules, enforceUnassignmentRules } = require("../../middleware/resourceAccess");
+
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const TaskController = require("../../controllers/TaskController");
-const Task = require("../../models/Task");
+
 const {
   createTaskSchema,
   updateTaskSchema,
@@ -15,51 +15,7 @@ const {
 
 const router = express.Router();
 
-// ─── Shared resource access config for Task ──────────────────────────────────
-const taskResourceAccess = requireResourceAccess({
-  // Helpers
-  getResource: (req) => Task.findOne({ id: req.params.id }),
-  getAssigneeIds: (task) => (task.assignees || []).map((a) => a.userId),
-  getCreatorId: (task) => task.createdBy,
-
-  // Hành vi (Behaviors)
-  allowCreator: true,
-  allowAssignee: true,
-  allowUnassigned: false,
-  allowManagerSubordinateCreator: true,
-  allowManagerSubordinateAssignee: true,
-});
-
-const taskAssignmentRules = enforceAssignmentRules({
-  // Helpers
-  getNewAssigneeIds: (req) => req.body.assignees ? req.body.assignees.map(a => typeof a === 'string' ? a : a.userId) : null,
-  getCurrentAssigneeIds: (task) => (task.assignees || []).map(a => a.userId),
-
-  // Hành vi (Behaviors)
-  allowSelfAssignment: true,
-  allowManagerSubordinateAssignment: true,
-  allowSameFunctionAssignment: true,
-});
-
-const taskUnassignmentRules = enforceUnassignmentRules({
-  // Helpers
-  getNewAssigneeIds: (req) => req.body.assignees ? req.body.assignees.map(a => typeof a === 'string' ? a : a.userId) : null,
-  getCurrentAssigneeIds: (task) => (task.assignees || []).map(a => a.userId),
-
-  // Hành vi (Behaviors)
-  allowSelfUnassignment: true,
-  allowManagerSubordinateUnassignment: true,
-});
-
-const taskScopeList = scopeResourceList({
-  // Helpers — cấu trúc DB
-  assigneeField: "assignees.userId",
-  creatorField: "createdBy",
-  assigneesArrayField: "assignees",
-
-  // Hành vi (Behaviors)
-  includeUnassigned: true,
-});
+const { taskResourceAccess, taskAssignmentRules, taskUnassignmentRules, taskScopeList } = require("../../middleware/taskAccess");
 
 
 // ─── GET /api/tasks ───

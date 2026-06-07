@@ -1,10 +1,10 @@
 const express = require("express");
 const { requirePermission, requireRole } = require("../../middleware/auth");
-const { requireResourceAccess, enforceAssignmentRules, enforceUnassignmentRules, scopeResourceList } = require("../../middleware/resourceAccess");
+
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const EventController = require("../../controllers/EventController");
-const Event = require("../../models/Event");
+
 const {
   createEventSchema,
   updateEventSchema,
@@ -14,52 +14,7 @@ const {
 
 const router = express.Router();
 
-// ─── Shared resource access config for Event ─────────────────────────────────
-const eventResourceAccess = requireResourceAccess({
-  // Helpers
-  getResource: (req) => Event.findOne({ id: req.params.id }),
-  getAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
-  getCreatorId: (event) => event.createdBy,
-
-  // Hành vi (Behaviors)
-  allowCreator: true,
-  allowAssignee: true,
-  allowUnassigned: false,
-  allowManagerSubordinateCreator: true,
-  allowManagerSubordinateAssignee: true,
-});
-
-const eventAssignmentRules = enforceAssignmentRules({
-  // Helpers
-  getNewAssigneeIds: (req) => req.body.assignees ? req.body.assignees.map(a => typeof a === 'string' ? a : a.userId) : null,
-  getCurrentAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
-
-  // Hành vi (Behaviors)
-  allowSelfAssignment: true,
-  allowManagerSubordinateAssignment: true,
-  allowSameFunctionAssignment: true,
-});
-
-const eventUnassignmentRules = enforceUnassignmentRules({
-  // Helpers
-  getNewAssigneeIds: (req) => req.body.assignees ? req.body.assignees.map(a => typeof a === 'string' ? a : a.userId) : null,
-  getCurrentAssigneeIds: (event) => (event.assignees || []).map((a) => a.userId),
-  getTargetUserId: (req) => req.body.userId, // Dùng cho DELETE /:id/assignee
-
-  // Hành vi (Behaviors)
-  allowSelfUnassignment: true,
-  allowManagerSubordinateUnassignment: true,
-});
-
-const eventScopeList = scopeResourceList({
-  // Helpers — cấu trúc DB
-  assigneeField: "assignees.userId",
-  creatorField: "createdBy",
-  assigneesArrayField: "assignees",
-
-  // Hành vi (Behaviors)
-  includeUnassigned: true,
-});
+const { eventResourceAccess, eventAssignmentRules, eventUnassignmentRules, eventScopeList } = require("../../middleware/eventAccess");
 
 router.get(
   "/",
