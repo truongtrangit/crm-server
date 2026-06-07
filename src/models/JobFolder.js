@@ -11,6 +11,7 @@ const jobFolderSchema = new mongoose.Schema(
     isSystem: { type: Boolean, default: false }, // Ví dụ: Thư mục "Chung" không được xoá
     customStatuses: { type: [String], default: null }, // Array of status IDs, null means use global
     assignees: { type: [String], default: [] }, // Array of User IDs who can access this folder
+    createdBy: { type: String, default: null }, // User ID who created this folder
   },
   {
     timestamps: true,

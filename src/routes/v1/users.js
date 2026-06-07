@@ -1,7 +1,8 @@
 const express = require("express");
 const { requirePermission, requireRole } = require("../../middleware/auth");
-const { requireResourceAccess, scopeAssignmentList } = require("../../middleware/resourceAccess");
-const User = require("../../models/User");
+const { scopeAssignmentList } = require("../../middleware/resourceAccess");
+const { scopeFieldAccess } = require("../../middleware/fieldAccess");
+
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const UserController = require("../../controllers/UserController");
@@ -13,26 +14,9 @@ const {
 
 const router = express.Router();
 
-// ─── Shared resource access for User management ─────────────────────────────
-// Manager chỉ có toàn quyền trên nhân viên cùng phòng ban (department-based)
-// VD: Phòng CSKH có 2 Manager → cả 2 đều quản lý được tất cả STAFF phòng CSKH
-const userResourceAccess = requireResourceAccess({
-  // Helpers
-  getResource: (req) => User.findOne({ id: req.params.id }),
-  getCreatorId: (targetUser) => targetUser.createdBy,
-  getTargetUserId: (targetUser) => targetUser.id, // Check: target user IS subordinate?
+const { userResourceAccess } = require("../../middleware/userAccess");
 
-  // Hành vi (Behaviors)
-  allowCreator: true,
-  allowManagerSubordinateCreator: true,
-  allowManagerSubordinateTarget: true,
-  allowUnassigned: false,
-});
-
-router.get(
-  "/org-options",
-  UserController.getOrgOptions,
-);
+router.get("/org-options", UserController.getOrgOptions);
 
 router.get(
   "/",
@@ -42,6 +26,15 @@ router.get(
     // Hành vi: Cho phép Manager nhìn thấy nhân viên cấp dưới
     allowManagerSubordinateScope: true,
   }),
+  scopeFieldAccess("staff", [
+    "id",
+    "name",
+    "avatar",
+    "isActive",
+    "roleId",
+    "departments",
+    "groups",
+  ]),
   UserController.listUsers,
 );
 
@@ -69,14 +62,14 @@ router.delete(
 
 router.put(
   "/:id/restore",
-  requireRole(['OWNER', 'ADMIN']),
+  requireRole(["OWNER", "ADMIN"]),
   requirePermission(PERMISSIONS.USER_RESTORE),
   UserController.restoreUser,
 );
 
 router.delete(
   "/:id/permanent",
-  requireRole(['OWNER', 'ADMIN']),
+  requireRole(["OWNER", "ADMIN"]),
   requirePermission(PERMISSIONS.USERS_PERMANENT_DELETE),
   UserController.permanentDeleteUser,
 );

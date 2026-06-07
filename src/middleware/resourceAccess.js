@@ -110,6 +110,69 @@ function requireResourceAccess(options) {
 }
 
 /**
+ * Universal bulk resource-level access check middleware (for arrays of IDs like reorder).
+ * @param {Object} options
+ * @param {Function} options.getResources     - (req) => Promise<Document[]>
+ * @param {Function} [options.getCreatorId]   - (resource) => string|null
+ * @param {Function} [options.getAssigneeIds] - (resource) => string[]
+ * @param {string[]} [options.bypassRoles]    - Default: ['OWNER', 'ADMIN']
+ * @param {boolean}  [options.allowCreator]   - Default: true
+ * @param {boolean}  [options.allowAssignee]  - Default: false
+ * @param {boolean}  [options.allowManagerSubordinateCreator] - Default: false
+ */
+function requireBulkResourceAccess(options) {
+  const middleware = async (req, res, next) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return sendError(res, 401, "Bạn cần đăng nhập để thực hiện hành động này", {
+          code: "AUTHENTICATION_REQUIRED",
+        });
+      }
+
+      const role = (user.roleId || "").toUpperCase();
+      const bypassRoles = options.bypassRoles || ["OWNER", "ADMIN"];
+      if (bypassRoles.includes(role)) return next();
+
+      const items = await options.getResources(req);
+      if (!items || items.length === 0) return next();
+
+      const isManagerial = isUserManagerial(user);
+      let subIds = [];
+      if (isManagerial) {
+        subIds = await getManagerSubordinateIds(user);
+      }
+
+      for (const item of items) {
+        const creatorId = options.getCreatorId ? options.getCreatorId(item) : null;
+        const allowCreator = options.allowCreator ?? true;
+        const isCreator = allowCreator && creatorId && creatorId === user.id;
+
+        const allowManagerSubordinateCreator = options.allowManagerSubordinateCreator ?? false;
+        const isManagerOfCreator = allowManagerSubordinateCreator && creatorId && subIds.includes(creatorId);
+
+        const assigneeIds = options.getAssigneeIds ? (options.getAssigneeIds(item) || []) : [];
+        const allowAssignee = options.allowAssignee ?? false;
+        const isAssignee = allowAssignee && assigneeIds.includes(user.id);
+        
+        if (!isCreator && !isManagerOfCreator && !isAssignee) {
+           return sendError(res, 403, options.errorMessage || "Bạn không có quyền thao tác trên một số tài nguyên này", {
+             code: "RESOURCE_ACCESS_DENIED"
+           });
+        }
+      }
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  middleware.with = (overrides) => requireBulkResourceAccess({ ...options, ...overrides });
+  return middleware;
+}
+
+/**
  * Middleware: Ngăn chặn gán người phụ trách lung tung.
  * Sử dụng cho cả API Create và Update.
  * - OWNER/ADMIN: Không giới hạn.
@@ -354,4 +417,11 @@ function scopeResourceList(options = {}) {
   return middleware;
 }
 
-module.exports = { requireResourceAccess, enforceAssignmentRules, enforceUnassignmentRules, scopeAssignmentList, scopeResourceList };
+module.exports = { 
+  requireResourceAccess, 
+  requireBulkResourceAccess, 
+  enforceAssignmentRules, 
+  enforceUnassignmentRules, 
+  scopeAssignmentList, 
+  scopeResourceList 
+};

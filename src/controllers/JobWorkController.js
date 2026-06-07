@@ -11,7 +11,7 @@ class JobWorkController {
   }
 
   async createFolder(req, res) {
-    const folder = await JobWorkService.createFolder(req.body);
+    const folder = await JobWorkService.createFolder(req.body, req.user);
     return sendSuccess(res, 201, "Tạo thư mục thành công", folder);
   }
 
@@ -49,13 +49,21 @@ class JobWorkController {
   }
 
   async updateTask(req, res) {
-    const task = await JobWorkService.updateTask(req.params.id, req.body, req.user);
+    const task = await JobWorkService.updateTask(
+      req.params.id,
+      req.body,
+      req.user,
+    );
     return sendSuccess(res, 200, "Cập nhật công việc thành công", task);
   }
 
   async updateTaskStatus(req, res) {
     const { statusId } = req.body;
-    const task = await JobWorkService.updateTaskStatus(req.params.id, statusId, req.user);
+    const task = await JobWorkService.updateTaskStatus(
+      req.params.id,
+      statusId,
+      req.user,
+    );
     return sendSuccess(res, 200, "Cập nhật trạng thái thành công", task);
   }
 

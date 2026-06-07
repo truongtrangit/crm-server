@@ -36,7 +36,7 @@ class JobWorkService {
     });
   }
 
-  async createFolder(data) {
+  async createFolder(data, currentUser) {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_FOLDER || "JBF");
     const maxFolder = await JobFolder.findOne({
       parentId: data.parentId || null,
@@ -46,27 +46,39 @@ class JobWorkService {
     const nextOrder =
       maxFolder && maxFolder.order !== undefined ? maxFolder.order + 1 : 1;
 
+    const assignees = data.assignees || [];
+    if (
+      currentUser &&
+      !isOwnerOrAdmin(currentUser) &&
+      !assignees.includes(currentUser.id)
+    ) {
+      assignees.push(currentUser.id);
+    }
+
     const newFolder = new JobFolder({
       ...data,
+      assignees,
       id,
+      createdBy: currentUser ? currentUser.id : null,
       order: data.order !== undefined ? data.order : nextOrder,
     });
     return newFolder.save();
   }
 
   async updateFolder(id, data) {
-    const folder = await JobFolder.findOneAndUpdate({ id }, data, {
-      new: true,
-    });
+    const folder = await JobFolder.findOne({ id });
     if (!folder)
       throw Object.assign(new Error("Không tìm thấy thư mục"), { status: 404 });
-    return folder;
+
+    Object.assign(folder, data);
+    return folder.save();
   }
 
   async deleteFolder(id) {
     const folder = await JobFolder.findOne({ id });
     if (!folder)
       throw Object.assign(new Error("Không tìm thấy thư mục"), { status: 404 });
+
     if (folder.isSystem)
       throw Object.assign(new Error("Không thể xoá thư mục hệ thống"), {
         status: 400,
@@ -270,11 +282,13 @@ class JobWorkService {
   }
 
   async deleteTask(id) {
-    const result = await JobTask.deleteOne({ id });
-    if (result.deletedCount === 0)
+    const task = await JobTask.findOne({ id });
+    if (!task)
       throw Object.assign(new Error("Không tìm thấy công việc"), {
         status: 404,
       });
+
+    await JobTask.deleteOne({ id });
     return true;
   }
 }

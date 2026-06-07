@@ -12,17 +12,25 @@ const {
   updateJobTaskSchema,
   updateJobTaskStatusSchema,
 } = require("../../validations/jobWork.validation");
+const {
+  jobFolderAccess,
+  jobFolderBulkAccess,
+  jobTaskAccess,
+} = require("../../middleware/jobWorkAccess");
 
 // ==========================================
 // JOB FOLDER ROUTES
 // ==========================================
 router
   .route("/folders")
-  .get(requirePermission(PERMISSIONS.JOBHUB_WORK_READ), JobWorkController.getFolders)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_WORK_READ),
+    JobWorkController.getFolders,
+  )
   .post(
     requirePermission(PERMISSIONS.JOBHUB_FOLDER_CREATE),
     validate(createJobFolderSchema),
-    JobWorkController.createFolder
+    JobWorkController.createFolder,
   );
 
 router
@@ -30,7 +38,8 @@ router
   .patch(
     requirePermission(PERMISSIONS.JOBHUB_FOLDER_UPDATE),
     validate(reorderJobFoldersSchema),
-    JobWorkController.reorderFolders
+    jobFolderBulkAccess,
+    JobWorkController.reorderFolders,
   );
 
 router
@@ -38,38 +47,55 @@ router
   .put(
     requirePermission(PERMISSIONS.JOBHUB_FOLDER_UPDATE),
     validate(updateJobFolderSchema),
-    JobWorkController.updateFolder
+    jobFolderAccess.with({ allowAssignee: true }),
+    JobWorkController.updateFolder,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_FOLDER_DELETE), JobWorkController.deleteFolder);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_FOLDER_DELETE),
+    jobFolderAccess,
+    JobWorkController.deleteFolder,
+  );
 
 // ==========================================
 // JOB TASK ROUTES
 // ==========================================
 router
   .route("/tasks")
-  .get(requirePermission(PERMISSIONS.JOBHUB_WORK_READ), JobWorkController.getTasks)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_WORK_READ),
+    JobWorkController.getTasks,
+  )
   .post(
     requirePermission(PERMISSIONS.JOBHUB_TASK_CREATE),
     validate(createJobTaskSchema),
-    JobWorkController.createTask
+    JobWorkController.createTask,
   );
 
 router
   .route("/tasks/:id")
-  .get(requirePermission(PERMISSIONS.JOBHUB_WORK_READ), JobWorkController.getTaskById)
+  .get(
+    requirePermission(PERMISSIONS.JOBHUB_WORK_READ),
+    JobWorkController.getTaskById,
+  )
   .put(
     requirePermission(PERMISSIONS.JOBHUB_TASK_UPDATE),
     validate(updateJobTaskSchema),
-    JobWorkController.updateTask
+    jobTaskAccess.with({ allowAssignee: true }),
+    JobWorkController.updateTask,
   )
-  .delete(requirePermission(PERMISSIONS.JOBHUB_TASK_DELETE), JobWorkController.deleteTask);
+  .delete(
+    requirePermission(PERMISSIONS.JOBHUB_TASK_DELETE),
+    jobTaskAccess,
+    JobWorkController.deleteTask,
+  );
 
 router
   .route("/tasks/:id/status")
   .patch(
     requirePermission(PERMISSIONS.JOBHUB_TASK_UPDATE),
     validate(updateJobTaskStatusSchema),
-    JobWorkController.updateTaskStatus
+    jobTaskAccess.with({ allowAssignee: true }),
+    JobWorkController.updateTaskStatus,
   );
 
 module.exports = router;
