@@ -11,6 +11,7 @@ const { executeBlockAutomation } = require("../services/BlockAutomationExecutor"
 const SystemLogService = require("../services/SystemLogService");
 const AutomationLogService = require("../services/AutomationLogService");
 const { RESOURCES } = require("../constants/rbac");
+const { isOwnerOrAdmin } = require("../utils/userRoles");
 
 const EventService = require("../services/EventService");
 
@@ -439,7 +440,7 @@ class EventActionChainController {
 
     const now = new Date();
     const roleName = await getUserRoleName(req.user);
-    const isAdminOrOwner = ["OWNER", "ADMIN"].includes(roleName);
+    const isAdminOrOwner = isOwnerOrAdmin(roleName);
     const isManager = roleName === "MANAGER";
 
     // ── 1. Xác định tập Event được phép xem (RBAC) ──────────────────────────

@@ -32,6 +32,29 @@ class JobConfigController {
   }
 
   // ==========================================
+  // TASK TYPE GROUP CONFIG
+  // ==========================================
+  async getTaskTypeGroups(req, res) {
+    const groups = await JobConfigService.getTaskTypeGroups();
+    return sendSuccess(res, 200, "Thành công", groups);
+  }
+
+  async createTaskTypeGroup(req, res) {
+    const group = await JobConfigService.createTaskTypeGroup(req.body);
+    return sendSuccess(res, 201, "Tạo thành công", group);
+  }
+
+  async updateTaskTypeGroup(req, res) {
+    const group = await JobConfigService.updateTaskTypeGroup(req.params.id, req.body);
+    return sendSuccess(res, 200, "Cập nhật thành công", group);
+  }
+
+  async deleteTaskTypeGroup(req, res) {
+    await JobConfigService.deleteTaskTypeGroup(req.params.id);
+    return sendSuccess(res, 200, "Xóa thành công");
+  }
+
+  // ==========================================
   // TASK TYPE CONFIG
   // ==========================================
   async getTaskTypes(req, res) {

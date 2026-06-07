@@ -7,6 +7,7 @@ const jobTaskTypeSchema = new mongoose.Schema(
     description: { type: String, default: "", trim: true },
     icon: { type: String, default: "fa-solid fa-tasks" },
     color: { type: String, default: "#1f2937" },
+    groupId: { type: String, required: true },
     isSystem: { type: Boolean, default: false }, // Cannot be deleted if true
   },
   {

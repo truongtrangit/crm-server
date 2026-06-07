@@ -1,6 +1,12 @@
 const CacheService = require("../services/CacheService");
 const Role = require("../models/Role");
 const env = require("../config/env");
+const { isOwnerOrAdmin } = require("./userRoles");
+const { USER_ROLE_VALUES } = require("../constants/appData");
+
+// Constants for default module access
+const MANAGER_EXCLUDED_MODULES = ["logs"];
+const STAFF_ALLOWED_MODULES = ["customers", "operations", "meta"];
 
 function getPermissionVariants(permission) {
   if (!permission || typeof permission !== "string") {
@@ -14,8 +20,8 @@ function getPermissionVariants(permission) {
     return [permission];
   }
 
-  const resource = permission.slice(0, lastUnderscore);  // "actions_cfg"
-  const action   = permission.slice(lastUnderscore + 1); // "read"
+  const resource = permission.slice(0, lastUnderscore); // "actions_cfg"
+  const action = permission.slice(lastUnderscore + 1); // "read"
 
   if (action === "manage") {
     return [permission];
@@ -42,19 +48,19 @@ async function resolveUserRole(user) {
   }
 
   const cacheKey = `rbac:role:${user.roleId}`;
-  
+
   // 1. Đọc từ Redis Cache
   let role = await CacheService.get(cacheKey);
-  
+
   if (role) {
     return role;
   }
 
   // 2. Cache miss -> Lấy từ MongoDB
   role = await Role.findOne({ id: user.roleId }).lean();
-  
+
   if (role) {
-    await CacheService.set(cacheKey, role, env.cacheRoleTtlSeconds); 
+    await CacheService.set(cacheKey, role, env.cacheRoleTtlSeconds);
   }
 
   return role;
@@ -151,6 +157,43 @@ async function getUserPermissions(user) {
   return Array.from(permissions);
 }
 
+/**
+ * Kiểm tra xem user có quyền truy cập vào một module cụ thể hay không.
+ * Nếu không cấu hình rõ (moduleAccess rỗng), dùng cấu hình mặc định:
+ * OWNER, ADMIN -> true
+ * MANAGER -> true trừ logs
+ * STAFF -> true cho customers, operations, meta
+ */
+async function hasModuleAccess(user, moduleId) {
+  if (!user) return false;
+
+  const role = await getUserRoleName(user);
+  const roleUpper = (role || "").toUpperCase();
+
+  if (isOwnerOrAdmin(roleUpper)) return true;
+
+  const rootModule = moduleId.split(".")[0];
+  let defaultAllowed = false;
+
+  if (roleUpper === USER_ROLE_VALUES.MANAGER) {
+    defaultAllowed = !MANAGER_EXCLUDED_MODULES.includes(rootModule);
+  } else if (roleUpper === USER_ROLE_VALUES.STAFF) {
+    defaultAllowed = STAFF_ALLOWED_MODULES.includes(rootModule);
+  }
+
+  const entries = user.moduleAccess || [];
+  if (entries.length === 0) {
+    return defaultAllowed;
+  }
+
+  // Check explicit settings
+  return entries.some(
+    (e) =>
+      e.isEnabled &&
+      (e.moduleId === moduleId || e.moduleId.startsWith(moduleId + ".")),
+  );
+}
+
 module.exports = {
   hasPermission,
   hasAnyPermission,
@@ -159,4 +202,5 @@ module.exports = {
   getUserPermissions,
   getUserRoleName,
   getUserRoleLevel,
+  hasModuleAccess,
 };

@@ -1,8 +1,7 @@
 const express = require("express");
 const { requirePermission, requireRole } = require("../../middleware/auth");
 const validate = require("../../middleware/validate");
-const { requireResourceAccess, enforceAssignmentRules, enforceUnassignmentRules, scopeResourceList } = require("../../middleware/resourceAccess");
-const MetaProgram = require("../../models/MetaProgram");
+
 const { PERMISSIONS } = require("../../constants/rbac");
 const MetaController = require("../../controllers/MetaController");
 const {
@@ -52,50 +51,12 @@ router.delete(
 
 // ─── Program routes ──────────────────────────────────────────────────────────
 
-const metaProgramAccess = requireResourceAccess({
-  // Helpers
-  getResource: (req) => MetaProgram.findOne({ id: req.params.id }),
-  getAssigneeIds: (program) => program.picIds || [],
-  getCreatorId: (program) => program.createdBy,
-
-  // Hành vi (Behaviors)
-  allowCreator: true,
-  allowAssignee: true,
-  allowUnassigned: false,
-  allowManagerSubordinateCreator: true,
-  allowManagerSubordinateAssignee: true,
-});
-
-const metaAssignmentRules = enforceAssignmentRules({
-  // Helpers
-  getNewAssigneeIds: (req) => req.body.picIds || null,
-  getCurrentAssigneeIds: (program) => program.picIds || [],
-
-  // Hành vi (Behaviors)
-  allowSelfAssignment: true,
-  allowManagerSubordinateAssignment: true,
-  allowStaffReassignment: false,
-});
-
-const metaUnassignmentRules = enforceUnassignmentRules({
-  // Helpers
-  getNewAssigneeIds: (req) => req.body.picIds || null,
-  getCurrentAssigneeIds: (program) => program.picIds || [],
-
-  // Hành vi (Behaviors)
-  allowSelfUnassignment: true,
-  allowManagerSubordinateUnassignment: true,
-});
-
-const metaScopeList = scopeResourceList({
-  // Helpers — cấu trúc DB
-  assigneeField: "picIds",
-  creatorField: "createdBy",
-  assigneesArrayField: "picIds",
-
-  // Hành vi (Behaviors)
-  includeUnassigned: true,
-});
+const {
+  metaProgramAccess,
+  metaAssignmentRules,
+  metaUnassignmentRules,
+  metaScopeList,
+} = require("../../middleware/metaAccess");
 
 router.get(
   "/programs",
@@ -124,7 +85,7 @@ router.put(
   "/programs/:id",
   requirePermission(PERMISSIONS.META_UPDATE),
   metaProgramAccess.with({
-    allowUnassigned: true
+    allowUnassigned: true,
   }),
   metaAssignmentRules,
   metaUnassignmentRules,

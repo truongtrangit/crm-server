@@ -1,6 +1,7 @@
 const { createHttpError } = require("../utils/http");
 const JobConfigStatus = require("../models/JobConfigStatus");
 const JobConfigTaskType = require("../models/JobConfigTaskType");
+const JobConfigTaskTypeGroup = require("../models/JobConfigTaskTypeGroup");
 const JobConfigChannel = require("../models/JobConfigChannel");
 const JobConfigRepeatRule = require("../models/JobConfigRepeatRule");
 const JobTask = require("../models/JobTask");
@@ -77,6 +78,41 @@ class JobConfigService {
   }
 
   // ==========================================
+  // TASK TYPE GROUP CONFIG
+  // ==========================================
+  async getTaskTypeGroups() {
+    return JobConfigTaskTypeGroup.find().sort({ createdAt: -1 }).lean();
+  }
+
+  async createTaskTypeGroup(data) {
+    const id = await generateMonotonicId(ID_PREFIXES.JOB_TASK_TYPE_GROUP);
+    const group = new JobConfigTaskTypeGroup({ ...data, id });
+    await group.save();
+    return group;
+  }
+
+  async updateTaskTypeGroup(id, data) {
+    const group = await JobConfigTaskTypeGroup.findOne({ id });
+    if (!group) throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
+    Object.assign(group, data);
+    await group.save();
+    return group;
+  }
+
+  async deleteTaskTypeGroup(id) {
+    const group = await JobConfigTaskTypeGroup.findOne({ id });
+    if (!group) throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
+
+    const taskTypeCount = await JobConfigTaskType.countDocuments({ groupId: id });
+    if (taskTypeCount > 0) {
+      throw createHttpError(400, "Không thể xoá nhóm đang chứa loại công việc. Vui lòng chuyển loại công việc sang nhóm khác hoặc xoá chúng trước.");
+    }
+
+    await JobConfigTaskTypeGroup.deleteOne({ id });
+    return { success: true };
+  }
+
+  // ==========================================
   // TASK TYPE CONFIG
   // ==========================================
   async getTaskTypes() {
@@ -84,6 +120,9 @@ class JobConfigService {
   }
 
   async createTaskType(data) {
+    const group = await JobConfigTaskTypeGroup.findOne({ id: data.groupId });
+    if (!group) throw createHttpError(404, "Nhóm loại công việc không tồn tại");
+
     const id = await generateMonotonicId(ID_PREFIXES.JOB_TASK_TYPE);
     const taskType = new JobConfigTaskType({ ...data, id });
     await taskType.save();
@@ -93,6 +132,12 @@ class JobConfigService {
   async updateTaskType(id, data) {
     const taskType = await JobConfigTaskType.findOne({ id });
     if (!taskType) throw createHttpError(404, "Không tìm thấy loại công việc");
+
+    if (data.groupId && data.groupId !== taskType.groupId) {
+      const group = await JobConfigTaskTypeGroup.findOne({ id: data.groupId });
+      if (!group) throw createHttpError(404, "Nhóm loại công việc không tồn tại");
+    }
+
     Object.assign(taskType, data);
     await taskType.save();
     return taskType;

@@ -52,6 +52,7 @@ const ID_PREFIXES = Object.freeze({
 
   // Job Hub
   JOB_STATUS_CONFIG: "JSC",
+  JOB_TASK_TYPE_GROUP: "JTG",
   JOB_TASK_TYPE: "JTT",
   JOB_CHANNEL: "JCH",
   JOB_REPEAT_RULE: "JRR",

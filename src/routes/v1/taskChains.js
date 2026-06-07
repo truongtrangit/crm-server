@@ -6,11 +6,11 @@
  */
 const express = require("express");
 const { requirePermission } = require("../../middleware/auth");
-const { requireResourceAccess } = require("../../middleware/resourceAccess");
+
 const validate = require("../../middleware/validate");
 const { PERMISSIONS } = require("../../constants/rbac");
 const TaskActionChainController = require("../../controllers/TaskActionChainController");
-const Task = require("../../models/Task");
+
 const {
   addChainToEventSchema,
   saveStepSchema,
@@ -22,20 +22,7 @@ const {
 
 const router = express.Router({ mergeParams: true });
 
-// ─── Shared: task ownership check for all chain mutations ────────────────────
-const taskResourceAccess = requireResourceAccess({
-  // Helpers
-  getResource: (req) => Task.findOne({ id: req.params.taskId }),
-  getAssigneeIds: (task) => (task.assignees || []).map((a) => a.userId),
-  getCreatorId: (task) => task.createdBy,
-
-  // Hành vi (Behaviors)
-  allowCreator: true,
-  allowAssignee: true,
-  allowUnassigned: false,
-  allowManagerSubordinateCreator: true,
-  allowManagerSubordinateAssignee: true,
-});
+const { taskResourceAccess } = require("../../middleware/taskAccess");
 
 // ─── GET /api/tasks/:taskId/chains ───
 router.get(
