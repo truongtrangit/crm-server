@@ -141,4 +141,8 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       });
       ```
     - Trong trường hợp hành động thực hiện bởi người dùng chưa đăng nhập (như `login`, `resetPassword`), bắt buộc truyền tham số `performedBy: { userId: user.id, userName: user.name, userAvatar: user.avatar || "" }` thủ công, kết hợp với truyền `req` để tự động lưu vết IP.
+16. **Backend Router Convention**:
+    - Các file định tuyến trong thư mục `routes/v1/` đặt tên theo chuẩn `<resource>.js` (ví dụ: `courseConfigs.js`, `customers.js`), **TUYỆT ĐỐI KHÔNG** sử dụng hậu tố `.route.js` hoặc `.routes.js`.
+    - **KHÔNG sử dụng `catchAsync`** (hay bất kỳ wrapper async catch nào) tại file route. Việc bọc catchAsync ở route là dư thừa và sai chuẩn của module.
+    - Phân quyền (RBAC) cơ bản được khai báo trực tiếp trên từng route sử dụng middleware `requirePermission(PERMISSIONS.XXX)` lấy từ `src/middleware/auth.js`. **KHÔNG** tạo thêm các file middleware mới (như `[module]Access.js`) chỉ với mục đích bọc lại `requirePermission`. Việc tạo file `[module]Access.js` chỉ áp dụng theo rule 14 (dành cho Row-Level Security/Assignment rules phức tạp).
 

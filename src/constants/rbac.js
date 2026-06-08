@@ -30,6 +30,7 @@ const RESOURCES = {
   COMPANIES: "companies", // Cấu hình công ty
   FINANCE: "finance", // Báo cáo tài chính
   JOBHUB: "jobhub", // Job Hub
+  COURSES: "courses", // Khóa học
 };
 
 // Actions
@@ -244,6 +245,12 @@ const PERMISSIONS = {
   JOBHUB_CONFIG_REPEAT_RULE_CREATE: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.CREATE}`,
   JOBHUB_CONFIG_REPEAT_RULE_UPDATE: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.UPDATE}`,
   JOBHUB_CONFIG_REPEAT_RULE_DELETE: `${RESOURCES.JOBHUB}_repeat_rule_${ACTIONS.DELETE}`,
+
+  // Courses Config
+  COURSE_CONFIG_READ: `${RESOURCES.COURSES}_config_${ACTIONS.READ}`,
+  COURSE_CONFIG_CREATE: `${RESOURCES.COURSES}_config_${ACTIONS.CREATE}`,
+  COURSE_CONFIG_UPDATE: `${RESOURCES.COURSES}_config_${ACTIONS.UPDATE}`,
+  COURSE_CONFIG_DELETE: `${RESOURCES.COURSES}_config_${ACTIONS.DELETE}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -340,6 +347,11 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE,
     PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE,
     PERMISSIONS.JOBHUB_CONFIG_READ,
+
+    PERMISSIONS.COURSE_CONFIG_READ,
+    PERMISSIONS.COURSE_CONFIG_CREATE,
+    PERMISSIONS.COURSE_CONFIG_UPDATE,
+    PERMISSIONS.COURSE_CONFIG_DELETE,
   ]),
 );
 
@@ -619,6 +631,15 @@ const MODULE_DEFINITIONS = {
     parentKey: "jobhub.config",
     actions: ["view", "create", "edit", "delete"],
   },
+
+  courses: { key: "courses", label: "Khóa học", type: "root", actions: [] },
+  "courses.config": {
+    key: "courses.config",
+    label: "Cấu hình",
+    type: "sub",
+    parentKey: "courses",
+    actions: ["view", "create", "edit", "delete"],
+  },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
@@ -813,6 +834,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
     create: [PERMISSIONS.JOBHUB_CONFIG_STATUS_CREATE],
     edit: [PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE],
     delete: [PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE],
+  },
+  "courses.config": {
+    view: [PERMISSIONS.COURSE_CONFIG_READ],
+    create: [PERMISSIONS.COURSE_CONFIG_CREATE],
+    edit: [PERMISSIONS.COURSE_CONFIG_UPDATE],
+    delete: [PERMISSIONS.COURSE_CONFIG_DELETE],
   },
 };
 
