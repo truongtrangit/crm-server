@@ -8,13 +8,19 @@ const { generateMonotonicId } = require("../utils/id");
 const { buildSearchRegex } = require("../utils/query");
 const { createHttpError } = require("../utils/http");
 
-
 class TaskService {
   /**
    * List tasks with pagination + search.
    */
   async getTasks(queryParams = {}, scopeFilter = {}) {
-    const { search = "", status, assignees, isArchived, page: rawPage = 1, limit: rawLimit = 20 } = queryParams;
+    const {
+      search = "",
+      status,
+      assignees,
+      isArchived,
+      page: rawPage = 1,
+      limit: rawLimit = 20,
+    } = queryParams;
     const page = Math.max(parseInt(rawPage, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
     const skip = (page - 1) * limit;
@@ -28,14 +34,17 @@ class TaskService {
     }
 
     if (status) query.status = status;
-    if (isArchived === 'true') {
+    if (isArchived === "true") {
       query.isArchived = true;
     } else {
       query.isArchived = { $ne: true };
     }
 
     if (assignees) {
-      const ids = assignees.split(",").map(id => id.trim()).filter(Boolean);
+      const ids = assignees
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
       if (ids.length > 0) {
         query["assignees.userId"] = { $in: ids };
       }
@@ -62,14 +71,14 @@ class TaskService {
                 $expr: {
                   $and: [
                     { $eq: ["$taskId", "$$taskId"] },
-                    { $eq: ["$status", "active"] }
-                  ]
-                }
-              }
-            }
+                    { $eq: ["$status", "active"] },
+                  ],
+                },
+              },
+            },
           ],
-          as: "activeChains"
-        }
+          as: "activeChains",
+        },
       },
       {
         $addFields: {
@@ -86,40 +95,40 @@ class TaskService {
                           $filter: {
                             input: "$$chain.steps",
                             as: "step",
-                            cond: { $eq: ["$$step.status", "active"] }
-                          }
+                            cond: { $eq: ["$$step.status", "active"] },
+                          },
                         },
                         as: "activeStep",
-                        in: "$$activeStep.scheduledAt"
-                      }
-                    }
-                  }
+                        in: "$$activeStep.scheduledAt",
+                      },
+                    },
+                  },
                 },
                 initialValue: [],
-                in: { $concatArrays: ["$$value", "$$this"] }
-              }
-            }
-          }
-        }
+                in: { $concatArrays: ["$$value", "$$this"] },
+              },
+            },
+          },
+        },
       },
       {
         $addFields: {
           sortScheduledAt: {
-            $ifNull: ["$earliestScheduledAt", new Date("2099-12-31T23:59:59Z")]
-          }
-        }
+            $ifNull: ["$earliestScheduledAt", new Date("2099-12-31T23:59:59Z")],
+          },
+        },
       },
       {
-        $sort: { sortScheduledAt: 1, createdAt: -1 }
+        $sort: { sortScheduledAt: 1, createdAt: -1 },
       },
       {
         $project: {
           sortScheduledAt: 0,
-          earliestScheduledAt: 0
-        }
+          earliestScheduledAt: 0,
+        },
       },
       { $skip: skip },
-      { $limit: limit }
+      { $limit: limit },
     ];
 
     const [itemsWithChains, totalItems] = await Promise.all([
@@ -145,7 +154,9 @@ class TaskService {
   async getTaskById(id) {
     const task = await Task.findOne({ id });
     if (!task) {
-      throw createHttpError(404, "Tác vụ không tồn tại", { code: "TASK_NOT_FOUND" });
+      throw createHttpError(404, "Tác vụ không tồn tại", {
+        code: "TASK_NOT_FOUND",
+      });
     }
     return task;
   }
@@ -163,25 +174,37 @@ class TaskService {
     if (data.linkedEvents && Array.isArray(data.linkedEvents)) {
       const eventIds = data.linkedEvents.map((e) => e.eventId).filter(Boolean);
       if (eventIds.length > 0) {
-        const events = await Event.find({ id: { $in: eventIds } }).select("id name").lean();
-        linkedEvents = events.map((e) => ({ eventId: e.id, eventName: e.name }));
+        const events = await Event.find({ id: { $in: eventIds } })
+          .select("id name")
+          .lean();
+        linkedEvents = events.map((e) => ({
+          eventId: e.id,
+          eventName: e.name,
+        }));
       }
     }
     if (data.eventId && !linkedEvents.some((e) => e.eventId === data.eventId)) {
-      const event = await Event.findOne({ id: data.eventId }).select("id name").lean();
-      if (event) linkedEvents.push({ eventId: event.id, eventName: event.name });
+      const event = await Event.findOne({ id: data.eventId })
+        .select("id name")
+        .lean();
+      if (event)
+        linkedEvents.push({ eventId: event.id, eventName: event.name });
     }
 
     let linkedLeads = [];
     if (data.linkedLeads && Array.isArray(data.linkedLeads)) {
       const leadIds = data.linkedLeads.map((l) => l.leadId).filter(Boolean);
       if (leadIds.length > 0) {
-        const leads = await Lead.find({ id: { $in: leadIds } }).select("id name").lean();
+        const leads = await Lead.find({ id: { $in: leadIds } })
+          .select("id name")
+          .lean();
         linkedLeads = leads.map((l) => ({ leadId: l.id, leadName: l.name }));
       }
     }
     if (data.leadId && !linkedLeads.some((l) => l.leadId === data.leadId)) {
-      const lead = await Lead.findOne({ id: data.leadId }).select("id name").lean();
+      const lead = await Lead.findOne({ id: data.leadId })
+        .select("id name")
+        .lean();
       if (lead) linkedLeads.push({ leadId: lead.id, leadName: lead.name });
     }
 
@@ -285,7 +308,7 @@ class TaskService {
 
     await task.save();
 
-    return task;
+    return { task, changes };
   }
 
   /**
@@ -310,7 +333,10 @@ class TaskService {
     await task.save();
 
     // Close all action chains associated with this task
-    const activeChains = await EventActionChain.find({ taskId: id, status: "active" });
+    const activeChains = await EventActionChain.find({
+      taskId: id,
+      status: "active",
+    });
     for (const chain of activeChains) {
       chain.status = "closed";
       const current = chain.steps[chain.currentStepIndex];
@@ -319,11 +345,7 @@ class TaskService {
       }
       chain.markModified("steps");
     }
-    await Promise.all(
-      activeChains.map((chain) =>
-        chain.save(),
-      ),
-    );
+    await Promise.all(activeChains.map((chain) => chain.save()));
 
     return task;
   }
@@ -387,7 +409,6 @@ class TaskService {
     });
 
     await task.save();
-
     return task;
   }
 
@@ -396,7 +417,8 @@ class TaskService {
    */
   async linkEvent(taskId, eventId, currentUser) {
     const task = await this.getTaskById(taskId);
-    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
+    if (task.status === "closed")
+      throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     const event = await Event.findOne({ id: eventId });
     if (!event) throw createHttpError(404, "Event không tồn tại");
 
@@ -427,7 +449,8 @@ class TaskService {
    */
   async unlinkEvent(taskId, eventId, currentUser) {
     const task = await this.getTaskById(taskId);
-    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
+    if (task.status === "closed")
+      throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     task.linkedEvents = task.linkedEvents.filter((e) => e.eventId !== eventId);
 
     task.logs.push({
@@ -448,7 +471,8 @@ class TaskService {
    */
   async linkLead(taskId, leadId, currentUser) {
     const task = await this.getTaskById(taskId);
-    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
+    if (task.status === "closed")
+      throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     const lead = await Lead.findOne({ id: leadId });
     if (!lead) throw createHttpError(404, "Lead không tồn tại");
 
@@ -479,7 +503,8 @@ class TaskService {
    */
   async unlinkLead(taskId, leadId, currentUser) {
     const task = await this.getTaskById(taskId);
-    if (task.status === "closed") throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
+    if (task.status === "closed")
+      throw createHttpError(400, "Tác vụ đã đóng, không thể chỉnh sửa");
     task.linkedLeads = task.linkedLeads.filter((l) => l.leadId !== leadId);
 
     task.logs.push({
@@ -495,13 +520,12 @@ class TaskService {
     return task;
   }
 
-
   /**
    * Lấy tất cả tasks liên kết với 1 event.
    */
   async getTasksByEventId(eventId, queryParams = {}) {
     const query = { "linkedEvents.eventId": eventId };
-    if (queryParams.isArchived === 'true') {
+    if (queryParams.isArchived === "true") {
       query.isArchived = true;
     } else {
       query.isArchived = { $ne: true };
@@ -514,7 +538,7 @@ class TaskService {
    */
   async getTasksByLeadId(leadId, queryParams = {}) {
     const query = { "linkedLeads.leadId": leadId };
-    if (queryParams.isArchived === 'true') {
+    if (queryParams.isArchived === "true") {
       query.isArchived = true;
     } else {
       query.isArchived = { $ne: true };
@@ -559,10 +583,14 @@ class TaskService {
 
     const [users, funcs] = await Promise.all([
       userIds.length > 0
-        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar").lean()
+        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } })
+            .select("id name avatar")
+            .lean()
         : [],
       funcIds.length > 0
-        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title").lean()
+        ? StaffFunction.find({ id: { $in: funcIds } })
+            .select("id title")
+            .lean()
         : [],
     ]);
 

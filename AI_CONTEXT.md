@@ -125,3 +125,20 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
     - Mọi định nghĩa cấu hình middleware liên quan đến phân quyền cấp row-level (RLS/MLAC) sử dụng các factory functions như `requireResourceAccess`, `enforceAssignmentRules`, `enforceUnassignmentRules`, `scopeResourceList`, v.v. **TUYỆT ĐỐI KHÔNG** được khai báo trực tiếp (inline) trong các file định tuyến `src/routes/v1/*.js`.
     - BẮT BUỘC phải tách (extract) các cấu hình này ra thành các file riêng biệt đặt trong thư mục `src/middleware/` với quy tắc đặt tên là `[module]Access.js` (ví dụ: `taskAccess.js`, `eventAccess.js`, `leadAccess.js`, `userAccess.js`).
     - Các file trong `routes/v1/` chỉ đơn thuần import các hằng số phân quyền từ file `[module]Access.js` và cắm vào router chain, đảm bảo file route ngắn gọn, minh bạch. Xoá triệt để các lệnh import Mongoose Models dư thừa trong file routes.
+15. **Quy tắc ghi nhật ký hệ thống (System Audit Logging Convention)**:
+    - Bất kỳ thao tác ghi (write mutations) quan trọng nào bao gồm tạo mới (`create`), cập nhật (`update`), xóa (`delete`/`force_delete`), khôi phục (`restore`), đăng nhập (`login`), và đăng xuất (`logout`) đều **BẮT BUỘC** phải được ghi nhận lịch sử vào cơ sở dữ liệu `SystemLog` tập trung.
+    - Việc ghi log thực hiện ở tầng **Controller** thông qua `SystemLogService.log` dưới dạng bất đồng bộ (fire-and-forget), truyền `req` để tự động bóc tách địa chỉ IP và người thực hiện tác vụ (`req.user`).
+    - Cấu trúc chuẩn của một lệnh ghi log hệ thống:
+      ```javascript
+      SystemLogService.log({
+        action: "create" | "update" | "delete" | "login" | "logout" | "restore",
+        resource: RESOURCES.X, // import từ constants/rbac
+        resourceId: target.id || target._id?.toString(),
+        resourceName: target.name || target.orderId,
+        description: `Mô tả chi tiết hành động bằng tiếng Việt (Ví dụ: Tạo doanh thu thực tế: "${revenue.orderId}" cho "${revenue.customerName}")`,
+        metadata: { newItem: target } | { changes } | { deletedItem: target }, // optional extra context
+        req,
+      });
+      ```
+    - Trong trường hợp hành động thực hiện bởi người dùng chưa đăng nhập (như `login`, `resetPassword`), bắt buộc truyền tham số `performedBy: { userId: user.id, userName: user.name, userAvatar: user.avatar || "" }` thủ công, kết hợp với truyền `req` để tự động lưu vết IP.
+

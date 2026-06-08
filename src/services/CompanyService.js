@@ -1,6 +1,7 @@
 const createHttpError = require("http-errors");
 const Company = require("../models/Company");
 const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
+const { computeChanges } = require("../utils/diff");
 
 class CompanyService {
   async getCompanies() {
@@ -38,9 +39,13 @@ class CompanyService {
       if (existing) throw createHttpError(400, "Tên công ty đã tồn tại");
     }
 
+    const oldState = company.toObject();
     Object.assign(company, data);
     await company.save();
-    return company;
+    const newState = company.toObject();
+    const changes = computeChanges(oldState, newState);
+
+    return { company, changes };
   }
 
   async deleteCompany(id, force = false) {
@@ -69,7 +74,7 @@ class CompanyService {
     }
 
     await Company.deleteOne({ id });
-    return { success: true };
+    return company;
   }
 }
 

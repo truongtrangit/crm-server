@@ -4,6 +4,7 @@ const { buildPaginatedResponse, resolvePagination } = require("../utils/paginati
 const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
 const { createHttpError } = require("../utils/http");
+const { computeChanges } = require("../utils/diff");
 
 class FunctionalGroupService {
   async getGroups(query) {
@@ -53,14 +54,18 @@ class FunctionalGroupService {
       throw createHttpError(404, "Không tìm thấy khối chức năng", { code: "NOT_FOUND" });
     }
 
+    const oldState = item.toObject();
+
     if (name !== undefined) item.name = name;
     if (desc !== undefined) item.desc = desc;
     if (isActive !== undefined) item.isActive = isActive;
 
     await item.save();
+    const newState = item.toObject();
+    const changes = computeChanges(oldState, newState);
 
     await CacheService.bumpNamespaceVersion("functional_groups");
-    return item;
+    return { item, changes };
   }
 
   async deleteGroup(id) {

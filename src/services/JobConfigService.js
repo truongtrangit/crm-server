@@ -7,6 +7,7 @@ const JobConfigRepeatRule = require("../models/JobConfigRepeatRule");
 const JobTask = require("../models/JobTask");
 const JobRecurringTaskService = require("./JobRecurringTaskService");
 const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
+const { computeChanges } = require("../utils/diff");
 
 class JobConfigService {
   // ==========================================
@@ -29,9 +30,12 @@ class JobConfigService {
   async updateStatus(id, data) {
     const status = await JobConfigStatus.findOne({ id });
     if (!status) throw createHttpError(404, "Không tìm thấy trạng thái");
+    const oldState = status.toObject();
     Object.assign(status, data);
     await status.save();
-    return status;
+    const newState = status.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { status, changes };
   }
 
   async deleteStatus(id, force = false) {
@@ -52,7 +56,7 @@ class JobConfigService {
     }
 
     await JobConfigStatus.deleteOne({ id });
-    return { success: true };
+    return status;
   }
 
   async reorderStatuses(orderedIds) {
@@ -94,9 +98,12 @@ class JobConfigService {
   async updateTaskTypeGroup(id, data) {
     const group = await JobConfigTaskTypeGroup.findOne({ id });
     if (!group) throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
+    const oldState = group.toObject();
     Object.assign(group, data);
     await group.save();
-    return group;
+    const newState = group.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { group, changes };
   }
 
   async deleteTaskTypeGroup(id) {
@@ -109,7 +116,7 @@ class JobConfigService {
     }
 
     await JobConfigTaskTypeGroup.deleteOne({ id });
-    return { success: true };
+    return group;
   }
 
   // ==========================================
@@ -138,9 +145,12 @@ class JobConfigService {
       if (!group) throw createHttpError(404, "Nhóm loại công việc không tồn tại");
     }
 
+    const oldState = taskType.toObject();
     Object.assign(taskType, data);
     await taskType.save();
-    return taskType;
+    const newState = taskType.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { taskType, changes };
   }
 
   async deleteTaskType(id) {
@@ -150,7 +160,7 @@ class JobConfigService {
       throw createHttpError(400, "Không thể xoá loại công việc mặc định của hệ thống");
     }
     await JobConfigTaskType.deleteOne({ id });
-    return { success: true };
+    return taskType;
   }
 
   // ==========================================
@@ -170,9 +180,12 @@ class JobConfigService {
   async updateChannel(id, data) {
     const channel = await JobConfigChannel.findOne({ id });
     if (!channel) throw createHttpError(404, "Không tìm thấy kênh triển khai");
+    const oldState = channel.toObject();
     Object.assign(channel, data);
     await channel.save();
-    return channel;
+    const newState = channel.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { channel, changes };
   }
 
   async deleteChannel(id) {
@@ -194,7 +207,7 @@ class JobConfigService {
       throw createHttpError(400, "Kênh đang được sử dụng bởi Quy tắc lặp lại. Không thể xoá.");
     }
     await JobConfigChannel.deleteOne({ id });
-    return { success: true };
+    return channel;
   }
 
   // ==========================================
@@ -248,8 +261,11 @@ class JobConfigService {
       if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
     }
 
+    const oldState = rule.toObject();
     Object.assign(rule, data);
     await rule.save();
+    const newState = rule.toObject();
+    const changes = computeChanges(oldState, newState);
 
     // Trigger Task Sync
     const JobRecurringTaskService = require("./JobRecurringTaskService");
@@ -257,7 +273,7 @@ class JobConfigService {
       console.error("[JobRecurringTask] Failed to sync tasks for updated rule", err);
     });
 
-    return rule;
+    return { rule, changes };
   }
 
   async deleteRepeatRule(id, currentUser) {
@@ -271,7 +287,7 @@ class JobConfigService {
     });
 
     await JobConfigRepeatRule.deleteOne({ id });
-    return { success: true };
+    return rule;
   }
 }
 

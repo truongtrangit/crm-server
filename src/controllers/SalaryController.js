@@ -1,21 +1,39 @@
-const SalaryService = require('../services/SalaryService');
-const { sendSuccess } = require('../utils/http');
+const SalaryService = require("../services/SalaryService");
+const { sendSuccess } = require("../utils/http");
+const SystemLogService = require("../services/SystemLogService");
+const { RESOURCES } = require("../constants/rbac");
 
 class SalaryController {
   async generateSalary(req, res) {
     const { month } = req.body;
     if (!month) {
-      return res.status(400).json({ status: 'error', message: 'Month is required (MM/YYYY)' });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Month is required (MM/YYYY)" });
     }
-    
+
     const count = await SalaryService.generateSalaryForMonth(month);
-    return sendSuccess(res, 200, `Generated ${count} salary records for ${month}`, { count });
+    SystemLogService.log({
+      action: "create",
+      resource: RESOURCES.SALARIES,
+      description: `Khởi tạo bảng lương cho tháng ${month} (${count} nhân viên)`,
+      metadata: { month, count },
+      req,
+    });
+    return sendSuccess(
+      res,
+      200,
+      `Generated ${count} salary records for ${month}`,
+      { count },
+    );
   }
 
   async getSalaries(req, res) {
     const { month, search } = req.query;
     if (!month) {
-      return res.status(400).json({ status: 'error', message: 'Month is required (MM/YYYY)' });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Month is required (MM/YYYY)" });
     }
 
     const records = await SalaryService.getSalaries(month, search);
@@ -25,10 +43,19 @@ class SalaryController {
   async batchUpdate(req, res) {
     const { updates } = req.body;
     if (!Array.isArray(updates)) {
-      return res.status(400).json({ status: 'error', message: 'Updates must be an array' });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Updates must be an array" });
     }
 
-    await SalaryService.batchUpdateSalaries(updates);
+    const changesList = await SalaryService.batchUpdateSalaries(updates);
+    SystemLogService.log({
+      action: "update",
+      resource: RESOURCES.SALARIES,
+      description: `Cập nhật thông tin bảng lương hàng loạt`,
+      metadata: { updatesCount: updates.length, changesList },
+      req,
+    });
     return sendSuccess(res, 200, "Batch update successful");
   }
 
@@ -38,6 +65,20 @@ class SalaryController {
     const userId = req.user._id;
 
     const record = await SalaryService.paySalary(id, paymentMethod, userId);
+    SystemLogService.log({
+      action: "update",
+      resource: RESOURCES.SALARIES,
+      resourceId: id,
+      resourceName: record.staffName,
+      description: `Duyệt chi thanh toán lương tháng ${record.month} cho nhân viên "${record.staffName}" qua ${paymentMethod}`,
+      metadata: {
+        recordId: id,
+        staffId: record.staffId,
+        amount: record.finalReceivedAmount,
+        paymentMethod,
+      },
+      req,
+    });
     return sendSuccess(res, 200, "Pay salary success", record);
   }
 
