@@ -7,7 +7,7 @@ const checklistItemSchema = new mongoose.Schema(
     isCompleted: { type: Boolean, default: false },
     dueOffsetHours: { type: Number, default: null }, // Mặc định + vào 7h sáng ngày sinh task
   },
-  { _id: false }
+  { _id: false },
 );
 
 const jobRepeatRuleSchema = new mongoose.Schema(
@@ -21,6 +21,7 @@ const jobRepeatRuleSchema = new mongoose.Schema(
     cycleValues: [{ type: Number }], // 0-6 for weekly, 1-31 for monthly
     details: { type: String, default: "" }, // Mô tả chi tiết/Rich text
     shortDescription: { type: String, default: "" }, // Mô tả ngắn
+    folderId: { type: String, ref: "JobFolder", default: null },
     checklists: [checklistItemSchema],
     isActive: { type: Boolean, default: true },
   },
@@ -28,7 +29,7 @@ const jobRepeatRuleSchema = new mongoose.Schema(
     timestamps: true,
     versionKey: false,
     id: false,
-  }
+  },
 );
 
 module.exports = mongoose.model("JobConfigRepeatRule", jobRepeatRuleSchema);

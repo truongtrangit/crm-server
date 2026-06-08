@@ -4,6 +4,7 @@ const JobConfigTaskType = require("../models/JobConfigTaskType");
 const JobConfigTaskTypeGroup = require("../models/JobConfigTaskTypeGroup");
 const JobConfigChannel = require("../models/JobConfigChannel");
 const JobConfigRepeatRule = require("../models/JobConfigRepeatRule");
+const JobFolder = require("../models/JobFolder");
 const JobTask = require("../models/JobTask");
 const JobRecurringTaskService = require("./JobRecurringTaskService");
 const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
@@ -19,8 +20,11 @@ class JobConfigService {
 
   async createStatus(data) {
     const id = await generateMonotonicId(ID_PREFIXES.JOB_STATUS_CONFIG);
-    const maxStatus = await JobConfigStatus.findOne().sort({ order: -1 }).lean();
-    const nextOrder = maxStatus && maxStatus.order !== undefined ? maxStatus.order + 1 : 1;
+    const maxStatus = await JobConfigStatus.findOne()
+      .sort({ order: -1 })
+      .lean();
+    const nextOrder =
+      maxStatus && maxStatus.order !== undefined ? maxStatus.order + 1 : 1;
 
     const status = new JobConfigStatus({ ...data, id, order: nextOrder });
     await status.save();
@@ -45,10 +49,14 @@ class JobConfigService {
     const taskCount = await JobTask.countDocuments({ statusId: id });
 
     if (taskCount > 0 && !force) {
-      throw createHttpError(400, `Trạng thái này đang được sử dụng bởi ${taskCount} công việc. Bắt buộc xóa sẽ gỡ bỏ trạng thái của các công việc này.`, {
-        code: "STATUS_IN_USE",
-        details: { taskCount },
-      });
+      throw createHttpError(
+        400,
+        `Trạng thái này đang được sử dụng bởi ${taskCount} công việc. Bắt buộc xóa sẽ gỡ bỏ trạng thái của các công việc này.`,
+        {
+          code: "STATUS_IN_USE",
+          details: { taskCount },
+        },
+      );
     }
 
     if (taskCount > 0 && force) {
@@ -63,19 +71,29 @@ class JobConfigService {
     if (!orderedIds || orderedIds.length === 0) return true;
 
     // 1. Kiểm tra tồn tại
-    const existingStatuses = await JobConfigStatus.find({ id: { $in: orderedIds } });
+    const existingStatuses = await JobConfigStatus.find({
+      id: { $in: orderedIds },
+    });
     if (existingStatuses.length !== orderedIds.length) {
-      throw Object.assign(new Error("Danh sách ID không hợp lệ hoặc chứa trạng thái không tồn tại"), { status: 400 });
+      throw Object.assign(
+        new Error(
+          "Danh sách ID không hợp lệ hoặc chứa trạng thái không tồn tại",
+        ),
+        { status: 400 },
+      );
     }
 
     // 2. Kiểm tra đủ số lượng
     const totalInDb = await JobConfigStatus.countDocuments();
     if (totalInDb !== orderedIds.length) {
-      throw Object.assign(new Error("Vui lòng gửi đầy đủ danh sách trạng thái để sắp xếp"), { status: 400 });
+      throw Object.assign(
+        new Error("Vui lòng gửi đầy đủ danh sách trạng thái để sắp xếp"),
+        { status: 400 },
+      );
     }
 
     const promises = orderedIds.map((id, index) =>
-      JobConfigStatus.findOneAndUpdate({ id }, { order: index + 1 })
+      JobConfigStatus.findOneAndUpdate({ id }, { order: index + 1 }),
     );
     await Promise.all(promises);
     return true;
@@ -97,7 +115,8 @@ class JobConfigService {
 
   async updateTaskTypeGroup(id, data) {
     const group = await JobConfigTaskTypeGroup.findOne({ id });
-    if (!group) throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
+    if (!group)
+      throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
     const oldState = group.toObject();
     Object.assign(group, data);
     await group.save();
@@ -108,11 +127,17 @@ class JobConfigService {
 
   async deleteTaskTypeGroup(id) {
     const group = await JobConfigTaskTypeGroup.findOne({ id });
-    if (!group) throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
+    if (!group)
+      throw createHttpError(404, "Không tìm thấy nhóm loại công việc");
 
-    const taskTypeCount = await JobConfigTaskType.countDocuments({ groupId: id });
+    const taskTypeCount = await JobConfigTaskType.countDocuments({
+      groupId: id,
+    });
     if (taskTypeCount > 0) {
-      throw createHttpError(400, "Không thể xoá nhóm đang chứa loại công việc. Vui lòng chuyển loại công việc sang nhóm khác hoặc xoá chúng trước.");
+      throw createHttpError(
+        400,
+        "Không thể xoá nhóm đang chứa loại công việc. Vui lòng chuyển loại công việc sang nhóm khác hoặc xoá chúng trước.",
+      );
     }
 
     await JobConfigTaskTypeGroup.deleteOne({ id });
@@ -142,7 +167,8 @@ class JobConfigService {
 
     if (data.groupId && data.groupId !== taskType.groupId) {
       const group = await JobConfigTaskTypeGroup.findOne({ id: data.groupId });
-      if (!group) throw createHttpError(404, "Nhóm loại công việc không tồn tại");
+      if (!group)
+        throw createHttpError(404, "Nhóm loại công việc không tồn tại");
     }
 
     const oldState = taskType.toObject();
@@ -157,7 +183,10 @@ class JobConfigService {
     const taskType = await JobConfigTaskType.findOne({ id });
     if (!taskType) throw createHttpError(404, "Không tìm thấy loại công việc");
     if (taskType.isSystem) {
-      throw createHttpError(400, "Không thể xoá loại công việc mặc định của hệ thống");
+      throw createHttpError(
+        400,
+        "Không thể xoá loại công việc mặc định của hệ thống",
+      );
     }
     await JobConfigTaskType.deleteOne({ id });
     return taskType;
@@ -194,17 +223,20 @@ class JobConfigService {
     // Check if channel has children
     const hasChildren = await JobConfigChannel.exists({ parentId: id });
     if (hasChildren) {
-      throw createHttpError(400, "Không thể xoá kênh đang chứa kênh con. Vui lòng xoá kênh con trước.");
+      throw createHttpError(
+        400,
+        "Không thể xoá kênh đang chứa kênh con. Vui lòng xoá kênh con trước.",
+      );
     }
     // Check if channel is used by repeat rules
     const usedByRules = await JobConfigRepeatRule.exists({
-      $or: [
-        { channelId: id },
-        { channelIds: id }
-      ]
+      $or: [{ channelId: id }, { channelIds: id }],
     });
     if (usedByRules) {
-      throw createHttpError(400, "Kênh đang được sử dụng bởi Quy tắc lặp lại. Không thể xoá.");
+      throw createHttpError(
+        400,
+        "Kênh đang được sử dụng bởi Quy tắc lặp lại. Không thể xoá.",
+      );
     }
     await JobConfigChannel.deleteOne({ id });
     return channel;
@@ -226,13 +258,26 @@ class JobConfigService {
   async createRepeatRule(data, currentUser) {
     // Validate channels
     if (data.channelIds && data.channelIds.length > 0) {
-      const channels = await JobConfigChannel.find({ id: { $in: data.channelIds } });
+      const channels = await JobConfigChannel.find({
+        id: { $in: data.channelIds },
+      });
       if (channels.length !== data.channelIds.length) {
-        throw createHttpError(404, "Một hoặc nhiều kênh triển khai không tồn tại");
+        throw createHttpError(
+          404,
+          "Một hoặc nhiều kênh triển khai không tồn tại",
+        );
       }
     } else if (data.channelId) {
       const channel = await JobConfigChannel.findOne({ id: data.channelId });
       if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
+    }
+
+    // Validate folder
+    if (data.folderId) {
+      const folderExists = await JobFolder.exists({ id: data.folderId });
+      if (!folderExists) {
+        throw createHttpError(404, "Thư mục không tồn tại");
+      }
     }
 
     const id = await generateMonotonicId(ID_PREFIXES.JOB_REPEAT_RULE);
@@ -240,8 +285,14 @@ class JobConfigService {
     await rule.save();
 
     // Trigger Task Sync
-    await JobRecurringTaskService.syncTasksForUpdatedRule(rule, currentUser).catch(err => {
-      console.error("[JobRecurringTask] Failed to sync tasks for new rule", err);
+    await JobRecurringTaskService.syncTasksForUpdatedRule(
+      rule,
+      currentUser,
+    ).catch((err) => {
+      console.error(
+        "[JobRecurringTask] Failed to sync tasks for new rule",
+        err,
+      );
     });
 
     return rule;
@@ -252,13 +303,26 @@ class JobConfigService {
     if (!rule) throw createHttpError(404, "Không tìm thấy quy tắc lặp lại");
 
     if (data.channelIds && data.channelIds.length > 0) {
-      const channels = await JobConfigChannel.find({ id: { $in: data.channelIds } });
+      const channels = await JobConfigChannel.find({
+        id: { $in: data.channelIds },
+      });
       if (channels.length !== data.channelIds.length) {
-        throw createHttpError(404, "Một hoặc nhiều kênh triển khai không tồn tại");
+        throw createHttpError(
+          404,
+          "Một hoặc nhiều kênh triển khai không tồn tại",
+        );
       }
     } else if (data.channelId && data.channelId !== rule.channelId) {
       const channel = await JobConfigChannel.findOne({ id: data.channelId });
       if (!channel) throw createHttpError(404, "Kênh triển khai không tồn tại");
+    }
+
+    // Validate folder
+    if (data.folderId) {
+      const folderExists = await JobFolder.exists({ id: data.folderId });
+      if (!folderExists) {
+        throw createHttpError(404, "Thư mục không tồn tại");
+      }
     }
 
     const oldState = rule.toObject();
@@ -269,8 +333,14 @@ class JobConfigService {
 
     // Trigger Task Sync
     const JobRecurringTaskService = require("./JobRecurringTaskService");
-    await JobRecurringTaskService.syncTasksForUpdatedRule(rule, currentUser).catch(err => {
-      console.error("[JobRecurringTask] Failed to sync tasks for updated rule", err);
+    await JobRecurringTaskService.syncTasksForUpdatedRule(
+      rule,
+      currentUser,
+    ).catch((err) => {
+      console.error(
+        "[JobRecurringTask] Failed to sync tasks for updated rule",
+        err,
+      );
     });
 
     return { rule, changes };
@@ -282,8 +352,14 @@ class JobConfigService {
 
     // Trigger Task Cleanup
     const JobRecurringTaskService = require("./JobRecurringTaskService");
-    await JobRecurringTaskService.syncTasksForDeletedRule(rule.id, currentUser).catch(err => {
-      console.error("[JobRecurringTask] Failed to cleanup tasks for deleted rule", err);
+    await JobRecurringTaskService.syncTasksForDeletedRule(
+      rule.id,
+      currentUser,
+    ).catch((err) => {
+      console.error(
+        "[JobRecurringTask] Failed to cleanup tasks for deleted rule",
+        err,
+      );
     });
 
     await JobConfigRepeatRule.deleteOne({ id });
