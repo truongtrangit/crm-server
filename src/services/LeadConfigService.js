@@ -5,12 +5,19 @@ const { createHttpError } = require("../utils/http");
 const { isSystemEntity } = require("../constants/systemFunnel");
 const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
+const { computeChanges } = require("../utils/diff");
 
 class LeadConfigService {
   async getStatuses() {
-    return CacheService.withVersionedCache("lead_configs:statuses", {}, CACHE_TTL.LONG, async () => {
-      return await LeadStatus.find().sort({ createdAt: 1 }).lean();
-    }, { swr: true, maxTtl: CACHE_TTL.LONG });
+    return CacheService.withVersionedCache(
+      "lead_configs:statuses",
+      {},
+      CACHE_TTL.LONG,
+      async () => {
+        return await LeadStatus.find().sort({ createdAt: 1 }).lean();
+      },
+      { swr: true, maxTtl: CACHE_TTL.LONG },
+    );
   }
 
   async createStatus(data) {
@@ -24,21 +31,31 @@ class LeadConfigService {
   }
 
   async updateStatus(id, data) {
-    if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa trạng thái hệ thống.");
-    const updatedStatus = await LeadStatus.findOneAndUpdate({ id }, data, { new: true });
-    if (!updatedStatus) {
+    if (isSystemEntity(id))
+      throw createHttpError(400, "Không thể sửa trạng thái hệ thống.");
+    const status = await LeadStatus.findOne({ id });
+    if (!status) {
       throw createHttpError(404, "Không tìm thấy trạng thái");
     }
+    const oldState = status.toObject();
+    Object.assign(status, data);
+    await status.save();
+    const newState = status.toObject();
+    const changes = computeChanges(oldState, newState);
     await CacheService.bumpNamespaceVersion("metadata");
-    return updatedStatus;
+    return { status, changes };
   }
 
   async deleteStatus(id) {
-    if (isSystemEntity(id)) throw createHttpError(400, "Không thể xoá trạng thái hệ thống.");
+    if (isSystemEntity(id))
+      throw createHttpError(400, "Không thể xoá trạng thái hệ thống.");
 
     const usedInGroup = await LeadStatusGroup.findOne({ statusIds: id });
     if (usedInGroup) {
-      throw createHttpError(400, "Không thể xóa trạng thái đang được sử dụng trong nhóm.");
+      throw createHttpError(
+        400,
+        "Không thể xóa trạng thái đang được sử dụng trong nhóm.",
+      );
     }
 
     const deletedStatus = await LeadStatus.findOneAndDelete({ id });
@@ -50,9 +67,15 @@ class LeadConfigService {
   }
 
   async getGroups() {
-    return CacheService.withVersionedCache("lead_configs:groups", {}, CACHE_TTL.LONG, async () => {
-      return await LeadStatusGroup.find().sort({ createdAt: 1 }).lean();
-    }, { swr: true, maxTtl: CACHE_TTL.LONG });
+    return CacheService.withVersionedCache(
+      "lead_configs:groups",
+      {},
+      CACHE_TTL.LONG,
+      async () => {
+        return await LeadStatusGroup.find().sort({ createdAt: 1 }).lean();
+      },
+      { swr: true, maxTtl: CACHE_TTL.LONG },
+    );
   }
 
   async createGroup(data) {
@@ -66,17 +89,24 @@ class LeadConfigService {
   }
 
   async updateGroup(id, data) {
-    if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa nhóm trạng thái hệ thống.");
-    const updatedGroup = await LeadStatusGroup.findOneAndUpdate({ id }, data, { new: true });
-    if (!updatedGroup) {
+    if (isSystemEntity(id))
+      throw createHttpError(400, "Không thể sửa nhóm trạng thái hệ thống.");
+    const group = await LeadStatusGroup.findOne({ id });
+    if (!group) {
       throw createHttpError(404, "Không tìm thấy nhóm trạng thái");
     }
+    const oldState = group.toObject();
+    Object.assign(group, data);
+    await group.save();
+    const newState = group.toObject();
+    const changes = computeChanges(oldState, newState);
     await CacheService.bumpNamespaceVersion("metadata");
-    return updatedGroup;
+    return { group, changes };
   }
 
   async deleteGroup(id) {
-    if (isSystemEntity(id)) throw createHttpError(400, "Không thể xoá nhóm trạng thái hệ thống.");
+    if (isSystemEntity(id))
+      throw createHttpError(400, "Không thể xoá nhóm trạng thái hệ thống.");
 
     const deletedGroup = await LeadStatusGroup.findOneAndDelete({ id });
     if (!deletedGroup) {

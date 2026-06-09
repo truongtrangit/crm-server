@@ -116,6 +116,7 @@ class JobRecurringTaskService {
       const newTask = {
         id,
         name: `${rule.name} - ${date.toLocaleDateString("vi-VN")}`,
+        folderId: rule.folderId || null,
         statusId: defaultStatusId,
         jobTaskTypeId: rule.taskTypeId || null,
         jobChannelIds: taskChannelIds,

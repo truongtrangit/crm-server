@@ -5,6 +5,7 @@ const CacheService = require("./CacheService");
 const User = require("../models/User");
 const { createHttpError } = require("../utils/http");
 const { CACHE_TTL } = require("../constants/cache");
+const { computeChanges } = require("../utils/diff");
 
 class FunctionService {
   async getFunctions(query) {
@@ -44,6 +45,8 @@ class FunctionService {
       throw createHttpError(404, "Function not found");
     }
 
+    const oldState = item.toObject();
+
     if (data.title !== undefined) item.title = data.title;
     if (data.desc !== undefined) item.desc = data.desc;
     if (data.type !== undefined) item.type = data.type;
@@ -51,8 +54,10 @@ class FunctionService {
     if (data.color !== undefined) item.color = data.color;
 
     await item.save();
+    const newState = item.toObject();
+    const changes = computeChanges(oldState, newState);
     await CacheService.bumpNamespaceVersion("metadata");
-    return item;
+    return { item, changes };
   }
 
   async deleteFunction(id) {
@@ -71,6 +76,7 @@ class FunctionService {
 
     await StaffFunction.deleteOne({ id });
     await CacheService.bumpNamespaceVersion("metadata");
+    return item;
   }
 }
 

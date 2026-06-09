@@ -13,6 +13,22 @@ const { sendSuccess } = require("../utils/http");
 const SystemLogService = require("../services/SystemLogService");
 const { RESOURCES } = require("../constants/rbac");
 const { pickFields } = require("../utils/object");
+const { formatChangesText } = require("../utils/diff");
+
+const USER_FIELD_LABELS = {
+  name: "Tên",
+  email: "Email",
+  avatar: "Ảnh đại diện",
+  companies: "Công ty",
+  phone: "Số điện thoại",
+  roleId: "Vai trò",
+  isActive: "Trạng thái hoạt động",
+  functionalGroups: "Khối chức năng",
+  functions: "Chức năng",
+  departments: "Phòng ban",
+  groups: "Nhóm",
+  moduleAccess: "Quyền truy cập module",
+};
 
 class UserController {
   async listUsers(req, res) {
@@ -49,12 +65,13 @@ class UserController {
       req.resource,
       req.body || {},
     );
+    const changesText = formatChangesText(changes, USER_FIELD_LABELS);
     SystemLogService.log({
       action: "update",
       resource: RESOURCES.USERS,
       resourceId: req.params.id,
       resourceName: staff.name,
-      description: `Cập nhật nhân viên "${staff.name}"`,
+      description: `Cập nhật nhân viên "${staff.name}"${changesText}`,
       metadata: { changes },
       req,
     });

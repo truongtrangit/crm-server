@@ -20,9 +20,9 @@ class FunnelController {
   }
 
   async updateFolder(req, res) {
-    const data = await FunnelService.updateFolder(req.params.id, req.body);
-    SystemLogService.log({ action: "update", resource: RESOURCE, resourceId: data.id, resourceName: data.name, description: `Cập nhật thư mục phễu "${data.name}"`, metadata: { updatedItem: data }, req });
-    return sendSuccess(res, 200, "Cập nhật thư mục thành công", data);
+    const { folder, changes } = await FunnelService.updateFolder(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCE, resourceId: folder.id, resourceName: folder.name, description: `Cập nhật thư mục phễu "${folder.name}"`, metadata: { changes }, req });
+    return sendSuccess(res, 200, "Update folder success", folder);
   }
 
   async deleteFolder(req, res) {
@@ -46,9 +46,9 @@ class FunnelController {
   }
 
   async updateGroup(req, res) {
-    const data = await FunnelService.updateGroup(req.params.id, req.body);
-    SystemLogService.log({ action: "update", resource: RESOURCE, resourceId: data.id, resourceName: data.name, description: `Cập nhật nhóm phễu "${data.name}"`, metadata: { updatedItem: data }, req });
-    return sendSuccess(res, 200, "Cập nhật nhóm phễu thành công", data);
+    const { group, changes } = await FunnelService.updateGroup(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCE, resourceId: group.id, resourceName: group.name, description: `Cập nhật nhóm phễu "${group.name}"`, metadata: { changes }, req });
+    return sendSuccess(res, 200, "Update group success", group);
   }
 
   async deleteGroup(req, res) {
@@ -72,9 +72,9 @@ class FunnelController {
   }
 
   async updateFunnel(req, res) {
-    const data = await FunnelService.updateFunnel(req.params.id, req.body);
-    SystemLogService.log({ action: "update", resource: RESOURCE, resourceId: data.id, resourceName: data.name, description: `Cập nhật phễu "${data.name}"`, metadata: { updatedItem: data }, req });
-    return sendSuccess(res, 200, "Cập nhật phễu thành công", data);
+    const { funnel, changes } = await FunnelService.updateFunnel(req.params.id, req.body);
+    SystemLogService.log({ action: "update", resource: RESOURCE, resourceId: funnel.id, resourceName: funnel.name, description: `Cập nhật phễu "${funnel.name}"`, metadata: { changes }, req });
+    return sendSuccess(res, 200, "Update funnel success", funnel);
   }
 
   async deleteFunnel(req, res) {

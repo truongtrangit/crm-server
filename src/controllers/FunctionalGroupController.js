@@ -24,14 +24,14 @@ class FunctionalGroupController {
   };
 
   updateGroup = async (req, res) => {
-    const item = await FunctionalGroupService.updateGroup(req.params.id, req.body);
+    const { item, changes } = await FunctionalGroupService.updateGroup(req.params.id, req.body);
     SystemLogService.log({
       action: "update",
       resource: RESOURCES.FUNCTIONAL_GROUPS,
       resourceId: item.id,
       resourceName: item.name,
       description: `Cập nhật khối chức năng "${item.name}"`,
-      metadata: { updatedItem: item },
+      metadata: { changes },
       req,
     });
     return sendSuccess(res, 200, "Update functional group success", item);

@@ -13,7 +13,6 @@ const { createHttpError } = require("../utils/http");
 const { computeChanges } = require("../utils/diff");
 const { LEAD_STAGE_MAP, getNextStage } = require("../constants/leadStages");
 
-
 class LeadService {
   /**
    * List leads with RBAC scoping + lazy load (cursor-based or offset).
@@ -26,7 +25,13 @@ class LeadService {
    *            ?limit=20
    */
   async getLeads(queryParams, scopeFilter = {}) {
-    const { search = "", stage, lastId, limit: rawLimit = 20, isArchived } = queryParams;
+    const {
+      search = "",
+      stage,
+      lastId,
+      limit: rawLimit = 20,
+      isArchived,
+    } = queryParams;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 20, 1), 100);
     const searchRegex = buildSearchRegex(search);
 
@@ -53,10 +58,10 @@ class LeadService {
     const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
     if (stage) query.stage = stage;
-    
-    if (isArchived === 'true') {
+
+    if (isArchived === "true") {
       query.isArchived = true;
-    } else if (isArchived === 'false' || !isArchived) {
+    } else if (isArchived === "false" || !isArchived) {
       query.isArchived = { $ne: true };
     }
 
@@ -78,14 +83,18 @@ class LeadService {
 
     // Attach active tasks info
     if (items.length > 0) {
-      const leadIds = items.map(l => l.id);
+      const leadIds = items.map((l) => l.id);
       const activeTasks = await Task.find({
         "linkedLeads.leadId": { $in: leadIds },
-        status: "active"
-      }).select("name linkedLeads").lean();
+        status: "active",
+      })
+        .select("name linkedLeads")
+        .lean();
 
       for (const lead of items) {
-        const tasksForLead = activeTasks.filter(t => t.linkedLeads.some(ll => ll.leadId === lead.id));
+        const tasksForLead = activeTasks.filter((t) =>
+          t.linkedLeads.some((ll) => ll.leadId === lead.id),
+        );
         lead.activeTaskCount = tasksForLead.length;
         if (tasksForLead.length > 0) {
           // Just grab the first active task's name for quick display
@@ -333,12 +342,19 @@ class LeadService {
     try {
       const activeTasks = await Task.find({
         "linkedLeads.leadId": id,
-        status: { $ne: "closed" }
+        status: { $ne: "closed" },
       });
       for (const task of activeTasks) {
-        const performer = currentUser || { id: "system", name: "System", email: "" };
-        await TaskService.closeTask(task.id, performer).catch(err => {
-          console.error(`Failed to close task ${task.id} cascading from lead ${id}`, err);
+        const performer = currentUser || {
+          id: "system",
+          name: "System",
+          email: "",
+        };
+        await TaskService.closeTask(task.id, performer).catch((err) => {
+          console.error(
+            `Failed to close task ${task.id} cascading from lead ${id}`,
+            err,
+          );
         });
       }
     } catch (err) {
@@ -355,9 +371,16 @@ class LeadService {
     if (lead.funnelId && lead.statusId) {
       const funnel = await Funnel.findOne({ id: lead.funnelId }).lean();
       if (funnel) {
-        const statusGroup = await LeadStatusGroup.findOne({ id: funnel.statusGroupId }).lean();
-        if (statusGroup && statusGroup.statusIds && statusGroup.statusIds.length > 0) {
-          const lastStatusId = statusGroup.statusIds[statusGroup.statusIds.length - 1];
+        const statusGroup = await LeadStatusGroup.findOne({
+          id: funnel.statusGroupId,
+        }).lean();
+        if (
+          statusGroup &&
+          statusGroup.statusIds &&
+          statusGroup.statusIds.length > 0
+        ) {
+          const lastStatusId =
+            statusGroup.statusIds[statusGroup.statusIds.length - 1];
           if (lead.statusId === lastStatusId) {
             isLastStep = true;
           }
@@ -371,7 +394,11 @@ class LeadService {
     }
 
     if (!isLastStep) {
-      throw createHttpError(400, "BAD_REQUEST", "Chỉ được phép lưu trữ khi Lead ở trạng thái cuối cùng của phễu");
+      throw createHttpError(
+        400,
+        "BAD_REQUEST",
+        "Chỉ được phép lưu trữ khi Lead ở trạng thái cuối cùng của phễu",
+      );
     }
 
     const performer = this._extractPerformer(currentUser);
@@ -445,23 +472,33 @@ class LeadService {
     const lead = await this.getLeadById(id);
 
     // Kiểm tra vai trò của người dùng nếu là STAFF hoặc MANAGER
-    const userRole = (currentUser.roleId || '').toUpperCase();
-    if (['STAFF', 'MANAGER'].includes(userRole)) {
+    const userRole = (currentUser.roleId || "").toUpperCase();
+    if (["STAFF", "MANAGER"].includes(userRole)) {
       const userFuncs = currentUser.functions || [];
       if (!functionId || !userFuncs.includes(functionId)) {
-        throw createHttpError(403, 'Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.');
+        throw createHttpError(
+          403,
+          "Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.",
+        );
       }
     }
 
-    const isAssigned = lead.assignees && lead.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
+    const isAssigned =
+      lead.assignees &&
+      lead.assignees.some(
+        (a) => a.userId === currentUser.id && a.functionId === functionId,
+      );
     if (isAssigned) {
       return lead;
     }
 
     const before = lead.toObject();
-    
+
     // Resolve assignee format
-    const newAssignees = [...(lead.assignees || []), { userId: currentUser.id, functionId }];
+    const newAssignees = [
+      ...(lead.assignees || []),
+      { userId: currentUser.id, functionId },
+    ];
     lead.assignees = await this._resolveAssignees(newAssignees);
 
     const changes = computeChanges(before, lead.toObject());
@@ -475,7 +512,7 @@ class LeadService {
     });
 
     await lead.save();
-    return lead;
+    return { lead, changes };
   }
 
   /**
@@ -511,12 +548,14 @@ class LeadService {
 
     const [users, funcs] = await Promise.all([
       userIds.length > 0
-        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select(
-          "id name avatar",
-        ).lean()
+        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } })
+            .select("id name avatar")
+            .lean()
         : [],
       funcIds.length > 0
-        ? StaffFunction.find({ id: { $in: funcIds } }).select("id title").lean()
+        ? StaffFunction.find({ id: { $in: funcIds } })
+            .select("id title")
+            .lean()
         : [],
     ]);
 
@@ -542,7 +581,6 @@ class LeadService {
         functionTitle: a.functionId ? funcMap[a.functionId]?.title || "" : "",
       }));
   }
-
 
   /**
    * Extract performer info from currentUser.

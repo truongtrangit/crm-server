@@ -1,7 +1,11 @@
 const Staff = require("../models/Staff");
-const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
+const {
+  resolvePagination,
+  buildPaginatedResponse,
+} = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
+const { computeChanges } = require("../utils/diff");
 
 class StaffService {
   /**
@@ -14,7 +18,7 @@ class StaffService {
     if (query.search) {
       filter.$or = [
         { name: { $regex: query.search, $options: "i" } },
-        { id: { $regex: query.search, $options: "i" } }
+        { id: { $regex: query.search, $options: "i" } },
       ];
     }
     if (query.functionalGroupId) {
@@ -34,7 +38,7 @@ class StaffService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Staff.countDocuments(filter)
+      Staff.countDocuments(filter),
     ]);
 
     return buildPaginatedResponse(items, total, page, limit);
@@ -44,7 +48,9 @@ class StaffService {
    * Lấy Staff theo ID
    */
   async getStaffById(id) {
-    const staff = await Staff.findOne({ id }).populate("functionalGroupId", "name id").lean();
+    const staff = await Staff.findOne({ id })
+      .populate("functionalGroupId", "name id")
+      .lean();
     if (!staff) {
       throw createHttpError(404, "Không tìm thấy nhân sự");
     }
@@ -71,13 +77,16 @@ class StaffService {
     }
 
     // Nếu chuyển trạng thái từ Đã nghỉ việc -> Đang làm việc thì xóa ngày nghỉ việc
-    if (data.status === 'Đang làm việc' && staff.status === 'Đã nghỉ việc') {
+    if (data.status === "Đang làm việc" && staff.status === "Đã nghỉ việc") {
       staff.resignationDate = undefined;
     }
 
+    const oldState = staff.toObject();
     Object.assign(staff, data);
     await staff.save();
-    return staff;
+    const newState = staff.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { staff, changes };
   }
 
   /**
@@ -89,13 +98,13 @@ class StaffService {
       throw createHttpError(404, "Không tìm thấy nhân sự");
     }
 
-    if (typeof staff.delete === 'function') {
+    if (typeof staff.delete === "function") {
       await staff.delete(); // softDeletePlugin
     } else {
       staff.isDeleted = true;
       await staff.save();
     }
-    return { success: true };
+    return staff;
   }
 
   /**
@@ -107,9 +116,12 @@ class StaffService {
       throw createHttpError(404, "Không tìm thấy nhân sự");
     }
 
+    const oldState = staff.toObject();
     staff.salaryConfigs.push(configData);
     await staff.save();
-    return staff;
+    const newState = staff.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { staff, changes };
   }
 }
 

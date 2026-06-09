@@ -2,10 +2,14 @@ const Revenue = require("../models/Revenue");
 const RevenueCategory = require("../models/RevenueCategory");
 const ExpectedRevenue = require("../models/ExpectedRevenue");
 const Counter = require("../models/Counter");
-const { resolvePagination, buildPaginatedResponse } = require("../utils/pagination");
+const {
+  resolvePagination,
+  buildPaginatedResponse,
+} = require("../utils/pagination");
 const { createHttpError } = require("../utils/http");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { REVENUE_STATUSES } = require("../constants/finance");
+const { computeChanges } = require("../utils/diff");
 
 class RevenueService {
   // ─── Revenue Categories ──────────────────────────────────────────────────
@@ -18,7 +22,9 @@ class RevenueService {
     if (query.isActive !== undefined) {
       filter.isActive = query.isActive === "true" || query.isActive === true;
     }
-    const categories = await RevenueCategory.find(filter).sort({ createdAt: -1 }).lean();
+    const categories = await RevenueCategory.find(filter)
+      .sort({ createdAt: -1 })
+      .lean();
     return categories;
   }
 
@@ -30,31 +36,41 @@ class RevenueService {
   }
 
   async updateCategory(id, data) {
-    const category = await RevenueCategory.findOneAndUpdate({ id }, data, { new: true }).lean();
+    const category = await RevenueCategory.findOne({ id });
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
-    return category;
+    const oldState = category.toObject();
+    Object.assign(category, data);
+    await category.save();
+    const newState = category.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { category, changes };
   }
 
   async deleteCategory(id, force = false) {
     // Check if category is used
-    const category = await RevenueCategory.findOne({ id }).lean();
+    const category = await RevenueCategory.findOne({ id });
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
     const isUsed = await Revenue.exists({ category: category._id });
     if (isUsed && !force) {
-      throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa", { code: "RESOURCE_IN_USE" });
+      throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa", {
+        code: "RESOURCE_IN_USE",
+      });
     }
-    
+
     if (isUsed && force) {
       // Remove category reference from all revenues using this category
-      await Revenue.updateMany({ category: category._id }, { $set: { category: null } });
+      await Revenue.updateMany(
+        { category: category._id },
+        { $set: { category: null } },
+      );
     }
-    
+
     await RevenueCategory.deleteOne({ id });
-    return { success: true };
+    return category;
   }
 
   // ─── Expected Revenues ────────────────────────────────────────────────────
@@ -75,10 +91,14 @@ class RevenueService {
     if (!force) {
       const completed = await Revenue.findOne({
         expectedRevenueId,
-        status: REVENUE_STATUSES.COMPLETE
+        status: REVENUE_STATUSES.COMPLETE,
       }).lean();
       if (completed) {
-        throw createHttpError(400, "Đã có doanh thu được ghi nhận cho khoản này. Vui lòng xác nhận ghi đè.", { code: "RESOURCE_APPROVED_FORCE_REQUIRED" });
+        throw createHttpError(
+          400,
+          "Đã có doanh thu được ghi nhận cho khoản này. Vui lòng xác nhận ghi đè.",
+          { code: "RESOURCE_APPROVED_FORCE_REQUIRED" },
+        );
       }
     }
     await Revenue.deleteMany({ expectedRevenueId });
@@ -96,7 +116,7 @@ class RevenueService {
         recordDate: expected.expectedDate,
         status: REVENUE_STATUSES.PENDING,
         isExpected: true,
-        expectedRevenueId: expected._id
+        expectedRevenueId: expected._id,
       });
       await revenue.save();
     } else if (expected.type === "allocated") {
@@ -104,19 +124,19 @@ class RevenueService {
       if (months.length === 0) return;
 
       const sortedMonths = [...months].sort((a, b) => {
-        const [mA, yA] = a.split('/');
-        const [mB, yB] = b.split('/');
+        const [mA, yA] = a.split("/");
+        const [mB, yB] = b.split("/");
         if (yA !== yB) return Number(yA) - Number(yB);
         return Number(mA) - Number(mB);
       });
 
       const baseAmount = Math.floor(expected.amount / months.length);
-      const remainder = expected.amount - (baseAmount * months.length);
+      const remainder = expected.amount - baseAmount * months.length;
 
       for (let i = 0; i < sortedMonths.length; i++) {
-        const [m, y] = sortedMonths[i].split('/');
+        const [m, y] = sortedMonths[i].split("/");
         let monthAmount = baseAmount;
-        
+
         if (i === sortedMonths.length - 1) {
           monthAmount += remainder;
         }
@@ -131,7 +151,7 @@ class RevenueService {
           recordDate,
           status: REVENUE_STATUSES.PENDING,
           isExpected: true,
-          expectedRevenueId: expected._id
+          expectedRevenueId: expected._id,
         });
         await revenue.save();
       }
@@ -146,7 +166,7 @@ class RevenueService {
     const expected = new ExpectedRevenue({
       ...data,
       id,
-      category: category._id
+      category: category._id,
     });
     await expected.save();
     await this._generateExpectedRevenues(expected);
@@ -161,25 +181,34 @@ class RevenueService {
       updateData.category = category._id;
     }
 
-    const expected = await ExpectedRevenue.findOne({ id }).populate("category", "id name").lean();
-    if (!expected) throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
+    const expected = await ExpectedRevenue.findOne({ id }).populate(
+      "category",
+      "id name",
+    );
+    if (!expected)
+      throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
 
     await this._removeExpectedRevenues(expected._id, force);
 
-    const updatedExpected = await ExpectedRevenue.findOneAndUpdate({ id }, updateData, { new: true })
-      .populate("category", "id name");
-    
-    await this._generateExpectedRevenues(updatedExpected);
-    return updatedExpected;
+    const oldState = expected.toObject();
+    Object.assign(expected, updateData);
+    await expected.save();
+    await expected.populate("category", "id name");
+    const newState = expected.toObject();
+    const changes = computeChanges(oldState, newState);
+
+    await this._generateExpectedRevenues(expected);
+    return { expected, changes };
   }
 
   async deleteExpectedRevenue(id, force = false) {
     const expected = await ExpectedRevenue.findOne({ id });
-    if (!expected) throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
-    
+    if (!expected)
+      throw createHttpError(404, "Không tìm thấy doanh thu dự kiến");
+
     await this._removeExpectedRevenues(expected._id, force);
     await ExpectedRevenue.findByIdAndDelete(expected._id);
-    return { success: true };
+    return expected;
   }
 
   // ─── Revenues ─────────────────────────────────────────────────────────────
@@ -192,7 +221,7 @@ class RevenueService {
       filter.$or = [
         { customerName: { $regex: query.search, $options: "i" } },
         { orderId: { $regex: query.search, $options: "i" } },
-        { details: { $regex: query.search, $options: "i" } }
+        { details: { $regex: query.search, $options: "i" } },
       ];
     }
     if (query.category && query.category !== "all") {
@@ -200,7 +229,9 @@ class RevenueService {
         filter.category = null; // matches null or unset
       } else {
         // Find category by ID first if query passes the string id
-        const cat = await RevenueCategory.findOne({ id: query.category }).lean();
+        const cat = await RevenueCategory.findOne({
+          id: query.category,
+        }).lean();
         if (cat) {
           filter.category = cat._id;
         }
@@ -211,7 +242,11 @@ class RevenueService {
     }
     // Time filter (year/month)
     if (query.month && query.year) {
-      const startDate = new Date(parseInt(query.year), parseInt(query.month) - 1, 1);
+      const startDate = new Date(
+        parseInt(query.year),
+        parseInt(query.month) - 1,
+        1,
+      );
       const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
       filter.recordDate = { $gte: startDate, $lt: endDate };
     } else if (query.year) {
@@ -227,14 +262,16 @@ class RevenueService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Revenue.countDocuments(filter)
+      Revenue.countDocuments(filter),
     ]);
 
     return buildPaginatedResponse(items, total, page, limit);
   }
 
   async getRevenueById(id) {
-    const revenue = await Revenue.findById(id).populate("category", "id name").lean();
+    const revenue = await Revenue.findById(id)
+      .populate("category", "id name")
+      .lean();
     if (!revenue) throw createHttpError(404, "Không tìm thấy doanh thu");
     return revenue;
   }
@@ -242,20 +279,20 @@ class RevenueService {
   async _generateOrderId(categoryObj) {
     const date = new Date();
     const yy = String(date.getFullYear()).slice(-2);
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
     const yymm = `${yy}${mm}`;
 
     // Use a fixed prefix 'REV' for all revenues to avoid confusion if category name changes
-    const prefix = 'REV';
+    const prefix = "REV";
 
     const counterKey = `REV_${yymm}`;
     const counter = await Counter.findByIdAndUpdate(
       counterKey,
       { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
-    const stt = String(counter.seq).padStart(2, '0');
+    const stt = String(counter.seq).padStart(2, "0");
     return `${prefix}-${yymm}-${stt}`;
   }
 
@@ -268,7 +305,7 @@ class RevenueService {
     const revenue = new Revenue({
       ...data,
       category: category._id,
-      orderId
+      orderId,
     });
     await revenue.save();
     return revenue.populate("category", "id name");
@@ -282,18 +319,24 @@ class RevenueService {
       updateData.category = category._id;
     }
 
-    const revenue = await Revenue.findByIdAndUpdate(id, updateData, { new: true })
-      .populate("category", "id name")
-      .lean();
-    
+    const revenue = await Revenue.findById(id).populate("category", "id name");
     if (!revenue) throw createHttpError(404, "Không tìm thấy doanh thu");
-    return revenue;
+
+    const oldState = revenue.toObject();
+    Object.assign(revenue, updateData);
+    await revenue.save();
+    await revenue.populate("category", "id name");
+    const newState = revenue.toObject();
+    const changes = computeChanges(oldState, newState);
+
+    return { revenue, changes };
   }
 
   async deleteRevenue(id) {
-    const result = await Revenue.findByIdAndDelete(id);
-    if (!result) throw createHttpError(404, "Không tìm thấy doanh thu");
-    return { success: true };
+    const revenue = await Revenue.findById(id);
+    if (!revenue) throw createHttpError(404, "Không tìm thấy doanh thu");
+    await revenue.deleteOne();
+    return revenue;
   }
 
   // ─── Stats ─────────────────────────────────────────────────────────────
@@ -301,14 +344,20 @@ class RevenueService {
   async getRevenueStats(query) {
     const filter = {};
     if (query.year) {
-      const startDate = new Date(parseInt(query.year), parseInt(query.month || 1) - 1, 1);
-      const endDate = query.month 
+      const startDate = new Date(
+        parseInt(query.year),
+        parseInt(query.month || 1) - 1,
+        1,
+      );
+      const endDate = query.month
         ? new Date(parseInt(query.year), parseInt(query.month), 1)
         : new Date(parseInt(query.year) + 1, 0, 1);
       filter.recordDate = { $gte: startDate, $lt: endDate };
     }
 
-    const revenues = await Revenue.find(filter).populate('category', 'name id').lean();
+    const revenues = await Revenue.find(filter)
+      .populate("category", "name id")
+      .lean();
 
     let totalAmount = 0;
     const categoryMap = {};
@@ -318,7 +367,7 @@ class RevenueService {
       if (rev.status === REVENUE_STATUSES.CANCELLED) continue;
 
       totalAmount += rev.amount || 0;
-      
+
       const catName = rev.category?.name || "Khác";
       if (!categoryMap[catName]) {
         categoryMap[catName] = 0;
@@ -326,14 +375,14 @@ class RevenueService {
       categoryMap[catName] += rev.amount || 0;
     }
 
-    const categoriesStat = Object.keys(categoryMap).map(name => ({
+    const categoriesStat = Object.keys(categoryMap).map((name) => ({
       name,
-      total: categoryMap[name]
+      total: categoryMap[name],
     }));
 
     return {
       totalAmount,
-      categories: categoriesStat
+      categories: categoriesStat,
     };
   }
 }

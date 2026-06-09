@@ -1,5 +1,6 @@
 const JobFolder = require("../models/JobFolder");
 const JobTask = require("../models/JobTask");
+const { computeChanges } = require("../utils/diff");
 const { ID_PREFIXES, generateMonotonicId } = require("../utils/id");
 const { isOwnerOrAdmin } = require("../utils/userRoles");
 const {
@@ -98,8 +99,13 @@ class JobWorkService {
       await this._validateUserIds(data.assignees);
     }
 
+    const oldState = folder.toObject();
     Object.assign(folder, data);
-    return folder.save();
+    await folder.save();
+    const newState = folder.toObject();
+    const changes = computeChanges(oldState, newState);
+
+    return { folder, changes };
   }
 
   async deleteFolder(id) {
@@ -136,7 +142,7 @@ class JobWorkService {
     // Xoá tất cả các thư mục con và chính nó
     await JobFolder.deleteMany({ id: { $in: idsToDelete } });
 
-    return true;
+    return folder;
   }
 
   async reorderFolders(orderedIds) {
@@ -314,6 +320,7 @@ class JobWorkService {
     if (data.assignees) await this._validateUserIds(data.assignees);
     if (data.linkAccessUsers) await this._validateUserIds(data.linkAccessUsers);
 
+    const oldState = task.toObject();
     Object.assign(task, data);
 
     task.logs.push({
@@ -328,7 +335,11 @@ class JobWorkService {
         : { id: "SYSTEM", name: "System" },
     });
 
-    return task.save();
+    await task.save();
+    const newState = task.toObject();
+    const changes = computeChanges(oldState, newState);
+
+    return { task, changes };
   }
 
   async updateTaskStatus(id, statusId, currentUser) {
@@ -339,6 +350,7 @@ class JobWorkService {
       });
 
     if (task.statusId !== statusId) {
+      const oldState = task.toObject();
       task.statusId = statusId;
       task.logs.push({
         action: "update_status",
@@ -351,9 +363,12 @@ class JobWorkService {
             }
           : { id: "SYSTEM", name: "System" },
       });
-      return task.save();
+      await task.save();
+      const newState = task.toObject();
+      const changes = computeChanges(oldState, newState);
+      return { task, changes };
     }
-    return task;
+    return { task, changes: {} };
   }
 
   async deleteTask(id) {
@@ -364,7 +379,7 @@ class JobWorkService {
       });
 
     await JobTask.deleteOne({ id });
-    return true;
+    return task;
   }
 }
 

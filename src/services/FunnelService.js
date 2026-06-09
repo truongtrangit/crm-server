@@ -6,6 +6,7 @@ const { createHttpError } = require("../utils/http");
 const { isSystemEntity, SYSTEM_IDS } = require("../constants/systemFunnel");
 const CacheService = require("./CacheService");
 const { CACHE_TTL } = require("../constants/cache");
+const { computeChanges } = require("../utils/diff");
 
 class FunnelService {
   async getFolders() {
@@ -26,10 +27,15 @@ class FunnelService {
 
   async updateFolder(id, data) {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa thư mục hệ thống.");
-    const updated = await FunnelFolder.findOneAndUpdate({ id }, data, { new: true });
-    if (!updated) throw createHttpError(404, "Không tìm thấy thư mục");
+    const folder = await FunnelFolder.findOne({ id });
+    if (!folder) throw createHttpError(404, "Không tìm thấy thư mục");
+    const oldState = folder.toObject();
+    Object.assign(folder, data);
+    await folder.save();
+    const newState = folder.toObject();
+    const changes = computeChanges(oldState, newState);
     await CacheService.bumpNamespaceVersion("funnels:folders");
-    return updated;
+    return { folder, changes };
   }
 
   async deleteFolder(id) {
@@ -65,10 +71,15 @@ class FunnelService {
 
   async updateGroup(id, data) {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa nhóm phễu hệ thống.");
-    const updated = await FunnelGroup.findOneAndUpdate({ id }, data, { new: true });
-    if (!updated) throw createHttpError(404, "Không tìm thấy nhóm phễu");
+    const group = await FunnelGroup.findOne({ id });
+    if (!group) throw createHttpError(404, "Không tìm thấy nhóm phễu");
+    const oldState = group.toObject();
+    Object.assign(group, data);
+    await group.save();
+    const newState = group.toObject();
+    const changes = computeChanges(oldState, newState);
     await CacheService.bumpNamespaceVersion("funnels:groups");
-    return updated;
+    return { group, changes };
   }
 
   async deleteGroup(id) {
@@ -124,10 +135,15 @@ class FunnelService {
       throw createHttpError(400, "Phễu phải thuộc thư mục hoặc nhóm phễu.");
     }
 
-    const updated = await Funnel.findOneAndUpdate({ id }, cleaned, { new: true });
-    if (!updated) throw createHttpError(404, "Không tìm thấy phễu");
+    const funnel = await Funnel.findOne({ id });
+    if (!funnel) throw createHttpError(404, "Không tìm thấy phễu");
+    const oldState = funnel.toObject();
+    Object.assign(funnel, cleaned);
+    await funnel.save();
+    const newState = funnel.toObject();
+    const changes = computeChanges(oldState, newState);
     await CacheService.bumpNamespaceVersion("funnels:funnels");
-    return updated;
+    return { funnel, changes };
   }
 
   async deleteFunnel(id) {

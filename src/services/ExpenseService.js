@@ -7,6 +7,7 @@ const { resolvePagination, buildPaginatedResponse } = require("../utils/paginati
 const { createHttpError } = require("../utils/http");
 const { generateMonotonicId, ID_PREFIXES } = require("../utils/id");
 const { EXPENSE_STATUSES } = require("../constants/finance");
+const { computeChanges } = require("../utils/diff");
 
 class ExpenseService {
   // ─── Expense Categories ──────────────────────────────────────────────────
@@ -31,15 +32,20 @@ class ExpenseService {
   }
 
   async updateCategory(id, data) {
-    const category = await ExpenseCategory.findOneAndUpdate({ id }, data, { new: true }).lean();
+    const category = await ExpenseCategory.findOne({ id });
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
-    return category;
+    const oldState = category.toObject();
+    Object.assign(category, data);
+    await category.save();
+    const newState = category.toObject();
+    const changes = computeChanges(oldState, newState);
+    return { category, changes };
   }
 
   async deleteCategory(id, force = false) {
-    const category = await ExpenseCategory.findOne({ id }).lean();
+    const category = await ExpenseCategory.findOne({ id });
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
@@ -53,7 +59,7 @@ class ExpenseService {
     }
 
     await ExpenseCategory.deleteOne({ id });
-    return { success: true };
+    return category;
   }
 
   // ─── Expected Expenses ────────────────────────────────────────────────────
@@ -161,17 +167,21 @@ class ExpenseService {
       updateData.category = category._id;
     }
 
-    const expected = await ExpectedExpense.findOne({ id }).populate("category", "id name").lean();
+    const expected = await ExpectedExpense.findOne({ id }).populate("category", "id name");
     if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
 
     await this._removeExpectedExpenses(expected._id, force);
 
-    const updatedExpected = await ExpectedExpense.findOneAndUpdate({ id }, updateData, { new: true })
-      .populate("category", "id name");
+    const oldState = expected.toObject();
+    Object.assign(expected, updateData);
+    await expected.save();
+    await expected.populate("category", "id name");
+    const newState = expected.toObject();
+    const changes = computeChanges(oldState, newState);
 
-    await this._generateExpectedExpenses(updatedExpected);
+    await this._generateExpectedExpenses(expected);
 
-    return updatedExpected;
+    return { expected, changes };
   }
 
   async deleteExpectedExpense(id, force = false) {
@@ -180,7 +190,7 @@ class ExpenseService {
 
     await this._removeExpectedExpenses(expected._id, force);
     await ExpectedExpense.findByIdAndDelete(expected._id);
-    return { success: true };
+    return expected;
   }
 
   // ─── Expenses ─────────────────────────────────────────────────────────────
@@ -298,14 +308,18 @@ class ExpenseService {
   }
 
   async updateExpense(id, data) {
-    const existingExpense = await Expense.findById(id).lean();
+    const existingExpense = await Expense.findById(id);
     if (!existingExpense) throw createHttpError(404, "Không tìm thấy chi phí");
 
+    const oldState = existingExpense.toObject();
+
     if (existingExpense.isExpected) {
-      const expense = await Expense.findByIdAndUpdate(id, { status: data.status }, { new: true })
-        .populate("category", "id name")
-        .lean();
-      return expense;
+      existingExpense.status = data.status;
+      await existingExpense.save();
+      await existingExpense.populate("category", "id name");
+      const newState = existingExpense.toObject();
+      const changes = computeChanges(oldState, newState);
+      return { expense: existingExpense, changes };
     }
 
     const updateData = { ...data };
@@ -319,17 +333,20 @@ class ExpenseService {
       }
     }
 
-    const expense = await Expense.findByIdAndUpdate(id, updateData, { new: true })
-      .populate("category", "id name")
-      .lean();
+    Object.assign(existingExpense, updateData);
+    await existingExpense.save();
+    await existingExpense.populate("category", "id name");
+    const newState = existingExpense.toObject();
+    const changes = computeChanges(oldState, newState);
 
-    return expense;
+    return { expense: existingExpense, changes };
   }
 
   async deleteExpense(id) {
-    const result = await Expense.findByIdAndDelete(id);
-    if (!result) throw createHttpError(404, "Không tìm thấy chi phí");
-    return { success: true };
+    const expense = await Expense.findById(id);
+    if (!expense) throw createHttpError(404, "Không tìm thấy chi phí");
+    await expense.deleteOne();
+    return expense;
   }
 
   // ─── Stats ─────────────────────────────────────────────────────────────

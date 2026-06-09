@@ -1,5 +1,6 @@
-const SalaryRecord = require('../models/SalaryRecord');
-const Staff = require('../models/Staff');
+const SalaryRecord = require("../models/SalaryRecord");
+const Staff = require("../models/Staff");
+const { computeChanges } = require("../utils/diff");
 
 class SalaryService {
   /**
@@ -10,15 +11,19 @@ class SalaryService {
     console.log(`Starting salary generation for month: ${month}`);
 
     // Parse month to get the end of the month date for probation/resigned checks
-    const [m, y] = month.split('/');
+    const [m, y] = month.split("/");
     const monthYearStr = `${y}-${m}-01`;
     const startOfMonth = new Date(monthYearStr);
-    const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0);
+    const endOfMonth = new Date(
+      startOfMonth.getFullYear(),
+      startOfMonth.getMonth() + 1,
+      0,
+    );
 
     // Lấy tất cả staff và các bảng lương đã có trong tháng
     const [staffs, existingRecords] = await Promise.all([
       Staff.find().lean(),
-      SalaryRecord.find({ month }).lean()
+      SalaryRecord.find({ month }).lean(),
     ]);
 
     const existingRecordMap = new Map();
@@ -31,19 +36,19 @@ class SalaryService {
 
     for (const staff of staffs) {
       // Bỏ qua nhân sự nghỉ việc TRƯỚC tháng sinh lương
-      if (staff.status === 'Đã nghỉ việc' && staff.resignationDate) {
+      if (staff.status === "Đã nghỉ việc" && staff.resignationDate) {
         const resignDate = new Date(staff.resignationDate);
         if (resignDate < startOfMonth) {
           continue; // Đã nghỉ việc trước tháng này, không tính lương
         }
       }
-      
+
       // Bỏ qua nhân sự chưa vào làm ở tháng sinh lương (onboardDate sau cuối tháng)
       if (staff.onboardDate) {
-         const obDate = new Date(staff.onboardDate);
-         if (obDate > endOfMonth) {
-            continue;
-         }
+        const obDate = new Date(staff.onboardDate);
+        if (obDate > endOfMonth) {
+          continue;
+        }
       }
 
       // Lấy lương cơ bản từ cấu hình (salaryConfigs) có effectiveDate gần nhất <= endOfMonth
@@ -51,20 +56,24 @@ class SalaryService {
       if (staff.salaryConfigs && staff.salaryConfigs.length > 0) {
         // Sắp xếp giảm dần theo ngày
         const sortedConfigs = [...staff.salaryConfigs].sort((a, b) => {
-          return new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime();
+          return (
+            new Date(b.effectiveDate).getTime() -
+            new Date(a.effectiveDate).getTime()
+          );
         });
 
         // Tìm cấu hình đang áp dụng
-        const activeConfig = sortedConfigs.find(c => {
-           if (!c.effectiveDate) return true;
-           return new Date(c.effectiveDate) <= endOfMonth;
+        const activeConfig = sortedConfigs.find((c) => {
+          if (!c.effectiveDate) return true;
+          return new Date(c.effectiveDate) <= endOfMonth;
         });
 
         if (activeConfig) {
           basicSalary = activeConfig.basicSalary || 0;
         } else {
           // Nếu không có cấu hình nào thỏa mãn, lấy cấu hình cũ nhất
-          basicSalary = sortedConfigs[sortedConfigs.length - 1].basicSalary || 0;
+          basicSalary =
+            sortedConfigs[sortedConfigs.length - 1].basicSalary || 0;
         }
       }
 
@@ -72,10 +81,19 @@ class SalaryService {
       const existingRecord = existingRecordMap.get(staff._id.toString());
       if (existingRecord) {
         // Nếu đã có nhưng đang pending và lương cơ bản thay đổi -> Cập nhật lại
-        if (existingRecord.status === 'pending' && existingRecord.basicSalary !== basicSalary) {
-          const newTotal = basicSalary + (existingRecord.allowance || 0) + (existingRecord.bonus || 0) - (existingRecord.penalty || 0) + (existingRecord.ot || 0);
-          const newFinalReceivedAmount = newTotal - (existingRecord.deduction || 0);
-          
+        if (
+          existingRecord.status === "pending" &&
+          existingRecord.basicSalary !== basicSalary
+        ) {
+          const newTotal =
+            basicSalary +
+            (existingRecord.allowance || 0) +
+            (existingRecord.bonus || 0) -
+            (existingRecord.penalty || 0) +
+            (existingRecord.ot || 0);
+          const newFinalReceivedAmount =
+            newTotal - (existingRecord.deduction || 0);
+
           bulkOps.push({
             updateOne: {
               filter: { _id: existingRecord._id },
@@ -83,10 +101,10 @@ class SalaryService {
                 $set: {
                   basicSalary,
                   total: newTotal,
-                  finalReceivedAmount: newFinalReceivedAmount
-                }
-              }
-            }
+                  finalReceivedAmount: newFinalReceivedAmount,
+                },
+              },
+            },
           });
           generatedCount++;
         }
@@ -110,9 +128,9 @@ class SalaryService {
             ot: 0,
             total,
             finalReceivedAmount: total,
-            status: 'pending',
-          }
-        }
+            status: "pending",
+          },
+        },
       });
       generatedCount++;
     }
@@ -121,78 +139,125 @@ class SalaryService {
       await SalaryRecord.bulkWrite(bulkOps);
     }
 
-    console.log(`Completed salary generation for month ${month}. Processed ${generatedCount} records.`);
+    console.log(
+      `Completed salary generation for month ${month}. Processed ${generatedCount} records.`,
+    );
     return generatedCount;
   }
 
   /**
    * Lấy danh sách lương tháng
    */
-  async getSalaries(month, search = '') {
+  async getSalaries(month, search = "") {
     const query = { month };
-    
+
     // Populate staff to get name, avatar, departments
     const records = await SalaryRecord.find(query)
       .populate({
-        path: 'staffId',
+        path: "staffId",
         populate: {
-          path: 'functionalGroupId',
-          model: 'FunctionalGroup'
-        }
+          path: "functionalGroupId",
+          model: "FunctionalGroup",
+        },
       })
-      .populate('paidBy', 'name email avatar')
-      .sort({ 'staffId.name': 1 })
+      .populate("paidBy", "name email avatar")
+      .sort({ "staffId.name": 1 })
       .lean();
 
     // Filter by search term on staff name
     if (search) {
       const lowerSearch = search.toLowerCase();
-      return records.filter(r => 
-        r.staffId && r.staffId.name && r.staffId.name.toLowerCase().includes(lowerSearch)
+      return records.filter(
+        (r) =>
+          r.staffId &&
+          r.staffId.name &&
+          r.staffId.name.toLowerCase().includes(lowerSearch),
       );
     }
 
     return records;
   }
 
-  /**
-   * Cập nhật hàng loạt bảng lương
-   */
   async batchUpdateSalaries(updates) {
-    const bulkOps = updates.map(update => {
-      // Re-calculate to ensure data integrity
-      const basicSalary = update.basicSalary || 0;
-      const allowance = update.allowance || 0;
-      const bonus = update.bonus || 0;
-      const ot = update.ot || 0;
-      const penalty = update.penalty || 0;
-      const deduction = update.deduction || 0;
-      
+    const ids = updates.map((u) => u._id);
+    const existingRecords = await SalaryRecord.find({ _id: { $in: ids } });
+    const existingMap = new Map(
+      existingRecords.map((r) => [r._id.toString(), r]),
+    );
+
+    const changesList = [];
+    const bulkOps = [];
+
+    for (const update of updates) {
+      const record = existingMap.get(update._id.toString());
+      if (!record) continue;
+
+      const oldState = record.toObject();
+
+      const basicSalary =
+        update.basicSalary !== undefined
+          ? update.basicSalary
+          : record.basicSalary || 0;
+      const allowance =
+        update.allowance !== undefined
+          ? update.allowance
+          : record.allowance || 0;
+      const bonus =
+        update.bonus !== undefined ? update.bonus : record.bonus || 0;
+      const ot = update.ot !== undefined ? update.ot : record.ot || 0;
+      const penalty =
+        update.penalty !== undefined ? update.penalty : record.penalty || 0;
+      const deduction =
+        update.deduction !== undefined
+          ? update.deduction
+          : record.deduction || 0;
+
       const total = basicSalary + allowance + bonus - penalty + ot;
       const finalReceivedAmount = total - deduction;
 
-      return {
+      record.basicSalary = basicSalary;
+      record.allowance = allowance;
+      record.bonus = bonus;
+      record.ot = ot;
+      record.penalty = penalty;
+      record.deduction = deduction;
+      record.total = total;
+      record.finalReceivedAmount = finalReceivedAmount;
+
+      const newState = record.toObject();
+      const changes = computeChanges(oldState, newState);
+      if (Object.keys(changes).length > 0) {
+        changesList.push({
+          recordId: record._id.toString(),
+          month: record.month,
+          changes,
+        });
+      }
+
+      bulkOps.push({
         updateOne: {
-          filter: { _id: update._id },
+          filter: { _id: record._id },
           update: {
             $set: {
               basicSalary,
-              bonus,
               allowance,
+              bonus,
+              ot,
               penalty,
               deduction,
-              ot,
               total,
               finalReceivedAmount,
-            }
-          }
-        }
-      };
-    });
+            },
+          },
+        },
+      });
+    }
 
     if (bulkOps.length > 0) {
       await SalaryRecord.bulkWrite(bulkOps);
     }
+
+    return changesList;
   }
 
   /**
@@ -201,18 +266,18 @@ class SalaryService {
   async paySalary(id, paymentMethod, userId) {
     const record = await SalaryRecord.findById(id);
     if (!record) {
-      throw new Error('Salary record not found');
-    }
-    
-    if (record.status === 'paid') {
-      throw new Error('Salary already paid');
+      throw new Error("Salary record not found");
     }
 
-    record.status = 'paid';
+    if (record.status === "paid") {
+      throw new Error("Salary already paid");
+    }
+
+    record.status = "paid";
     record.paymentMethod = paymentMethod;
     record.paidAt = new Date();
     record.paidBy = userId;
-    
+
     await record.save();
     return record;
   }
@@ -221,9 +286,9 @@ class SalaryService {
    * Lấy lịch sử nhận lương của 1 nhân sự
    */
   async getStaffSalaryHistory(staffId) {
-    return await SalaryRecord.find({ staffId, status: 'paid' })
+    return await SalaryRecord.find({ staffId, status: "paid" })
       .sort({ month: -1 })
-      .populate('paidBy', 'name email avatar')
+      .populate("paidBy", "name email avatar")
       .lean();
   }
 }
