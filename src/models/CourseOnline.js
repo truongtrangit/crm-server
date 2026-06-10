@@ -15,6 +15,33 @@ const lecturerSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const lessonSchema = new mongoose.Schema(
+  {
+    id: { type: String },
+    title: { type: String, required: true },
+    duration: { type: Number, default: 0 },
+    accessLevel: { type: String, enum: ["Free", "Paid"], default: "Paid" },
+    videoUrl: { type: String, default: "" },
+    attachments: [
+      {
+        name: { type: String },
+        url: { type: String },
+      },
+    ],
+    description: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const chapterSchema = new mongoose.Schema(
+  {
+    id: { type: String },
+    title: { type: String, required: true },
+    lessons: { type: [lessonSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const courseOnlineSchema = new mongoose.Schema(
   {
     id: {
@@ -102,6 +129,10 @@ const courseOnlineSchema = new mongoose.Schema(
     },
     lecturers: {
       type: [lecturerSchema],
+      default: [],
+    },
+    curriculum: {
+      type: [chapterSchema],
       default: [],
     },
     createdBy: {

@@ -5,6 +5,27 @@ const lecturerSchema = Joi.object({
   isMain: Joi.boolean().default(false),
 });
 
+const lessonAttachmentSchema = Joi.object({
+  name: Joi.string().allow("", null),
+  url: Joi.string().allow("", null),
+});
+
+const lessonSchema = Joi.object({
+  id: Joi.string().allow("", null),
+  title: Joi.string().required(),
+  duration: Joi.number().min(0).default(0),
+  accessLevel: Joi.string().valid("Free", "Paid").default("Paid"),
+  videoUrl: Joi.string().allow("", null),
+  attachments: Joi.array().items(lessonAttachmentSchema).default([]),
+  description: Joi.string().allow("", null),
+});
+
+const chapterSchema = Joi.object({
+  id: Joi.string().allow("", null),
+  title: Joi.string().required(),
+  lessons: Joi.array().items(lessonSchema).default([]),
+});
+
 const createCourseOnline = Joi.object({
   title: Joi.string().required(),
   slug: Joi.string().required(),
@@ -28,6 +49,7 @@ const createCourseOnline = Joi.object({
   targetAudience: Joi.string().allow("", null),
   description: Joi.string().allow("", null),
   lecturers: Joi.array().items(lecturerSchema).default([]),
+  curriculum: Joi.array().items(chapterSchema).default([]),
 });
 
 const updateCourseOnline = Joi.object({
@@ -51,6 +73,7 @@ const updateCourseOnline = Joi.object({
   targetAudience: Joi.string().allow("", null),
   description: Joi.string().allow("", null),
   lecturers: Joi.array().items(lecturerSchema),
+  curriculum: Joi.array().items(chapterSchema),
 });
 
 module.exports = {
