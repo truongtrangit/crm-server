@@ -6,7 +6,6 @@ const CustomerController = require("../../controllers/CustomerController");
 
 const { scopeFieldAccess } = require("../../middleware/fieldAccess");
 
-
 const {
   createCustomerSchema,
   updateCustomerSchema,
@@ -16,7 +15,10 @@ const {
 
 const router = express.Router();
 
-const { customerResourceAccess, customerScopeList } = require("../../middleware/customerAccess");
+const {
+  customerResourceAccess,
+  customerScopeList,
+} = require("../../middleware/customerAccess");
 
 /**
  * GET /api/customers

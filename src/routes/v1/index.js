@@ -30,6 +30,9 @@ const companiesRouter = require("./companies");
 const financeRouter = require("./finance");
 const jobConfigRouter = require("./jobConfig.routes");
 const jobWorkRouter = require("./jobWork.routes");
+const courseConfigRouter = require("./courseConfigs");
+const courseLecturersRouter = require("./courseLecturers");
+const coursesOnlineRouter = require("./coursesOnline");
 
 const { authenticateRequest } = require("../../middleware/auth");
 const { sendSuccess } = require("../../utils/http");
@@ -76,7 +79,7 @@ v1Router.use("/leads", leadRouter);
 v1Router.use("/tasks", taskRouter);
 v1Router.use("/logs", logsRouter);
 
-// --- IMPORTANT 
+// --- IMPORTANT
 v1Router.use("/staffs", staffRouter);
 v1Router.use("/salaries", salaryRouter);
 v1Router.use("/salary-configs", salaryConfigRouter);
@@ -88,6 +91,9 @@ v1Router.use("/finance", financeRouter);
 v1Router.use("/companies", companiesRouter);
 v1Router.use("/job-hub/configs", jobConfigRouter);
 v1Router.use("/job-hub/work", jobWorkRouter);
+v1Router.use("/courses/configs", courseConfigRouter);
+v1Router.use("/courses/lecturers", courseLecturersRouter);
+v1Router.use("/courses/online", coursesOnlineRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use("/organization", organizationRouter);

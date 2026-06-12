@@ -56,6 +56,11 @@ const ID_PREFIXES = Object.freeze({
   JOB_TASK_TYPE: "JTT",
   JOB_CHANNEL: "JCH",
   JOB_REPEAT_RULE: "JRR",
+
+  // Course
+  COURSE_CATEGORY: "CCT",
+  COURSE_HASHTAG: "CHT",
+  COURSE_LECTURER: "CLT",
 });
 
 /**
