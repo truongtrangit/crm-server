@@ -1,0 +1,11 @@
+Read the appropriate AI context before coding:
+
+* Backend → crm-server/AI_CONTEXT.md
+* Frontend → crm-client/AI_CONTEXT.md
+* Fullstack → both
+
+Strictly follow all architecture, conventions, RBAC/RLS/MLAC, validation, logging, security, and UI rules. Reuse existing patterns, explain the implementation plan before coding, update AI_CONTEXT.md if new conventions are introduced, then verify:
+
+* Backend: `node -c`
+* Frontend: `tsc --noEmit`
+* Build passes without errors.

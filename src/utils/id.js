@@ -60,6 +60,7 @@ const ID_PREFIXES = Object.freeze({
   // Course
   COURSE_CATEGORY: "CCT",
   COURSE_HASHTAG: "CHT",
+  COURSE_LECTURER: "CLT",
 });
 
 /**
