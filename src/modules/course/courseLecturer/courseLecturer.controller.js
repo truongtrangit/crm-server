@@ -1,7 +1,7 @@
 const CourseLecturerService = require('./courseLecturer.service');
 const SystemLogService = require('../../system/log/systemLog.service');
 const { sendSuccess } = require('../../../core/utils/http');
-const { RESOURCES } = require('../../../routes/v1/rbac');
+const { RESOURCES } = require('../../../core/constants/rbac');
 
 class CourseLecturerController {
   async getLecturers(req, res) {

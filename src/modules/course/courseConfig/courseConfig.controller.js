@@ -1,6 +1,6 @@
 const CourseConfigService = require('./courseConfig.service');
 const SystemLogService = require('../../system/log/systemLog.service');
-const { RESOURCES } = require('../../../routes/v1/rbac');
+const { RESOURCES } = require('../../../core/constants/rbac');
 const { sendSuccess } = require('../../../core/utils/http');
 
 class CourseConfigController {
