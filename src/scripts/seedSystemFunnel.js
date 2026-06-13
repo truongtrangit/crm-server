@@ -11,13 +11,13 @@
  * Tất cả đều dùng ID cố định → chạy lại không gây trùng.
  */
 
-const LeadStatus      = require("../models/LeadStatus");
-const LeadStatusGroup = require("../models/LeadStatusGroup");
-const FunnelFolder    = require("../models/FunnelFolder");
-const FunnelGroup     = require("../models/FunnelGroup");
-const Funnel          = require("../models/Funnel");
+const LeadStatus = require("../modules/lead/leadConfig/leadStatus.model");
+const LeadStatusGroup = require("../modules/lead/leadConfig/leadStatusGroup.model");
+const FunnelFolder = require("../modules/lead/funnel/funnelFolder.model");
+const FunnelGroup = require("../modules/lead/funnel/funnelGroup.model");
+const Funnel = require("../modules/lead/funnel/funnel.model");
 
-const { SYSTEM_IDS, SYSTEM_STATUSES, SYSTEM_STATUS_IDS } = require("../constants/systemFunnel");
+const { SYSTEM_IDS, SYSTEM_STATUSES, SYSTEM_STATUS_IDS } = require("../core/constants/systemFunnel");
 
 async function seedSystemFunnel() {
   // ── 1. Lead Statuses ───────────────────────────────────────────────────────
@@ -35,11 +35,11 @@ async function seedSystemFunnel() {
   const sgExists = await LeadStatusGroup.findOne({ id: SYSTEM_IDS.STATUS_GROUP }).lean();
   if (!sgExists) {
     await LeadStatusGroup.create({
-      id:        SYSTEM_IDS.STATUS_GROUP,
-      name:      "Chuẩn (Hệ thống)",
+      id: SYSTEM_IDS.STATUS_GROUP,
+      name: "Chuẩn (Hệ thống)",
       statusIds: SYSTEM_STATUS_IDS,
       isDefault: true,
-      isActive:  true,
+      isActive: true,
     });
     console.log("   ✓ System LeadStatusGroup: tạo mới");
   } else {
@@ -50,8 +50,8 @@ async function seedSystemFunnel() {
   const folderExists = await FunnelFolder.findOne({ id: SYSTEM_IDS.FOLDER }).lean();
   if (!folderExists) {
     await FunnelFolder.create({
-      id:            SYSTEM_IDS.FOLDER,
-      name:          "Hệ thống",
+      id: SYSTEM_IDS.FOLDER,
+      name: "Hệ thống",
       statusGroupId: SYSTEM_IDS.STATUS_GROUP,
     });
     console.log("   ✓ System FunnelFolder: tạo mới");
@@ -63,9 +63,9 @@ async function seedSystemFunnel() {
   const fgExists = await FunnelGroup.findOne({ id: SYSTEM_IDS.GROUP }).lean();
   if (!fgExists) {
     await FunnelGroup.create({
-      id:            SYSTEM_IDS.GROUP,
-      name:          "Phễu chuẩn",
-      folderId:      SYSTEM_IDS.FOLDER,
+      id: SYSTEM_IDS.GROUP,
+      name: "Phễu chuẩn",
+      folderId: SYSTEM_IDS.FOLDER,
       statusGroupId: SYSTEM_IDS.STATUS_GROUP,
     });
     console.log("   ✓ System FunnelGroup: tạo mới");
@@ -77,12 +77,12 @@ async function seedSystemFunnel() {
   const fnlExists = await Funnel.findOne({ id: SYSTEM_IDS.FUNNEL }).lean();
   if (!fnlExists) {
     await Funnel.create({
-      id:            SYSTEM_IDS.FUNNEL,
-      name:          "Phễu mặc định",
-      folderId:      SYSTEM_IDS.FOLDER,
-      groupId:       SYSTEM_IDS.GROUP,
+      id: SYSTEM_IDS.FUNNEL,
+      name: "Phễu mặc định",
+      folderId: SYSTEM_IDS.FOLDER,
+      groupId: SYSTEM_IDS.GROUP,
       statusGroupId: SYSTEM_IDS.STATUS_GROUP,
-      isActive:      true,
+      isActive: true,
     });
     console.log("   ✓ System Funnel: tạo mới");
   } else {

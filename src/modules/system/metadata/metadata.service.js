@@ -1,0 +1,141 @@
+const Organization = require('../../hr/organization/organization.model');
+const Role = require('../rbac/role.model');
+const StaffFunction = require('../../hr/function/staffFunction.model');
+const LeadStatus = require('../../lead/leadConfig/leadStatus.model');
+const LeadStatusGroup = require('../../lead/leadConfig/leadStatusGroup.model');
+const Result = require('./result.model');
+const Reason = require('./reason.model');
+const Action = require('../../event/actionConfig/action.model');
+const FunnelFolder = require('../../lead/funnel/funnelFolder.model');
+const FunnelGroup = require('../../lead/funnel/funnelGroup.model');
+const Funnel = require('../../lead/funnel/funnel.model');
+const ActionConfigService = require('../../event/actionConfig/actionConfig.service');
+
+const CacheService = require('../../../core/services/CacheService');
+const env = require('../../../core/config/env');
+const { CACHE_TTL } = require('../../../core/constants/cache');
+const { PLATFORMS, CUSTOMER_GROUPS, CUSTOMER_TYPES } = require('../../../core/constants/appData');
+const { buildOrganizationDirectory } = require('../../../core/utils/organization');
+
+class MetadataService {
+  _formatRoleLabel(roleName) {
+    return String(roleName || "")
+      .toLowerCase()
+      .split(/[_\s]+/)
+      .filter(Boolean)
+      .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
+      .join(" ");
+  }
+
+  _formatRoleMetadata(role) {
+    return {
+      id: role.id,
+      value: role.name,
+      label: this._formatRoleLabel(role.name),
+      name: role.name,
+      description: role.description || "",
+      level: role.level || 0,
+      isSystem: Boolean(role.isSystem),
+    };
+  }
+
+  _formatOrganizationMetadata(departments) {
+    const directory = buildOrganizationDirectory(departments);
+    const departmentOptions = directory.departments.map((item) => ({
+      id: item.id,
+      code: item.code,
+      alias: item.alias,
+      value: item.alias,
+      label: item.name,
+      name: item.name,
+      groups: item.groups.map((child) => ({
+        id: child.id,
+        code: child.code,
+        alias: child.alias,
+        value: child.alias,
+        label: child.name,
+        name: child.name,
+        description: child.description || "",
+        departmentId: child.departmentId,
+        departmentCode: child.departmentCode,
+        departmentAlias: child.departmentAlias,
+        departmentName: child.departmentName,
+      })),
+    }));
+
+    const activityGroups = departmentOptions.flatMap((department) => department.groups);
+
+    return {
+      departments: departmentOptions.map((item) => item.label),
+      departmentOptions,
+      departmentGroups: departmentOptions,
+      activityGroups,
+    };
+  }
+
+  async getDerivedMetadata() {
+    return CacheService.withVersionedCache("metadata", { derived: true }, CACHE_TTL.SHORT, async () => {
+      const [
+        roles,
+        departments,
+        staffFunctions,
+        leadStatuses,
+        leadStatusGroups,
+        funnelFolders,
+        funnelGroups,
+        funnels,
+      ] = await Promise.all([
+        Role.find({}, { id: 1, name: 1, description: 1, level: 1, isSystem: 1 }).sort({ level: -1, name: 1 }).lean(),
+        Organization.find().sort({ createdAt: 1, id: 1 }).lean(),
+        StaffFunction.find().sort({ createdAt: 1 }).lean(),
+        LeadStatus.find().sort({ createdAt: 1 }).lean(),
+        LeadStatusGroup.find().sort({ createdAt: 1 }).lean(),
+        FunnelFolder.find().sort({ createdAt: 1 }).lean(),
+        FunnelGroup.find().sort({ createdAt: 1 }).lean(),
+        Funnel.find().sort({ createdAt: 1 }).lean(),
+      ]);
+
+      const roleOptions = roles.map((role) => this._formatRoleMetadata(role));
+      const organizationMetadata = this._formatOrganizationMetadata(departments);
+
+      return {
+        platforms: PLATFORMS,
+        customerGroups:
+          organizationMetadata.activityGroups.length > 0
+            ? organizationMetadata.activityGroups.map((item) => item.label)
+            : CUSTOMER_GROUPS,
+        customerTypes: CUSTOMER_TYPES,
+        staffRoles: roleOptions,
+        userRoles: roleOptions,
+        departments: organizationMetadata.departments,
+        departmentOptions: organizationMetadata.departmentOptions,
+        departmentGroups: organizationMetadata.departmentGroups,
+        activityGroups: organizationMetadata.activityGroups,
+
+        // --- Bổ sung các cấu hình hệ thống (System Configs) ---
+        staffFunctions,
+
+        // Cấu hình Phễu/Lead
+        leadConfig: {
+          statuses: leadStatuses,
+          groups: leadStatusGroups,
+        },
+
+        // Cấu trúc Phễu bán hàng (Funnels)
+        funnels: {
+          folders: funnelFolders,
+          groups: funnelGroups,
+          items: funnels,
+        },
+
+        // Cấu hình Fields để mapping tự động (Action Chain Block Automation)
+        schemaFields: {
+          event: ActionConfigService.getEventSchemaFields(),
+          lead: ActionConfigService.getLeadSchemaFields(),
+        }
+      };
+    }, { swr: true, maxTtl: 86400 });
+  }
+}
+
+module.exports = new MetadataService();

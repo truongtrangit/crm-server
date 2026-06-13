@@ -45,8 +45,8 @@ const Subscription    = require("../models/Subscription");
 const Task            = require("../models/Task");
 
 // ─── Seed helpers ───
-const seedData = require("../constants/seedData");
-const { hashPassword } = require("../utils/auth");
+const seedData = require("../core/constants/seedData");
+const { hashPassword } = require("../core/utils/auth");
 const { seedRbac } = require("../services/rbacSeed");
 const { seedSystemFunnel } = require("./seedSystemFunnel");
 const {
@@ -55,7 +55,7 @@ const {
   buildOrganizationDirectory,
   resolveDepartmentReference,
   resolveGroupReference,
-} = require("../utils/organization");
+} = require("../core/utils/organization");
 
 const MODELS_TO_RESET = [
   { model: EventActionChain, name: "EventActionChain" },
