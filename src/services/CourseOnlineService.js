@@ -2,6 +2,7 @@ const createHttpError = require("http-errors");
 const { generateMonotonicId } = require("../utils/id");
 const CourseOnline = require("../models/CourseOnline");
 const { isOwnerOrAdmin } = require("../utils/userRoles");
+const { buildPaginatedResponse } = require("../utils/pagination");
 
 const createCourse = async (courseBody, user) => {
   const existingSlug = await CourseOnline.findOne({ slug: courseBody.slug });
@@ -32,13 +33,7 @@ const getCourses = async (filter, options) => {
 
   const total = await CourseOnline.countDocuments(filter);
 
-  return {
-    data: courses,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
+  return buildPaginatedResponse(courses, total, page, limit);
 };
 
 const getCourseById = async (id) => {
