@@ -29,6 +29,11 @@ const getCourseById = async (req, res) => {
   return sendSuccess(res, 200, "Lấy thông tin khóa học thành công", course);
 };
 
+const getCourseByIdentifier = async (req, res) => {
+  const course = await CourseOnlineService.getCourseByIdentifier(req.params.identifier);
+  return sendSuccess(res, 200, "Lấy thông tin khóa học thành công", course);
+};
+
 const updateCourse = async (req, res) => {
   const course = await CourseOnlineService.updateCourse(
     req.params.id,
@@ -70,6 +75,7 @@ module.exports = {
   createCourse,
   getCourses,
   getCourseById,
+  getCourseByIdentifier,
   updateCourse,
   deleteCourse,
 };

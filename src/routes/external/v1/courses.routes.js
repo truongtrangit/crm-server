@@ -4,6 +4,6 @@ const CourseOnlineController = require('../../../modules/course/courseOnline/cou
 const router = express.Router();
 
 router.get("/", CourseOnlineController.getCourses);
-router.get("/:id", CourseOnlineController.getCourseById);
+router.get("/:identifier", CourseOnlineController.getCourseByIdentifier);
 
 module.exports = router;
