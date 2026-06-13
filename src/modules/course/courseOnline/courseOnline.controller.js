@@ -1,7 +1,7 @@
 const { sendSuccess } = require('../../../core/utils/http');
 const CourseOnlineService = require('./courseOnline.service');
 const SystemLogService = require('../../system/log/systemLog.service');
-const { RESOURCES } = require('../../../routes/v1/rbac');
+const { RESOURCES } = require('../../../core/constants/rbac');
 
 const createCourse = async (req, res) => {
   const course = await CourseOnlineService.createCourse(req.body, req.user);
@@ -19,23 +19,7 @@ const createCourse = async (req, res) => {
 };
 
 const getCourses = async (req, res) => {
-  const { page, limit, search, status, category } = req.query;
-  const filter = {};
-
-  if (search) {
-    filter.title = { $regex: search, $options: "i" };
-  }
-  if (status) {
-    filter.status = status;
-  }
-  if (category) {
-    filter.category = category;
-  }
-
-  const result = await CourseOnlineService.getCourses(filter, {
-    page: parseInt(page, 10) || 1,
-    limit: parseInt(limit, 10) || 10,
-  });
+  const result = await CourseOnlineService.getCourses(req.query);
 
   return sendSuccess(res, 200, "Lấy danh sách khóa học thành công", result);
 };

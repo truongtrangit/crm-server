@@ -2,7 +2,8 @@ const createHttpError = require("http-errors");
 const { generateMonotonicId } = require('../../../core/utils/id');
 const CourseOnline = require('./courseOnline.model');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
-const { buildPaginatedResponse } = require('../../../core/utils/pagination');
+const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
+const { buildSearchRegex } = require('../../../core/utils/query');
 
 const createCourse = async (courseBody, user) => {
   const existingSlug = await CourseOnline.findOne({ slug: courseBody.slug });
@@ -21,17 +22,29 @@ const createCourse = async (courseBody, user) => {
   return course;
 };
 
-const getCourses = async (filter, options) => {
-  const page = options.page || 1;
-  const limit = options.limit || 10;
-  const skip = (page - 1) * limit;
+const getCourses = async (queryParams) => {
+  const { search, status, category } = queryParams || {};
+  const filter = {};
 
-  const courses = await CourseOnline.find(filter)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  if (search) {
+    const searchRegex = buildSearchRegex(search);
+    if (searchRegex) {
+      filter.title = searchRegex;
+    }
+  }
+  if (status) {
+    filter.status = status;
+  }
+  if (category) {
+    filter.category = category;
+  }
 
-  const total = await CourseOnline.countDocuments(filter);
+  const { page, limit, skip } = resolvePagination(queryParams || {});
+
+  const [courses, total] = await Promise.all([
+    CourseOnline.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    CourseOnline.countDocuments(filter)
+  ]);
 
   return buildPaginatedResponse(courses, total, page, limit);
 };

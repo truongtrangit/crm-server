@@ -1,7 +1,7 @@
 const JobConfigService = require('./jobConfig.service');
 const { sendSuccess } = require('../../../core/utils/http');
 const SystemLogService = require('../../system/log/systemLog.service');
-const { RESOURCES } = require('../../../routes/v1/rbac');
+const { RESOURCES } = require('../../../core/constants/rbac');
 
 class JobConfigController {
   // ==========================================

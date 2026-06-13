@@ -10,7 +10,7 @@ const {
   updateLeadSchema,
   listLeadsQuerySchema,
 } = require('../../modules/lead/lead/leads.validation');
-const { addTimelineSchema } = require('./events');
+const { addTimelineSchema } = require('../../modules/event/event/event.validation');
 
 const router = express.Router();
 

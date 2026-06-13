@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { STAFF_STATUS, SALARY_FORMATS } = require('../../../routes/v1/finance');
+const { STAFF_STATUS, SALARY_FORMATS } = require('../../../core/constants/finance');
 
 const companyProportion = Joi.object({
   company: Joi.string().required(),
