@@ -8,9 +8,9 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const mongoose = require('mongoose');
 
-const MetaConfig = require('../models/MetaConfig');
-const MetaProgram = require('../models/MetaProgram');
-const User = require('../models/User');
+const MetaConfig = require('../modules/system/meta/metaConfig.model.js');
+const MetaProgram = require('../modules/system/meta/metaProgram.model.js');
+const User = require('../modules/system/user/user.model.js');
 
 // ─── Config Types (giống badge-mdf, badge-wa, badge-pdf, badge-ctx, badge-fmm trong HTML) ────
 const configsData = [

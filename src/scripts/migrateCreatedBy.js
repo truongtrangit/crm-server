@@ -21,10 +21,10 @@ async function run() {
   console.log("✅ Connected.\n");
 
   // Load models after connection
-  const Event = require("../models/Event");
-  const Lead = require("../models/Lead");
-  const Task = require("../models/Task");
-  const User = require("../models/User");
+  const Event = require("../modules/event/event/event.model.js");
+  const Lead = require("../modules/lead/lead/lead.model.js");
+  const Task = require("../modules/job/task/task.model.js");
+  const User = require("../modules/system/user/user.model.js");
 
   // ─── Lead: activityLogs[0].performedBy.userId ──────────────────────────────
   console.log("── Migrating Leads ──");
@@ -32,7 +32,7 @@ async function run() {
   let leadUpdated = 0;
   for (const lead of leads) {
     const createLog = (lead.activityLogs || []).find(
-      (log) => log.action === "create"
+      (log) => log.action === "create",
     );
     const userId = createLog?.performedBy?.userId || null;
     if (userId) {
@@ -82,9 +82,7 @@ async function run() {
 
     // Strategy 2: Match timeline "Sự kiện được tạo" entry creator name
     const createEntry = (event.timeline || []).find(
-      (entry) =>
-        entry.title === "Sự kiện được tạo" ||
-        entry.type === "event"
+      (entry) => entry.title === "Sự kiện được tạo" || entry.type === "event",
     );
     const creatorName = createEntry?.createdBy;
     if (creatorName && creatorName !== "System") {
@@ -100,7 +98,9 @@ async function run() {
   console.log(`   Events: ${eventUpdated}/${events.length} updated\n`);
 
   console.log("✅ Migration complete!");
-  console.log(`   Total: ${leadUpdated + taskUpdated + eventUpdated} records updated`);
+  console.log(
+    `   Total: ${leadUpdated + taskUpdated + eventUpdated} records updated`,
+  );
 
   await mongoose.disconnect();
   process.exit(0);

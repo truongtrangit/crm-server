@@ -27,42 +27,63 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 const mongoose = require("mongoose");
 
 // ─── Models ───
-const User          = require("../models/User");
-const StaffFunction = require("../models/StaffFunction");
-const Counter       = require("../models/Counter");
+const User = require("../modules/system/user/user.model.js");
+const StaffFunction = require("../modules/hr/function/staffFunction.model.js");
+const Counter = require("../core/models/Counter");
 
 // ─── Helpers ───
 const { hashPassword } = require("../core/utils/auth");
-const { seedRbac }     = require("../services/rbacSeed");
+const { seedRbac } = require("../core/services/rbacSeed.js");
 const { seedSystemFunnel } = require("./seedSystemFunnel");
 
 // ─── Minimal StaffFunctions ───────────────────────────────────────────────────
 const STAFF_FUNCTIONS = [
-  { id: "FUNC1", title: "Marketing",       type: "marketing", desc: "Quản lý chiến dịch quảng cáo, tạo leads đầu vào." },
-  { id: "FUNC2", title: "Sale (Bán hàng)", type: "sale",      desc: "Tiếp nhận Lead từ Marketing, chăm sóc và chốt đơn." },
-  { id: "FUNC3", title: "Kỹ Thuật",        type: "tech",      desc: "Xây dựng và bảo trì nền tảng CRM." },
-  { id: "FUNC4", title: "CSKH",            type: "cskh",      desc: "Chăm sóc và hỗ trợ sau bán hàng." },
+  {
+    id: "FUNC1",
+    title: "Marketing",
+    type: "marketing",
+    desc: "Quản lý chiến dịch quảng cáo, tạo leads đầu vào.",
+  },
+  {
+    id: "FUNC2",
+    title: "Sale (Bán hàng)",
+    type: "sale",
+    desc: "Tiếp nhận Lead từ Marketing, chăm sóc và chốt đơn.",
+  },
+  {
+    id: "FUNC3",
+    title: "Kỹ Thuật",
+    type: "tech",
+    desc: "Xây dựng và bảo trì nền tảng CRM.",
+  },
+  {
+    id: "FUNC4",
+    title: "CSKH",
+    type: "cskh",
+    desc: "Chăm sóc và hỗ trợ sau bán hàng.",
+  },
 ];
 
 // ─── Minimal Counters ─────────────────────────────────────────────────────────
 const INITIAL_COUNTERS = [
-  { _id: "USER", seq: 2 },   // owner=1, admin=2 → next sẽ là 3
+  { _id: "USER", seq: 2 }, // owner=1, admin=2 → next sẽ là 3
   { _id: "CUST", seq: 0 },
-  { _id: "EVT",  seq: 0 },
-  { _id: "RES",  seq: 0 },
-  { _id: "RSN",  seq: 0 },
-  { _id: "ACT",  seq: 0 },
-  { _id: "CHN",  seq: 0 },
+  { _id: "EVT", seq: 0 },
+  { _id: "RES", seq: 0 },
+  { _id: "RSN", seq: 0 },
+  { _id: "ACT", seq: 0 },
+  { _id: "CHN", seq: 0 },
   { _id: "FUNC", seq: STAFF_FUNCTIONS.length },
-
 ];
 
 // ─── Validate Env ─────────────────────────────────────────────────────────────
 function validateEnv() {
   const required = ["MONGO_URI", "OWNER_PASSWORD", "ADMIN_PASSWORD"];
-  const missing  = required.filter((k) => !process.env[k]);
+  const missing = required.filter((k) => !process.env[k]);
   if (missing.length > 0) {
-    console.error(`\n❌  Thiếu biến môi trường bắt buộc: ${missing.join(", ")}`);
+    console.error(
+      `\n❌  Thiếu biến môi trường bắt buộc: ${missing.join(", ")}`,
+    );
     console.error("   Hãy kiểm tra file .env trước khi chạy script này.\n");
     process.exit(1);
   }
@@ -78,7 +99,9 @@ async function seedStaffFunctions() {
       created++;
     }
   }
-  console.log(`   ✓ StaffFunctions: ${created} tạo mới, ${STAFF_FUNCTIONS.length - created} đã tồn tại`);
+  console.log(
+    `   ✓ StaffFunctions: ${created} tạo mới, ${STAFF_FUNCTIONS.length - created} đã tồn tại`,
+  );
 }
 
 // ─── Seed Counters ────────────────────────────────────────────────────────────
@@ -91,12 +114,16 @@ async function seedCounters() {
       created++;
     }
   }
-  console.log(`   ✓ Counters: ${created} tạo mới, ${INITIAL_COUNTERS.length - created} đã tồn tại`);
+  console.log(
+    `   ✓ Counters: ${created} tạo mới, ${INITIAL_COUNTERS.length - created} đã tồn tại`,
+  );
 }
 
 // ─── Seed Owner ───────────────────────────────────────────────────────────────
 async function seedOwner() {
-  const email = (process.env.OWNER_EMAIL || "owner@company.vn").toLowerCase().trim();
+  const email = (process.env.OWNER_EMAIL || "owner@company.vn")
+    .toLowerCase()
+    .trim();
   const exists = await User.findOne({ email }).lean();
   if (exists) {
     console.log(`   ⚠  Owner (${email}) đã tồn tại — bỏ qua.`);
@@ -104,21 +131,23 @@ async function seedOwner() {
   }
   const passwordHash = await hashPassword(process.env.OWNER_PASSWORD);
   await User.create({
-    id:           "USER1",
-    name:         process.env.OWNER_NAME || "Chủ hệ thống CRM",
+    id: "USER1",
+    name: process.env.OWNER_NAME || "Chủ hệ thống CRM",
     email,
     passwordHash,
-    roleId:       "owner",
-    isActive:     true,
-    sessions:     [],
-    createdBy:    "SYSTEM",
+    roleId: "owner",
+    isActive: true,
+    sessions: [],
+    createdBy: "SYSTEM",
   });
   console.log(`   ✓ Owner tạo thành công: ${email}`);
 }
 
 // ─── Seed Admin ───────────────────────────────────────────────────────────────
 async function seedAdmin() {
-  const email = (process.env.ADMIN_EMAIL || "admin@company.vn").toLowerCase().trim();
+  const email = (process.env.ADMIN_EMAIL || "admin@company.vn")
+    .toLowerCase()
+    .trim();
   const exists = await User.findOne({ email }).lean();
   if (exists) {
     console.log(`   ⚠  Admin (${email}) đã tồn tại — bỏ qua.`);
@@ -126,14 +155,14 @@ async function seedAdmin() {
   }
   const passwordHash = await hashPassword(process.env.ADMIN_PASSWORD);
   await User.create({
-    id:           "USER2",
-    name:         process.env.ADMIN_NAME || "Quản trị CRM",
+    id: "USER2",
+    name: process.env.ADMIN_NAME || "Quản trị CRM",
     email,
     passwordHash,
-    roleId:       "admin",
-    isActive:     true,
-    sessions:     [],
-    createdBy:    "SYSTEM",
+    roleId: "admin",
+    isActive: true,
+    sessions: [],
+    createdBy: "SYSTEM",
   });
   console.log(`   ✓ Admin tạo thành công: ${email}`);
 }
@@ -143,7 +172,9 @@ async function main() {
   validateEnv();
 
   console.log("\n🔌  Kết nối MongoDB...");
-  await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
+  await mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 10000,
+  });
   console.log(`   Connected: ${mongoose.connection.host}\n`);
 
   console.log("🌱  Khởi tạo dữ liệu tối thiểu (UAT/PROD)...\n");
