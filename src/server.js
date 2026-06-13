@@ -1,13 +1,13 @@
 const http = require("http");
 const mongoose = require("mongoose");
 const app = require("./app");
-const env = require("./config/env");
-const { connectDatabase } = require("./config/database");
-const { connectRedis, closeRedis } = require("./config/redis");
-const { seedDatabase } = require("./services/seedDatabase");
-const logger = require("./utils/logger");
-const { seedRbac } = require("./services/rbacSeed");
-const { startCronJobs } = require("./utils/cron");
+const env = require("./core/config/env");
+const { connectDatabase } = require("./core/config/database");
+const { connectRedis, closeRedis } = require("./core/config/redis");
+const { seedDatabase } = require("./core/services/seedDatabase");
+const logger = require("./core/utils/logger");
+const { seedRbac } = require("./core/services/rbacSeed");
+const { startCronJobs } = require("./core/utils/cron");
 
 async function bootstrap() {
   try {

@@ -32,7 +32,7 @@ const StaffFunction = require("../models/StaffFunction");
 const Counter       = require("../models/Counter");
 
 // ─── Helpers ───
-const { hashPassword } = require("../utils/auth");
+const { hashPassword } = require("../core/utils/auth");
 const { seedRbac }     = require("../services/rbacSeed");
 const { seedSystemFunnel } = require("./seedSystemFunnel");
 

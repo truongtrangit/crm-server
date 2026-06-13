@@ -11,9 +11,9 @@
  * Safe to run multiple times — chỉ update records có createdBy = null.
  */
 
-require("../config/env");
+require("../core/config/env");
 const mongoose = require("mongoose");
-const env = require("../config/env");
+const env = require("../core/config/env");
 
 async function run() {
   console.log("🔄 Connecting to MongoDB...");
