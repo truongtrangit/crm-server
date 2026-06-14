@@ -98,10 +98,17 @@ const getCourseById = async (id) => {
   return course;
 };
 
-const getCourseByIdentifier = async (identifier) => {
-  let course = await CourseOnline.findOne({
-    $or: [{ id: identifier }, { slug: identifier }]
-  }).lean();
+const getCourseByIdentifier = async (identifier, requiredStatus = null) => {
+  const query = {
+    $or: [{ id: identifier }, { slug: identifier }],
+  };
+  
+  if (requiredStatus) {
+    query.status = requiredStatus;
+  }
+
+  let course = await CourseOnline.findOne(query).lean();
+  
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
