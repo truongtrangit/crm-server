@@ -31,7 +31,7 @@ const populateLecturers = async (courses) => {
       if (course.lecturers) {
         course.lecturers = course.lecturers.map(l => ({
           ...l,
-          lecturerId: lecturerMap[l.lecturerId] || l.lecturerId
+          details: lecturerMap[l.lecturerId] || null
         }));
       }
     });
@@ -64,7 +64,16 @@ const getCourses = async (queryParams) => {
   if (search) {
     const searchRegex = buildSearchRegex(search);
     if (searchRegex) {
-      filter.title = searchRegex;
+      const matchingLecturers = await CourseLecturer.find({ name: searchRegex }, { id: 1 }).lean();
+      const lecturerIds = matchingLecturers.map(l => l.id);
+
+      filter.$or = [
+        { title: searchRegex }
+      ];
+
+      if (lecturerIds.length > 0) {
+        filter.$or.push({ 'lecturers.lecturerId': { $in: lecturerIds } });
+      }
     }
   }
   if (status) {
