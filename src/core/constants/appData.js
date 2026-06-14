@@ -81,6 +81,18 @@ const DEFAULT_USER_ROLE = USER_ROLE_VALUES.STAFF;
 
 const DEFAULT_PASSWORD_STRENGTH = 8;
 
+const VOUCHER_TYPES = {
+  SINGLE: 'single',
+  SHARED: 'shared'
+};
+
+const VOUCHER_STATUSES = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  USED: 'used',
+  EXPIRED: 'expired'
+};
+
 module.exports = {
   PLATFORMS,
   COMPANIES,
@@ -97,4 +109,6 @@ module.exports = {
   USER_ROLES,
   USER_ROLE_VALUES,
   DEFAULT_PASSWORD_STRENGTH,
+  VOUCHER_TYPES,
+  VOUCHER_STATUSES,
 };

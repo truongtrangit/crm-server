@@ -56,6 +56,10 @@ const customerSchema = new mongoose.Schema(
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true },
     createdBy: { type: String, default: null },
+
+    // Credits / Rewards
+    rewardCredit: { type: Number, default: 0 },
+    mainCredit: { type: Number, default: 0 },
   },
   {
     timestamps: true,
