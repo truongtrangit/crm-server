@@ -1,0 +1,54 @@
+const WebhookService = require('./webhook.service');
+const { sendSuccess } = require('../../../core/utils/http');
+
+/**
+ * Mapping URL path → eventType constant.
+ * URL dùng kebab-case chuyên nghiệp, eventType dùng snake_case nội bộ.
+ */
+const ROUTE_TO_EVENT_TYPE = {
+  "new-login": "user_login",
+  "new-registration": "user_moi",
+  "new-business": "biz_moi",
+  "order-create": "order_create",
+  "order-active": "order_active",
+  "expiring-subscription": "sap_het_han",
+  "upgrade-required": "can_nang_cap",
+};
+
+class WebhookController {
+  /**
+   * POST /api/v1/webhooks/:eventSlug
+   * Nhận event từ bên thứ 3.
+   * eventType được xác định từ URL path, không cần gửi trong body.
+   * Body chính là payload — bên thứ 3 chỉ gửi data, không cần wrap.
+   */
+  async ingest(req, res) {
+    // Lấy event slug từ URL path (e.g. "/new-registration" → "new-registration")
+    const eventSlug = req.path.replace(/^\//, "");
+    const eventType = ROUTE_TO_EVENT_TYPE[eventSlug];
+
+    // Body chính là payload — không cần wrap trong { payload: ... }
+    const payload = req.body;
+    const deliveryId = req.webhookDeliveryId;
+    const ipAddress = req.ip || req.socket?.remoteAddress || "";
+    const source = payload.source || "external";
+
+    const result = await WebhookService.processEvent(
+      eventType,
+      payload,
+      deliveryId,
+      ipAddress,
+      source,
+    );
+
+    return sendSuccess(res, 201, "Webhook processed successfully", {
+      deliveryId,
+      eventType,
+      status: result.webhookLog.status,
+      eventId: result.event?.id || null,
+      subscriptionId: result.webhookLog.createdSubscriptionId || null,
+    });
+  }
+}
+
+module.exports = new WebhookController();

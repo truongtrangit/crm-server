@@ -1,0 +1,14 @@
+node_modules
+docs
+.continue
+tests
+.git
+.env
+vps_deploy_guide.md
+src/constants/seedData.js
+deploy
+Dockerfile.dev
+*.log
+.DS_Store
+AI_CONTEXT.md
+prompt.txt

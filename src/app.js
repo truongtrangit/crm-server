@@ -2,13 +2,18 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const env = require("./config/env");
-const requestLogger = require("./middleware/requestLogger");
-const { createHttpError, sendError, sendSuccess } = require("./utils/http");
-const logger = require("./utils/logger");
+const env = require("./core/config/env");
+const requestLogger = require("./core/middleware/requestLogger");
+const {
+  createHttpError,
+  sendError,
+  sendSuccess,
+} = require("./core/utils/http");
+const logger = require("./core/utils/logger");
 
 // ─── Versioned Routers ────────────────────────────────────────────────────────
 const v1Router = require("./routes/v1");
+const externalV1Router = require("./routes/external/v1");
 
 const app = express();
 const allowedOrigins = env.clientUrl
@@ -119,6 +124,7 @@ app.use("/api/v1", apiLimiter);
 
 // Mount versioned router
 app.use("/api/v1", v1Router);
+app.use("/api/external/v1", externalV1Router);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) =>

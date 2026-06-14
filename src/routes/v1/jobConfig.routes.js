@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const jobConfigController = require("../../controllers/JobConfigController");
-const validate = require("../../middleware/validate");
-const { requirePermission } = require("../../middleware/auth");
-const { PERMISSIONS } = require("../../constants/rbac");
+const jobConfigController = require('../../modules/job/jobConfig/jobConfig.controller');
+const validate = require('../../core/middleware/validate');
+const { requirePermission } = require('../../core/middleware/auth');
+const { PERMISSIONS } = require('../../core/constants/rbac');
 const {
   createJobConfigStatusSchema,
   updateJobConfigStatusSchema,
@@ -16,7 +16,7 @@ const {
   updateJobConfigChannelSchema,
   createJobConfigRepeatRuleSchema,
   updateJobConfigRepeatRuleSchema,
-} = require("../../validations/jobConfig.validation");
+} = require('../../modules/job/jobConfig/jobConfig.validation');
 
 // ==========================================
 // STATUS CONFIG

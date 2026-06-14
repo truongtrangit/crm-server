@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const JobWorkController = require("../../controllers/JobWorkController");
-const { requirePermission } = require("../../middleware/auth");
-const { PERMISSIONS } = require("../../constants/rbac");
-const validate = require("../../middleware/validate");
+const JobWorkController = require('../../modules/job/jobWork/jobWork.controller');
+const { requirePermission } = require('../../core/middleware/auth');
+const { PERMISSIONS } = require('../../core/constants/rbac');
+const validate = require('../../core/middleware/validate');
 const {
   createJobFolderSchema,
   updateJobFolderSchema,
@@ -11,12 +11,12 @@ const {
   createJobTaskSchema,
   updateJobTaskSchema,
   updateJobTaskStatusSchema,
-} = require("../../validations/jobWork.validation");
+} = require('../../modules/job/jobWork/jobWork.validation');
 const {
   jobFolderAccess,
   jobFolderBulkAccess,
   jobTaskAccess,
-} = require("../../middleware/jobWorkAccess");
+} = require('../../core/middleware/jobWorkAccess');
 
 // ==========================================
 // JOB FOLDER ROUTES
