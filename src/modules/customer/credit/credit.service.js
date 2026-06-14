@@ -15,11 +15,11 @@ class CreditService {
    * @returns {object} { success, rewardPoints, currentCredit }
    */
   async redeemVoucher(customerId, code) {
-    if (!code) throw createHttpError(400, "Voucher code is required");
+    if (!code) throw createHttpError(400, "Mã code không được để trống");
 
     const customer = await Customer.findOne({ id: customerId });
     if (!customer) {
-      throw createHttpError(404, "Customer not found");
+      throw createHttpError(404, "Không tìm thấy khách hàng");
     }
 
     const cleanCode = code.trim().toUpperCase();
@@ -27,19 +27,22 @@ class CreditService {
     // 1. Find voucher to check basic conditions
     const voucher = await CourseVoucher.findOne({ code: cleanCode });
     if (!voucher) {
-      throw createHttpError(404, "Invalid voucher code");
+      throw createHttpError(404, "Mã code không hợp lệ");
     }
 
     if (voucher.status !== VOUCHER_STATUSES.ACTIVE) {
-      throw createHttpError(400, "Voucher is not active or has been used");
+      throw createHttpError(
+        400,
+        "Voucher không hoạt động hoặc đã được sử dụng",
+      );
     }
 
     if (voucher.expiresAt && new Date() > voucher.expiresAt) {
-      throw createHttpError(400, "Voucher has expired");
+      throw createHttpError(400, "Voucher đã hết hạn");
     }
 
     if (voucher.currentUses >= voucher.maxUses) {
-      throw createHttpError(400, "Voucher usage limit reached");
+      throw createHttpError(400, "Voucher đã hết lượt sử dụng");
     }
 
     let updatedVoucher;
@@ -63,7 +66,7 @@ class CreditService {
         );
 
         if (!updatedVoucher) {
-          throw createHttpError(400, "Voucher is no longer available");
+          throw createHttpError(400, "Voucher không còn khả dụng");
         }
         break;
       case VOUCHER_TYPES.SHARED:
@@ -78,7 +81,7 @@ class CreditService {
           if (userUsageCount >= voucher.usagePerUser) {
             throw createHttpError(
               400,
-              "You have reached the maximum redemption limit for this voucher",
+              "Bạn đã đạt đến giới hạn sử dụng cho voucher này",
             );
           }
         }
@@ -96,7 +99,7 @@ class CreditService {
 
         if (!updatedVoucher) {
           // If it returns null, another request beat us to it and hit maxUses, or it was deactivated
-          throw createHttpError(400, "Voucher is no longer available");
+          throw createHttpError(400, "Voucher không còn khả dụng");
         }
 
         // If this was the last use, update status to USED
@@ -108,7 +111,7 @@ class CreditService {
         }
         break;
       default:
-        throw createHttpError(400, "Invalid voucher type");
+        throw createHttpError(400, "Loại voucher không hợp lệ");
     }
 
     // 4. Create history record
@@ -150,6 +153,18 @@ class CreditService {
       rewardCredit: customer.rewardCredit || 0,
       mainCredit: customer.mainCredit || 0,
     };
+  }
+
+  /**
+   * Get deposit history for a customer
+   * @param {string} customerId
+   * @returns {Array} List of redemptions
+   */
+  async getHistory(customerId) {
+    const history = await VoucherRedemption.find({ userId: customerId })
+      .sort({ redeemedAt: -1 })
+      .lean();
+    return history;
   }
 }
 

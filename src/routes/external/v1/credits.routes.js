@@ -19,6 +19,9 @@ creditsRouter.use(botvnAuthenticateRequest);
 // Get current user's credits
 creditsRouter.get("/", creditController.getCredits);
 
+// Get current user's deposit history
+creditsRouter.get("/history", creditController.getHistory);
+
 // Redeem a voucher with Rate Limiting (10 requests / 15 mins)
 creditsRouter.post(
   "/redeem",

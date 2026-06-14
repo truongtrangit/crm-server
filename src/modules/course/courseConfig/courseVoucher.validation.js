@@ -46,6 +46,13 @@ const updateVoucherStatus = Joi.object({
     .required(),
 });
 
+const updateBatchStatus = Joi.object({
+  batch: Joi.string().required(),
+  status: Joi.string()
+    .valid(...Object.values(VOUCHER_STATUSES))
+    .required(),
+});
+
 const deleteVouchersByBatch = Joi.object({
   batch: Joi.string().required(),
 });
@@ -55,5 +62,6 @@ module.exports = {
   bulkCreateVouchers,
   getVouchers,
   updateVoucherStatus,
+  updateBatchStatus,
   deleteVouchersByBatch,
 };

@@ -27,6 +27,13 @@ class CreditController {
 
     return sendSuccess(res, 200, "Get credits successfully", credits);
   };
+
+  getHistory = async (req, res) => {
+    const customerId = req.user.id || req.user._id;
+    const history = await creditService.getHistory(customerId);
+
+    return sendSuccess(res, 200, "Get history successfully", history);
+  };
 }
 
 module.exports = new CreditController();

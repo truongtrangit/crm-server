@@ -160,7 +160,7 @@ class CourseVoucherService {
           rewardPoints: { $first: "$rewardPoints" },
           createdAt: { $first: "$createdAt" },
           expiresAt: { $first: "$expiresAt" },
-          status: { $first: "$status" }, // Usually they have same status per batch
+          statuses: { $addToSet: "$status" },
         },
       },
       {
@@ -172,7 +172,24 @@ class CourseVoucherService {
           rewardPoints: 1,
           createdAt: 1,
           expiresAt: 1,
-          status: 1,
+          status: {
+            $cond: {
+              if: { $eq: ["$totalVouchers", "$usedVouchers"] },
+              then: VOUCHER_STATUSES.USED,
+              else: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$statuses",
+                      as: "s",
+                      cond: { $ne: ["$$s", VOUCHER_STATUSES.USED] },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+          },
         },
       },
       { $sort: { createdAt: -1 } },
@@ -226,7 +243,28 @@ class CourseVoucherService {
    * Update voucher status (e.g. active to inactive)
    */
   async updateVoucherStatus(id, status) {
+    const voucher = await CourseVoucher.findById(id);
+    if (!voucher) throw createHttpError(404, "Không tìm thấy vourcher");
+    if (voucher.status === VOUCHER_STATUSES.USED) {
+      throw createHttpError(
+        400,
+        "Không thể cập nhật trạng thái của mã đã sử dụng",
+      );
+    }
+
     return CourseVoucher.findByIdAndUpdate(id, { status }, { new: true });
+  }
+
+  /**
+   * Update all vouchers status in a batch (excluding 'used' vouchers)
+   */
+  async updateBatchStatus(batch, status) {
+    if (!batch) throw createHttpError(400, "Tên đợt không được để trống");
+
+    return CourseVoucher.updateMany(
+      { batch, status: { $ne: VOUCHER_STATUSES.USED } },
+      { $set: { status } },
+    );
   }
 }
 

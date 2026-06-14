@@ -100,6 +100,27 @@ class CourseVoucherController {
 
     return sendSuccess(res, 200, "Cập nhật trạng thái thành công", voucher);
   };
+
+  updateBatchStatus = async (req, res) => {
+    const { batch, status } = req.body;
+    const result = await courseVoucherService.updateBatchStatus(batch, status);
+
+    SystemLogService.log({
+      action: "update",
+      resource: "courses",
+      resourceId: `batch-${batch}`,
+      resourceName: `Batch ${batch}`,
+      description: `Cập nhật trạng thái hàng loạt ${result.modifiedCount} voucher thuộc batch ${batch} thành ${status}`,
+      req,
+    });
+
+    return sendSuccess(
+      res,
+      200,
+      "Cập nhật trạng thái batch thành công",
+      result,
+    );
+  };
 }
 
 module.exports = new CourseVoucherController();

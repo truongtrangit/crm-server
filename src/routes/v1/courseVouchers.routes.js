@@ -29,6 +29,11 @@ courseVouchersRouter.delete(
 );
 courseVouchersRouter.delete("/:id", courseVoucherController.deleteVoucher);
 courseVouchersRouter.patch(
+  "/batch/status",
+  validate(courseVoucherValidation.updateBatchStatus, "body"),
+  courseVoucherController.updateBatchStatus,
+);
+courseVouchersRouter.patch(
   "/:id/status",
   validate(courseVoucherValidation.updateVoucherStatus, "body"),
   courseVoucherController.updateVoucherStatus,
