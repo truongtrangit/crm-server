@@ -78,6 +78,13 @@ class BotvnAuthService {
 
     return { customer, tokens };
   }
+
+  async logout(payload) {
+    const { sessionId } = payload;
+    if (sessionId) {
+      await BotvnUserSession.deleteOne({ sessionId });
+    }
+  }
 }
 
 module.exports = new BotvnAuthService();

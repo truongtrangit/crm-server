@@ -4,5 +4,6 @@ const BotvnAuthController = require("../../../modules/customer/botvnAuth/botvnAu
 const router = express.Router();
 
 router.post("/login", BotvnAuthController.login);
+router.post("/logout", BotvnAuthController.logout);
 
 module.exports = router;

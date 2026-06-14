@@ -29,6 +29,11 @@ class BotvnAuthController {
 
     return sendSuccess(res, 200, "Login success", payload);
   }
+
+  async logout(req, res) {
+    await BotvnAuthService.logout(req.body);
+    return sendSuccess(res, 200, "Logout success", null);
+  }
 }
 
 module.exports = new BotvnAuthController();
