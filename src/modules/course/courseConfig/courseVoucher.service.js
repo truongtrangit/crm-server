@@ -39,6 +39,13 @@ class CourseVoucherService {
       expiresAt,
     } = data;
 
+    if ((!type || type === VOUCHER_TYPES.SINGLE) && !batch) {
+      throw createHttpError(
+        400,
+        "Tên đợt (Batch) là bắt buộc đối với mã dùng 1 lần",
+      );
+    }
+
     const voucherData = {
       type: type || VOUCHER_TYPES.SINGLE,
       code: code ? code.trim().toUpperCase() : generateVoucherCode(),
@@ -69,6 +76,13 @@ class CourseVoucherService {
 
     if (!count || count <= 0) {
       throw createHttpError(400, "Count must be greater than 0");
+    }
+
+    if (!batch) {
+      throw createHttpError(
+        400,
+        "Tên đợt (Batch) là bắt buộc đối với mã dùng 1 lần",
+      );
     }
 
     // Pre-generate codes
@@ -117,6 +131,63 @@ class CourseVoucherService {
       CourseVoucher.countDocuments(filter),
     ]);
 
+    return buildPaginatedResponse(data, total, page, limit);
+  }
+
+  /**
+   * Get paginated list of voucher batches (grouped single-use vouchers)
+   */
+  async getVoucherBatches(query) {
+    const { page, limit, skip } = resolvePagination(query);
+    const { search } = query;
+
+    const matchStage = { type: VOUCHER_TYPES.SINGLE };
+    if (search) {
+      matchStage.batch = { $regex: search, $options: "i" };
+    }
+
+    const aggregationPipeline = [
+      { $match: matchStage },
+      {
+        $group: {
+          _id: "$batch",
+          totalVouchers: { $sum: 1 },
+          usedVouchers: {
+            $sum: {
+              $cond: [{ $eq: ["$status", VOUCHER_STATUSES.USED] }, 1, 0],
+            },
+          },
+          rewardPoints: { $first: "$rewardPoints" },
+          createdAt: { $first: "$createdAt" },
+          expiresAt: { $first: "$expiresAt" },
+          status: { $first: "$status" }, // Usually they have same status per batch
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          batch: { $ifNull: ["$_id", "Không có đợt"] },
+          totalVouchers: 1,
+          usedVouchers: 1,
+          rewardPoints: 1,
+          createdAt: 1,
+          expiresAt: 1,
+          status: 1,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ];
+
+    const [data, totalCountResult] = await Promise.all([
+      CourseVoucher.aggregate([
+        ...aggregationPipeline,
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      CourseVoucher.aggregate([...aggregationPipeline, { $count: "total" }]),
+    ]);
+
+    const total = totalCountResult.length > 0 ? totalCountResult[0].total : 0;
     return buildPaginatedResponse(data, total, page, limit);
   }
 

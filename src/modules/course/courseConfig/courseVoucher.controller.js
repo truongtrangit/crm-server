@@ -6,7 +6,7 @@ class CourseVoucherController {
   createVoucher = async (req, res) => {
     const adminId = req.user.id || req.user._id; // Depending on how auth sets user
     const voucher = await courseVoucherService.createVoucher(req.body, adminId);
-    
+
     SystemLogService.log({
       action: "create",
       resource: "courses",
@@ -21,8 +21,11 @@ class CourseVoucherController {
 
   bulkCreateVouchers = async (req, res) => {
     const adminId = req.user.id || req.user._id;
-    const result = await courseVoucherService.bulkCreateVouchers(req.body, adminId);
-    
+    const result = await courseVoucherService.bulkCreateVouchers(
+      req.body,
+      adminId,
+    );
+
     SystemLogService.log({
       action: "create",
       resource: "courses",
@@ -40,9 +43,19 @@ class CourseVoucherController {
     return sendSuccess(res, 200, "Lấy danh sách voucher thành công", result);
   };
 
+  getVoucherBatches = async (req, res) => {
+    const result = await courseVoucherService.getVoucherBatches(req.query);
+    return sendSuccess(
+      res,
+      200,
+      "Lấy danh sách đợt voucher thành công",
+      result,
+    );
+  };
+
   deleteVoucher = async (req, res) => {
     await courseVoucherService.deleteVoucher(req.params.id);
-    
+
     SystemLogService.log({
       action: "delete",
       resource: "courses",
@@ -57,7 +70,7 @@ class CourseVoucherController {
   deleteVouchersByBatch = async (req, res) => {
     const { batch } = req.query;
     const result = await courseVoucherService.deleteVouchersByBatch(batch);
-    
+
     SystemLogService.log({
       action: "delete",
       resource: "courses",
@@ -71,8 +84,11 @@ class CourseVoucherController {
 
   updateVoucherStatus = async (req, res) => {
     const { status } = req.body;
-    const voucher = await courseVoucherService.updateVoucherStatus(req.params.id, status);
-    
+    const voucher = await courseVoucherService.updateVoucherStatus(
+      req.params.id,
+      status,
+    );
+
     SystemLogService.log({
       action: "update",
       resource: "courses",

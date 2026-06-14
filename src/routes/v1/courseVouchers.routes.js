@@ -11,6 +11,7 @@ courseVouchersRouter.get(
   validate(courseVoucherValidation.getVouchers, "query"),
   courseVoucherController.getVouchers,
 );
+courseVouchersRouter.get("/batches", courseVoucherController.getVoucherBatches);
 courseVouchersRouter.post(
   "/",
   validate(courseVoucherValidation.createVoucher, "body"),
