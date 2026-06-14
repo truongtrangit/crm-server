@@ -22,6 +22,9 @@ const createCustomerSchema = Joi.object({
   mainType: Joi.string().valid("user", "biz").optional(),
   subType: Joi.string().allow("").optional(),
   alias: Joi.string().allow("").optional(),
+  botvnPassword: Joi.string().min(6).optional().messages({
+    "string.min": "Password must be at least 6 characters long",
+  }),
 });
 
 const updateCustomerSchema = Joi.object({
@@ -57,9 +60,16 @@ const listCustomersQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).optional(),
 });
 
+const setBotvnPasswordSchema = Joi.object({
+  botvnPassword: Joi.string().min(6).required().messages({
+    "string.min": "Password must be at least 6 characters long",
+    "any.required": "botvnPassword is required",
+  }),
+});
+
 module.exports = {
   createCustomerSchema,
   updateCustomerSchema,
-
+  setBotvnPasswordSchema,
   listCustomersQuerySchema,
 };

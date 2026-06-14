@@ -16,6 +16,7 @@ const { getDefaultAvatar } = require('../../../core/utils/avatar');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
 const CacheService = require('../../../core/services/CacheService');
 const { CACHE_TTL } = require('../../../core/constants/cache');
+const { hashPassword } = require('../../../core/utils/auth');
 
 class CustomerService {
   async getCustomers(queryParams, currentUser, scopeFilter = {}) {
@@ -202,6 +203,9 @@ class CustomerService {
       tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
       extraInfo: payload.extraInfo || null,
       createdBy: currentUser ? currentUser.id : null,
+      ...(payload.botvnPassword && {
+        botvnPassword: await hashPassword(payload.botvnPassword),
+      }),
     });
 
     await CacheService.bumpNamespaceVersion("customers");
@@ -273,6 +277,18 @@ class CustomerService {
 
     await CacheService.bumpNamespaceVersion("customers");
     return { customer: existing, changes };
+  }
+
+  async setBotvnPassword(id, password) {
+    const customer = await Customer.findOne({ id });
+    if (!customer) {
+      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
+    }
+
+    customer.botvnPassword = await hashPassword(password);
+    await customer.save();
+
+    return customer;
   }
 
   async deleteCustomer(id, { force = false } = {}) {

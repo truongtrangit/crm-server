@@ -86,7 +86,6 @@ customerSchema.index(
 customerSchema.index(
   { phone: 1 },
   {
-    unique: true,
     sparse: true,
     partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
   }

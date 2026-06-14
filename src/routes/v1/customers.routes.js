@@ -9,7 +9,7 @@ const { scopeFieldAccess } = require('../../core/middleware/fieldAccess');
 const {
   createCustomerSchema,
   updateCustomerSchema,
-
+  setBotvnPasswordSchema,
   listCustomersQuerySchema,
 } = require('../../modules/customer/customer/customers.validation');
 
@@ -78,6 +78,18 @@ router.put(
   customerResourceAccess,
   validate(updateCustomerSchema),
   CustomerController.updateCustomer,
+);
+
+/**
+ * PUT /api/customers/:id/botvn-password
+ * Set botvn password for a customer - requires customers_update permission
+ */
+router.put(
+  "/:id/botvn-password",
+  requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  customerResourceAccess,
+  validate(setBotvnPasswordSchema),
+  CustomerController.setBotvnPassword,
 );
 
 /**
