@@ -10,6 +10,7 @@ const externalV1Router = Router();
 externalV1Router.use(requireExternalApiKey);
 
 // Các external endpoints
+externalV1Router.use("/auth", require("./auth.routes"));
 externalV1Router.use("/online", onlineCoursesRouter);
 
 module.exports = externalV1Router;

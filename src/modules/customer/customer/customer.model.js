@@ -50,6 +50,7 @@ const customerSchema = new mongoose.Schema(
     group: { type: String, default: "" },
     registeredAt: { type: String, default: "" },
     lastLoginAt: { type: String, default: "" },
+    botvnPassword: { type: String, select: false },
     tags: { type: [String], default: [] },
 
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
