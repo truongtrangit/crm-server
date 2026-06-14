@@ -17,7 +17,7 @@ class CreditService {
   async redeemVoucher(customerId, code) {
     if (!code) throw createHttpError(400, "Voucher code is required");
 
-    const customer = await Customer.findById(customerId);
+    const customer = await Customer.findOne({ id: customerId });
     if (!customer) {
       throw createHttpError(404, "Customer not found");
     }
