@@ -71,7 +71,7 @@ const getCourses = async (queryParams) => {
     filter.status = status;
   }
   if (category) {
-    filter.category = category;
+    filter.category = category.includes(',') ? { $in: category.split(',') } : category;
   }
 
   const { page, limit, skip } = resolvePagination(queryParams || {});

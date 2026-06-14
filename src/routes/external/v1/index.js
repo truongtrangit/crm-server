@@ -1,6 +1,8 @@
 const { Router } = require("express");
-const coursesRouter = require('./courses.routes');
-const { requireExternalApiKey } = require('../../../core/middleware/externalAuth');
+const onlineCoursesRouter = require("./onlineCourses.routes");
+const {
+  requireExternalApiKey,
+} = require("../../../core/middleware/externalAuth");
 
 const externalV1Router = Router();
 
@@ -8,6 +10,6 @@ const externalV1Router = Router();
 externalV1Router.use(requireExternalApiKey);
 
 // Các external endpoints
-externalV1Router.use("/courses", coursesRouter);
+externalV1Router.use("/online", onlineCoursesRouter);
 
 module.exports = externalV1Router;
