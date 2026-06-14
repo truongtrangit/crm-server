@@ -39,13 +39,6 @@ class CourseVoucherService {
       expiresAt,
     } = data;
 
-    if ((!type || type === VOUCHER_TYPES.SINGLE) && !batch) {
-      throw createHttpError(
-        400,
-        "Tên đợt (Batch) là bắt buộc đối với mã dùng 1 lần",
-      );
-    }
-
     const voucherData = {
       type: type || VOUCHER_TYPES.SINGLE,
       code: code ? code.trim().toUpperCase() : generateVoucherCode(),
