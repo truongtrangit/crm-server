@@ -78,7 +78,7 @@ class CustomerService {
       }
 
       const [customers, totalItems] = await Promise.all([
-        Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+        Customer.find(query).select('+botvnPassword').sort(sortObj).skip(skip).limit(limit).lean(),
         Customer.countDocuments(query),
       ]);
 
@@ -122,13 +122,20 @@ class CustomerService {
             }
           }
         }
-
         // Attach to customers
         for (const c of customers) {
           if (c.mainType === CUSTOMER_MAIN_TYPES.BIZ) {
             c.subscription = subMap[c.id] || null;
             c.members = membersMap[c.id] || [];
           }
+          c.hasBotvnPassword = !!c.botvnPassword;
+          delete c.botvnPassword;
+        }
+      } else {
+        // If no BIZ customers, still need to process hasBotvnPassword
+        for (const c of customers) {
+          c.hasBotvnPassword = !!c.botvnPassword;
+          delete c.botvnPassword;
         }
       }
 
@@ -137,11 +144,13 @@ class CustomerService {
   }
 
   async getCustomerById(id) {
-    const customer = await Customer.findOne({ id });
+    const customer = await Customer.findOne({ id }).select('+botvnPassword');
     if (!customer) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
     }
     const customerObj = customer.toObject();
+    customerObj.hasBotvnPassword = !!customerObj.botvnPassword;
+    delete customerObj.botvnPassword;
     if (customerObj.mainType === CUSTOMER_MAIN_TYPES.BIZ) {
       const [subscription, members] = await Promise.all([
         Subscription.findOne({ customerId: id }).sort({ endDate: -1 }).lean(),
