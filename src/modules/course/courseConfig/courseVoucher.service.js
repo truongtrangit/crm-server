@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const SystemLogService = require("../../system/log/systemLog.service");
 const CourseVoucher = require("./courseVoucher.model");
 const {
   VOUCHER_TYPES,
@@ -128,11 +129,23 @@ class CourseVoucherService {
       CourseVoucher.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .populate("creator", "name"),
       CourseVoucher.countDocuments(filter),
     ]);
 
-    return buildPaginatedResponse(data, total, page, limit);
+    const formattedData = data.map(doc => {
+      const obj = doc.toJSON ? doc.toJSON() : doc;
+      if (obj.creator) {
+        obj.createdBy = { id: obj.createdBy, name: obj.creator.name };
+        delete obj.creator;
+      } else {
+        obj.createdBy = { id: obj.createdBy, name: "Unknown" };
+      }
+      return obj;
+    });
+
+    return buildPaginatedResponse(formattedData, total, page, limit);
   }
 
   /**
@@ -161,8 +174,20 @@ class CourseVoucherService {
           rewardPoints: { $first: "$rewardPoints" },
           createdAt: { $first: "$createdAt" },
           expiresAt: { $first: "$expiresAt" },
+          createdBy: { $first: "$createdBy" },
           statuses: { $addToSet: "$status" },
         },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "createdBy",
+          foreignField: "id",
+          as: "creator",
+        },
+      },
+      {
+        $unwind: { path: "$creator", preserveNullAndEmptyArrays: true },
       },
       {
         $project: {
@@ -173,6 +198,10 @@ class CourseVoucherService {
           rewardPoints: 1,
           createdAt: 1,
           expiresAt: 1,
+          createdBy: {
+            id: "$createdBy",
+            name: "$creator.name",
+          },
           status: {
             $cond: {
               if: { $eq: ["$totalVouchers", "$usedVouchers"] },
@@ -246,10 +275,13 @@ class CourseVoucherService {
   async updateVoucherStatus(id, status) {
     const voucher = await CourseVoucher.findById(id);
     if (!voucher) throw createHttpError(404, "Không tìm thấy vourcher");
-    if (voucher.status === VOUCHER_STATUSES.USED) {
+    if (
+      voucher.status === VOUCHER_STATUSES.USED ||
+      voucher.status === VOUCHER_STATUSES.EXPIRED
+    ) {
       throw createHttpError(
         400,
-        "Không thể cập nhật trạng thái của mã đã sử dụng",
+        "Không thể cập nhật trạng thái của mã đã sử dụng hoặc đã hết hạn",
       );
     }
 
@@ -263,9 +295,42 @@ class CourseVoucherService {
     if (!batch) throw createHttpError(400, "Tên đợt không được để trống");
 
     return CourseVoucher.updateMany(
-      { batch, status: { $ne: VOUCHER_STATUSES.USED } },
+      { batch, status: { $nin: [VOUCHER_STATUSES.USED, VOUCHER_STATUSES.EXPIRED] } },
       { $set: { status } },
     );
+  }
+
+  /**
+   * Auto update expired vouchers by checking expiresAt against current time
+   */
+  async autoUpdateExpiredVouchers() {
+    const now = new Date();
+    try {
+      const result = await CourseVoucher.updateMany(
+        {
+          expiresAt: { $lt: now, $ne: null },
+          status: { $in: [VOUCHER_STATUSES.ACTIVE, VOUCHER_STATUSES.INACTIVE] },
+        },
+        { $set: { status: VOUCHER_STATUSES.EXPIRED } },
+      );
+      if (result.modifiedCount > 0) {
+        console.log(
+          `[CourseVoucherService] Auto-expired ${result.modifiedCount} vouchers.`,
+        );
+
+        SystemLogService.log({
+          action: "update",
+          resource: "voucher",
+          description: `Hệ thống tự động cập nhật ${result.modifiedCount} voucher đã hết hạn`,
+          performedBy: { userId: "SYSTEM", userName: "System", userAvatar: "" },
+        });
+      }
+    } catch (error) {
+      console.error(
+        "[CourseVoucherService] Error auto-updating expired vouchers:",
+        error,
+      );
+    }
   }
 }
 

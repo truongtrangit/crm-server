@@ -64,8 +64,15 @@ const courseVoucherSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true, versionKey: false },
+  { timestamps: true, versionKey: false, toJSON: { virtuals: true }, toObject: { virtuals: true } },
 );
+
+courseVoucherSchema.virtual("creator", {
+  ref: "User",
+  localField: "createdBy",
+  foreignField: "id",
+  justOne: true,
+});
 
 // Create TTL Index for auto-cleanup of unused, expired single-use vouchers
 // The index will delete the document when the current time is greater than or equal to deleteAt.
