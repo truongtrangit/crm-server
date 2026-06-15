@@ -10,6 +10,7 @@ const { createHttpError } = require('../../../core/utils/http');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { REVENUE_STATUSES } = require('../../../core/constants/finance');
 const { computeChanges } = require('../../../core/utils/diff');
+const { escapeRegex } = require('../../../core/utils/query');
 
 class RevenueService {
   // ─── Revenue Categories ──────────────────────────────────────────────────
@@ -17,7 +18,7 @@ class RevenueService {
   async getCategories(query = {}) {
     const filter = {};
     if (query.search) {
-      filter.name = { $regex: query.search, $options: "i" };
+      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
     }
     if (query.isActive !== undefined) {
       filter.isActive = query.isActive === "true" || query.isActive === true;
@@ -78,7 +79,7 @@ class RevenueService {
   async getExpectedRevenues(query = {}) {
     const filter = {};
     if (query.search) {
-      filter.name = { $regex: query.search, $options: "i" };
+      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
     }
     const expected = await ExpectedRevenue.find(filter)
       .populate("category", "id name")
@@ -219,9 +220,9 @@ class RevenueService {
 
     if (query.search) {
       filter.$or = [
-        { customerName: { $regex: query.search, $options: "i" } },
-        { orderId: { $regex: query.search, $options: "i" } },
-        { details: { $regex: query.search, $options: "i" } },
+        { customerName: { $regex: escapeRegex(query.search), $options: "i" } },
+        { orderId: { $regex: escapeRegex(query.search), $options: "i" } },
+        { details: { $regex: escapeRegex(query.search), $options: "i" } },
       ];
     }
     if (query.category && query.category !== "all") {

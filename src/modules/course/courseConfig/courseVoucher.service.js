@@ -9,6 +9,7 @@ const {
   buildPaginatedResponse,
 } = require("../../../core/utils/pagination");
 const { createHttpError } = require("../../../core/utils/http");
+const { escapeRegex } = require("../../../core/utils/query");
 
 /**
  * Generate a cryptographically secure random string for vouchers
@@ -120,7 +121,7 @@ class CourseVoucherService {
     if (status) filter.status = status;
     if (type) filter.type = type;
     if (search) {
-      filter.code = { $regex: search, $options: "i" };
+      filter.code = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const [data, total] = await Promise.all([
@@ -143,7 +144,7 @@ class CourseVoucherService {
 
     const matchStage = { type: VOUCHER_TYPES.SINGLE };
     if (search) {
-      matchStage.batch = { $regex: search, $options: "i" };
+      matchStage.batch = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const aggregationPipeline = [
@@ -218,7 +219,7 @@ class CourseVoucherService {
     if (status) filter.status = status;
     if (type) filter.type = type;
     if (search) {
-      filter.code = { $regex: search, $options: "i" };
+      filter.code = { $regex: escapeRegex(search), $options: "i" };
     }
     // Exclude massive objects to save memory
     return CourseVoucher.find(filter).lean();

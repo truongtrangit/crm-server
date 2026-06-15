@@ -24,9 +24,9 @@ function buildVietnameseRegexPattern(value) {
   for (let i = 0; i < normalized.length; i++) {
     const char = normalized[i].toLowerCase();
     if (vnMap[char]) {
-      pattern += vnMap[char] + '[\\u0300-\\u036f]*';
+      pattern += vnMap[char] + '[\u0300-\u036f]*';
     } else {
-      pattern += escapeRegex(normalized[i]) + '[\\u0300-\\u036f]*';
+      pattern += escapeRegex(normalized[i]) + '[\u0300-\u036f]*';
     }
   }
   return pattern;

@@ -6,6 +6,7 @@ const {
 const { createHttpError } = require('../../../core/utils/http');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { computeChanges } = require('../../../core/utils/diff');
+const { escapeRegex } = require('../../../core/utils/query');
 
 class StaffService {
   /**
@@ -17,8 +18,8 @@ class StaffService {
 
     if (query.search) {
       filter.$or = [
-        { name: { $regex: query.search, $options: "i" } },
-        { id: { $regex: query.search, $options: "i" } },
+        { name: { $regex: escapeRegex(query.search), $options: "i" } },
+        { id: { $regex: escapeRegex(query.search), $options: "i" } },
       ];
     }
     if (query.functionalGroupId) {
