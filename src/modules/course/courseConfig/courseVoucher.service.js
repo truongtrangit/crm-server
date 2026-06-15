@@ -51,7 +51,7 @@ class CourseVoucherService {
       code: code ? code.trim().toUpperCase() : generateVoucherCode(),
       rewardPoints,
       maxUses: type === VOUCHER_TYPES.SINGLE ? 1 : maxUses,
-      usagePerUser: usagePerUser || 1,
+      usagePerUser: usagePerUser ?? 1,
       batch: batch || null,
       status: status || VOUCHER_STATUSES.INACTIVE,
       expiresAt: expiresAt || null,
