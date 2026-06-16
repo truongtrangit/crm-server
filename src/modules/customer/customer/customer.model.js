@@ -50,11 +50,16 @@ const customerSchema = new mongoose.Schema(
     group: { type: String, default: "" },
     registeredAt: { type: String, default: "" },
     lastLoginAt: { type: String, default: "" },
+    botvnPassword: { type: String, select: false },
     tags: { type: [String], default: [] },
 
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true },
     createdBy: { type: String, default: null },
+
+    // Credits / Rewards
+    rewardCredit: { type: Number, default: 0 },
+    mainCredit: { type: Number, default: 0 },
   },
   {
     timestamps: true,
@@ -85,7 +90,6 @@ customerSchema.index(
 customerSchema.index(
   { phone: 1 },
   {
-    unique: true,
     sparse: true,
     partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
   }

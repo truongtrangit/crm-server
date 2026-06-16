@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { COURSE_ONLINE_STATUS } = require("./courseOnline.constants");
 
 const lecturerSchema = new mongoose.Schema(
   {
@@ -64,8 +65,8 @@ const courseOnlineSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "published", "private", "expired"],
-      default: "draft",
+      enum: Object.values(COURSE_ONLINE_STATUS),
+      default: COURSE_ONLINE_STATUS.DRAFT,
     },
     type: {
       type: String,

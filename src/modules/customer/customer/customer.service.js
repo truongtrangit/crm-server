@@ -16,6 +16,7 @@ const { getDefaultAvatar } = require('../../../core/utils/avatar');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
 const CacheService = require('../../../core/services/CacheService');
 const { CACHE_TTL } = require('../../../core/constants/cache');
+const { hashPassword } = require('../../../core/utils/auth');
 
 class CustomerService {
   async getCustomers(queryParams, currentUser, scopeFilter = {}) {
@@ -77,7 +78,7 @@ class CustomerService {
       }
 
       const [customers, totalItems] = await Promise.all([
-        Customer.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+        Customer.find(query).select('+botvnPassword').sort(sortObj).skip(skip).limit(limit).lean(),
         Customer.countDocuments(query),
       ]);
 
@@ -121,13 +122,20 @@ class CustomerService {
             }
           }
         }
-
         // Attach to customers
         for (const c of customers) {
           if (c.mainType === CUSTOMER_MAIN_TYPES.BIZ) {
             c.subscription = subMap[c.id] || null;
             c.members = membersMap[c.id] || [];
           }
+          c.hasBotvnPassword = !!c.botvnPassword;
+          delete c.botvnPassword;
+        }
+      } else {
+        // If no BIZ customers, still need to process hasBotvnPassword
+        for (const c of customers) {
+          c.hasBotvnPassword = !!c.botvnPassword;
+          delete c.botvnPassword;
         }
       }
 
@@ -136,11 +144,13 @@ class CustomerService {
   }
 
   async getCustomerById(id) {
-    const customer = await Customer.findOne({ id });
+    const customer = await Customer.findOne({ id }).select('+botvnPassword');
     if (!customer) {
       throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
     }
     const customerObj = customer.toObject();
+    customerObj.hasBotvnPassword = !!customerObj.botvnPassword;
+    delete customerObj.botvnPassword;
     if (customerObj.mainType === CUSTOMER_MAIN_TYPES.BIZ) {
       const [subscription, members] = await Promise.all([
         Subscription.findOne({ customerId: id }).sort({ endDate: -1 }).lean(),
@@ -202,6 +212,9 @@ class CustomerService {
       tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
       extraInfo: payload.extraInfo || null,
       createdBy: currentUser ? currentUser.id : null,
+      ...(payload.botvnPassword && {
+        botvnPassword: await hashPassword(payload.botvnPassword),
+      }),
     });
 
     await CacheService.bumpNamespaceVersion("customers");
@@ -273,6 +286,18 @@ class CustomerService {
 
     await CacheService.bumpNamespaceVersion("customers");
     return { customer: existing, changes };
+  }
+
+  async setBotvnPassword(id, password) {
+    const customer = await Customer.findOne({ id });
+    if (!customer) {
+      throw createHttpError(404, "Customer not found", { code: "CUSTOMER_NOT_FOUND" });
+    }
+
+    customer.botvnPassword = await hashPassword(password);
+    await customer.save();
+
+    return customer;
   }
 
   async deleteCustomer(id, { force = false } = {}) {

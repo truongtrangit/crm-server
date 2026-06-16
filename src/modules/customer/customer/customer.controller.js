@@ -64,6 +64,22 @@ class CustomerController {
     return sendSuccess(res, 200, "Update customer success", customer);
   }
 
+  async setBotvnPassword(req, res) {
+    const customer = await CustomerService.setBotvnPassword(
+      req.params.id,
+      req.body.botvnPassword,
+    );
+    SystemLogService.log({
+      action: "update",
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: req.params.id,
+      resourceName: customer.name,
+      description: `Đặt mật khẩu Botvn cho khách hàng "${customer.name}"`,
+      req,
+    });
+    return sendSuccess(res, 200, "Set Botvn password success", null);
+  }
+
   async deleteCustomer(req, res) {
     const force = req.query.force === "true";
     const customer = await CustomerService.deleteCustomer(req.params.id, {

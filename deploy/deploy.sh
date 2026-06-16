@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$PROJECT_ROOT"
 
 VERSION=$(date +"%Y%m%d_%H%M%S")
 
-ENV_FILE=${1:-deploy.prod.env}
+ENV_FILE=${1:-"$SCRIPT_DIR/deploy.prod.env"}
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "❌ Env file not found: $ENV_FILE"
@@ -35,8 +37,9 @@ echo ""
 echo "📤 Sync source..."
 
 sshpass -p "$PASSWORD" rsync -az \
+  -e "ssh -o StrictHostKeyChecking=no" \
   --delete \
-  --exclude-from='.rsyncignore' \
+  --exclude-from="$SCRIPT_DIR/.rsyncignore" \
   ./ \
   "${SERVER}:${REMOTE_DIR}/"
 
@@ -44,9 +47,9 @@ echo "🐳 Build & Deploy..."
 
 sshpass -p "$PASSWORD" ssh \
   -o StrictHostKeyChecking=no \
-  "${SERVER}" << EOF
+  "${SERVER}" <<EOF
 
-set -e
+set -euo pipefail
 
 cd ${REMOTE_DIR}
 
@@ -82,58 +85,66 @@ echo "\$(date '+%Y-%m-%d %H:%M:%S') => ${VERSION}" >> deploy-history.log
 #
 # Deploy
 #
-VERSION=${VERSION} docker compose up -d
+VERSION=${VERSION} docker compose up -d --force-recreate
 
 #
-# Wait startup
+# Health check with retry
 #
-sleep 15
+HEALTH_OK=false
+
+for i in {1..12}; do
+    if curl -fsS http://localhost:3000/health >/dev/null; then
+        HEALTH_OK=true
+        break
+    fi
+
+    echo "⏳ Waiting health check... (\$i/12)"
+    sleep 5
+done
 
 #
-# Health check
+# Rollback if health check failed
 #
-if ! curl -fsS http://localhost:3000/health > /dev/null; then
+if [ "\$HEALTH_OK" != "true" ]; then
 
-  echo ""
-  echo "❌ Health check failed"
+    echo ""
+    echo "❌ Health check failed"
 
-  if [ -f previous.version ]; then
-
-      PREVIOUS=\$(cat previous.version)
-
-      echo "⏪ Rollback to \$PREVIOUS"
-
-      VERSION=\$PREVIOUS docker compose up -d
-
-      sleep 10
-
-      if curl -fsS http://localhost:3000/health > /dev/null; then
-          echo "✅ Rollback successful"
-      else
-          echo "❌ Rollback failed"
-      fi
-
-  fi
-
-  exit 1
+    if [ -f previous.version ]; then
+        PREVIOUS=\$(cat previous.version)
+        echo "⏪ Rollback to \$PREVIOUS"
+        VERSION=\$PREVIOUS docker compose up -d --force-recreate
+        sleep 10
+        if curl -fsS http://localhost:3000/health >/dev/null; then
+            echo "✅ Rollback successful"
+        else
+            echo "❌ Rollback failed"
+        fi
+    fi
+    exit 1
 fi
 
 echo "✅ Health check passed"
 
 #
-# Keep latest 10 versions
+# Cleanup old images (keep latest 10)
 #
+CURRENT=\$(cat current.version)
+PREVIOUS=\$(cat previous.version 2>/dev/null || true)
+
 docker images crm-server \
   --format '{{.Tag}}' \
   | sort -r \
   | tail -n +11 \
-  | while read tag
+  | while read -r tag
 do
-  [ -z "\$tag" ] && continue
+    [ -z "\$tag" ] && continue
+    [ "\$tag" = "\$CURRENT" ] && continue
+    [ "\$tag" = "\$PREVIOUS" ] && continue
 
-  echo "🗑 Remove image: \$tag"
+    echo "🗑 Remove image: \$tag"
 
-  docker rmi crm-server:\$tag || true
+    docker rmi crm-server:\$tag || true
 done
 
 echo "🧹 Cleanup completed"
