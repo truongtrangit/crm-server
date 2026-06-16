@@ -22,6 +22,9 @@ const createCustomerSchema = Joi.object({
   mainType: Joi.string().valid("user", "biz").optional(),
   subType: Joi.string().allow("").optional(),
   alias: Joi.string().allow("").optional(),
+  botvnPassword: Joi.string().pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/).optional().messages({
+    "string.pattern.base": "Mật khẩu phải dài ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt",
+  }),
 });
 
 const updateCustomerSchema = Joi.object({
@@ -57,9 +60,16 @@ const listCustomersQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).optional(),
 });
 
+const setBotvnPasswordSchema = Joi.object({
+  botvnPassword: Joi.string().pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/).required().messages({
+    "string.pattern.base": "Mật khẩu phải dài ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt",
+    "any.required": "botvnPassword is required",
+  }),
+});
+
 module.exports = {
   createCustomerSchema,
   updateCustomerSchema,
-
+  setBotvnPasswordSchema,
   listCustomersQuerySchema,
 };

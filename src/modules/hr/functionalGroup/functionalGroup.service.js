@@ -5,6 +5,7 @@ const CacheService = require('../../../core/services/CacheService');
 const { CACHE_TTL } = require('../../../core/constants/cache');
 const { createHttpError } = require('../../../core/utils/http');
 const { computeChanges } = require('../../../core/utils/diff');
+const { escapeRegex } = require('../../../core/utils/query');
 
 class FunctionalGroupService {
   async getGroups(query) {
@@ -12,7 +13,7 @@ class FunctionalGroupService {
     const filter = {};
 
     if (query.search) {
-      filter.name = { $regex: query.search, $options: "i" };
+      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
     }
 
     if (query.isActive !== undefined) {

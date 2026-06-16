@@ -4,7 +4,7 @@ const CourseConfigController = require("../../../modules/course/courseConfig/cou
 
 const router = express.Router();
 
-router.get("/", CourseOnlineController.getCourses);
+router.get("/", CourseOnlineController.getExternalCourses);
 router.get("/categories", CourseConfigController.getCategories);
 router.get("/:identifier", CourseOnlineController.getCourseByIdentifier);
 

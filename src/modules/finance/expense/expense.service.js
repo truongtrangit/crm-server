@@ -8,6 +8,7 @@ const { createHttpError } = require('../../../core/utils/http');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { EXPENSE_STATUSES } = require('../../../core/constants/finance');
 const { computeChanges } = require('../../../core/utils/diff');
+const { escapeRegex } = require('../../../core/utils/query');
 
 class ExpenseService {
   // ─── Expense Categories ──────────────────────────────────────────────────
@@ -15,7 +16,7 @@ class ExpenseService {
   async getCategories(query = {}) {
     const filter = {};
     if (query.search) {
-      filter.name = { $regex: query.search, $options: "i" };
+      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
     }
     if (query.isActive !== undefined) {
       filter.isActive = query.isActive === "true" || query.isActive === true;
@@ -67,7 +68,7 @@ class ExpenseService {
   async getExpectedExpenses(query = {}) {
     const filter = {};
     if (query.search) {
-      filter.name = { $regex: query.search, $options: "i" };
+      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
     }
     const expected = await ExpectedExpense.find(filter)
       .populate("category", "id name")
@@ -201,8 +202,8 @@ class ExpenseService {
 
     if (query.search) {
       filter.$or = [
-        { transactionId: { $regex: query.search, $options: "i" } },
-        { description: { $regex: query.search, $options: "i" } }
+        { transactionId: { $regex: escapeRegex(query.search), $options: "i" } },
+        { description: { $regex: escapeRegex(query.search), $options: "i" } }
       ];
     }
     if (query.category && query.category !== "all") {

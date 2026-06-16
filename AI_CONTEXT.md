@@ -21,13 +21,17 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
 ---
 
 ## 2. Cấu trúc thư mục (`/src`)
-- `/config`: Cấu hình hệ thống DB, Redis, Môi trường.
-- `/controllers`: Điều hướng Request, không viết logic dài dòng tại đây.
-- `/middleware`: Chứa nhóm lõi bảo mật phân quyền kể trên.
-- `/models`: Các Mongoose Schemas (Customer, Lead, Event, Task, Funnel, MetaProgram, WebhookLog, AutomationLog, v.v.).
-- `/routes/v1`: Endpoint APIs (`customers`, `leads`, `events`, `webhooks`, `meta`, `funnels`, `logs`...).
-- `/services`: **Nơi chứa toàn bộ Logic nghiệp vụ cốt lõi**. Toàn bộ controller giao tiếp qua lớp này.
-- `/validations`: Chứa schema Joi để check input.
+Cấu trúc BE đã được cấu trúc hóa theo dạng Domain-Driven Design (Modular).
+
+- `/core`: Chứa các module cốt lõi dùng chung (Shared Core):
+  - `/core/config`: Cấu hình hệ thống DB, Redis, Môi trường.
+  - `/core/middleware`: Chứa nhóm lõi bảo mật phân quyền (Auth, RLAC).
+  - `/core/constants`: Hằng số dùng chung toàn hệ thống.
+  - `/core/utils`: Các hàm tiện ích dùng chung (`sendSuccess`, v.v.).
+- `/modules`: **Nơi chứa toàn bộ Logic nghiệp vụ cốt lõi**, phân tách theo từng Domain (VD: `customer`, `lead`, `event`, `finance`, `hr`, `job`, `course`...). Mỗi module tự đóng gói `Controller`, `Service`, `Model`, `Validation` của riêng nó.
+- `/routes`: Endpoint APIs tập trung định tuyến.
+  - `/routes/v1`: APIs cho nội bộ CRM Client.
+  - `/routes/external/v1`: APIs công khai cho các Client ngoài (VD: `botvn`).
 - `/scripts`: Script chạy migration, reset DB, mock data tự động.
 
 ---
@@ -113,7 +117,11 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
 8. **Đường dẫn thư mục (Directory Pathing)**: Thư mục chứa middleware có tên là `src/middleware` (số ít, KHÔNG có chữ 's' ở cuối). Chú ý khi import `validate` (VD: `const validate = require("../../middleware/validate");`).
 9. **Import Phân quyền**: Middleware `requirePermission` được đặt trong file `auth.js`. Do đó, khi cần check quyền ở các routes, bắt buộc import từ `middleware/auth` (VD: `const { requirePermission } = require("../../middleware/auth");`), KHÔNG phải từ `middleware/rbac.js`.
 10. **Syntax Checking Rule**: Mỗi khi generate feature mới, BẮT BUỘC recheck lại full syntax bằng lệnh `node -c <file>` ở BE để kiểm chứng.
-11. **Backend Controller Convention**: Các hàm trong file controller KHÔNG dùng khối `try/catch`. Hệ thống sẽ tự động handle các promise rejection. Các controller hiện có nếu dùng `try/catch` cần được gỡ bỏ để thống nhất convention.
+11. **Backend Controller & Service Convention**: 
+    - Các file Controller phải có đuôi `.controller.js` và file Service phải có đuôi `.service.js` (ví dụ: `courseOnline.controller.js`, `courseOnline.service.js`).
+    - Việc phản hồi HTTP (sử dụng hàm `sendSuccess`, `sendError` từ thư mục `core/utils/http`) và trích xuất tham số từ `req`/`res` **BẮT BUỘC** chỉ được thực hiện ở tầng Controller.
+    - Tầng Service chỉ tập trung xử lý Business Logic và trả về dữ liệu thô (raw data object) hoặc ném lỗi (throw error), tuyệt đối không nhận/trả đối tượng `req`/`res`.
+    - Các hàm trong file controller KHÔNG dùng khối `try/catch`. Hệ thống sẽ tự động handle các promise rejection. Các controller hiện có nếu dùng `try/catch` cần được gỡ bỏ để thống nhất convention.
 12. **RBAC API Pre-fetching Rule (Module Data Filtering)**: Bất cứ khi nào Front-end (FE) thêm một Module/Tab mới có gọi API pre-fetch dữ liệu tham chiếu, BẮT BUỘC rà soát lại `MODULE_TO_PERMISSIONS_MAP` trong `src/constants/rbac.js`. Nếu user được cấp quyền đọc đối tượng do hưởng "ké" từ module khác, trong Controller API `GET` ở BE, phải sử dụng hàm `hasModuleAccess(req.user, 'moduleId')` để kiểm tra và CHỈ ĐƯỢC TRẢ VỀ CÁC FIELD CƠ BẢN (VD: id, name, email, phone, avatar) nhằm bảo vệ dữ liệu nhạy cảm.
 13. **RBAC Resource Mutation Rule (Row-Level Security cho Thao tác Thay đổi)**:
     - BẮT BUỘC có logic kiểm tra quyền (RLS) trước khi mutate data (chưa đủ nếu chỉ dựa vào Role Permissions). Các controller API bắt buộc truyền `req.user` xuống Service layer.
@@ -143,7 +151,8 @@ Mô hình xử lý chuẩn 1 chiều: `Client Request` -> `Route (v1)` -> `Middl
       ```
     - Trong trường hợp hành động thực hiện bởi người dùng chưa đăng nhập (như `login`, `resetPassword`), bắt buộc truyền tham số `performedBy: { userId: user.id, userName: user.name, userAvatar: user.avatar || "" }` thủ công, kết hợp với truyền `req` để tự động lưu vết IP.
 16. **Backend Router Convention**:
-    - Các file định tuyến trong thư mục `routes/v1/` đặt tên theo chuẩn `<resource>.js` (ví dụ: `courseConfigs.js`, `customers.js`), **TUYỆT ĐỐI KHÔNG** sử dụng hậu tố `.route.js` hoặc `.routes.js`.
+    - Các file định tuyến trong thư mục `routes/v1/` và `routes/external/v1/` **BẮT BUỘC** đặt tên theo chuẩn `<resource>.routes.js` (ví dụ: `courseConfigs.routes.js`, `customers.routes.js`). Bỏ convention cũ dùng `<resource>.js` trơn.
+    - Các file Route **chỉ được phép định tuyến** (routing) tới Controller, **TUYỆT ĐỐI KHÔNG** viết inline logic xử lý request hoặc gọi `sendSuccess` trực tiếp bên trong file Route. Mọi logic tiền xử lý phải viết thành middleware hoặc đưa vào Controller.
     - **KHÔNG sử dụng `catchAsync`** (hay bất kỳ wrapper async catch nào) tại file route. Việc bọc catchAsync ở route là dư thừa và sai chuẩn của module.
-    - Phân quyền (RBAC) cơ bản được khai báo trực tiếp trên từng route sử dụng middleware `requirePermission(PERMISSIONS.XXX)` lấy từ `src/middleware/auth.js`. **KHÔNG** tạo thêm các file middleware mới (như `[module]Access.js`) chỉ với mục đích bọc lại `requirePermission`. Việc tạo file `[module]Access.js` chỉ áp dụng theo rule 14 (dành cho Row-Level Security/Assignment rules phức tạp).
+    - Phân quyền (RBAC) cơ bản được khai báo trực tiếp trên từng route sử dụng middleware `requirePermission(PERMISSIONS.XXX)` lấy từ `src/core/middleware/auth.js`. **KHÔNG** tạo thêm các file middleware mới (như `[module]Access.js`) chỉ với mục đích bọc lại `requirePermission`. Việc tạo file `[module]Access.js` chỉ áp dụng theo rule 14 (dành cho Row-Level Security/Assignment rules phức tạp).
 
