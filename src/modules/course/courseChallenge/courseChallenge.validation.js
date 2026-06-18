@@ -71,7 +71,7 @@ const updateCourse = Joi.object({
   title: Joi.string().optional(),
   slug: Joi.string().optional(),
   status: Joi.string().valid(...Object.values(COURSE_CHALLENGE_STATUS)).optional(),
-  type: Joi.string().valid(...Object.values(COURSE_CHALLENGE_TYPE)).optional(),
+  type: Joi.forbidden(),
   startDate: Joi.date().allow(null).optional(),
   allowAdvanceSubmit: Joi.boolean().optional(),
   allowLateSubmission: Joi.boolean().optional(),

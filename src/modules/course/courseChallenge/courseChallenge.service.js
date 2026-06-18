@@ -250,6 +250,14 @@ const updateCourse = async (id, data, user) => {
       throw createHttpError(404, "Không tìm thấy Khóa triển khai");
     }
 
+    if (course.status === COURSE_CHALLENGE_STATUS.ACTIVE && data.startDate) {
+      const oldDate = course.startDate ? new Date(course.startDate).getTime() : null;
+      const newDate = new Date(data.startDate).getTime();
+      if (oldDate !== newDate) {
+        throw createHttpError(400, "Không thể cập nhật ngày khai giảng khi khóa học đang diễn ra.");
+      }
+    }
+
     const typeToCheck = data.type || course.type;
 
     if (data.curriculum) {
