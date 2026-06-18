@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
-const { COURSE_ONLINE_STATUS } = require("./courseOnline.constants");
+const {
+  COURSE_CHALLENGE_STATUS,
+  COURSE_CHALLENGE_TYPE,
+} = require("../../../core/constants/courseChallenge");
 
 const lecturerSchema = new mongoose.Schema(
   {
@@ -38,23 +41,33 @@ const lessonSchema = new mongoose.Schema(
     ],
     description: { type: String, default: "" },
   },
-  { _id: false }
+  { _id: false },
 );
 
-const chapterSchema = new mongoose.Schema(
+const challengeDaySchema = new mongoose.Schema(
   {
     id: { type: String },
     title: { type: String, required: true },
     lessons: { type: [lessonSchema], default: [] },
+    unlockDelayHours: { type: Number, default: 0 },
+    unlockAt: { type: Date, default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
-const courseOnlineSchema = new mongoose.Schema(
+const courseChallengeSchema = new mongoose.Schema(
   {
     id: {
       type: String,
       unique: true,
+    },
+    isTemplate: {
+      type: Boolean,
+      default: false,
+    },
+    templateId: {
+      type: String,
+      default: "",
     },
     title: {
       type: String,
@@ -75,12 +88,17 @@ const courseOnlineSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(COURSE_ONLINE_STATUS),
-      default: COURSE_ONLINE_STATUS.DRAFT,
+      enum: Object.values(COURSE_CHALLENGE_STATUS),
+      default: COURSE_CHALLENGE_STATUS.DRAFT,
     },
     type: {
       type: String,
-      default: "online",
+      enum: Object.values(COURSE_CHALLENGE_TYPE),
+      default: COURSE_CHALLENGE_TYPE.FIXED_DATE,
+    },
+    startDate: {
+      type: Date,
+      default: null,
     },
     isBestseller: {
       type: Boolean,
@@ -142,8 +160,24 @@ const courseOnlineSchema = new mongoose.Schema(
       type: [lecturerSchema],
       default: [],
     },
+    totalDays: {
+      type: Number,
+      default: 0,
+    },
+    allowAdvanceSubmit: {
+      type: Boolean,
+      default: false,
+    },
+    allowLateSubmission: {
+      type: Boolean,
+      default: false, // For Fixed Date
+    },
+    autoUnlockNext: {
+      type: Boolean,
+      default: false, // For Rolling
+    },
     curriculum: {
-      type: [chapterSchema],
+      type: [challengeDaySchema],
       default: [],
     },
     createdBy: {
@@ -158,11 +192,11 @@ const courseOnlineSchema = new mongoose.Schema(
   },
 );
 
-courseOnlineSchema.virtual("categoryDetails", {
+courseChallengeSchema.virtual("categoryDetails", {
   ref: "CourseCategory",
   localField: "category",
   foreignField: "id",
   justOne: false,
 });
 
-module.exports = mongoose.model("CourseOnline", courseOnlineSchema);
+module.exports = mongoose.model("CourseChallenge", courseChallengeSchema);

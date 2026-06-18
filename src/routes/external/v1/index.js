@@ -12,6 +12,7 @@ externalV1Router.use(requireExternalApiKey);
 // Các external endpoints
 externalV1Router.use("/auth", require("./auth.routes"));
 externalV1Router.use("/online", onlineCoursesRouter);
+externalV1Router.use("/challenges", require("./challenges.routes"));
 externalV1Router.use("/credits", require("./credits.routes"));
 
 module.exports = externalV1Router;

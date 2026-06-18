@@ -6,39 +6,6 @@ const { buildPaginatedResponse, resolvePagination } = require('../../../core/uti
 const { buildSearchRegex } = require('../../../core/utils/query');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
 
-const populateLecturers = async (courses) => {
-  if (!courses) return courses;
-  const isArray = Array.isArray(courses);
-  const coursesList = isArray ? courses : [courses];
-
-  const lecturerIds = new Set();
-  coursesList.forEach(course => {
-    if (course.lecturers) {
-      course.lecturers.forEach(l => {
-        if (typeof l.lecturerId === 'string') {
-          lecturerIds.add(l.lecturerId);
-        }
-      });
-    }
-  });
-
-  if (lecturerIds.size > 0) {
-    const lecturers = await CourseLecturer.find({ id: { $in: Array.from(lecturerIds) } }).lean();
-    const lecturerMap = {};
-    lecturers.forEach(l => { lecturerMap[l.id] = l; });
-
-    coursesList.forEach(course => {
-      if (course.lecturers) {
-        course.lecturers = course.lecturers.map(l => ({
-          ...l,
-          details: lecturerMap[l.lecturerId] || null
-        }));
-      }
-    });
-  }
-
-  return isArray ? coursesList : coursesList[0];
-};
 
 const createCourse = async (courseBody, user) => {
   const existingSlug = await CourseOnline.findOne({ slug: courseBody.slug });
@@ -87,20 +54,20 @@ const getCourses = async (queryParams) => {
 
   const [courses, total] = await Promise.all([
     CourseOnline.find(filter)
+      .populate("categoryDetails")
+      .populate("lecturers.details")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean(),
+      .lean({ virtuals: true }),
     CourseOnline.countDocuments(filter)
   ]);
-
-  await populateLecturers(courses);
 
   return buildPaginatedResponse(courses, total, page, limit);
 };
 
 const getCourseById = async (id) => {
-  const course = await CourseOnline.findOne({ id });
+  const course = await CourseOnline.findOne({ id }).populate("categoryDetails").populate("lecturers.details");
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
@@ -116,12 +83,14 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null) => {
     query.status = requiredStatus;
   }
 
-  let course = await CourseOnline.findOne(query).lean();
+  let course = await CourseOnline.findOne(query)
+    .populate("categoryDetails")
+    .populate("lecturers.details")
+    .lean({ virtuals: true });
   
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
-  course = await populateLecturers(course);
   return course;
 };
 
