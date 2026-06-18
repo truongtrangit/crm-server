@@ -72,4 +72,10 @@ router.put(
   controller.updateCourse.bind(controller)
 );
 
+router.delete(
+  "/deployed/:id",
+  requirePermission(PERMISSIONS.COURSES_CHALLENGES_DELETE),
+  controller.deleteCourse.bind(controller)
+);
+
 module.exports = router;

@@ -26,7 +26,7 @@ const createCourse = async (courseBody, user) => {
 
 const getCourses = async (queryParams) => {
   const { search, status, category } = queryParams || {};
-  const filter = {};
+  const filter = { isDeleted: { $ne: true } };
 
   if (search) {
     const searchRegex = buildSearchRegex(search);
@@ -67,7 +67,7 @@ const getCourses = async (queryParams) => {
 };
 
 const getCourseById = async (id) => {
-  const course = await CourseOnline.findOne({ id }).populate("categoryDetails").populate("lecturers.details");
+  const course = await CourseOnline.findOne({ id, isDeleted: { $ne: true } }).populate("categoryDetails").populate("lecturers.details");
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
@@ -77,6 +77,7 @@ const getCourseById = async (id) => {
 const getCourseByIdentifier = async (identifier, requiredStatus = null) => {
   const query = {
     $or: [{ id: identifier }, { slug: identifier }],
+    isDeleted: { $ne: true }
   };
   
   if (requiredStatus) {
@@ -122,7 +123,9 @@ const deleteCourse = async (id, user) => {
     throw createHttpError(403, "Bạn không có quyền xóa khóa học này");
   }
 
-  await course.deleteOne();
+  course.isDeleted = true;
+  course.deletedAt = new Date();
+  await course.save();
   return course;
 };
 

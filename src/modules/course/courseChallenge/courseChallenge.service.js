@@ -39,7 +39,7 @@ async function assignIdsToCurriculum(curriculum) {
 
 const getTemplates = async (queryParams) => {
   const { search, category } = queryParams || {};
-  const filter = { isTemplate: true };
+  const filter = { isTemplate: true, isDeleted: { $ne: true } };
 
   if (search) {
     const searchRegex = buildSearchRegex(search);
@@ -78,7 +78,7 @@ const getTemplates = async (queryParams) => {
 };
 
 const getTemplateById = async (id) => {
-  const template = await CourseChallenge.findOne({ id, isTemplate: true })
+  const template = await CourseChallenge.findOne({ id, isTemplate: true, isDeleted: { $ne: true } })
     .populate("categoryDetails")
     .populate("lecturers.details");
     
@@ -107,7 +107,7 @@ const createTemplate = async (data, user) => {
   };
 
 const updateTemplate = async (id, data, user) => {
-    const template = await CourseChallenge.findOne({ id, isTemplate: true });
+    const template = await CourseChallenge.findOne({ id, isTemplate: true, isDeleted: { $ne: true } });
     if (!template) {
       throw createHttpError(404, "Không tìm thấy Khóa mẫu");
     }
@@ -130,12 +130,13 @@ const updateTemplate = async (id, data, user) => {
   };
 
 const deleteTemplate = async (id) => {
-    const template = await CourseChallenge.findOne({ id, isTemplate: true });
+    const template = await CourseChallenge.findOne({ id, isTemplate: true, isDeleted: { $ne: true } });
     if (!template) {
       throw createHttpError(404, "Không tìm thấy Khóa mẫu");
     }
-    // Hard delete for now, or soft delete based on standard.
-    await template.deleteOne();
+    template.isDeleted = true;
+    template.deletedAt = new Date();
+    await template.save();
     return template;
   };
 
@@ -145,7 +146,7 @@ const deleteTemplate = async (id) => {
 
 const getCourses = async (queryParams) => {
   const { search, status, category, type } = queryParams || {};
-  const filter = { isTemplate: false };
+  const filter = { isTemplate: false, isDeleted: { $ne: true } };
 
   if (search) {
     const searchRegex = buildSearchRegex(search);
@@ -190,7 +191,7 @@ const getCourses = async (queryParams) => {
 };
 
 const getCourseById = async (id) => {
-  const course = await CourseChallenge.findOne({ id, isTemplate: false })
+  const course = await CourseChallenge.findOne({ id, isTemplate: false, isDeleted: { $ne: true } })
     .populate("categoryDetails")
     .populate("lecturers.details");
     
@@ -200,7 +201,7 @@ const getCourseById = async (id) => {
   return course;
 };
 const cloneTemplateToCourse = async (templateId, configData, user) => {
-    const template = await CourseChallenge.findOne({ id: templateId, isTemplate: true }).lean();
+    const template = await CourseChallenge.findOne({ id: templateId, isTemplate: true, isDeleted: { $ne: true } }).lean();
     if (!template) {
       throw createHttpError(404, "Không tìm thấy Khóa mẫu");
     }
@@ -244,7 +245,7 @@ const cloneTemplateToCourse = async (templateId, configData, user) => {
   };
 
 const updateCourse = async (id, data, user) => {
-    const course = await CourseChallenge.findOne({ id, isTemplate: false });
+    const course = await CourseChallenge.findOne({ id, isTemplate: false, isDeleted: { $ne: true } });
     if (!course) {
       throw createHttpError(404, "Không tìm thấy Khóa triển khai");
     }
@@ -275,11 +276,22 @@ const updateCourse = async (id, data, user) => {
     return course;
   };
 
+const deleteCourse = async (id) => {
+  const course = await CourseChallenge.findOne({ id, isTemplate: false, isDeleted: { $ne: true } });
+  if (!course) {
+    throw createHttpError(404, "Không tìm thấy Khóa triển khai");
+  }
+  course.isDeleted = true;
+  course.deletedAt = new Date();
+  await course.save();
+  return course;
+};
+
 // ---------------------------------------------------------------------------
 // CLIENT API (EXTERNAL)
 // ---------------------------------------------------------------------------
 const getMyProgress = async (courseId, studentId) => {
-    const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false })
+    const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false, isDeleted: { $ne: true } })
       .populate("categoryDetails")
       .populate("lecturers.details")
       .lean({ virtuals: true });
@@ -363,7 +375,7 @@ const getMyProgress = async (courseId, studentId) => {
   };
 
 const submitDayAssignment = async (courseId, dayId, submissionData, studentId) => {
-    const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false }).lean();
+    const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false, isDeleted: { $ne: true } }).lean();
     if (!course) throw createHttpError(404, "Khóa học không tồn tại");
 
     let enrollment = await ChallengeEnrollment.findOne({ courseId, studentId });
@@ -408,6 +420,7 @@ module.exports = {
   getCourseById,
   cloneTemplateToCourse,
   updateCourse,
+  deleteCourse,
   
   getMyProgress,
   submitDayAssignment,

@@ -114,6 +114,23 @@ class CourseChallengeController {
     return sendSuccess(res, 200, "Cập nhật khóa triển khai thành công", course);
   }
 
+  async deleteCourse(req, res) {
+    const { id } = req.params;
+    const course = await CourseChallengeService.deleteCourse(id);
+
+    SystemLogService.log({
+      action: "delete",
+      resource: RESOURCES.COURSES_CHALLENGES,
+      resourceId: id,
+      resourceName: course.title,
+      description: `Xóa khóa triển khai "${course.title}"`,
+      metadata: { deletedItem: course },
+      req,
+    });
+
+    return sendSuccess(res, 200, "Xóa khóa triển khai thành công", null);
+  }
+
   // ---------------------------------------------------------------------------
   // CLIENT API (EXTERNAL)
   // ---------------------------------------------------------------------------

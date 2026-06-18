@@ -184,6 +184,14 @@ const courseChallengeSchema = new mongoose.Schema(
       type: String, // req.user.id
       required: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
