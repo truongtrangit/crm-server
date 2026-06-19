@@ -47,7 +47,7 @@ const createTemplate = Joi.object({
     Joi.object({
       lecturerId: Joi.string().required(),
       isMain: Joi.boolean().optional(),
-    })
+    }).unknown(true)
   ).optional(),
   totalDays: Joi.number().min(1).required(),
   curriculum: Joi.array().items(challengeDaySchema).optional(),

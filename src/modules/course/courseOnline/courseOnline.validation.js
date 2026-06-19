@@ -3,7 +3,7 @@ const Joi = require("joi");
 const lecturerSchema = Joi.object({
   lecturerId: Joi.string().required(),
   isMain: Joi.boolean().default(false),
-});
+}).unknown(true);
 
 const lessonAttachmentSchema = Joi.object({
   name: Joi.string().allow("", null),
