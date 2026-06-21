@@ -1,7 +1,7 @@
 const express = require("express");
-const { requirePermission } = require('../../core/middleware/auth');
-const { PERMISSIONS } = require('../../core/constants/rbac');
-const CourseConfigController = require('../../modules/course/courseConfig/courseConfig.controller');
+const { requirePermission } = require("../../core/middleware/auth");
+const { PERMISSIONS } = require("../../core/constants/rbac");
+const CourseConfigController = require("../../modules/course/courseConfig/courseConfig.controller");
 
 const router = express.Router();
 
@@ -50,5 +50,18 @@ router
     requirePermission(PERMISSIONS.COURSE_CONFIG_DELETE),
     CourseConfigController.deleteHashtag,
   );
+
+// Utilities
+router.get(
+  "/youtube-duration",
+  requirePermission([
+    PERMISSIONS.COURSE_CONFIG_READ,
+    PERMISSIONS.COURSES_ONLINE_CREATE,
+    PERMISSIONS.COURSES_ONLINE_UPDATE,
+    PERMISSIONS.COURSES_CHALLENGES_CREATE,
+    PERMISSIONS.COURSES_CHALLENGES_UPDATE,
+  ]),
+  CourseConfigController.getYoutubeDuration,
+);
 
 module.exports = router;

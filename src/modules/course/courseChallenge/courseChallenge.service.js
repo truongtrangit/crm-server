@@ -417,6 +417,75 @@ const submitDayAssignment = async (courseId, dayId, submissionData, studentId) =
     return progressItem;
   };
 
+const getPublicCourses = async (queryParams) => {
+  const { page, limit, skip } = resolvePagination(queryParams || {});
+  const filter = { isTemplate: false, isDeleted: { $ne: true }, status: COURSE_CHALLENGE_STATUS.ACTIVE };
+
+  const [courses, total] = await Promise.all([
+    CourseChallenge.find(filter)
+      .populate("categoryDetails")
+      .populate("lecturers.details")
+      .sort({ isBestseller: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean({ virtuals: true }),
+    CourseChallenge.countDocuments(filter)
+  ]);
+
+  return buildPaginatedResponse(courses, total, page, limit);
+};
+
+const getPublicCourseBySlug = async (slug) => {
+  const course = await CourseChallenge.findOne({ slug, isTemplate: false, isDeleted: { $ne: true }, status: COURSE_CHALLENGE_STATUS.ACTIVE })
+    .populate("categoryDetails")
+    .populate("lecturers.details")
+    .lean({ virtuals: true });
+    
+  if (!course) {
+    throw createHttpError(404, "Không tìm thấy khóa học");
+  }
+
+  // Hide paid video URLs
+  if (course.curriculum) {
+    course.curriculum.forEach(day => {
+      if (day.lessons) {
+        day.lessons.forEach(lesson => {
+          if (lesson.accessLevel === "Paid") {
+            lesson.videoUrl = "";
+          }
+        });
+      }
+    });
+  }
+
+  return course;
+};
+
+const enrollCourse = async (courseId, studentId) => {
+  const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false, isDeleted: { $ne: true }, status: COURSE_CHALLENGE_STATUS.ACTIVE });
+  if (!course) {
+    throw createHttpError(404, "Khóa học không tồn tại hoặc chưa được kích hoạt");
+  }
+
+  let enrollment = await ChallengeEnrollment.findOne({ courseId, studentId });
+  if (enrollment) {
+    throw createHttpError(400, "Bạn đã đăng ký khóa học này rồi");
+  }
+
+  const newId = await generateMonotonicId(ID_PREFIXES.COURSE_CHALLENGE_ENROLLMENT);
+
+  enrollment = new ChallengeEnrollment({
+    id: newId,
+    courseId,
+    studentId,
+    enrolledAt: new Date(),
+    progress: []
+  });
+
+  await enrollment.save();
+  return enrollment;
+};
+
 module.exports = {
   getTemplates,
   getTemplateById,
@@ -432,4 +501,8 @@ module.exports = {
   
   getMyProgress,
   submitDayAssignment,
+  
+  getPublicCourses,
+  getPublicCourseBySlug,
+  enrollCourse,
 };
