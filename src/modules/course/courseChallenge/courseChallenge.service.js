@@ -258,6 +258,13 @@ const updateCourse = async (id, data, user) => {
       }
     }
 
+    if (process.env.ENABLE_CLONE_UPDATE !== 'true') {
+      const lockedFields = ['title', 'slug', 'category', 'headline', 'subheadline', 'isBestseller', 'type', 'description', 'curriculum'];
+      lockedFields.forEach(field => {
+        delete data[field];
+      });
+    }
+
     const typeToCheck = data.type || course.type;
 
     if (data.curriculum) {
