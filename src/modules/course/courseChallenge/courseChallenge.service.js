@@ -472,7 +472,7 @@ const getPublicCourses = async (queryParams) => {
   return buildPaginatedResponse(courses, total, page, limit);
 };
 
-const getPublicCourseBySlug = async (slug) => {
+const getPublicCourseBySlug = async (slug, studentId = null) => {
   const course = await CourseChallenge.findOne({ slug, isTemplate: false, isDeleted: { $ne: true }, status: COURSE_STATUS.PUBLISHED })
     .populate("categoryDetails")
     .populate("lecturers.details")
@@ -482,15 +482,36 @@ const getPublicCourseBySlug = async (slug) => {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
 
+  let isEnrolled = false;
+  if (studentId) {
+    const enrollment = await CourseEnrollment.findOne({ courseId: course.id, studentId });
+    if (enrollment) {
+      isEnrolled = true;
+      course.isEnrolled = true;
+      const progressData = await module.exports.getMyProgress(course.id, studentId);
+      course.curriculum = progressData.timeline;
+    }
+  }
+
   // Hide paid video URLs
   if (course.curriculum) {
     course.curriculum.forEach(day => {
+      const isLocked = isEnrolled ? (day.isLocked !== undefined ? day.isLocked : true) : true;
+
       if (day.lessons) {
         day.lessons.forEach(lesson => {
           if (lesson.accessLevel === "Paid") {
-            lesson.videoUrl = "";
+            if (isLocked) {
+              lesson.videoUrl = "";
+            }
           }
         });
+      }
+      
+      if (day.accessLevel === "Paid" && day.videoUrl) {
+        if (isLocked) {
+          day.videoUrl = "";
+        }
       }
     });
   }

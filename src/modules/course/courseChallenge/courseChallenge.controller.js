@@ -156,7 +156,8 @@ class CourseChallengeController {
 
   async getPublicCourseBySlug(req, res) {
     const { slug } = req.params;
-    const course = await CourseChallengeService.getPublicCourseBySlug(slug);
+    const studentId = req.user?.id || null;
+    const course = await CourseChallengeService.getPublicCourseBySlug(slug, studentId);
     return sendSuccess(res, 200, "Lấy chi tiết khóa học thành công", course);
   }
 

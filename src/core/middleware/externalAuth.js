@@ -61,7 +61,43 @@ async function botvnAuthenticateRequest(req, res, next) {
   }
 }
 
+async function optionalBotvnAuthenticateRequest(req, res, next) {
+  try {
+    const accessToken = readBearerToken(req);
+
+    if (!accessToken) {
+      return next();
+    }
+
+    const session = await BotvnUserSession.findOne({
+      accessTokenHash: hashToken(accessToken),
+    });
+
+    if (!session) {
+      return next();
+    }
+
+    if (new Date(session.accessTokenExpiresAt).getTime() <= Date.now()) {
+      return next();
+    }
+
+    const customer = await Customer.findById(session.customerId);
+    if (!customer) {
+      return next();
+    }
+
+    // Attach to request
+    req.user = customer;
+    req.session = session;
+
+    return next();
+  } catch (error) {
+    return next();
+  }
+}
+
 module.exports = {
   requireExternalApiKey,
   botvnAuthenticateRequest,
+  optionalBotvnAuthenticateRequest,
 };
