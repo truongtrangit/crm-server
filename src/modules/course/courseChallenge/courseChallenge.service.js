@@ -5,6 +5,7 @@ const { ID_PREFIXES, generateMonotonicId } = require("../../../core/utils/id");
 const { COURSE_CHALLENGE_TYPE, COURSE_CHALLENGE_STATUS } = require("../../../core/constants/courseChallenge");
 const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
 const { buildSearchRegex } = require('../../../core/utils/query');
+const { computePriceRange } = require('../../../core/utils/price');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
 
 
@@ -95,6 +96,8 @@ const createTemplate = async (data, user) => {
       data.curriculum = await assignIdsToCurriculum(data.curriculum);
     }
 
+    computePriceRange(data);
+
     const template = new CourseChallenge({
       ...data,
       id,
@@ -123,6 +126,8 @@ const updateTemplate = async (id, data, user) => {
     if (data.curriculum) {
       data.curriculum = await assignIdsToCurriculum(data.curriculum);
     }
+
+    computePriceRange(data);
 
     Object.assign(template, data);
     await template.save();
@@ -229,6 +234,8 @@ const cloneTemplateToCourse = async (templateId, configData, user) => {
     delete template.createdAt;
     delete template.updatedAt;
 
+    computePriceRange(configData);
+
     const deployedCourse = new CourseChallenge({
       ...template,
       ...configData, // Override with specific config (type, autoUnlockNext, etc.)
@@ -285,6 +292,8 @@ const updateCourse = async (id, data, user) => {
         });
       }
     }
+
+    computePriceRange(data);
 
     Object.assign(course, data);
     await course.save();

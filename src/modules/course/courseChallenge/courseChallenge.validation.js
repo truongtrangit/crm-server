@@ -1,6 +1,17 @@
 const Joi = require("joi");
 const { COURSE_CHALLENGE_STATUS, COURSE_CHALLENGE_TYPE } = require("../../../core/constants/courseChallenge");
 
+const pricingPackageSchema = Joi.object({
+  id: Joi.string().required(),
+  name: Joi.string().required(),
+  price: Joi.number().min(0).required(),
+  originalPrice: Joi.number().min(0).default(0),
+  discountRate: Joi.number().min(0).max(100).default(0),
+  paymentTypes: Joi.array().items(Joi.string().valid('credit', 'rewardCredit')).default(['credit']),
+  gifts: Joi.array().items(Joi.string()).default([]),
+  hasRefundPolicy: Joi.boolean().default(false)
+});
+
 const lessonSchema = Joi.object({
   id: Joi.string().optional(),
   title: Joi.string().required(),
@@ -32,9 +43,7 @@ const createTemplate = Joi.object({
   isBestseller: Joi.boolean().optional(),
   headline: Joi.string().allow("").optional(),
   subheadline: Joi.string().allow("").optional(),
-  price: Joi.number().min(0).optional(),
-  originalPrice: Joi.number().min(0).optional(),
-  discountRate: Joi.number().min(0).optional(),
+  packages: Joi.array().items(pricingPackageSchema).default([]),
   covers: Joi.array().items(Joi.string()).optional(),
   previewVideo: Joi.array().items(Joi.string()).optional(),
   benefits: Joi.array().items(Joi.string()).optional(),
@@ -65,6 +74,7 @@ const cloneCourse = Joi.object({
   allowAdvanceSubmit: Joi.boolean().optional(),
   allowLateSubmission: Joi.boolean().optional(),
   autoUnlockNext: Joi.boolean().optional(),
+  packages: Joi.array().items(pricingPackageSchema).optional(),
 });
 
 const updateCourse = Joi.object({
@@ -79,7 +89,7 @@ const updateCourse = Joi.object({
   totalDays: Joi.number().min(1).optional(),
   curriculum: Joi.array().items(challengeDaySchema).optional(),
   // Add other basic fields as needed
-  price: Joi.number().min(0).optional(),
+  packages: Joi.array().items(pricingPackageSchema).optional(),
   covers: Joi.array().items(Joi.string()).optional(),
 });
 

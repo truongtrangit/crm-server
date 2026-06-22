@@ -4,6 +4,7 @@ const CourseOnline = require('./courseOnline.model');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
 const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
 const { buildSearchRegex } = require('../../../core/utils/query');
+const { computePriceRange } = require('../../../core/utils/price');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
 
 
@@ -12,6 +13,8 @@ const createCourse = async (courseBody, user) => {
   if (existingSlug) {
     throw createHttpError(400, "Slug đã tồn tại");
   }
+
+  computePriceRange(courseBody);
 
   const id = await generateMonotonicId("CNO");
   const course = new CourseOnline({
@@ -109,6 +112,8 @@ const updateCourse = async (id, updateBody, user) => {
       throw createHttpError(400, "Slug đã tồn tại");
     }
   }
+
+  computePriceRange(updateBody);
 
   Object.assign(course, updateBody);
   await course.save();

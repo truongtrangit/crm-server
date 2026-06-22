@@ -55,6 +55,17 @@ const challengeDaySchema = new mongoose.Schema(
   { _id: false },
 );
 
+const pricingPackageSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  price: { type: Number, required: true, min: 0 },
+  originalPrice: { type: Number, default: 0, min: 0 },
+  discountRate: { type: Number, default: 0, min: 0 },
+  paymentTypes: { type: [{ type: String, enum: ['credit', 'rewardCredit'] }], default: ['credit'] },
+  gifts: { type: [String], default: [] },
+  hasRefundPolicy: { type: Boolean, default: false }
+}, { _id: false });
+
 const courseChallengeSchema = new mongoose.Schema(
   {
     id: {
@@ -112,17 +123,19 @@ const courseChallengeSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    price: {
-      type: Number,
-      default: 0,
+    packages: {
+      type: [pricingPackageSchema],
+      default: [],
     },
-    originalPrice: {
+    minPrice: {
       type: Number,
       default: 0,
+      index: true,
     },
-    discountRate: {
+    maxPrice: {
       type: Number,
       default: 0,
+      index: true,
     },
     covers: {
       type: [String],
