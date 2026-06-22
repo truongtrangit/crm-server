@@ -2,7 +2,7 @@ const { sendSuccess } = require('../../../core/utils/http');
 const CourseOnlineService = require('./courseOnline.service');
 const SystemLogService = require('../../system/log/systemLog.service');
 const { RESOURCES } = require('../../../core/constants/rbac');
-const { COURSE_ONLINE_STATUS } = require('./courseOnline.constants');
+const { COURSE_STATUS } = require('../../../core/constants/appData');
 
 // ============================================================================
 // INTERNAL APIs (Sử dụng cho CRM Admin, CMS)
@@ -76,7 +76,7 @@ const deleteCourse = async (req, res) => {
 // ============================================================================
 
 const getExternalCourses = async (req, res) => {
-  const queryParams = { ...req.query, status: COURSE_ONLINE_STATUS.PUBLISHED };
+  const queryParams = { ...req.query, status: COURSE_STATUS.PUBLISHED };
   const result = await CourseOnlineService.getCourses(queryParams);
 
   return sendSuccess(res, 200, "Lấy danh sách khóa học thành công", result);
@@ -85,7 +85,7 @@ const getExternalCourses = async (req, res) => {
 const getCourseByIdentifier = async (req, res) => {
   const course = await CourseOnlineService.getCourseByIdentifier(
     req.params.identifier,
-    COURSE_ONLINE_STATUS.PUBLISHED
+    COURSE_STATUS.PUBLISHED
   );
   return sendSuccess(res, 200, "Lấy thông tin khóa học thành công", course);
 };

@@ -98,6 +98,14 @@ const COURSE_ENROLLMENT_STATUS = Object.freeze({
   INACTIVE: 'INACTIVE',
 });
 
+const COURSE_STATUS = Object.freeze({
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  PRIVATE: 'private',
+  CLOSED: 'closed',
+  ARCHIVED: 'archived',
+});
+
 const COURSE_TYPES = Object.freeze({
   CHALLENGE: 'CourseChallenge',
   ONLINE: 'CourseOnline',
@@ -129,6 +137,7 @@ module.exports = {
   VOUCHER_TYPES,
   VOUCHER_STATUSES,
   COURSE_ENROLLMENT_STATUS,
+  COURSE_STATUS,
   COURSE_TYPES,
   PAYMENT_METHODS,
 };

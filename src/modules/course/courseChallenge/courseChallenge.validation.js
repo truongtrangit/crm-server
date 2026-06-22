@@ -1,5 +1,6 @@
 const Joi = require("joi");
-const { COURSE_CHALLENGE_STATUS, COURSE_CHALLENGE_TYPE } = require("../../../core/constants/courseChallenge");
+const { COURSE_CHALLENGE_TYPE } = require("../../../core/constants/courseChallenge");
+const { COURSE_STATUS } = require("../../../core/constants/appData");
 
 const pricingPackageSchema = Joi.object({
   id: Joi.string().required(),
@@ -39,7 +40,7 @@ const createTemplate = Joi.object({
   title: Joi.string().required(),
   slug: Joi.string().required(),
   category: Joi.array().items(Joi.string()).optional(),
-  status: Joi.string().valid(...Object.values(COURSE_CHALLENGE_STATUS)).optional(),
+  status: Joi.string().valid(...Object.values(COURSE_STATUS)).optional(),
   isBestseller: Joi.boolean().optional(),
   headline: Joi.string().allow("").optional(),
   subheadline: Joi.string().allow("").optional(),
@@ -80,7 +81,7 @@ const cloneCourse = Joi.object({
 const updateCourse = Joi.object({
   title: Joi.string().optional(),
   slug: Joi.string().optional(),
-  status: Joi.string().valid(...Object.values(COURSE_CHALLENGE_STATUS)).optional(),
+  status: Joi.string().valid(...Object.values(COURSE_STATUS)).optional(),
   type: Joi.forbidden(),
   startDate: Joi.date().allow(null).optional(),
   allowAdvanceSubmit: Joi.boolean().optional(),

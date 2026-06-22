@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { COURSE_ONLINE_STATUS } = require("./courseOnline.constants");
+const { COURSE_STATUS } = require("../../../core/constants/appData");
 
 const lecturerSchema = new mongoose.Schema(
   {
@@ -86,8 +86,8 @@ const courseOnlineSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(COURSE_ONLINE_STATUS),
-      default: COURSE_ONLINE_STATUS.DRAFT,
+      enum: Object.values(COURSE_STATUS),
+      default: COURSE_STATUS.DRAFT,
     },
     type: {
       type: String,

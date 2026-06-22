@@ -2,7 +2,8 @@ const createHttpError = require("http-errors");
 const CourseChallenge = require("./courseChallenge.model");
 const CourseEnrollment = require("./courseEnrollment.model");
 const { ID_PREFIXES, generateMonotonicId } = require("../../../core/utils/id");
-const { COURSE_CHALLENGE_TYPE, COURSE_CHALLENGE_STATUS } = require("../../../core/constants/courseChallenge");
+const { COURSE_CHALLENGE_TYPE } = require("../../../core/constants/courseChallenge");
+const { COURSE_STATUS } = require("../../../core/constants/appData");
 const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
 const { buildSearchRegex } = require('../../../core/utils/query');
 const { computePriceRange } = require('../../../core/utils/price');
@@ -257,7 +258,7 @@ const updateCourse = async (id, data, user) => {
       throw createHttpError(404, "Không tìm thấy Khóa triển khai");
     }
 
-    if (course.status === COURSE_CHALLENGE_STATUS.ACTIVE && data.startDate) {
+    if (course.status === COURSE_STATUS.PUBLISHED && data.startDate) {
       const oldDate = course.startDate ? new Date(course.startDate).getTime() : null;
       const newDate = new Date(data.startDate).getTime();
       if (oldDate !== newDate) {
@@ -345,39 +346,57 @@ const getMyProgress = async (courseId, studentId) => {
       const dayProgress = progressMap[day.id] || { isCompleted: false };
       let isLocked = true;
       let unlockTimeInfo = "";
+      let unlockTime = null;
 
       if (isFixed) {
         if (day.unlockAt) {
-          const unlockTime = new Date(day.unlockAt);
-          isLocked = now < unlockTime;
+          unlockTime = new Date(day.unlockAt);
           unlockTimeInfo = `Mở vào lúc ${unlockTime.toLocaleString()}`;
         } else {
-          const unlockTime = new Date(startDate.getTime() + day.unlockDelayHours * 60 * 60 * 1000);
-          isLocked = now < unlockTime;
+          unlockTime = new Date(startDate.getTime() + day.unlockDelayHours * 60 * 60 * 1000);
           unlockTimeInfo = `Mở sau ${day.unlockDelayHours} giờ từ lúc khai giảng`;
         }
       } else {
         // ROLLING
-        const unlockTime = new Date(enrolledAt.getTime() + day.unlockDelayHours * 60 * 60 * 1000);
-        isLocked = now < unlockTime;
+        unlockTime = new Date(enrolledAt.getTime() + day.unlockDelayHours * 60 * 60 * 1000);
         unlockTimeInfo = `Mở sau ${day.unlockDelayHours} giờ`;
+      }
 
-        // Auto unlock next logic
-        if (isLocked && course.autoUnlockNext && index > 0) {
-          const prevDay = course.curriculum[index - 1];
-          const prevProgress = progressMap[prevDay.id];
-          if (prevProgress && prevProgress.isCompleted) {
-            isLocked = false;
-            unlockTimeInfo = `Đã tự động mở khóa`;
-          }
+      // 1. Base locked state based on time
+      isLocked = now < unlockTime;
+
+      // 2. Allow advance submit
+      if (course.allowAdvanceSubmit) {
+        isLocked = false;
+        unlockTimeInfo = "Có thể xem và nộp bài trước";
+      }
+
+      // 3. Auto unlock next
+      if (isLocked && course.autoUnlockNext && index > 0) {
+        const prevDay = course.curriculum[index - 1];
+        const prevProgress = progressMap[prevDay.id];
+        if (prevProgress && prevProgress.isCompleted) {
+          isLocked = false;
+          unlockTimeInfo = `Đã tự động mở khóa`;
         }
       }
 
-      // If it's unlocked, let's also check if it's past due and late submissions aren't allowed
-      let canSubmit = !isLocked;
-      if (isFixed && !course.allowLateSubmission && canSubmit) {
-         // Logic for strict mode late submission could be added here if there's a deadline per day
-         // E.g., if there's a deadline, we check if now > deadline -> canSubmit = false
+      // Calculate Deadline (assume 24h from original unlockTime)
+      let deadline = new Date(unlockTime.getTime() + 24 * 60 * 60 * 1000);
+      let status = "LOCKED";
+      let canSubmit = false;
+
+      if (dayProgress.isCompleted) {
+        status = "COMPLETED";
+      } else if (!isLocked) {
+        // It is unlocked
+        if (now > deadline) {
+          status = "OVERDUE";
+          canSubmit = course.allowLateSubmission;
+        } else {
+          status = "OPEN";
+          canSubmit = true;
+        }
       }
 
       return {
@@ -386,6 +405,8 @@ const getMyProgress = async (courseId, studentId) => {
         lessons: day.lessons, // Assuming we send lessons. Usually we don't send videoUrl if locked
         isLocked,
         canSubmit,
+        status,
+        deadline,
         unlockTimeInfo,
         progress: dayProgress
       };
@@ -435,7 +456,7 @@ const submitDayAssignment = async (courseId, dayId, submissionData, studentId) =
 
 const getPublicCourses = async (queryParams) => {
   const { page, limit, skip } = resolvePagination(queryParams || {});
-  const filter = { isTemplate: false, isDeleted: { $ne: true }, status: COURSE_CHALLENGE_STATUS.ACTIVE };
+  const filter = { isTemplate: false, isDeleted: { $ne: true }, status: COURSE_STATUS.PUBLISHED };
 
   const [courses, total] = await Promise.all([
     CourseChallenge.find(filter)
@@ -452,7 +473,7 @@ const getPublicCourses = async (queryParams) => {
 };
 
 const getPublicCourseBySlug = async (slug) => {
-  const course = await CourseChallenge.findOne({ slug, isTemplate: false, isDeleted: { $ne: true }, status: COURSE_CHALLENGE_STATUS.ACTIVE })
+  const course = await CourseChallenge.findOne({ slug, isTemplate: false, isDeleted: { $ne: true }, status: COURSE_STATUS.PUBLISHED })
     .populate("categoryDetails")
     .populate("lecturers.details")
     .lean({ virtuals: true });
