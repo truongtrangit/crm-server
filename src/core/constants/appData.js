@@ -93,6 +93,23 @@ const VOUCHER_STATUSES = {
   EXPIRED: 'expired'
 };
 
+const COURSE_ENROLLMENT_STATUS = Object.freeze({
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+});
+
+const COURSE_TYPES = Object.freeze({
+  CHALLENGE: 'CourseChallenge',
+  ONLINE: 'CourseOnline',
+  OFFLINE: 'CourseOffline',
+});
+
+const PAYMENT_METHODS = Object.freeze({
+  CREDIT: 'credit',
+  REWARD_CREDIT: 'rewardCredit',
+  FREE: 'free',
+});
+
 module.exports = {
   PLATFORMS,
   COMPANIES,
@@ -111,4 +128,7 @@ module.exports = {
   DEFAULT_PASSWORD_STRENGTH,
   VOUCHER_TYPES,
   VOUCHER_STATUSES,
+  COURSE_ENROLLMENT_STATUS,
+  COURSE_TYPES,
+  PAYMENT_METHODS,
 };

@@ -1,6 +1,6 @@
 const createHttpError = require("http-errors");
 const CourseChallenge = require("./courseChallenge.model");
-const ChallengeEnrollment = require("./challengeEnrollment.model");
+const CourseEnrollment = require("./courseEnrollment.model");
 const { ID_PREFIXES, generateMonotonicId } = require("../../../core/utils/id");
 const { COURSE_CHALLENGE_TYPE, COURSE_CHALLENGE_STATUS } = require("../../../core/constants/courseChallenge");
 const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
@@ -324,7 +324,7 @@ const getMyProgress = async (courseId, studentId) => {
       throw createHttpError(404, "Khóa học không tồn tại");
     }
 
-    const enrollment = await ChallengeEnrollment.findOne({ courseId, studentId }).lean();
+    const enrollment = await CourseEnrollment.findOne({ courseId, studentId }).lean();
     if (!enrollment) {
       throw createHttpError(403, "Bạn chưa đăng ký khóa học này");
     }
@@ -402,7 +402,7 @@ const submitDayAssignment = async (courseId, dayId, submissionData, studentId) =
     const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false, isDeleted: { $ne: true } }).lean();
     if (!course) throw createHttpError(404, "Khóa học không tồn tại");
 
-    let enrollment = await ChallengeEnrollment.findOne({ courseId, studentId });
+    let enrollment = await CourseEnrollment.findOne({ courseId, studentId });
     if (!enrollment) throw createHttpError(403, "Bạn chưa đăng ký khóa học này");
 
     // Check if the day exists and is unlocked
@@ -477,30 +477,7 @@ const getPublicCourseBySlug = async (slug) => {
   return course;
 };
 
-const enrollCourse = async (courseId, studentId) => {
-  const course = await CourseChallenge.findOne({ id: courseId, isTemplate: false, isDeleted: { $ne: true }, status: COURSE_CHALLENGE_STATUS.ACTIVE });
-  if (!course) {
-    throw createHttpError(404, "Khóa học không tồn tại hoặc chưa được kích hoạt");
-  }
 
-  let enrollment = await ChallengeEnrollment.findOne({ courseId, studentId });
-  if (enrollment) {
-    throw createHttpError(400, "Bạn đã đăng ký khóa học này rồi");
-  }
-
-  const newId = await generateMonotonicId(ID_PREFIXES.COURSE_CHALLENGE_ENROLLMENT);
-
-  enrollment = new ChallengeEnrollment({
-    id: newId,
-    courseId,
-    studentId,
-    enrolledAt: new Date(),
-    progress: []
-  });
-
-  await enrollment.save();
-  return enrollment;
-};
 
 module.exports = {
   getTemplates,
@@ -520,5 +497,4 @@ module.exports = {
   
   getPublicCourses,
   getPublicCourseBySlug,
-  enrollCourse,
 };

@@ -15,7 +15,6 @@ const mockAuth = (req, res, next) => {
 
 router.get("/", CourseChallengeController.getPublicCourses);
 router.get("/:slug", CourseChallengeController.getPublicCourseBySlug);
-router.post("/:id/enroll", mockAuth, CourseChallengeController.enrollCourse);
 
 router.get("/:id/my-progress", mockAuth, CourseChallengeController.getMyProgress);
 router.post("/:id/days/:dayId/submit", mockAuth, validate(validation.submitAssignment), CourseChallengeController.submitDayAssignment);

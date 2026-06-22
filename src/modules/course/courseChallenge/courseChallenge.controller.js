@@ -160,16 +160,7 @@ class CourseChallengeController {
     return sendSuccess(res, 200, "Lấy chi tiết khóa học thành công", course);
   }
 
-  async enrollCourse(req, res) {
-    const { id } = req.params;
-    const studentId = req.user?.id || req.body.studentId;
-    if (!studentId) {
-      // Return 401 if unauthenticated
-      return res.status(401).json({ success: false, message: "Vui lòng đăng nhập để đăng ký khóa học" });
-    }
-    const enrollment = await CourseChallengeService.enrollCourse(id, studentId);
-    return sendSuccess(res, 201, "Đăng ký khóa học thành công", enrollment);
-  }
+
 }
 
 module.exports = new CourseChallengeController();
