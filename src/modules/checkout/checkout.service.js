@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const createHttpError = require("http-errors");
 const CourseEnrollment = require("../course/courseChallenge/courseEnrollment.model");
 const CourseChallenge = require("../course/courseChallenge/courseChallenge.model");
+const CourseOnline = require("../course/courseOnline/courseOnline.model");
 const Customer = require("../customer/customer/customer.model");
 const SystemLogService = require("../system/log/systemLog.service");
 const { ID_PREFIXES, generateMonotonicId } = require("../../core/utils/id");
@@ -67,6 +68,10 @@ class CheckoutService {
             }).session(session);
             break;
           case COURSE_TYPES.ONLINE:
+            course = await CourseOnline.findOne({
+              id: courseId,
+              isDeleted: { $ne: true },
+            }).session(session);
             break;
           case COURSE_TYPES.OFFLINE:
             break;

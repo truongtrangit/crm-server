@@ -413,22 +413,30 @@ const getMyProgress = async (courseId, studentId) => {
     let unlockTimeInfo = "";
     let unlockTime = null;
 
+    const formatUnlockTime = (date) => {
+      const d = new Date(date);
+      // Ensure we get local time string in a predictable format, e.g., '14:30 22/06/2026'
+      const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = d.toLocaleDateString('vi-VN');
+      return `Mở vào ${timeStr} ${dateStr}`;
+    };
+
     if (isFixed) {
       if (day.unlockAt) {
         unlockTime = new Date(day.unlockAt);
-        unlockTimeInfo = `Mở vào lúc ${unlockTime.toLocaleString()}`;
+        unlockTimeInfo = formatUnlockTime(unlockTime);
       } else {
         unlockTime = new Date(
           startDate.getTime() + day.unlockDelayHours * 60 * 60 * 1000,
         );
-        unlockTimeInfo = `Mở sau ${day.unlockDelayHours} giờ từ lúc khai giảng`;
+        unlockTimeInfo = formatUnlockTime(unlockTime);
       }
     } else {
       // ROLLING
       unlockTime = new Date(
         enrolledAt.getTime() + day.unlockDelayHours * 60 * 60 * 1000,
       );
-      unlockTimeInfo = `Mở sau ${day.unlockDelayHours} giờ`;
+      unlockTimeInfo = formatUnlockTime(unlockTime);
     }
 
     // 1. Base locked state based on time

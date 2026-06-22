@@ -6,6 +6,7 @@ const { buildPaginatedResponse, resolvePagination } = require('../../../core/uti
 const { buildSearchRegex } = require('../../../core/utils/query');
 const { computePriceRange } = require('../../../core/utils/price');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
+const CourseEnrollment = require('../courseChallenge/courseEnrollment.model');
 
 
 const createCourse = async (courseBody, user) => {
@@ -27,7 +28,7 @@ const createCourse = async (courseBody, user) => {
   return course;
 };
 
-const getCourses = async (queryParams) => {
+const getCourses = async (queryParams, studentId = null) => {
   const { search, status, category } = queryParams || {};
   const filter = { isDeleted: { $ne: true } };
 
@@ -66,6 +67,20 @@ const getCourses = async (queryParams) => {
     CourseOnline.countDocuments(filter)
   ]);
 
+  if (studentId && courses.length > 0) {
+    const courseIds = courses.map(c => c.id);
+    const enrollments = await CourseEnrollment.find({
+      studentId,
+      courseId: { $in: courseIds },
+      status: "ACTIVE"
+    }).lean();
+
+    const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
+    courses.forEach(course => {
+      course.isEnrolled = enrolledCourseIds.has(course.id);
+    });
+  }
+
   return buildPaginatedResponse(courses, total, page, limit);
 };
 
@@ -77,7 +92,7 @@ const getCourseById = async (id) => {
   return course;
 };
 
-const getCourseByIdentifier = async (identifier, requiredStatus = null) => {
+const getCourseByIdentifier = async (identifier, requiredStatus = null, studentId = null) => {
   const query = {
     $or: [{ id: identifier }, { slug: identifier }],
     isDeleted: { $ne: true }
@@ -95,6 +110,19 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null) => {
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
+
+  if (studentId) {
+    const enrollment = await CourseEnrollment.findOne({
+      studentId,
+      courseId: course.id,
+      status: "ACTIVE"
+    }).lean();
+
+    if (enrollment) {
+      course.isEnrolled = true;
+    }
+  }
+
   return course;
 };
 
