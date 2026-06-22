@@ -9,7 +9,11 @@ const {
 
 const router = express.Router();
 
-router.get("/", CourseChallengeController.getPublicCourses);
+router.get(
+  "/",
+  optionalBotvnAuthenticateRequest,
+  CourseChallengeController.getPublicCourses,
+);
 router.get(
   "/:slug",
   optionalBotvnAuthenticateRequest,

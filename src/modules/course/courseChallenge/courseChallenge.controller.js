@@ -150,7 +150,8 @@ class CourseChallengeController {
   }
 
   async getPublicCourses(req, res) {
-    const data = await CourseChallengeService.getPublicCourses(req.query);
+    const studentId = req.user?.id || null;
+    const data = await CourseChallengeService.getPublicCourses(req.query, studentId);
     return sendSuccess(res, 200, "Lấy danh sách khóa học thành công", data);
   }
 
