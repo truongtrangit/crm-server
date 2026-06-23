@@ -11,6 +11,15 @@ class CourseEnrollmentController {
     return sendSuccess(res, 200, "Lấy danh sách học viên thành công", result);
   }
 
+  async getMyEnrollments(req, res) {
+    const studentId = req.user.id;
+    const result = await courseEnrollmentService.getMyEnrollments(
+      studentId,
+      req.query,
+    );
+    return sendSuccess(res, 200, "Lấy danh sách khóa học của tôi thành công", result);
+  }
+
   async updateEnrollmentStatus(req, res) {
     const { id } = req.params;
     const { status } = req.body;

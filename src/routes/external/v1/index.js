@@ -15,5 +15,6 @@ externalV1Router.use("/online", onlineCoursesRouter);
 externalV1Router.use("/challenges", require("./challenges.routes"));
 externalV1Router.use("/credits", require("./credits.routes"));
 externalV1Router.use("/checkout", require("./checkout.routes"));
+externalV1Router.use("/enrollments", require("./enrollment.routes"));
 
 module.exports = externalV1Router;
