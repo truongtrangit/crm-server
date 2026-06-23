@@ -142,26 +142,29 @@ class CheckoutService {
         });
       }
 
+      const currentCredit = customer.credit || 0;
+      const currentRewardCredit = customer.rewardCredit || 0;
+
       // Check balances
-      if (customer.credit < totalCreditRequired) {
+      if (currentCredit < totalCreditRequired) {
         throw createHttpError(
           400,
-          `Số dư Credit không đủ. Cần thêm ${totalCreditRequired - (customer.credit || 0)} Credit`,
+          `Số dư Credit không đủ. Cần thêm ${totalCreditRequired - currentCredit} Credit`,
         );
       }
-      if (customer.rewardCredit < totalRewardCreditRequired) {
+      if (currentRewardCredit < totalRewardCreditRequired) {
         throw createHttpError(
           400,
-          `Số dư Credit Thưởng không đủ. Cần thêm ${totalRewardCreditRequired - (customer.rewardCredit || 0)} Credit Thưởng`,
+          `Số dư Credit Thưởng không đủ. Cần thêm ${totalRewardCreditRequired - currentRewardCredit} Credit Thưởng`,
         );
       }
 
       // Deduct balances
       if (totalCreditRequired > 0) {
-        customer.credit -= totalCreditRequired;
+        customer.credit = currentCredit - totalCreditRequired;
       }
       if (totalRewardCreditRequired > 0) {
-        customer.rewardCredit -= totalRewardCreditRequired;
+        customer.rewardCredit = currentRewardCredit - totalRewardCreditRequired;
       }
 
       await customer.save({ session });
