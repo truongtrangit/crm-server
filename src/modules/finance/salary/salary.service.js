@@ -148,7 +148,7 @@ class SalaryService {
   /**
    * Lấy danh sách lương tháng
    */
-  async getSalaries(month, search = "") {
+  async getSalaries(month, search = "", departmentId = "", companyId = "") {
     const query = { month };
 
     // Populate staff to get name, avatar, departments
@@ -164,15 +164,29 @@ class SalaryService {
       .sort({ "staffId.name": 1 })
       .lean();
 
-    // Filter by search term on staff name
-    if (search) {
-      const lowerSearch = search.toLowerCase();
-      return records.filter(
-        (r) =>
-          r.staffId &&
-          r.staffId.name &&
-          r.staffId.name.toLowerCase().includes(lowerSearch),
-      );
+    if (search || departmentId || companyId) {
+      const lowerSearch = search ? search.toLowerCase() : "";
+      return records.filter((r) => {
+        const staff = r.staffId;
+        if (!staff) return false;
+
+        let matchSearch = true;
+        if (search) {
+          matchSearch = staff.name && staff.name.toLowerCase().includes(lowerSearch);
+        }
+
+        let matchDept = true;
+        if (departmentId) {
+          matchDept = staff.functionalGroupId && (staff.functionalGroupId.id === departmentId || staff.functionalGroupId._id?.toString() === departmentId);
+        }
+
+        let matchCompany = true;
+        if (companyId) {
+          matchCompany = staff.companies && staff.companies.includes(companyId);
+        }
+
+        return matchSearch && matchDept && matchCompany;
+      });
     }
 
     return records;

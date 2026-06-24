@@ -29,14 +29,14 @@ class SalaryController {
   }
 
   async getSalaries(req, res) {
-    const { month, search } = req.query;
+    const { month, search, department, company } = req.query;
     if (!month) {
       return res
         .status(400)
         .json({ status: "error", message: "Month is required (MM/YYYY)" });
     }
 
-    const records = await SalaryService.getSalaries(month, search);
+    const records = await SalaryService.getSalaries(month, search, department, company);
     return sendSuccess(res, 200, "Get salaries success", records);
   }
 
