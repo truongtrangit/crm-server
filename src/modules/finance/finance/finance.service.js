@@ -45,16 +45,18 @@ class FinanceService {
     // Initialize the fixed "Lương nhân sự" category
     ensureCategory("salary", "Lương nhân sự", false);
 
-    // Fetch Revenues
-    const revFilter = {
-      recordDate: { $gte: startDate, $lt: endDate },
-      status: { $ne: REVENUE_STATUSES.CANCELLED },
-    };
-    if (companyId) {
-      revFilter["companyProportions.company"] = companyId;
+    // Fetch Revenues only if no department is selected (Revenues are not tied to departments)
+    let revenues = [];
+    if (!departmentId) {
+      const revFilter = {
+        recordDate: { $gte: startDate, $lt: endDate },
+        status: { $ne: REVENUE_STATUSES.CANCELLED },
+      };
+      if (companyId) {
+        revFilter["companyProportions.company"] = companyId;
+      }
+      revenues = await Revenue.find(revFilter).lean();
     }
-
-    const revenues = await Revenue.find(revFilter).lean();
 
     revenues.forEach((rev) => {
       let amount = rev.amount || 0;
@@ -79,16 +81,18 @@ class FinanceService {
       }
     });
 
-    // Fetch Expenses
-    const expFilter = {
-      recordDate: { $gte: startDate, $lt: endDate },
-      status: { $ne: EXPENSE_STATUSES.CANCELLED },
-    };
-    if (companyId) {
-      expFilter["companyProportions.company"] = companyId;
+    // Fetch Expenses only if no department is selected
+    let expenses = [];
+    if (!departmentId) {
+      const expFilter = {
+        recordDate: { $gte: startDate, $lt: endDate },
+        status: { $ne: EXPENSE_STATUSES.CANCELLED },
+      };
+      if (companyId) {
+        expFilter["companyProportions.company"] = companyId;
+      }
+      expenses = await Expense.find(expFilter).lean();
     }
-
-    const expenses = await Expense.find(expFilter).lean();
 
     expenses.forEach((exp) => {
       let amount = exp.amount || 0;
