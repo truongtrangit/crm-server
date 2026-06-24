@@ -1,10 +1,19 @@
 const mongoose = require("mongoose");
 
+const CompanyProportionSchema = new mongoose.Schema(
+  {
+    company: { type: String, required: true },
+    percentage: { type: Number, required: true, min: 0, max: 100 },
+  },
+  { _id: false }
+);
+
 const expectedRevenueSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true }, // e.g., RVE1
     name: { type: String, required: true, trim: true },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "RevenueCategory", required: true },
+    companyProportions: [CompanyProportionSchema],
     amount: { type: Number, required: true, min: 0 },
     type: { type: String, enum: ["single", "allocated"], default: "single" },
     expectedDate: { type: Date },

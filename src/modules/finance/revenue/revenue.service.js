@@ -115,6 +115,7 @@ class RevenueService {
         customerName: expected.name,
         category: expected.category,
         amount: expected.amount,
+        companyProportions: expected.companyProportions,
         recordDate: expected.expectedDate,
         status: REVENUE_STATUSES.PENDING,
         isExpected: true,
@@ -150,6 +151,7 @@ class RevenueService {
           customerName: expected.name,
           category: expected.category,
           amount: monthAmount,
+          companyProportions: expected.companyProportions,
           recordDate,
           status: REVENUE_STATUSES.PENDING,
           isExpected: true,
@@ -161,6 +163,18 @@ class RevenueService {
   }
 
   async createExpectedRevenue(data) {
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+    }
+
     const category = await RevenueCategory.findOne({ id: data.categoryId });
     if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
 
@@ -177,6 +191,19 @@ class RevenueService {
 
   async updateExpectedRevenue(id, data, force = false) {
     const updateData = { ...data };
+
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+    }
+
     if (data.categoryId) {
       const category = await RevenueCategory.findOne({ id: data.categoryId });
       if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
@@ -302,15 +329,16 @@ class RevenueService {
   }
 
   async createRevenue(data) {
-    if (data.companyProportions && data.companyProportions.length > 0) {
-      const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
-      if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
 
-      const companyIds = data.companyProportions.map(c => c.company);
-      const companies = await Company.find({ id: { $in: companyIds } }).lean();
-      if (companies.length !== companyIds.length) {
-        throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
-      }
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
     }
 
     const category = await RevenueCategory.findOne({ id: data.categoryId });
@@ -329,15 +357,17 @@ class RevenueService {
 
   async updateRevenue(id, data) {
     const updateData = { ...data };
-    if (data.companyProportions && data.companyProportions.length > 0) {
-      const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
-      if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+    
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
 
-      const companyIds = data.companyProportions.map(c => c.company);
-      const companies = await Company.find({ id: { $in: companyIds } }).lean();
-      if (companies.length !== companyIds.length) {
-        throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
-      }
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
     }
 
     if (data.categoryId) {
