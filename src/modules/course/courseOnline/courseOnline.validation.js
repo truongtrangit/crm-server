@@ -1,5 +1,16 @@
 const Joi = require("joi");
 
+const pricingPackageSchema = Joi.object({
+  id: Joi.string().required(),
+  name: Joi.string().required(),
+  price: Joi.number().min(0).required(),
+  originalPrice: Joi.number().min(0).default(0),
+  discountRate: Joi.number().min(0).max(100).default(0),
+  paymentTypes: Joi.array().items(Joi.string().valid('credit', 'rewardCredit')).default(['credit']),
+  gifts: Joi.array().items(Joi.string()).default([]),
+  hasRefundPolicy: Joi.boolean().default(false)
+});
+
 const lecturerSchema = Joi.object({
   lecturerId: Joi.string().required(),
   isMain: Joi.boolean().default(false),
@@ -37,9 +48,7 @@ const createCourseOnline = Joi.object({
   isBestseller: Joi.boolean().default(false),
   headline: Joi.string().allow("", null),
   subheadline: Joi.string().allow("", null),
-  price: Joi.number().min(0).default(0),
-  originalPrice: Joi.number().min(0).default(0),
-  discountRate: Joi.number().min(0).max(100).default(0),
+  packages: Joi.array().items(pricingPackageSchema).default([]),
   covers: Joi.array().items(Joi.string()).default([]),
   previewVideo: Joi.array().items(Joi.string()).default([]),
   benefits: Joi.array().items(Joi.string()).default([]),
@@ -61,9 +70,7 @@ const updateCourseOnline = Joi.object({
   isBestseller: Joi.boolean(),
   headline: Joi.string().allow("", null),
   subheadline: Joi.string().allow("", null),
-  price: Joi.number().min(0),
-  originalPrice: Joi.number().min(0),
-  discountRate: Joi.number().min(0).max(100),
+  packages: Joi.array().items(pricingPackageSchema),
   covers: Joi.array().items(Joi.string()),
   previewVideo: Joi.array().items(Joi.string()),
   benefits: Joi.array().items(Joi.string()),
