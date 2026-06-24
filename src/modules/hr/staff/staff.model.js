@@ -26,6 +26,8 @@ const SalaryConfigSchema = new mongoose.Schema(
     companyInsuranceAmount: { type: Number },
     isStaffPayInsurance: { type: Boolean, default: false },
     staffInsuranceAmount: { type: Number },
+    bhxh: { type: Number },
+    pit: { type: Number },
     note: { type: String },
     createdBy: { type: String }, // user id
   },

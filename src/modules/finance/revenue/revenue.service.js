@@ -1,5 +1,6 @@
 const Revenue = require('./revenue.model');
 const RevenueCategory = require('./revenueCategory.model');
+const Company = require('../../hr/company/company.model');
 const ExpectedRevenue = require('./expectedRevenue.model');
 const Counter = require('../../../core/models/Counter');
 const {
@@ -114,6 +115,7 @@ class RevenueService {
         customerName: expected.name,
         category: expected.category,
         amount: expected.amount,
+        companyProportions: expected.companyProportions,
         recordDate: expected.expectedDate,
         status: REVENUE_STATUSES.PENDING,
         isExpected: true,
@@ -149,6 +151,7 @@ class RevenueService {
           customerName: expected.name,
           category: expected.category,
           amount: monthAmount,
+          companyProportions: expected.companyProportions,
           recordDate,
           status: REVENUE_STATUSES.PENDING,
           isExpected: true,
@@ -160,6 +163,18 @@ class RevenueService {
   }
 
   async createExpectedRevenue(data) {
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+    }
+
     const category = await RevenueCategory.findOne({ id: data.categoryId });
     if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
 
@@ -176,6 +191,19 @@ class RevenueService {
 
   async updateExpectedRevenue(id, data, force = false) {
     const updateData = { ...data };
+
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+    }
+
     if (data.categoryId) {
       const category = await RevenueCategory.findOne({ id: data.categoryId });
       if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
@@ -241,6 +269,9 @@ class RevenueService {
     if (query.status && query.status !== "all") {
       filter.status = query.status;
     }
+    if (query.company && query.company !== "all") {
+      filter["companyProportions.company"] = query.company;
+    }
     // Time filter (year/month)
     if (query.month && query.year) {
       const startDate = new Date(
@@ -298,6 +329,18 @@ class RevenueService {
   }
 
   async createRevenue(data) {
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+    }
+
     const category = await RevenueCategory.findOne({ id: data.categoryId });
     if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
 
@@ -314,6 +357,19 @@ class RevenueService {
 
   async updateRevenue(id, data) {
     const updateData = { ...data };
+    
+    if (!data.companyProportions || data.companyProportions.length === 0) {
+      throw createHttpError(400, "Vui lòng phân bổ công ty");
+    }
+    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
+    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+
+    const companyIds = data.companyProportions.map(c => c.company);
+    const companies = await Company.find({ id: { $in: companyIds } }).lean();
+    if (companies.length !== companyIds.length) {
+      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+    }
+
     if (data.categoryId) {
       const category = await RevenueCategory.findOne({ id: data.categoryId });
       if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
@@ -344,17 +400,39 @@ class RevenueService {
 
   async getRevenueStats(query) {
     const filter = {};
-    if (query.year) {
-      const startDate = new Date(
-        parseInt(query.year),
-        parseInt(query.month || 1) - 1,
-        1,
-      );
-      const endDate = query.month
-        ? new Date(parseInt(query.year), parseInt(query.month), 1)
-        : new Date(parseInt(query.year) + 1, 0, 1);
+    
+    if (query.search) {
+      filter.$or = [
+        { customerName: { $regex: escapeRegex(query.search), $options: "i" } },
+        { orderId: { $regex: escapeRegex(query.search), $options: "i" } },
+        { details: { $regex: escapeRegex(query.search), $options: "i" } },
+      ];
+    }
+    if (query.category && query.category !== "all") {
+      if (query.category === "empty") {
+        filter.category = null;
+      } else {
+        const cat = await RevenueCategory.findOne({ id: query.category }).lean();
+        if (cat) filter.category = cat._id;
+      }
+    }
+    if (query.status && query.status !== "all") {
+      filter.status = query.status;
+    }
+    if (query.company && query.company !== "all") {
+      filter["companyProportions.company"] = query.company;
+    }
+    
+    if (query.month && query.year) {
+      const startDate = new Date(parseInt(query.year), parseInt(query.month) - 1, 1);
+      const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
+      filter.recordDate = { $gte: startDate, $lt: endDate };
+    } else if (query.year) {
+      const startDate = new Date(parseInt(query.year), 0, 1);
+      const endDate = new Date(parseInt(query.year) + 1, 0, 1);
       filter.recordDate = { $gte: startDate, $lt: endDate };
     }
+
 
     const revenues = await Revenue.find(filter)
       .populate("category", "name id")
@@ -367,13 +445,28 @@ class RevenueService {
       // Only count Complete (Hoàn thành) revenue for main stats, or all? Let's count all that are not cancelled.
       if (rev.status === REVENUE_STATUSES.CANCELLED) continue;
 
-      totalAmount += rev.amount || 0;
+      let amount = rev.amount || 0;
+      if (query.company && query.company !== "all" && rev.companyProportions && rev.companyProportions.length > 0) {
+        const prop = rev.companyProportions.find(c => c.company === query.company);
+        if (prop) {
+          amount = amount * (prop.percentage / 100);
+        } else {
+          amount = 0;
+        }
+      } else if (query.company && query.company !== "all" && (!rev.companyProportions || rev.companyProportions.length === 0)) {
+        // If filtering by a specific company, and the record has no companyProportions, it doesn't count.
+        // Wait, the MongoDB filter `{"companyProportions.company": query.company}` already excludes these!
+        // But let's leave this here for safety.
+        amount = 0;
+      }
+
+      totalAmount += amount;
 
       const catName = rev.category?.name || "Khác";
       if (!categoryMap[catName]) {
         categoryMap[catName] = 0;
       }
-      categoryMap[catName] += rev.amount || 0;
+      categoryMap[catName] += amount;
     }
 
     const categoriesStat = Object.keys(categoryMap).map((name) => ({
