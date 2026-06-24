@@ -400,20 +400,39 @@ class RevenueService {
 
   async getRevenueStats(query) {
     const filter = {};
-    if (query.year) {
-      const startDate = new Date(
-        parseInt(query.year),
-        parseInt(query.month || 1) - 1,
-        1,
-      );
-      const endDate = query.month
-        ? new Date(parseInt(query.year), parseInt(query.month), 1)
-        : new Date(parseInt(query.year) + 1, 0, 1);
-      filter.recordDate = { $gte: startDate, $lt: endDate };
+    
+    if (query.search) {
+      filter.$or = [
+        { customerName: { $regex: escapeRegex(query.search), $options: "i" } },
+        { orderId: { $regex: escapeRegex(query.search), $options: "i" } },
+        { details: { $regex: escapeRegex(query.search), $options: "i" } },
+      ];
+    }
+    if (query.category && query.category !== "all") {
+      if (query.category === "empty") {
+        filter.category = null;
+      } else {
+        const cat = await RevenueCategory.findOne({ id: query.category }).lean();
+        if (cat) filter.category = cat._id;
+      }
+    }
+    if (query.status && query.status !== "all") {
+      filter.status = query.status;
     }
     if (query.company && query.company !== "all") {
       filter["companyProportions.company"] = query.company;
     }
+    
+    if (query.month && query.year) {
+      const startDate = new Date(parseInt(query.year), parseInt(query.month) - 1, 1);
+      const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
+      filter.recordDate = { $gte: startDate, $lt: endDate };
+    } else if (query.year) {
+      const startDate = new Date(parseInt(query.year), 0, 1);
+      const endDate = new Date(parseInt(query.year) + 1, 0, 1);
+      filter.recordDate = { $gte: startDate, $lt: endDate };
+    }
+
 
     const revenues = await Revenue.find(filter)
       .populate("category", "name id")
