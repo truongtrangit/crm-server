@@ -53,6 +53,8 @@ class SalaryService {
 
       // Lấy lương cơ bản từ cấu hình (salaryConfigs) có effectiveDate gần nhất <= endOfMonth
       let basicSalary = 0;
+      let bhxh = 0;
+      let pit = 0;
       if (staff.salaryConfigs && staff.salaryConfigs.length > 0) {
         // Sắp xếp giảm dần theo ngày
         const sortedConfigs = [...staff.salaryConfigs].sort((a, b) => {
@@ -70,10 +72,14 @@ class SalaryService {
 
         if (activeConfig) {
           basicSalary = activeConfig.basicSalary || 0;
+          bhxh = activeConfig.bhxh || 0;
+          pit = activeConfig.pit || 0;
         } else {
           // Nếu không có cấu hình nào thỏa mãn, lấy cấu hình cũ nhất
           basicSalary =
             sortedConfigs[sortedConfigs.length - 1].basicSalary || 0;
+          bhxh = sortedConfigs[sortedConfigs.length - 1].bhxh || 0;
+          pit = sortedConfigs[sortedConfigs.length - 1].pit || 0;
         }
       }
 
@@ -83,7 +89,7 @@ class SalaryService {
         // Nếu đã có nhưng đang pending và lương cơ bản thay đổi -> Cập nhật lại
         if (
           existingRecord.status === "pending" &&
-          existingRecord.basicSalary !== basicSalary
+          (existingRecord.basicSalary !== basicSalary || existingRecord.bhxh !== bhxh || existingRecord.pit !== pit)
         ) {
           const newTotal =
             basicSalary +
@@ -92,7 +98,7 @@ class SalaryService {
             (existingRecord.penalty || 0) +
             (existingRecord.ot || 0);
           const newFinalReceivedAmount =
-            newTotal - (existingRecord.deduction || 0);
+            newTotal - (existingRecord.deduction || 0) - bhxh - pit;
 
           bulkOps.push({
             updateOne: {
@@ -100,6 +106,8 @@ class SalaryService {
               update: {
                 $set: {
                   basicSalary,
+                  bhxh,
+                  pit,
                   total: newTotal,
                   finalReceivedAmount: newFinalReceivedAmount,
                 },
@@ -113,6 +121,7 @@ class SalaryService {
 
       // Tính tổng thực nhận mặc định
       const total = basicSalary;
+      const finalReceivedAmount = total - bhxh - pit;
 
       // Tạo record
       bulkOps.push({
@@ -125,9 +134,11 @@ class SalaryService {
             allowance: 0,
             penalty: 0,
             deduction: 0,
+            bhxh,
+            pit,
             ot: 0,
             total,
-            finalReceivedAmount: total,
+            finalReceivedAmount,
             status: "pending",
           },
         },
@@ -225,9 +236,17 @@ class SalaryService {
         update.deduction !== undefined
           ? update.deduction
           : record.deduction || 0;
+      const bhxh =
+        update.bhxh !== undefined
+          ? update.bhxh
+          : record.bhxh || 0;
+      const pit =
+        update.pit !== undefined
+          ? update.pit
+          : record.pit || 0;
 
       const total = basicSalary + allowance + bonus - penalty + ot;
-      const finalReceivedAmount = total - deduction;
+      const finalReceivedAmount = total - deduction - bhxh - pit;
 
       record.basicSalary = basicSalary;
       record.allowance = allowance;
@@ -235,6 +254,8 @@ class SalaryService {
       record.ot = ot;
       record.penalty = penalty;
       record.deduction = deduction;
+      record.bhxh = bhxh;
+      record.pit = pit;
       record.total = total;
       record.finalReceivedAmount = finalReceivedAmount;
 
@@ -259,6 +280,8 @@ class SalaryService {
               ot,
               penalty,
               deduction,
+              bhxh,
+              pit,
               total,
               finalReceivedAmount,
             },

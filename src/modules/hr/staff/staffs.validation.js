@@ -25,6 +25,8 @@ const salaryConfigSchema = Joi.object({
   companyInsuranceAmount: Joi.number().allow(null, ""),
   isStaffPayInsurance: Joi.boolean().optional(),
   staffInsuranceAmount: Joi.number().allow(null, ""),
+  bhxh: Joi.number().allow(null, "").empty("").default(0),
+  pit: Joi.number().allow(null, "").empty("").default(0),
   note: Joi.string().allow(null, ""),
 }).custom((value, helpers) => {
   const companyAmount = value.isCompanyPayInsurance ? (value.companyInsuranceAmount || 0) : 0;
