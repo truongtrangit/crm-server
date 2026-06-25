@@ -148,6 +148,21 @@ class CourseChallengeController {
     const submission = await CourseChallengeService.submitDayAssignment(id, dayId, req.body, studentId);
     return sendSuccess(res, 201, "Nộp bài thành công", submission);
   }
+
+  async getPublicCourses(req, res) {
+    const studentId = req.user?.id || null;
+    const data = await CourseChallengeService.getPublicCourses(req.query, studentId);
+    return sendSuccess(res, 200, "Lấy danh sách khóa học thành công", data);
+  }
+
+  async getPublicCourseBySlug(req, res) {
+    const { slug } = req.params;
+    const studentId = req.user?.id || null;
+    const course = await CourseChallengeService.getPublicCourseBySlug(slug, studentId);
+    return sendSuccess(res, 200, "Lấy chi tiết khóa học thành công", course);
+  }
+
+
 }
 
 module.exports = new CourseChallengeController();

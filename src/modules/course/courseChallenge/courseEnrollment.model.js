@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { COURSE_ENROLLMENT_STATUS, COURSE_TYPES, PAYMENT_METHODS } = require("../../../core/constants/appData");
 
 const progressSchema = new mongoose.Schema(
   {
@@ -11,7 +12,7 @@ const progressSchema = new mongoose.Schema(
   { _id: false },
 );
 
-const challengeEnrollmentSchema = new mongoose.Schema(
+const courseEnrollmentSchema = new mongoose.Schema(
   {
     id: {
       type: String,
@@ -25,6 +26,29 @@ const challengeEnrollmentSchema = new mongoose.Schema(
     studentId: {
       type: String,
       required: true,
+    },
+    courseType: {
+      type: String,
+      enum: Object.values(COURSE_TYPES),
+      default: COURSE_TYPES.CHALLENGE,
+    },
+    packageId: {
+      type: String,
+      required: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: Object.values(PAYMENT_METHODS),
+      default: PAYMENT_METHODS.CREDIT,
+    },
+    amountPaid: {
+      type: Number,
+      default: 0,
+    },
+    status: {
+      type: String,
+      enum: Object.values(COURSE_ENROLLMENT_STATUS || { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' }),
+      default: 'ACTIVE',
     },
     enrolledAt: {
       type: Date,
@@ -43,6 +67,6 @@ const challengeEnrollmentSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model(
-  "ChallengeEnrollment",
-  challengeEnrollmentSchema,
+  "CourseEnrollment",
+  courseEnrollmentSchema,
 );

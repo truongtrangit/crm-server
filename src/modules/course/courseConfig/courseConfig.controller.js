@@ -123,6 +123,33 @@ class CourseConfigController {
     });
     return sendSuccess(res, 200, "Xóa hashtag thành công");
   }
+
+  // ==========================================
+  // UTILITIES
+  // ==========================================
+
+  async getYoutubeDuration(req, res) {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ success: false, message: "URL is required" });
+    }
+    try {
+      if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+        return sendSuccess(res, 200, "Not a youtube URL", { duration: 0 });
+      }
+      const response = await fetch(url);
+      const html = await response.text();
+      const match = html.match(/"lengthSeconds":"(\d+)"/);
+      let durationMinutes = 0;
+      if (match && match[1]) {
+        durationMinutes = Math.ceil(parseInt(match[1], 10) / 60);
+      }
+      return sendSuccess(res, 200, "Get youtube duration success", { duration: durationMinutes });
+    } catch (error) {
+      console.error("Error fetching youtube duration:", error);
+      return sendSuccess(res, 200, "Failed to get duration", { duration: 0 });
+    }
+  }
 }
 
 module.exports = new CourseConfigController();

@@ -1,7 +1,12 @@
 const Customer = require("../customer/customer.model");
 const BotvnUserSession = require("./botvnUserSession.model");
-const { verifyPassword, createSessionTokens } = require("../../../core/utils/auth");
-
+const {
+  verifyPassword,
+  createSessionTokens,
+  hashPassword,
+} = require("../../../core/utils/auth");
+const { generateMonotonicId, ID_PREFIXES } = require("../../../core/utils/id");
+const { CUSTOMER_MAIN_TYPES } = require("../../../core/constants/appData");
 class BotvnAuthService {
   _normalizeEmail(value) {
     return typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -15,7 +20,8 @@ class BotvnAuthService {
    */
   async login(payload, req) {
     const email = this._normalizeEmail(payload?.email);
-    const password = typeof payload?.password === "string" ? payload.password : "";
+    const password =
+      typeof payload?.password === "string" ? payload.password : "";
 
     if (!email || !password) {
       const error = new Error("email and password are required");
@@ -27,7 +33,11 @@ class BotvnAuthService {
     // INTERNAL LOGIC NOTE: Find customer with select('+botvnPassword') because it's hidden by default
     const customer = await Customer.findOne({ email }).select("+botvnPassword");
 
-    if (!customer || !customer.botvnPassword || !(await verifyPassword(password, customer.botvnPassword))) {
+    if (
+      !customer ||
+      !customer.botvnPassword ||
+      !(await verifyPassword(password, customer.botvnPassword))
+    ) {
       const error = new Error("Invalid email or password");
       error.status = 401;
       error.code = "INVALID_CREDENTIALS";
@@ -36,7 +46,9 @@ class BotvnAuthService {
     }
 
     if (customer.isActive === false) {
-      const error = new Error("Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
+      const error = new Error(
+        "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
+      );
       error.status = 403;
       error.code = "ACCOUNT_INACTIVE";
       error.context = { email, customerId: customer.id };
@@ -46,15 +58,23 @@ class BotvnAuthService {
     // EXTERNAL LOGIC: Create a new session token tailored for the botvn user
     // We reuse the existing token generation algorithm but store it externally in BotvnUserSession
     const tokens = createSessionTokens(req);
-    
+
     // Override the default CRM token TTL for botvn users to keep them separate
     const now = Date.now();
-    const botvnAccessTtlMs = (Number(process.env.BOTVN_ACCESS_TOKEN_TTL_MINUTES) || 60 * 24 * 30) * 60 * 1000; // default 30 days
-    const botvnRefreshTtlMs = (Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 90) * 24 * 60 * 60 * 1000; // default 90 days
+    const botvnAccessTtlMs =
+      (Number(process.env.BOTVN_ACCESS_TOKEN_TTL_MINUTES) || 60 * 24 * 30) *
+      60 *
+      1000; // default 30 days
+    const botvnRefreshTtlMs =
+      (Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 90) *
+      24 *
+      60 *
+      60 *
+      1000; // default 90 days
 
     tokens.session.accessTokenExpiresAt = new Date(now + botvnAccessTtlMs);
     tokens.session.refreshTokenExpiresAt = new Date(now + botvnRefreshTtlMs);
-    
+
     // Ensure only 1 active session by deleting any existing sessions for this customer
     await BotvnUserSession.deleteMany({ customerId: customer._id });
 
@@ -84,6 +104,46 @@ class BotvnAuthService {
     if (sessionId) {
       await BotvnUserSession.deleteOne({ sessionId });
     }
+  }
+
+  /**
+   * EXTERNAL LOGIC: Handle registration specifically for Botvn users.
+   */
+  async register(payload, req) {
+    const email = this._normalizeEmail(payload?.email);
+    const password = payload?.password || "";
+    const name = typeof payload?.name === "string" ? payload.name.trim() : "";
+
+    const existingCustomer = await Customer.findOne({
+      email,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (existingCustomer) {
+      const error = new Error("Email này đã được đăng ký.");
+      error.status = 409;
+      error.code = "EMAIL_EXISTS";
+      throw error;
+    }
+
+    const id = await generateMonotonicId(ID_PREFIXES.CUSTOMER);
+    const hashedBotvnPassword = await hashPassword(password);
+
+    const newCustomer = new Customer({
+      id,
+      name,
+      email,
+      botvnPassword: hashedBotvnPassword,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+      type: "Bot.vn user",
+      platforms: ["Botvn"],
+      isActive: false, // Default is inactive
+      registeredAt: new Date().toISOString(),
+    });
+
+    await newCustomer.save();
+
+    return newCustomer;
   }
 }
 
