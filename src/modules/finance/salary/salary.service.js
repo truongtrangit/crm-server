@@ -94,11 +94,10 @@ class SalaryService {
           const newTotal =
             basicSalary +
             (existingRecord.allowance || 0) +
-            (existingRecord.bonus || 0) -
-            (existingRecord.penalty || 0) +
+            (existingRecord.bonus || 0) +
             (existingRecord.ot || 0);
           const newFinalReceivedAmount =
-            newTotal - (existingRecord.deduction || 0) - bhxh - pit;
+            newTotal - (existingRecord.penalty || 0) - (existingRecord.deduction || 0) - bhxh - pit;
 
           bulkOps.push({
             updateOne: {
@@ -245,8 +244,8 @@ class SalaryService {
           ? update.pit
           : record.pit || 0;
 
-      const total = basicSalary + allowance + bonus - penalty + ot;
-      const finalReceivedAmount = total - deduction - bhxh - pit;
+      const total = basicSalary + allowance + bonus + ot;
+      const finalReceivedAmount = total - penalty - deduction - bhxh - pit;
 
       record.basicSalary = basicSalary;
       record.allowance = allowance;
