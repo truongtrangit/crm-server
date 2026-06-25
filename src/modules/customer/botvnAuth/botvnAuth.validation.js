@@ -22,11 +22,14 @@ const registerSchema = Joi.object({
     "string.email": "Email must be a valid email",
     "any.required": "Email is required",
   }),
-  password: Joi.string().min(8).required().messages({
-    "string.empty": "Password is required",
-    "string.min": "Password must be at least 8 characters",
-    "any.required": "Password is required",
-  }),
+  password: Joi.string()
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+    .required()
+    .messages({
+      "string.empty": "Password is required",
+      "string.pattern.base": "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt",
+      "any.required": "Password is required",
+    }),
 });
 
 module.exports = {
