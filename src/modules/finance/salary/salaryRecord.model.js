@@ -32,6 +32,14 @@ const salaryRecordSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    bhxh: {
+      type: Number,
+      default: 0,
+    },
+    pit: {
+      type: Number,
+      default: 0,
+    },
     ot: {
       type: Number,
       default: 0,
