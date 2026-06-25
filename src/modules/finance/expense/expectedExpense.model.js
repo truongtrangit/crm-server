@@ -1,10 +1,19 @@
 const mongoose = require("mongoose");
 
+const CompanyProportionSchema = new mongoose.Schema(
+  {
+    company: { type: String, required: true },
+    percentage: { type: Number, required: true, min: 0, max: 100 },
+  },
+  { _id: false }
+);
+
 const expectedExpenseSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true }, // e.g., EPE1
     name: { type: String, required: true, trim: true },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "ExpenseCategory", required: true },
+    companyProportions: [CompanyProportionSchema],
     type: { type: String, enum: ["monthly", "yearly"], required: true },
     amount: { type: Number, required: true, min: 0 },
     allocatedMonths: {
