@@ -8,8 +8,10 @@ class SalaryService {
    * Sinh bảng lương cho một tháng cụ thể
    * @param {string} month - Định dạng MM/YYYY
    */
-  async generateSalaryForMonth(month) {
-    console.log(`Starting salary generation for month: ${month}`);
+  async generateSalaryForMonth(month, forceOverride = false) {
+    console.log(
+      `Starting salary generation for month: ${month}, forceOverride: ${forceOverride}`,
+    );
 
     // Parse month to get the end of the month date for probation/resigned checks
     const [m, y] = month.split('/');
@@ -87,16 +89,38 @@ class SalaryService {
       // Kiểm tra xem đã có record cho tháng này chưa
       const existingRecord = existingRecordMap.get(staff._id.toString());
       if (existingRecord) {
-        // Nếu đã có nhưng đang pending và lương cơ bản thay đổi -> Cập nhật lại
-        if (
-          existingRecord.status === 'pending' &&
-          (existingRecord.basicSalary !== basicSalary ||
-            existingRecord.bhxh !== bhxh ||
-            existingRecord.pit !== pit)
-        ) {
+        const originalOverridesLength =
+          existingRecord.manualOverrides?.length || 0;
+
+        if (forceOverride) {
+          existingRecord.manualOverrides = [];
+        }
+
+        // Kiểm tra xem trường đó có bị sửa tay không
+        const isBasicSalaryOverridden =
+          existingRecord.manualOverrides?.includes('basicSalary');
+        const isBhxhOverridden =
+          existingRecord.manualOverrides?.includes('bhxh');
+        const isPitOverridden = existingRecord.manualOverrides?.includes('pit');
+
+        // Xác định giá trị cuối cùng sẽ update
+        const finalBasicSalary = isBasicSalaryOverridden
+          ? existingRecord.basicSalary
+          : basicSalary;
+        const finalBhxh = isBhxhOverridden ? existingRecord.bhxh : bhxh;
+        const finalPit = isPitOverridden ? existingRecord.pit : pit;
+
+        // Nếu đã có nhưng đang pending và các trường config-driven thay đổi -> Cập nhật lại
+        const needsUpdate =
+          existingRecord.basicSalary !== finalBasicSalary ||
+          existingRecord.bhxh !== finalBhxh ||
+          existingRecord.pit !== finalPit ||
+          (forceOverride && originalOverridesLength > 0);
+
+        if (existingRecord.status === 'pending' && needsUpdate) {
           const actualWDS = existingRecord.actualWorkingDaySalary;
           const hasActualWDS = actualWDS !== undefined && actualWDS !== null;
-          const baseForTotal = hasActualWDS ? actualWDS : basicSalary;
+          const baseForTotal = hasActualWDS ? actualWDS : finalBasicSalary;
 
           const newTotal =
             baseForTotal +
@@ -107,19 +131,20 @@ class SalaryService {
             newTotal -
             (existingRecord.penalty || 0) -
             (existingRecord.deduction || 0) -
-            (bhxh || existingRecord.bhxh || 0) -
-            (pit || existingRecord.pit || 0);
+            finalBhxh -
+            finalPit;
 
           bulkOps.push({
             updateOne: {
               filter: { _id: existingRecord._id },
               update: {
                 $set: {
-                  basicSalary,
-                  bhxh: bhxh || existingRecord.bhxh || 0,
-                  pit: pit || existingRecord.pit || 0,
+                  basicSalary: finalBasicSalary,
+                  bhxh: finalBhxh,
+                  pit: finalPit,
                   total: newTotal,
                   finalReceivedAmount: newFinalReceivedAmount,
+                  ...(forceOverride ? { manualOverrides: [] } : {}),
                 },
               },
             },
@@ -266,6 +291,21 @@ class SalaryService {
       const total = baseForTotal + allowance + bonus + ot;
       const finalReceivedAmount = total - penalty - deduction - bhxh - pit;
 
+      const manualOverridesSet = new Set(record.manualOverrides || []);
+      if (
+        update.basicSalary !== undefined &&
+        update.basicSalary !== record.basicSalary
+      ) {
+        manualOverridesSet.add('basicSalary');
+      }
+      if (update.bhxh !== undefined && update.bhxh !== record.bhxh) {
+        manualOverridesSet.add('bhxh');
+      }
+      if (update.pit !== undefined && update.pit !== record.pit) {
+        manualOverridesSet.add('pit');
+      }
+      const manualOverrides = Array.from(manualOverridesSet);
+
       record.basicSalary = basicSalary;
       record.actualWorkingDaySalary = actualWorkingDaySalary;
       record.allowance = allowance;
@@ -277,6 +317,7 @@ class SalaryService {
       record.pit = pit;
       record.total = total;
       record.finalReceivedAmount = finalReceivedAmount;
+      record.manualOverrides = manualOverrides;
 
       const newState = record.toObject();
       const changes = computeChanges(oldState, newState);
@@ -304,6 +345,7 @@ class SalaryService {
               pit,
               total,
               finalReceivedAmount,
+              manualOverrides,
             },
           },
         },
