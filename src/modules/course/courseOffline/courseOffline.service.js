@@ -70,6 +70,12 @@ const getCourses = async (queryParams, studentId = null) => {
     CourseOffline.countDocuments(filter)
   ]);
 
+  if (courses.length > 0) {
+    courses.forEach(course => {
+      course.isEnrolled = false;
+    });
+  }
+
   if (studentId && courses.length > 0) {
     const courseIds = courses.map(c => c.id);
     const enrollments = await CourseEnrollment.find({
@@ -142,6 +148,8 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null, studentI
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
+
+  course.isEnrolled = false;
 
   if (studentId) {
     const enrollment = await CourseEnrollment.findOne({

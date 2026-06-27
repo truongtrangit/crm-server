@@ -1,15 +1,17 @@
-const mongoose = require("mongoose");
-const createHttpError = require("http-errors");
-const CourseEnrollment = require("../course/courseChallenge/courseEnrollment.model");
-const CourseChallenge = require("../course/courseChallenge/courseChallenge.model");
-const CourseOnline = require("../course/courseOnline/courseOnline.model");
-const Customer = require("../customer/customer/customer.model");
-const SystemLogService = require("../system/log/systemLog.service");
-const { ID_PREFIXES, generateMonotonicId } = require("../../core/utils/id");
+const mongoose = require('mongoose');
+const createHttpError = require('http-errors');
+const CourseEnrollment = require('../course/courseChallenge/courseEnrollment.model');
+const CourseChallenge = require('../course/courseChallenge/courseChallenge.model');
+const CourseOnline = require('../course/courseOnline/courseOnline.model');
+const CourseOffline = require('../course/courseOffline/courseOffline.model');
+const Customer = require('../customer/customer/customer.model');
+const SystemLogService = require('../system/log/systemLog.service');
+const { ID_PREFIXES, generateMonotonicId } = require('../../core/utils/id');
 const {
   COURSE_TYPES,
   PAYMENT_METHODS,
-} = require("../../core/constants/appData");
+  COURSE_ENROLLMENT_STATUS
+} = require('../../core/constants/appData');
 
 class CheckoutService {
   /**
@@ -19,7 +21,7 @@ class CheckoutService {
    */
   async processCheckout(studentId, items) {
     if (!items || items.length === 0) {
-      throw createHttpError(400, "Giỏ hàng trống");
+      throw createHttpError(400, 'Giỏ hàng trống');
     }
 
     const session = await mongoose.startSession();
@@ -31,13 +33,13 @@ class CheckoutService {
         session,
       );
       if (!customer) {
-        throw createHttpError(404, "Không tìm thấy thông tin khách hàng");
+        throw createHttpError(404, 'Không tìm thấy thông tin khách hàng');
       }
 
       if (!customer.isActive) {
         throw createHttpError(
           400,
-          "Tài khoản đã bị khóa. Vui lòng liên hệ Admin",
+          'Tài khoản đã bị khóa. Vui lòng liên hệ Admin',
         );
       }
 
@@ -47,33 +49,33 @@ class CheckoutService {
 
       // Validate each item
       for (const item of items) {
-        const { courseId, courseType, packageId, paymentMethod } = item;
-
-        // Ensure user is not already enrolled
-        const existingEnrollment = await CourseEnrollment.findOne({
-          courseId,
-          studentId,
-        }).session(session);
-        if (existingEnrollment) {
-          throw createHttpError(400, `Bạn đã đăng ký khóa học ${courseId} rồi`);
-        }
+        let { courseId, courseType, packageId, paymentMethod } = item;
 
         let course;
+        const orQuery = [{ id: courseId }];
+        if (mongoose.Types.ObjectId.isValid(courseId)) {
+          orQuery.push({ _id: courseId });
+        }
+
         switch (courseType) {
           case COURSE_TYPES.CHALLENGE:
             course = await CourseChallenge.findOne({
-              id: courseId,
+              $or: orQuery,
               isTemplate: false,
               isDeleted: { $ne: true },
             }).session(session);
             break;
           case COURSE_TYPES.ONLINE:
             course = await CourseOnline.findOne({
-              id: courseId,
+              $or: orQuery,
               isDeleted: { $ne: true },
             }).session(session);
             break;
           case COURSE_TYPES.OFFLINE:
+            course = await CourseOffline.findOne({
+              $or: orQuery,
+              isDeleted: { $ne: true },
+            }).session(session);
             break;
           default:
             throw createHttpError(
@@ -82,11 +84,38 @@ class CheckoutService {
             );
         }
 
-        if (!course || course.status !== "published") {
+        if (!course || course.status !== 'published') {
           throw createHttpError(
             404,
             `Khóa học ${courseId} không tồn tại hoặc chưa mở bán`,
           );
+        }
+
+        // Reassign courseId to the canonical string ID from the document
+        courseId = course.id;
+
+        // Block if offline course is full
+        if (courseType === COURSE_TYPES.OFFLINE && course.maxStudents > 0) {
+          const registeredStudents = await CourseEnrollment.countDocuments({
+            courseId: course.id,
+            status: COURSE_ENROLLMENT_STATUS.ACTIVE
+          }).session(session);
+
+          if (registeredStudents >= course.maxStudents) {
+            throw createHttpError(
+              400,
+              `Khóa học ${course.id} đã đủ số lượng học viên tối đa`
+            );
+          }
+        }
+
+        // Ensure user is not already enrolled
+        const existingEnrollment = await CourseEnrollment.findOne({
+          courseId,
+          studentId,
+        }).session(session);
+        if (existingEnrollment) {
+          throw createHttpError(400, `Bạn đã đăng ký khóa học ${courseId} rồi`);
         }
 
         // Find package
@@ -136,7 +165,7 @@ class CheckoutService {
           packageId,
           paymentMethod,
           amountPaid: price,
-          status: "ACTIVE",
+          status: COURSE_ENROLLMENT_STATUS.ACTIVE,
           enrolledAt: new Date(),
           progress: [],
         });
@@ -174,10 +203,10 @@ class CheckoutService {
 
       // Log transaction
       await SystemLogService.log(
-        "create",
-        "Checkout",
+        'create',
+        'Checkout',
         studentId, // Or generate a generic transaction ID
-        "checkout",
+        'checkout',
         {
           items,
           totalCreditRequired,
@@ -192,7 +221,7 @@ class CheckoutService {
       session.endSession();
 
       return {
-        message: "Thanh toán và đăng ký thành công",
+        message: 'Thanh toán và đăng ký thành công',
         enrollments: enrollmentsToCreate,
         remainingCredit: customer.credit,
         remainingRewardCredit: customer.rewardCredit,
