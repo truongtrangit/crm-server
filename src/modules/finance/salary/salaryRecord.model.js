@@ -24,6 +24,10 @@ const salaryRecordSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    actualWorkingDaySalary: {
+      type: Number,
+      default: null,
+    },
     penalty: {
       type: Number,
       default: 0,
@@ -72,7 +76,7 @@ const salaryRecordSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Ensure a staff member can only have one salary record per month

@@ -1,6 +1,7 @@
 const SalaryRecord = require('./salaryRecord.model');
 const Staff = require('../../hr/staff/staff.model');
 const { computeChanges } = require('../../../core/utils/diff');
+const { STAFF_STATUS } = require('../../../core/constants/finance');
 
 class SalaryService {
   /**
@@ -11,7 +12,7 @@ class SalaryService {
     console.log(`Starting salary generation for month: ${month}`);
 
     // Parse month to get the end of the month date for probation/resigned checks
-    const [m, y] = month.split("/");
+    const [m, y] = month.split('/');
     const monthYearStr = `${y}-${m}-01`;
     const startOfMonth = new Date(monthYearStr);
     const endOfMonth = new Date(
@@ -36,7 +37,7 @@ class SalaryService {
 
     for (const staff of staffs) {
       // Bỏ qua nhân sự nghỉ việc TRƯỚC tháng sinh lương
-      if (staff.status === "Đã nghỉ việc" && staff.resignationDate) {
+      if (staff.status === STAFF_STATUS.RESIGNED && staff.resignationDate) {
         const resignDate = new Date(staff.resignationDate);
         if (resignDate < startOfMonth) {
           continue; // Đã nghỉ việc trước tháng này, không tính lương
@@ -88,16 +89,26 @@ class SalaryService {
       if (existingRecord) {
         // Nếu đã có nhưng đang pending và lương cơ bản thay đổi -> Cập nhật lại
         if (
-          existingRecord.status === "pending" &&
-          (existingRecord.basicSalary !== basicSalary || existingRecord.bhxh !== bhxh || existingRecord.pit !== pit)
+          existingRecord.status === 'pending' &&
+          (existingRecord.basicSalary !== basicSalary ||
+            existingRecord.bhxh !== bhxh ||
+            existingRecord.pit !== pit)
         ) {
+          const actualWDS = existingRecord.actualWorkingDaySalary;
+          const hasActualWDS = actualWDS !== undefined && actualWDS !== null;
+          const baseForTotal = hasActualWDS ? actualWDS : basicSalary;
+
           const newTotal =
-            basicSalary +
+            baseForTotal +
             (existingRecord.allowance || 0) +
             (existingRecord.bonus || 0) +
             (existingRecord.ot || 0);
           const newFinalReceivedAmount =
-            newTotal - (existingRecord.penalty || 0) - (existingRecord.deduction || 0) - bhxh - pit;
+            newTotal -
+            (existingRecord.penalty || 0) -
+            (existingRecord.deduction || 0) -
+            (bhxh || existingRecord.bhxh || 0) -
+            (pit || existingRecord.pit || 0);
 
           bulkOps.push({
             updateOne: {
@@ -105,8 +116,8 @@ class SalaryService {
               update: {
                 $set: {
                   basicSalary,
-                  bhxh,
-                  pit,
+                  bhxh: bhxh || existingRecord.bhxh || 0,
+                  pit: pit || existingRecord.pit || 0,
                   total: newTotal,
                   finalReceivedAmount: newFinalReceivedAmount,
                 },
@@ -129,6 +140,7 @@ class SalaryService {
             staffId: staff._id,
             month,
             basicSalary,
+            actualWorkingDaySalary: null,
             bonus: 0,
             allowance: 0,
             penalty: 0,
@@ -138,7 +150,7 @@ class SalaryService {
             ot: 0,
             total,
             finalReceivedAmount,
-            status: "pending",
+            status: 'pending',
           },
         },
       });
@@ -158,36 +170,40 @@ class SalaryService {
   /**
    * Lấy danh sách lương tháng
    */
-  async getSalaries(month, search = "", departmentId = "", companyId = "") {
+  async getSalaries(month, search = '', departmentId = '', companyId = '') {
     const query = { month };
 
     // Populate staff to get name, avatar, departments
     const records = await SalaryRecord.find(query)
       .populate({
-        path: "staffId",
+        path: 'staffId',
         populate: {
-          path: "functionalGroupId",
-          model: "FunctionalGroup",
+          path: 'functionalGroupId',
+          model: 'FunctionalGroup',
         },
       })
-      .populate("paidBy", "name email avatar")
-      .sort({ "staffId.name": 1 })
+      .populate('paidBy', 'name email avatar')
+      .sort({ 'staffId.name': 1 })
       .lean();
 
     if (search || departmentId || companyId) {
-      const lowerSearch = search ? search.toLowerCase() : "";
+      const lowerSearch = search ? search.toLowerCase() : '';
       return records.filter((r) => {
         const staff = r.staffId;
         if (!staff) return false;
 
         let matchSearch = true;
         if (search) {
-          matchSearch = staff.name && staff.name.toLowerCase().includes(lowerSearch);
+          matchSearch =
+            staff.name && staff.name.toLowerCase().includes(lowerSearch);
         }
 
         let matchDept = true;
         if (departmentId) {
-          matchDept = staff.functionalGroupId && (staff.functionalGroupId.id === departmentId || staff.functionalGroupId._id?.toString() === departmentId);
+          matchDept =
+            staff.functionalGroupId &&
+            (staff.functionalGroupId.id === departmentId ||
+              staff.functionalGroupId._id?.toString() === departmentId);
         }
 
         let matchCompany = true;
@@ -235,19 +251,23 @@ class SalaryService {
         update.deduction !== undefined
           ? update.deduction
           : record.deduction || 0;
-      const bhxh =
-        update.bhxh !== undefined
-          ? update.bhxh
-          : record.bhxh || 0;
-      const pit =
-        update.pit !== undefined
-          ? update.pit
-          : record.pit || 0;
+      const bhxh = update.bhxh !== undefined ? update.bhxh : record.bhxh || 0;
+      const pit = update.pit !== undefined ? update.pit : record.pit || 0;
 
-      const total = basicSalary + allowance + bonus + ot;
+      const actualWorkingDaySalary =
+        update.actualWorkingDaySalary !== undefined
+          ? update.actualWorkingDaySalary
+          : record.actualWorkingDaySalary;
+
+      const hasActualWDS =
+        actualWorkingDaySalary !== undefined && actualWorkingDaySalary !== null;
+      const baseForTotal = hasActualWDS ? actualWorkingDaySalary : basicSalary;
+
+      const total = baseForTotal + allowance + bonus + ot;
       const finalReceivedAmount = total - penalty - deduction - bhxh - pit;
 
       record.basicSalary = basicSalary;
+      record.actualWorkingDaySalary = actualWorkingDaySalary;
       record.allowance = allowance;
       record.bonus = bonus;
       record.ot = ot;
@@ -274,6 +294,7 @@ class SalaryService {
           update: {
             $set: {
               basicSalary,
+              actualWorkingDaySalary,
               allowance,
               bonus,
               ot,
@@ -302,14 +323,14 @@ class SalaryService {
   async paySalary(id, paymentMethod, userId) {
     const record = await SalaryRecord.findById(id);
     if (!record) {
-      throw new Error("Salary record not found");
+      throw new Error('Salary record not found');
     }
 
-    if (record.status === "paid") {
-      throw new Error("Salary already paid");
+    if (record.status === 'paid') {
+      throw new Error('Salary already paid');
     }
 
-    record.status = "paid";
+    record.status = 'paid';
     record.paymentMethod = paymentMethod;
     record.paidAt = new Date();
     record.paidBy = userId;
@@ -322,9 +343,9 @@ class SalaryService {
    * Lấy lịch sử nhận lương của 1 nhân sự
    */
   async getStaffSalaryHistory(staffId) {
-    return await SalaryRecord.find({ staffId, status: "paid" })
+    return await SalaryRecord.find({ staffId, status: 'paid' })
       .sort({ month: -1 })
-      .populate("paidBy", "name email avatar")
+      .populate('paidBy', 'name email avatar')
       .lean();
   }
 }
