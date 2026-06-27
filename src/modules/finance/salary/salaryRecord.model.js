@@ -73,6 +73,10 @@ const salaryRecordSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    manualOverrides: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,

@@ -5,14 +5,14 @@ const { RESOURCES } = require('../../../core/constants/rbac');
 
 class SalaryController {
   async generateSalary(req, res) {
-    const { month } = req.body;
+    const { month, forceOverride } = req.body;
     if (!month) {
       return res
         .status(400)
         .json({ status: "error", message: "Month is required (MM/YYYY)" });
     }
 
-    const count = await SalaryService.generateSalaryForMonth(month);
+    const count = await SalaryService.generateSalaryForMonth(month, forceOverride);
     SystemLogService.log({
       action: "create",
       resource: RESOURCES.SALARIES,
