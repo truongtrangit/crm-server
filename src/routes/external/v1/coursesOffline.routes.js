@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const courseOfflineController = require('../../../modules/course/courseOffline/courseOffline.controller');
+const CourseConfigController = require('../../../modules/course/courseConfig/courseConfig.controller');
 const {
   optionalBotvnAuthenticateRequest,
 } = require("../../../core/middleware/externalAuth");
@@ -12,6 +13,11 @@ router.get(
   '/',
   optionalBotvnAuthenticateRequest,
   courseOfflineController.getExternalCourses.bind(courseOfflineController)
+);
+
+router.get(
+  '/hashtags',
+  CourseConfigController.getHashtags
 );
 
 router.get(
