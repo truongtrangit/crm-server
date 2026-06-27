@@ -50,7 +50,7 @@ const StaffSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: Object.values(STAFF_STATUS),
-      default: STAFF_STATUS.ACTIVE,
+      default: STAFF_STATUS.WORKING,
     },
     onboardDate: { type: Date },
     probationEndDate: { type: Date },
