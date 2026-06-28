@@ -1,4 +1,5 @@
 const Staff = require('./staff.model');
+const { STAFF_STATUS } = require('../../../core/constants/finance');
 const {
   resolvePagination,
   buildPaginatedResponse,
@@ -78,7 +79,7 @@ class StaffService {
     }
 
     // Nếu chuyển trạng thái từ Đã nghỉ việc -> Đang làm việc thì xóa ngày nghỉ việc
-    if (data.status === "Đang làm việc" && staff.status === "Đã nghỉ việc") {
+    if (data.status === STAFF_STATUS.WORKING && staff.status === STAFF_STATUS.RESIGNED) {
       staff.resignationDate = undefined;
     }
 

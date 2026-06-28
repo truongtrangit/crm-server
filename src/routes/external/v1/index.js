@@ -21,12 +21,15 @@ externalV1Router.use("/config", require("./config.routes"));
 externalV1Router.use(checkBotvnMaintenance);
 
 externalV1Router.use("/auth", require("./auth.routes"));
+
 externalV1Router.use("/online", checkBotvnMenu("online"), onlineCoursesRouter);
+externalV1Router.use("/offline", checkBotvnMenu("offline"), require("./coursesOffline.routes"));
 externalV1Router.use(
   "/challenges",
   checkBotvnMenu("challenge"),
   challengesRouter,
 );
+
 externalV1Router.use("/credits", require("./credits.routes"));
 externalV1Router.use("/checkout", require("./checkout.routes"));
 externalV1Router.use("/enrollments", require("./enrollment.routes"));
