@@ -66,12 +66,60 @@ class CourseEnrollmentService {
         }
       },
       {
+        $lookup: {
+          from: 'courseofflines',
+          localField: 'courseId',
+          foreignField: 'id',
+          as: 'offlineCourse'
+        }
+      },
+      {
         $addFields: {
           courseDetails: {
-            $cond: {
-              if: { $eq: ["$courseType", "ONLINE"] },
-              then: { $arrayElemAt: ["$onlineCourse", 0] },
-              else: { $arrayElemAt: ["$challengeCourse", 0] }
+            $switch: {
+              branches: [
+                { case: { $in: ["$courseType", ["CourseOnline", "ONLINE"]] }, then: { $arrayElemAt: ["$onlineCourse", 0] } },
+                { case: { $in: ["$courseType", ["CourseOffline", "OFFLINE"]] }, then: { $arrayElemAt: ["$offlineCourse", 0] } },
+                { case: { $in: ["$courseType", ["CourseChallenge", "CHALLENGE"]] }, then: { $arrayElemAt: ["$challengeCourse", 0] } }
+              ],
+              default: { $arrayElemAt: ["$challengeCourse", 0] }
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'courselecturers',
+          localField: 'courseDetails.lecturers.lecturerId',
+          foreignField: 'id',
+          as: 'populatedLecturers'
+        }
+      },
+      {
+        $addFields: {
+          "courseDetails.lecturers": {
+            $map: {
+              input: { $ifNull: ["$courseDetails.lecturers", []] },
+              as: "lect",
+              in: {
+                $mergeObjects: [
+                  "$$lect",
+                  {
+                    details: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$populatedLecturers",
+                            as: "pl",
+                            cond: { $eq: ["$$pl.id", "$$lect.lecturerId"] }
+                          }
+                        },
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
             }
           }
         }
@@ -79,7 +127,9 @@ class CourseEnrollmentService {
       {
         $project: {
           onlineCourse: 0,
-          challengeCourse: 0
+          challengeCourse: 0,
+          offlineCourse: 0,
+          populatedLecturers: 0
         }
       }
     ]);
