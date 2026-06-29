@@ -3,6 +3,7 @@ const CourseHashtag = require('./courseHashtag.model');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const createHttpError = require("http-errors");
 const { computeChanges } = require('../../../core/utils/diff');
+const BotvnConfig = require('./botvnConfig.model');
 
 class CourseConfigService {
   // ==========================================
@@ -179,6 +180,49 @@ class CourseConfigService {
     await CourseHashtag.deleteOne({ id });
 
     return hashtag;
+  }
+
+  // ==========================================
+  // BOTVN CONFIG MANAGEMENT
+  // ==========================================
+
+  async getBotvnConfig() {
+    let config = await BotvnConfig.findOne();
+    if (!config) {
+      config = new BotvnConfig();
+      await config.save();
+    }
+    return config.lean ? await BotvnConfig.findOne().lean() : config;
+  }
+
+  async updateBotvnConfig(data) {
+    let config = await BotvnConfig.findOne();
+    if (!config) {
+      config = new BotvnConfig();
+    }
+
+    const oldState = config.toObject ? config.toObject() : config;
+
+    if (data.menus !== undefined) {
+      config.menus = {
+        ...config.menus,
+        ...data.menus,
+      };
+    }
+
+    if (data.maintenance !== undefined) {
+      config.maintenance = {
+        ...config.maintenance,
+        ...data.maintenance,
+      };
+    }
+
+    await config.save();
+    
+    const newState = config.toObject ? config.toObject() : config;
+    const changes = computeChanges(oldState, newState);
+
+    return { config, changes };
   }
 }
 

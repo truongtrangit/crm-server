@@ -64,4 +64,16 @@ router.get(
   CourseConfigController.getYoutubeDuration,
 );
 
+// BotVN config
+router
+  .route("/botvn")
+  .get(
+    requirePermission(PERMISSIONS.COURSE_CONFIG_READ),
+    CourseConfigController.getBotvnConfig,
+  )
+  .put(
+    requirePermission(PERMISSIONS.COURSE_CONFIG_UPDATE),
+    CourseConfigController.updateBotvnConfig,
+  );
+
 module.exports = router;

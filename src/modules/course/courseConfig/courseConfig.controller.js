@@ -150,6 +150,31 @@ class CourseConfigController {
       return sendSuccess(res, 200, "Failed to get duration", { duration: 0 });
     }
   }
+
+  // ==========================================
+  // BOTVN CONFIGURATION
+  // ==========================================
+
+  async getBotvnConfig(req, res) {
+    const config = await CourseConfigService.getBotvnConfig();
+    return sendSuccess(res, 200, "Lấy cấu hình BotVN thành công", { config });
+  }
+
+  async updateBotvnConfig(req, res) {
+    const { config, changes } = await CourseConfigService.updateBotvnConfig(req.body);
+    
+    SystemLogService.log({
+      action: "update",
+      resource: RESOURCES.COURSES,
+      resourceId: "botvn_config",
+      resourceName: "Cấu hình BotVN",
+      description: "Cập nhật cấu hình chung BotVN",
+      metadata: { changes },
+      req,
+    });
+
+    return sendSuccess(res, 200, "Cập nhật cấu hình BotVN thành công", { config });
+  }
 }
 
 module.exports = new CourseConfigController();
