@@ -37,14 +37,14 @@ const chapterSchema = Joi.object({
   lessons: Joi.array().items(lessonSchema).default([]),
 });
 
-const createCourseOnline = Joi.object({
+const createCourseOffline = Joi.object({
   title: Joi.string().required(),
   slug: Joi.string().required(),
   category: Joi.array().items(Joi.string()).default([]),
   status: Joi.string()
     .valid("draft", "published", "private", "expired")
     .default("draft"),
-  type: Joi.string().valid("online").default("online"),
+  type: Joi.string().valid("offline").default("offline"),
   isBestseller: Joi.boolean().default(false),
   headline: Joi.string().allow("", null),
   subheadline: Joi.string().allow("", null),
@@ -54,19 +54,25 @@ const createCourseOnline = Joi.object({
   benefits: Joi.array().items(Joi.string()).default([]),
   tools: Joi.array().items(Joi.string()).default([]),
   requirements: Joi.array().items(Joi.string()).default([]),
-  tags: Joi.array().items(Joi.string()).default([]),
+  hashtags: Joi.array().items(Joi.string()).default([]),
   targetAudience: Joi.string().allow("", null),
   description: Joi.string().allow("", null),
+  location: Joi.string().allow("", null),
+  address: Joi.string().allow("", null),
+  startDate: Joi.date().allow(null),
+  registrationDeadline: Joi.date().allow(null),
+  schedule: Joi.string().allow("", null),
+  maxStudents: Joi.number().min(0).default(0),
   lecturers: Joi.array().items(lecturerSchema).default([]),
   curriculum: Joi.array().items(chapterSchema).default([]),
 });
 
-const updateCourseOnline = Joi.object({
+const updateCourseOffline = Joi.object({
   title: Joi.string(),
   slug: Joi.string(),
   category: Joi.array().items(Joi.string()),
   status: Joi.string().valid("draft", "published", "private", "expired"),
-  type: Joi.string().valid("online"),
+  type: Joi.string().valid("offline"),
   isBestseller: Joi.boolean(),
   headline: Joi.string().allow("", null),
   subheadline: Joi.string().allow("", null),
@@ -76,14 +82,20 @@ const updateCourseOnline = Joi.object({
   benefits: Joi.array().items(Joi.string()),
   tools: Joi.array().items(Joi.string()),
   requirements: Joi.array().items(Joi.string()),
-  tags: Joi.array().items(Joi.string()),
+  hashtags: Joi.array().items(Joi.string()),
   targetAudience: Joi.string().allow("", null),
   description: Joi.string().allow("", null),
+  location: Joi.string().allow("", null),
+  address: Joi.string().allow("", null),
+  startDate: Joi.date().allow(null),
+  registrationDeadline: Joi.date().allow(null),
+  schedule: Joi.string().allow("", null),
+  maxStudents: Joi.number().min(0),
   lecturers: Joi.array().items(lecturerSchema),
   curriculum: Joi.array().items(chapterSchema),
 });
 
 module.exports = {
-  createCourseOnline,
-  updateCourseOnline,
+  createCourseOffline,
+  updateCourseOffline,
 };

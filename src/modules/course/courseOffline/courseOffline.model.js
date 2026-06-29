@@ -29,7 +29,7 @@ const lessonSchema = new mongoose.Schema(
     title: { type: String, required: true },
     duration: { type: Number, default: 0 },
     accessLevel: { type: String, enum: ["Free", "Paid"], default: "Paid" },
-    videoUrl: { type: String, default: "" },
+    videoUrl: { type: String, default: "" }, // Mặc dù offline không có video học, vẫn giữ cho đồng bộ data structure
     attachments: [
       {
         name: { type: String },
@@ -61,7 +61,7 @@ const pricingPackageSchema = new mongoose.Schema({
   hasRefundPolicy: { type: Boolean, default: false }
 }, { _id: false });
 
-const courseOnlineSchema = new mongoose.Schema(
+const courseOfflineSchema = new mongoose.Schema(
   {
     id: {
       type: String,
@@ -91,7 +91,7 @@ const courseOnlineSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      default: "online",
+      default: "offline",
     },
     isBestseller: {
       type: Boolean,
@@ -139,8 +139,11 @@ const courseOnlineSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    tags: {
-      type: [String],
+    hashtags: {
+      type: [{
+        type: String,
+        ref: "CourseHashtag",
+      }],
       default: [],
     },
     targetAudience: {
@@ -150,6 +153,30 @@ const courseOnlineSchema = new mongoose.Schema(
     description: {
       type: String, // Rich HTML
       default: "",
+    },
+    location: {
+      type: String,
+      default: "", // Vị trí tỉnh thành, vd: Hà Nội (Cầu Giấy)
+    },
+    address: {
+      type: String,
+      default: "", // Địa chỉ cụ thể
+    },
+    startDate: {
+      type: Date,
+      default: null, // Ngày khai giảng
+    },
+    registrationDeadline: {
+      type: Date,
+      default: null, // Hạn đăng ký
+    },
+    schedule: {
+      type: String,
+      default: "", // Lịch học, VD: Thứ 7, Chủ Nhật
+    },
+    maxStudents: {
+      type: Number,
+      default: 0, // Số học viên tối đa
     },
     lecturers: {
       type: [lecturerSchema],
@@ -179,11 +206,18 @@ const courseOnlineSchema = new mongoose.Schema(
   },
 );
 
-courseOnlineSchema.virtual("categoryDetails", {
+courseOfflineSchema.virtual("categoryDetails", {
   ref: "CourseCategory",
   localField: "category",
   foreignField: "id",
   justOne: false,
 });
 
-module.exports = mongoose.model("CourseOnline", courseOnlineSchema);
+courseOfflineSchema.virtual("hashtagDetails", {
+  ref: "CourseHashtag",
+  localField: "hashtags",
+  foreignField: "id",
+  justOne: false,
+});
+
+module.exports = mongoose.model("CourseOffline", courseOfflineSchema);

@@ -1,4 +1,4 @@
-const Counter = require('../models/Counter');
+const Counter = require("../models/Counter");
 
 /**
  * ─── ID Prefixes ─────────────────────────────────────────────────────────────
@@ -61,6 +61,12 @@ const ID_PREFIXES = Object.freeze({
   COURSE_CATEGORY: "CCT",
   COURSE_HASHTAG: "CHT",
   COURSE_LECTURER: "CLT",
+
+  // Course Challenge
+  COURSE_CHALLENGE_TEMPLATE: "CHCT",
+  COURSE_CHALLENGE: "CHC",
+  COURSE_CHALLENGE_DAY: "CHD",
+  COURSE_CHALLENGE_ENROLLMENT: "CHE",
 });
 
 /**

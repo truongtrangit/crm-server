@@ -34,3 +34,4 @@ vps_deploy_guide.md
 *.html
 
 deploy/*.env
+backup

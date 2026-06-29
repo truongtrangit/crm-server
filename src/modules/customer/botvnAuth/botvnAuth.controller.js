@@ -1,5 +1,7 @@
-const BotvnAuthService = require('./botvnAuth.service');
-const { sendSuccess } = require('../../../core/utils/http');
+const BotvnAuthService = require("./botvnAuth.service");
+const { sendSuccess } = require("../../../core/utils/http");
+const SystemLogService = require("../../system/log/systemLog.service");
+const { RESOURCES } = require("../../../core/constants/rbac");
 
 class BotvnAuthController {
   /**
@@ -33,6 +35,36 @@ class BotvnAuthController {
   async logout(req, res) {
     await BotvnAuthService.logout(req.body);
     return sendSuccess(res, 200, "Logout success", null);
+  }
+
+  async register(req, res) {
+    const customer = await BotvnAuthService.register(req.body, req);
+
+    SystemLogService.log({
+      action: "create",
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customer.id,
+      resourceName: customer.name,
+      description: "Bot.vn user registration",
+      performedBy: {
+        userId: null,
+        userName: customer.name,
+        userAvatar: "",
+      },
+      status: "success",
+      ipAddress: req.ip || "unknown",
+    });
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        isActive: customer.isActive,
+      },
+    };
+
+    return sendSuccess(res, 201, "Registration success", payload);
   }
 }
 

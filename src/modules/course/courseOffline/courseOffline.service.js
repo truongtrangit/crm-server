@@ -1,6 +1,6 @@
 const createHttpError = require("http-errors");
 const { generateMonotonicId } = require('../../../core/utils/id');
-const CourseOnline = require('./courseOnline.model');
+const CourseOffline = require('./courseOffline.model');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
 const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
 const { buildSearchRegex } = require('../../../core/utils/query');
@@ -8,17 +8,16 @@ const { computePriceRange } = require('../../../core/utils/price');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
 const CourseEnrollment = require('../courseChallenge/courseEnrollment.model');
 
-
 const createCourse = async (courseBody, user) => {
-  const existingSlug = await CourseOnline.findOne({ slug: courseBody.slug });
+  const existingSlug = await CourseOffline.findOne({ slug: courseBody.slug, isDeleted: { $ne: true } });
   if (existingSlug) {
     throw createHttpError(400, "Slug đã tồn tại");
   }
 
   computePriceRange(courseBody);
 
-  const id = await generateMonotonicId("CNO");
-  const course = new CourseOnline({
+  const id = await generateMonotonicId("COF");
+  const course = new CourseOffline({
     ...courseBody,
     id,
     createdBy: user.id,
@@ -29,7 +28,7 @@ const createCourse = async (courseBody, user) => {
 };
 
 const getCourses = async (queryParams, studentId = null) => {
-  const { search, status, category } = queryParams || {};
+  const { search, status, category, hashtags } = queryParams || {};
   const filter = { isDeleted: { $ne: true } };
 
   if (search) {
@@ -53,19 +52,29 @@ const getCourses = async (queryParams, studentId = null) => {
   if (category) {
     filter.category = category.includes(',') ? { $in: category.split(',') } : category;
   }
+  if (hashtags) {
+    filter.hashtags = hashtags.includes(',') ? { $in: hashtags.split(',') } : hashtags;
+  }
 
   const { page, limit, skip } = resolvePagination(queryParams || {});
 
   const [courses, total] = await Promise.all([
-    CourseOnline.find(filter)
+    CourseOffline.find(filter)
       .populate("categoryDetails")
+      .populate("hashtagDetails")
       .populate("lecturers.details")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean({ virtuals: true }),
-    CourseOnline.countDocuments(filter)
+    CourseOffline.countDocuments(filter)
   ]);
+
+  if (courses.length > 0) {
+    courses.forEach(course => {
+      course.isEnrolled = false;
+    });
+  }
 
   if (studentId && courses.length > 0) {
     const courseIds = courses.map(c => c.id);
@@ -81,15 +90,43 @@ const getCourses = async (queryParams, studentId = null) => {
     });
   }
 
+  // Calculate registered students
+  if (courses.length > 0) {
+    const courseIds = courses.map(c => c.id);
+    const enrollmentCounts = await CourseEnrollment.aggregate([
+      { $match: { courseId: { $in: courseIds }, status: "ACTIVE" } },
+      { $group: { _id: "$courseId", count: { $sum: 1 } } }
+    ]);
+    const countMap = enrollmentCounts.reduce((acc, curr) => {
+      acc[curr._id] = curr.count;
+      return acc;
+    }, {});
+    courses.forEach(course => {
+      course.registeredStudents = countMap[course.id] || 0;
+    });
+  }
+
   return buildPaginatedResponse(courses, total, page, limit);
 };
 
 const getCourseById = async (id) => {
-  const course = await CourseOnline.findOne({ id, isDeleted: { $ne: true } }).populate("categoryDetails").populate("lecturers.details");
+  const course = await CourseOffline.findOne({ id, isDeleted: { $ne: true } })
+    .populate("categoryDetails")
+    .populate("hashtagDetails")
+    .populate("lecturers.details");
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
-  return course;
+
+  const registeredStudents = await CourseEnrollment.countDocuments({
+    courseId: id,
+    status: "ACTIVE"
+  });
+
+  const courseObj = course.toObject();
+  courseObj.registeredStudents = registeredStudents;
+
+  return courseObj; // Return object with registeredStudents
 };
 
 const getCourseByIdentifier = async (identifier, requiredStatus = null, studentId = null) => {
@@ -102,14 +139,17 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null, studentI
     query.status = requiredStatus;
   }
 
-  let course = await CourseOnline.findOne(query)
+  let course = await CourseOffline.findOne(query)
     .populate("categoryDetails")
+    .populate("hashtagDetails")
     .populate("lecturers.details")
     .lean({ virtuals: true });
   
   if (!course) {
     throw createHttpError(404, "Không tìm thấy khóa học");
   }
+
+  course.isEnrolled = false;
 
   if (studentId) {
     const enrollment = await CourseEnrollment.findOne({
@@ -123,11 +163,20 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null, studentI
     }
   }
 
+  const registeredStudents = await CourseEnrollment.countDocuments({
+    courseId: course.id,
+    status: "ACTIVE"
+  });
+  course.registeredStudents = registeredStudents;
+
   return course;
 };
 
 const updateCourse = async (id, updateBody, user) => {
-  const course = await getCourseById(id);
+  const course = await CourseOffline.findOne({ id, isDeleted: { $ne: true } });
+  if (!course) {
+    throw createHttpError(404, "Không tìm thấy khóa học");
+  }
 
   // RLAC Check: Only Admin/Owner or Creator can update
   if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
@@ -135,7 +184,7 @@ const updateCourse = async (id, updateBody, user) => {
   }
 
   if (updateBody.slug && updateBody.slug !== course.slug) {
-    const existingSlug = await CourseOnline.findOne({ slug: updateBody.slug });
+    const existingSlug = await CourseOffline.findOne({ slug: updateBody.slug, isDeleted: { $ne: true } });
     if (existingSlug) {
       throw createHttpError(400, "Slug đã tồn tại");
     }
@@ -149,7 +198,10 @@ const updateCourse = async (id, updateBody, user) => {
 };
 
 const deleteCourse = async (id, user) => {
-  const course = await getCourseById(id);
+  const course = await CourseOffline.findOne({ id, isDeleted: { $ne: true } });
+  if (!course) {
+    throw createHttpError(404, "Không tìm thấy khóa học");
+  }
 
   // RLAC Check: Only Admin/Owner or Creator can delete
   if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
