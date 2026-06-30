@@ -1,25 +1,25 @@
-const Customer = require("../customer/customer.model");
-const CourseVoucher = require("../../course/courseConfig/courseVoucher.model");
-const VoucherRedemption = require("../../course/courseConfig/voucherRedemption.model");
+const Customer = require('../customer/customer.model');
+const CourseVoucher = require('../../course/courseConfig/courseVoucher.model');
+const VoucherRedemption = require('../../course/courseConfig/voucherRedemption.model');
 const {
   VOUCHER_STATUSES,
   VOUCHER_TYPES,
-} = require("../../../core/constants/appData");
-const { createHttpError } = require("../../../core/utils/http");
+} = require('../../../core/constants/appData');
+const { createHttpError } = require('../../../core/utils/http');
 
 class CreditService {
   /**
    * Redeem a voucher code for a user
    * @param {string} customerId
    * @param {string} code
-   * @returns {object} { success, rewardPoints, currentCredit }
+   * @returns {object} { success, credits: { mainCredit, rewardCredit, eduCredit }, currentCredit }
    */
   async redeemVoucher(customerId, code) {
-    if (!code) throw createHttpError(400, "Mã code không được để trống");
+    if (!code) throw createHttpError(400, 'Mã code không được để trống');
 
     const customer = await Customer.findOne({ id: customerId });
     if (!customer) {
-      throw createHttpError(404, "Không tìm thấy khách hàng");
+      throw createHttpError(404, 'Không tìm thấy khách hàng');
     }
 
     const cleanCode = code.trim().toUpperCase();
@@ -27,22 +27,22 @@ class CreditService {
     // 1. Find voucher to check basic conditions
     const voucher = await CourseVoucher.findOne({ code: cleanCode });
     if (!voucher) {
-      throw createHttpError(404, "Mã code không hợp lệ");
+      throw createHttpError(404, 'Mã code không hợp lệ');
     }
 
     if (voucher.status !== VOUCHER_STATUSES.ACTIVE) {
       throw createHttpError(
         400,
-        "Voucher không hoạt động hoặc đã được sử dụng",
+        'Voucher không hoạt động hoặc đã được sử dụng',
       );
     }
 
     if (voucher.expiresAt && new Date() > voucher.expiresAt) {
-      throw createHttpError(400, "Voucher đã hết hạn");
+      throw createHttpError(400, 'Voucher đã hết hạn');
     }
 
     if (voucher.currentUses >= voucher.maxUses) {
-      throw createHttpError(400, "Voucher đã hết lượt sử dụng");
+      throw createHttpError(400, 'Voucher đã hết lượt sử dụng');
     }
 
     let updatedVoucher;
@@ -66,7 +66,7 @@ class CreditService {
         );
 
         if (!updatedVoucher) {
-          throw createHttpError(400, "Voucher không còn khả dụng");
+          throw createHttpError(400, 'Voucher không còn khả dụng');
         }
         break;
       case VOUCHER_TYPES.SHARED:
@@ -81,7 +81,7 @@ class CreditService {
           if (userUsageCount >= voucher.usagePerUser) {
             throw createHttpError(
               400,
-              "Bạn đã đạt đến giới hạn sử dụng cho voucher này",
+              'Bạn đã đạt đến giới hạn sử dụng cho voucher này',
             );
           }
         }
@@ -99,7 +99,7 @@ class CreditService {
 
         if (!updatedVoucher) {
           // If it returns null, another request beat us to it and hit maxUses, or it was deactivated
-          throw createHttpError(400, "Voucher không còn khả dụng");
+          throw createHttpError(400, 'Voucher không còn khả dụng');
         }
 
         // If this was the last use, update status to USED
@@ -111,27 +111,39 @@ class CreditService {
         }
         break;
       default:
-        throw createHttpError(400, "Loại voucher không hợp lệ");
+        throw createHttpError(400, 'Loại voucher không hợp lệ');
     }
 
     // 4. Create history record
     await VoucherRedemption.create({
       code: cleanCode,
       userId: customerId,
-      rewardPoints: updatedVoucher.rewardPoints,
+      mainCredit: updatedVoucher.mainCredit || 0,
+      rewardCredit: updatedVoucher.rewardCredit || 0,
+      eduCredit: updatedVoucher.eduCredit || 0,
     });
 
     // 5. Update customer credits
     const updatedCustomer = await Customer.findOneAndUpdate(
       { id: customerId },
-      { $inc: { rewardCredit: updatedVoucher.rewardPoints } },
+      {
+        $inc: {
+          mainCredit: updatedVoucher.mainCredit || 0,
+          rewardCredit: updatedVoucher.rewardCredit || 0,
+          eduCredit: updatedVoucher.eduCredit || 0,
+        },
+      },
       { new: true },
     );
 
     return {
       success: true,
-      rewardPoints: updatedVoucher.rewardPoints,
-      currentCredit: updatedCustomer.rewardCredit,
+      mainCredit: updatedVoucher.mainCredit || 0,
+      rewardCredit: updatedVoucher.rewardCredit || 0,
+      eduCredit: updatedVoucher.eduCredit || 0,
+      currentMainCredit: updatedCustomer.mainCredit,
+      currentRewardCredit: updatedCustomer.rewardCredit,
+      currentEduCredit: updatedCustomer.eduCredit,
     };
   }
 
@@ -142,16 +154,18 @@ class CreditService {
    */
   async getCredits(customerId) {
     const customer = await Customer.findOne({ id: customerId }).select(
-      "rewardCredit mainCredit",
+      'rewardCredit mainCredit eduCredit isEduAccount',
     );
 
     if (!customer) {
-      throw createHttpError(404, "Customer not found");
+      throw createHttpError(404, 'Customer not found');
     }
 
     return {
       rewardCredit: customer.rewardCredit || 0,
       mainCredit: customer.mainCredit || 0,
+      eduCredit: customer.eduCredit || 0,
+      isEduAccount: customer.isEduAccount || false,
     };
   }
 

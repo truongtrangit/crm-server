@@ -62,10 +62,12 @@ const customerSchema = new mongoose.Schema(
       type: String, 
       enum: Object.values(BOTVN_ROLES),
     },
+    isEduAccount: { type: Boolean, default: false },
 
     // Credits / Rewards
     rewardCredit: { type: Number, default: 0 },
     mainCredit: { type: Number, default: 0 },
+    eduCredit: { type: Number, default: 0 },
   },
   {
     timestamps: true,

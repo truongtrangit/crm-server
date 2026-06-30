@@ -14,9 +14,17 @@ const voucherRedemptionSchema = new mongoose.Schema(
       ref: "Customer",
       index: true
     },
-    rewardPoints: { 
+    mainCredit: { 
       type: Number, 
-      required: true 
+      default: 0 
+    },
+    rewardCredit: { 
+      type: Number, 
+      default: 0 
+    },
+    eduCredit: { 
+      type: Number, 
+      default: 0 
     },
   },
   { 
