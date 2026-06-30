@@ -21,6 +21,7 @@ class BotvnAuthController {
         phone: customer.phone,
         avatar: customer.avatar,
         isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
       },
       sessionId: tokens.sessionId,
       accessToken: tokens.accessToken,

@@ -1,8 +1,9 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+const { BOTVN_ROLES } = require('../../../core/constants/appData');
 
 const BOTVN_MAINTENANCE_TYPES = {
-  MAINTENANCE: "maintenance",
-  COMING_SOON: "coming_soon",
+  MAINTENANCE: 'maintenance',
+  COMING_SOON: 'coming_soon',
 };
 
 const botvnConfigSchema = new mongoose.Schema(
@@ -21,16 +22,20 @@ const botvnConfigSchema = new mongoose.Schema(
         enum: Object.values(BOTVN_MAINTENANCE_TYPES),
         default: BOTVN_MAINTENANCE_TYPES.MAINTENANCE,
       },
-      title: { type: String, default: "" },
-      reason: { type: String, default: "" },
-      time: { type: String, default: "" },
+      title: { type: String, default: '' },
+      reason: { type: String, default: '' },
+      time: { type: String, default: '' },
+      allowedRoles: [{
+        type: String,
+        enum: Object.values(BOTVN_ROLES)
+      }]
     },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
-module.exports = mongoose.model("BotvnConfig", botvnConfigSchema);
+module.exports = mongoose.model('BotvnConfig', botvnConfigSchema);
 module.exports.BOTVN_MAINTENANCE_TYPES = BOTVN_MAINTENANCE_TYPES;

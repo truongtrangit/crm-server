@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { softDeletePlugin } = require('../../../core/utils/softDelete');
-const { CUSTOMER_MAIN_TYPES } = require('../../../core/constants/appData');
+const { CUSTOMER_MAIN_TYPES, BOTVN_ROLES } = require('../../../core/constants/appData');
+
 
 const customerSchema = new mongoose.Schema(
   {
@@ -56,6 +57,11 @@ const customerSchema = new mongoose.Schema(
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true },
     createdBy: { type: String, default: null },
+    
+    botvnRole: { 
+      type: String, 
+      enum: Object.values(BOTVN_ROLES),
+    },
 
     // Credits / Rewards
     rewardCredit: { type: Number, default: 0 },
