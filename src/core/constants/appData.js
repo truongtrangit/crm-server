@@ -113,7 +113,7 @@ const COURSE_TYPES = Object.freeze({
 });
 
 const PAYMENT_METHODS = Object.freeze({
-  MAIN_CREDIT: 'main_credit',
+  MAIN_CREDIT: 'mainCredit',
   REWARD_CREDIT: 'rewardCredit',
   EDU_CREDIT: 'eduCredit',
   FREE: 'free',
