@@ -1,4 +1,9 @@
-const Joi = require("joi");
+const Joi = require('joi');
+const {
+  PAYMENT_METHODS,
+  LESSON_ACCESS_LEVEL,
+  COURSE_STATUS,
+} = require('../../../core/constants/appData');
 
 const pricingPackageSchema = Joi.object({
   id: Joi.string().required(),
@@ -6,9 +11,11 @@ const pricingPackageSchema = Joi.object({
   price: Joi.number().min(0).required(),
   originalPrice: Joi.number().min(0).default(0),
   discountRate: Joi.number().min(0).max(100).default(0),
-  paymentTypes: Joi.array().items(Joi.string().valid('credit', 'rewardCredit')).default(['credit']),
+  paymentTypes: Joi.array()
+    .items(Joi.string().valid(...Object.values(PAYMENT_METHODS)))
+    .default([PAYMENT_METHODS.MAIN_CREDIT]),
   gifts: Joi.array().items(Joi.string()).default([]),
-  hasRefundPolicy: Joi.boolean().default(false)
+  hasRefundPolicy: Joi.boolean().default(false),
 });
 
 const lecturerSchema = Joi.object({
@@ -17,22 +24,24 @@ const lecturerSchema = Joi.object({
 }).unknown(true);
 
 const lessonAttachmentSchema = Joi.object({
-  name: Joi.string().allow("", null),
-  url: Joi.string().allow("", null),
+  name: Joi.string().allow('', null),
+  url: Joi.string().allow('', null),
 });
 
 const lessonSchema = Joi.object({
-  id: Joi.string().allow("", null),
+  id: Joi.string().allow('', null),
   title: Joi.string().required(),
   duration: Joi.number().min(0).default(0),
-  accessLevel: Joi.string().valid("Free", "Paid").default("Paid"),
-  videoUrl: Joi.string().allow("", null),
+  accessLevel: Joi.string()
+    .valid(...Object.values(LESSON_ACCESS_LEVEL))
+    .default(LESSON_ACCESS_LEVEL.PAID),
+  videoUrl: Joi.string().allow('', null),
   attachments: Joi.array().items(lessonAttachmentSchema).default([]),
-  description: Joi.string().allow("", null),
+  description: Joi.string().allow('', null),
 });
 
 const chapterSchema = Joi.object({
-  id: Joi.string().allow("", null),
+  id: Joi.string().allow('', null),
   title: Joi.string().required(),
   lessons: Joi.array().items(lessonSchema).default([]),
 });
@@ -42,12 +51,12 @@ const createCourseOnline = Joi.object({
   slug: Joi.string().required(),
   category: Joi.array().items(Joi.string()).default([]),
   status: Joi.string()
-    .valid("draft", "published", "private", "expired")
-    .default("draft"),
-  type: Joi.string().valid("online").default("online"),
+    .valid(...Object.values(COURSE_STATUS))
+    .default(COURSE_STATUS.DRAFT),
+  type: Joi.string().valid('online').default('online'),
   isBestseller: Joi.boolean().default(false),
-  headline: Joi.string().allow("", null),
-  subheadline: Joi.string().allow("", null),
+  headline: Joi.string().allow('', null),
+  subheadline: Joi.string().allow('', null),
   packages: Joi.array().items(pricingPackageSchema).default([]),
   covers: Joi.array().items(Joi.string()).default([]),
   previewVideo: Joi.array().items(Joi.string()).default([]),
@@ -55,8 +64,8 @@ const createCourseOnline = Joi.object({
   tools: Joi.array().items(Joi.string()).default([]),
   requirements: Joi.array().items(Joi.string()).default([]),
   tags: Joi.array().items(Joi.string()).default([]),
-  targetAudience: Joi.string().allow("", null),
-  description: Joi.string().allow("", null),
+  targetAudience: Joi.string().allow('', null),
+  description: Joi.string().allow('', null),
   lecturers: Joi.array().items(lecturerSchema).default([]),
   curriculum: Joi.array().items(chapterSchema).default([]),
 });
@@ -65,11 +74,11 @@ const updateCourseOnline = Joi.object({
   title: Joi.string(),
   slug: Joi.string(),
   category: Joi.array().items(Joi.string()),
-  status: Joi.string().valid("draft", "published", "private", "expired"),
-  type: Joi.string().valid("online"),
+  status: Joi.string().valid(...Object.values(COURSE_STATUS)),
+  type: Joi.string().valid('online'),
   isBestseller: Joi.boolean(),
-  headline: Joi.string().allow("", null),
-  subheadline: Joi.string().allow("", null),
+  headline: Joi.string().allow('', null),
+  subheadline: Joi.string().allow('', null),
   packages: Joi.array().items(pricingPackageSchema),
   covers: Joi.array().items(Joi.string()),
   previewVideo: Joi.array().items(Joi.string()),
@@ -77,8 +86,8 @@ const updateCourseOnline = Joi.object({
   tools: Joi.array().items(Joi.string()),
   requirements: Joi.array().items(Joi.string()),
   tags: Joi.array().items(Joi.string()),
-  targetAudience: Joi.string().allow("", null),
-  description: Joi.string().allow("", null),
+  targetAudience: Joi.string().allow('', null),
+  description: Joi.string().allow('', null),
   lecturers: Joi.array().items(lecturerSchema),
   curriculum: Joi.array().items(chapterSchema),
 });

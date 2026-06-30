@@ -113,9 +113,15 @@ const COURSE_TYPES = Object.freeze({
 });
 
 const PAYMENT_METHODS = Object.freeze({
-  CREDIT: 'credit',
+  MAIN_CREDIT: 'main_credit',
   REWARD_CREDIT: 'rewardCredit',
+  EDU_CREDIT: 'eduCredit',
   FREE: 'free',
+});
+
+const LESSON_ACCESS_LEVEL = Object.freeze({
+  FREE: "Free",
+  PAID: "Paid",
 });
 
 const BOTVN_ROLES = Object.freeze({
@@ -148,4 +154,5 @@ module.exports = {
   COURSE_TYPES,
   PAYMENT_METHODS,
   BOTVN_ROLES,
+  LESSON_ACCESS_LEVEL,
 };

@@ -39,7 +39,7 @@ const courseEnrollmentSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       enum: Object.values(PAYMENT_METHODS),
-      default: PAYMENT_METHODS.CREDIT,
+      default: PAYMENT_METHODS.MAIN_CREDIT,
     },
     amountPaid: {
       type: Number,
