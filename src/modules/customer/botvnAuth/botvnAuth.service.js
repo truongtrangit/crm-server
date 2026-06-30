@@ -1,15 +1,17 @@
-const Customer = require("../customer/customer.model");
-const BotvnUserSession = require("./botvnUserSession.model");
+const Customer = require('../customer/customer.model');
+const BotvnUserSession = require('./botvnUserSession.model');
 const {
   verifyPassword,
   createSessionTokens,
   hashPassword,
-} = require("../../../core/utils/auth");
-const { generateMonotonicId, ID_PREFIXES } = require("../../../core/utils/id");
-const { CUSTOMER_MAIN_TYPES } = require("../../../core/constants/appData");
+} = require('../../../core/utils/auth');
+const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
+const { CUSTOMER_MAIN_TYPES } = require('../../../core/constants/appData');
+const BotvnConfig = require('../../course/courseConfig/botvnConfig.model');
+
 class BotvnAuthService {
   _normalizeEmail(value) {
-    return typeof value === "string" ? value.trim().toLowerCase() : "";
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
   }
 
   /**
@@ -21,38 +23,57 @@ class BotvnAuthService {
   async login(payload, req) {
     const email = this._normalizeEmail(payload?.email);
     const password =
-      typeof payload?.password === "string" ? payload.password : "";
+      typeof payload?.password === 'string' ? payload.password : '';
 
     if (!email || !password) {
-      const error = new Error("email and password are required");
+      const error = new Error('email and password are required');
       error.status = 400;
-      error.code = "VALIDATION_ERROR";
+      error.code = 'VALIDATION_ERROR';
       throw error;
     }
 
     // INTERNAL LOGIC NOTE: Find customer with select('+botvnPassword') because it's hidden by default
-    const customer = await Customer.findOne({ email }).select("+botvnPassword");
+    const customer = await Customer.findOne({ email }).select('+botvnPassword');
 
     if (
       !customer ||
       !customer.botvnPassword ||
       !(await verifyPassword(password, customer.botvnPassword))
     ) {
-      const error = new Error("Invalid email or password");
+      const error = new Error('Invalid email or password');
       error.status = 401;
-      error.code = "INVALID_CREDENTIALS";
+      error.code = 'INVALID_CREDENTIALS';
       error.context = { email };
       throw error;
     }
 
     if (customer.isActive === false) {
       const error = new Error(
-        "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
+        'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
       );
       error.status = 403;
-      error.code = "ACCOUNT_INACTIVE";
+      error.code = 'ACCOUNT_INACTIVE';
       error.context = { email, customerId: customer.id };
       throw error;
+    }
+
+    const config = await BotvnConfig.findOne();
+    if (config && config.maintenance && config.maintenance.isActive) {
+      const allowedRoles = config.maintenance.allowedRoles || [];
+      if (!customer.botvnRole || !allowedRoles.includes(customer.botvnRole)) {
+        const error = new Error(
+          'Hệ thống đang bảo trì. Tài khoản của bạn không có quyền truy cập lúc này.',
+        );
+        error.status = 503;
+        error.code = 'MAINTENANCE_MODE';
+        error.context = {
+          type: config.maintenance.type,
+          title: config.maintenance.title,
+          reason: config.maintenance.reason,
+          time: config.maintenance.time,
+        };
+        throw error;
+      }
     }
 
     // EXTERNAL LOGIC: Create a new session token tailored for the botvn user
@@ -111,8 +132,8 @@ class BotvnAuthService {
    */
   async register(payload, req) {
     const email = this._normalizeEmail(payload?.email);
-    const password = payload?.password || "";
-    const name = typeof payload?.name === "string" ? payload.name.trim() : "";
+    const password = payload?.password || '';
+    const name = typeof payload?.name === 'string' ? payload.name.trim() : '';
 
     const existingCustomer = await Customer.findOne({
       email,
@@ -120,9 +141,9 @@ class BotvnAuthService {
     });
 
     if (existingCustomer) {
-      const error = new Error("Email này đã được đăng ký.");
+      const error = new Error('Email này đã được đăng ký.');
       error.status = 409;
-      error.code = "EMAIL_EXISTS";
+      error.code = 'EMAIL_EXISTS';
       throw error;
     }
 
@@ -135,8 +156,8 @@ class BotvnAuthService {
       email,
       botvnPassword: hashedBotvnPassword,
       mainType: CUSTOMER_MAIN_TYPES.USER,
-      type: "Bot.vn user",
-      platforms: ["Botvn"],
+      type: 'Bot.vn user',
+      platforms: ['Botvn'],
       isActive: false, // Default is inactive
       registeredAt: new Date().toISOString(),
     });
