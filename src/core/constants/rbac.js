@@ -29,6 +29,7 @@ const RESOURCES = {
   SALARY_CONFIGS: "salary_configs", // Cấu hình lương
   COMPANIES: "companies", // Cấu hình công ty
   FINANCE: "finance", // Báo cáo tài chính
+  PROJECT_BONUS: "project_bonus", // Thưởng dự án
   JOBHUB: "jobhub", // Job Hub
   COURSES: "courses", // Khóa học
   COURSES_ONLINE: "courses_online", // Khóa học online
@@ -200,6 +201,13 @@ const PERMISSIONS = {
   SALARY_CONFIGS_UPDATE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.UPDATE}`,
   SALARY_CONFIGS_DELETE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.DELETE}`,
   SALARY_CONFIGS_MANAGE: `${RESOURCES.SALARY_CONFIGS}_${ACTIONS.MANAGE}`,
+
+  // Project Bonus
+  PROJECT_BONUS_CREATE: `${RESOURCES.PROJECT_BONUS}_${ACTIONS.CREATE}`,
+  PROJECT_BONUS_READ: `${RESOURCES.PROJECT_BONUS}_${ACTIONS.READ}`,
+  PROJECT_BONUS_UPDATE: `${RESOURCES.PROJECT_BONUS}_${ACTIONS.UPDATE}`,
+  PROJECT_BONUS_DELETE: `${RESOURCES.PROJECT_BONUS}_${ACTIONS.DELETE}`,
+  PROJECT_BONUS_MANAGE: `${RESOURCES.PROJECT_BONUS}_${ACTIONS.MANAGE}`,
 
   // Companies
   COMPANIES_CREATE: `${RESOURCES.COMPANIES}_${ACTIONS.CREATE}`,
@@ -638,6 +646,13 @@ const MODULE_DEFINITIONS = {
     parentKey: "finance",
     actions: ["view", "create", "edit", "delete", "configure"],
   },
+  "finance.policy": {
+    key: "finance.policy",
+    label: "Chính sách",
+    type: "sub",
+    parentKey: "finance",
+    actions: ["view", "create", "edit", "delete", "configure"],
+  },
 
   jobhub: { key: "jobhub", label: "Job Hub", type: "root", actions: [] },
   "jobhub.tasks": {
@@ -846,6 +861,13 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.SALARY_CONFIGS_UPDATE, PERMISSIONS.STAFFS_UPDATE],
     delete: [PERMISSIONS.SALARY_CONFIGS_DELETE, PERMISSIONS.STAFFS_DELETE],
     configure: [PERMISSIONS.SALARY_CONFIGS_MANAGE, PERMISSIONS.STAFFS_MANAGE],
+  },
+  "finance.policy": {
+    view: [PERMISSIONS.PROJECT_BONUS_READ],
+    create: [PERMISSIONS.PROJECT_BONUS_CREATE],
+    edit: [PERMISSIONS.PROJECT_BONUS_UPDATE],
+    delete: [PERMISSIONS.PROJECT_BONUS_DELETE],
+    configure: [PERMISSIONS.PROJECT_BONUS_MANAGE],
   },
   "jobhub.tasks": {
     view: [
