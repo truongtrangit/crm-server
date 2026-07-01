@@ -15,14 +15,24 @@ const ProjectBonusGroupSchema = new mongoose.Schema(
 
 const projectBonusSchema = new mongoose.Schema(
   {
+    id: { type: String, required: true, unique: true },
     name: { type: String, required: true, trim: true },
     groups: [ProjectBonusGroupSchema],
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdBy: { type: String },
   },
   {
     timestamps: true,
     versionKey: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   },
 );
+
+projectBonusSchema.virtual('creator', {
+  ref: 'User',
+  localField: 'createdBy',
+  foreignField: 'id',
+  justOne: true,
+});
 
 module.exports = mongoose.model('ProjectBonus', projectBonusSchema);
