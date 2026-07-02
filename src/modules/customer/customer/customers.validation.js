@@ -46,6 +46,7 @@ const updateCustomerSchema = Joi.object({
   mainType: Joi.string().valid("user", "biz").optional(),
   subType: Joi.string().allow("").optional(),
   alias: Joi.string().allow("").optional(),
+  botvnRole: Joi.string().allow("").optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
 });

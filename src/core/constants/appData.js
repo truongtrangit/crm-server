@@ -118,6 +118,13 @@ const PAYMENT_METHODS = Object.freeze({
   FREE: 'free',
 });
 
+const BOTVN_ROLES = Object.freeze({
+  ADMIN: "ADMIN",
+  INSTRUCTOR: "INSTRUCTOR",
+  TA: "TA",
+  STUDENT: "STUDENT",
+});
+
 module.exports = {
   PLATFORMS,
   COMPANIES,
@@ -140,4 +147,5 @@ module.exports = {
   COURSE_STATUS,
   COURSE_TYPES,
   PAYMENT_METHODS,
+  BOTVN_ROLES,
 };

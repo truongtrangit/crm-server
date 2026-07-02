@@ -186,6 +186,13 @@ class CustomerService {
       throw createHttpError(409, "Khách hàng đã tồn tại, không thể thêm mới. Vui lòng kiểm tra lại thông tin.", { code: "CUSTOMER_ALREADY_EXISTS" });
     }
 
+    if (payload.botvnRole) {
+      const platforms = Array.isArray(payload.platforms) ? payload.platforms : [];
+      if (!platforms.includes("Botvn")) {
+        throw createHttpError(400, "Chỉ user thuộc nền tảng Botvn mới được cấu hình role này", { code: "INVALID_BOTVN_ROLE" });
+      }
+    }
+
     const customer = await Customer.create({
       id: await generateMonotonicId(ID_PREFIXES.CUSTOMER),
       name: payload.name,
@@ -215,6 +222,7 @@ class CustomerService {
       ...(payload.botvnPassword && {
         botvnPassword: await hashPassword(payload.botvnPassword),
       }),
+      botvnRole: payload.botvnRole || undefined,
     });
 
     await CacheService.bumpNamespaceVersion("customers");
@@ -253,6 +261,13 @@ class CustomerService {
       }
     }
 
+    if (payload.botvnRole !== undefined) {
+      const platforms = Array.isArray(payload.platforms) ? payload.platforms : existing.platforms;
+      if (!platforms.includes("Botvn") && payload.botvnRole !== "") {
+        throw createHttpError(400, "Chỉ user thuộc nền tảng Botvn mới được cấu hình role này", { code: "INVALID_BOTVN_ROLE" });
+      }
+    }
+
     const oldState = existing.toObject();
 
     Object.assign(existing, {
@@ -276,6 +291,7 @@ class CustomerService {
       tags: Array.isArray(payload.tags) ? payload.tags : existing.tags,
       extraInfo: payload.extraInfo !== undefined ? payload.extraInfo : existing.extraInfo,
       isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
+      botvnRole: payload.botvnRole !== undefined ? (payload.botvnRole || undefined) : existing.botvnRole,
     });
 
     await existing.save();
