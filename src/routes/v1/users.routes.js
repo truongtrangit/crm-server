@@ -16,11 +16,11 @@ const router = express.Router();
 
 const { userResourceAccess } = require('../../core/middleware/userAccess');
 
-router.get("/org-options", UserController.getOrgOptions);
+router.get("/org-options", requirePermission(PERMISSIONS.USERS_READ), UserController.getOrgOptions);
 
 router.get(
   "/",
-  // requirePermission(PERMISSIONS.USERS_READ),
+  requirePermission(PERMISSIONS.USERS_READ),
   validate(listUsersQuerySchema, "query"),
   scopeAssignmentList({
     // Hành vi: Cho phép Manager nhìn thấy nhân viên cấp dưới
@@ -63,7 +63,7 @@ router.delete(
 router.put(
   "/:id/restore",
   requireRole(["OWNER", "ADMIN"]),
-  requirePermission(PERMISSIONS.USER_RESTORE),
+  requirePermission(PERMISSIONS.USERS_RESTORE),
   UserController.restoreUser,
 );
 

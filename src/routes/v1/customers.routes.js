@@ -110,7 +110,7 @@ router.delete(
 router.put(
   "/:id/restore",
   requireRole(["OWNER", "ADMIN"]),
-  requirePermission(PERMISSIONS.CUSTOMER_RESTORE),
+  requirePermission(PERMISSIONS.CUSTOMERS_RESTORE),
   CustomerController.restoreCustomer,
 );
 
