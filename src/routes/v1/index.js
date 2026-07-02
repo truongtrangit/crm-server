@@ -1,4 +1,4 @@
-const { Router } = require("express");
+const { Router } = require('express');
 
 const authRouter = require('./auth.routes');
 const customersRouter = require('./customers.routes');
@@ -28,6 +28,7 @@ const revenueRouter = require('./revenues.routes');
 const expenseRouter = require('./expenses.routes');
 const companiesRouter = require('./companies.routes');
 const financeRouter = require('./finance.routes');
+const policyRouter = require('./policy.routes');
 const jobConfigRouter = require('./jobConfig.routes');
 const jobWorkRouter = require('./jobWork.routes');
 const courseConfigRouter = require('./courseConfigs.routes');
@@ -44,79 +45,80 @@ const { sendSuccess } = require('../../core/utils/http');
 const v1Router = Router();
 
 // ─── Public ──────────────────────────────────────────────────────────────────
-v1Router.get("/", (_req, res) =>
-  sendSuccess(res, 200, "CRM API v1 is running", {
-    version: "v1",
+v1Router.get('/', (_req, res) =>
+  sendSuccess(res, 200, 'CRM API v1 is running', {
+    version: 'v1',
     resources: [
-      "auth",
-      "customers",
-      "users",
-      "events",
-      "organization",
-      "metadata",
-      "functions",
-      "rbac",
-      "action-config",
-      "event-chains",
-      "webhooks",
-      "logs",
-      "meta",
+      'auth',
+      'customers',
+      'users',
+      'events',
+      'organization',
+      'metadata',
+      'functions',
+      'rbac',
+      'action-config',
+      'event-chains',
+      'webhooks',
+      'logs',
+      'meta',
     ],
   }),
 );
 
-v1Router.use("/auth", authRouter);
+v1Router.use('/auth', authRouter);
 
 // ─── Webhook ingestion (own auth — bearer token, not CRM session) ───────────
-v1Router.use("/webhooks", webhooksRouter);
+v1Router.use('/webhooks', webhooksRouter);
 
 // ─── Protected ───────────────────────────────────────────────────────────────
 v1Router.use(authenticateRequest);
 
 // ─── Module APIs (RBAC applied in individual routers) ────────────────────────
-v1Router.use("/customers", customersRouter);
-v1Router.use("/users", usersRouter);
-v1Router.use("/events", eventsRouter);
-v1Router.use("/meta", metaRouter);
-v1Router.use("/lead-config", leadConfigRouter);
-v1Router.use("/leads", leadRouter);
-v1Router.use("/tasks", taskRouter);
-v1Router.use("/logs", logsRouter);
+v1Router.use('/customers', customersRouter);
+v1Router.use('/users', usersRouter);
+v1Router.use('/events', eventsRouter);
+v1Router.use('/meta', metaRouter);
+v1Router.use('/lead-config', leadConfigRouter);
+v1Router.use('/leads', leadRouter);
+v1Router.use('/tasks', taskRouter);
+v1Router.use('/logs', logsRouter);
 
 // --- IMPORTANT
-v1Router.use("/staffs", staffRouter);
-v1Router.use("/salaries", salaryRouter);
-v1Router.use("/salary-configs", salaryConfigRouter);
-v1Router.use("/revenues", revenueRouter);
-v1Router.use("/expenses", expenseRouter);
-v1Router.use("/finance", financeRouter);
+v1Router.use('/staffs', staffRouter);
+v1Router.use('/salaries', salaryRouter);
+v1Router.use('/salary-configs', salaryConfigRouter);
+v1Router.use('/revenues', revenueRouter);
+v1Router.use('/expenses', expenseRouter);
+v1Router.use('/finance', financeRouter);
+v1Router.use('/policy', policyRouter);
 // --- IMPORTANT
 
-v1Router.use("/companies", companiesRouter);
-v1Router.use("/job-hub/configs", jobConfigRouter);
-v1Router.use("/job-hub/work", jobWorkRouter);
-v1Router.use("/courses/configs", courseConfigRouter);
-v1Router.use("/courses/lecturers", courseLecturersRouter);
-v1Router.use("/courses/online", coursesOnlineRouter);
-v1Router.use("/courses/offline", coursesOfflineRouter);
-v1Router.use("/courses/enrollments", courseEnrollmentsRouter);
-v1Router.use("/courses/vouchers", courseVouchersRouter);
-v1Router.use("/courses/challenges", courseChallengesRouter);
+v1Router.use('/companies', companiesRouter);
+v1Router.use('/job-hub/configs', jobConfigRouter);
+v1Router.use('/job-hub/work', jobWorkRouter);
+v1Router.use('/courses/configs', courseConfigRouter);
+v1Router.use('/courses/lecturers', courseLecturersRouter);
+v1Router.use('/courses/online', coursesOnlineRouter);
+v1Router.use('/courses/offline', coursesOfflineRouter);
+v1Router.use('/courses/enrollments', courseEnrollmentsRouter);
+v1Router.use('/courses/vouchers', courseVouchersRouter);
+v1Router.use('/courses/challenges', courseChallengesRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
-v1Router.use("/organization", organizationRouter);
-v1Router.use("/metadata", metadataRouter);
-v1Router.use("/functions", functionsRouter);
-v1Router.use("/functional-groups", functionalGroupsRouter);
-v1Router.use("/rbac", rbacRouter);
-v1Router.use("/action-config", actionConfigRouter);
-v1Router.use("/funnels", funnelsRouter);
-v1Router.use("/event-chains", globalEventChainsRouter);
+v1Router.use('/organization', organizationRouter);
+v1Router.use('/metadata', metadataRouter);
+v1Router.use('/functions', functionsRouter);
+v1Router.use('/functional-groups', functionalGroupsRouter);
+v1Router.use('/rbac', rbacRouter);
+v1Router.use('/action-config', actionConfigRouter);
+v1Router.use('/funnels', funnelsRouter);
+v1Router.use('/event-chains', globalEventChainsRouter);
 
 // Nested: chuỗi hành động trong sự kiện
-v1Router.use("/events/:eventId/chains", eventChainsRouter);
+v1Router.use('/events/:eventId/chains', eventChainsRouter);
 
 // Nested: chuỗi hành động trong tác vụ
-v1Router.use("/tasks/:taskId/chains", taskChainsRouter);
+v1Router.use('/tasks/:taskId/chains', taskChainsRouter);
 
 module.exports = v1Router;
