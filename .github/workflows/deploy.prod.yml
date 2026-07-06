@@ -76,24 +76,30 @@ jobs:
       - name: Deploy to VPS
         run: |
           ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            echo
-            echo "Deploy version: $VERSION"
-            echo
+            set -euxo pipefail
+
+            pwd
+            whoami
+
             cd "${{ env.DEPLOY_DIR }}"
 
-            if [ -f current.version ]; then
-              cp current.version previous.version
-            fi
+            ls -lah
 
-            echo "VERSION=$VERSION" > deploy.env
-            docker pull ghcr.io/${{ github.repository_owner }}/crm-server:$VERSION
+            printf "VERSION=%s\n" "${{ env.VERSION }}" > deploy.env
+
+            cat deploy.env
+
+            docker pull ghcr.io/${{ github.repository_owner }}/crm-server:${{ env.VERSION }}
+
             docker compose \
-            --env-file deploy.env \
-            up \
-            -d \
-            --pull never \
-            --remove-orphans
+              --env-file deploy.env \
+              config
+
+            docker compose \
+              --env-file deploy.env \
+              up -d \
+              --pull never \
+              --remove-orphans
           EOF
 
       - name: Wait for container healthy
