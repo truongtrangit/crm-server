@@ -13,37 +13,28 @@ concurrency:
   group: production
   cancel-in-progress: true
 
-env:
-  DEPLOY_DIR: /opt/crm-server
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: production
 
-    timeout-minutes: 20
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Generate Image Tag
+      - name: Generate Version
         run: |
           VERSION="$(date +'%Y%m%d_%H%M%S')-${GITHUB_SHA::7}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Generated version: $VERSION"
 
-      - name: Login to GitHub Container Registry
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Build and push docker image
+      - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -56,178 +47,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Install SSH key
+      - name: Install SSH Key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Trust VPS Host
+      - name: Trust Host
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Test SSH
+      - name: Deploy
         run: |
           ssh \
-          -o BatchMode=yes \
-          ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-          "hostname && whoami"
-
-      - name: Deploy to VPS
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            echo
-            echo "Deploy version: $VERSION"
-            echo
-            cd "${{ env.DEPLOY_DIR }}"
-
-            if [ -f current.version ]; then
-              cp current.version previous.version
-            fi
-
-            echo "VERSION=$VERSION" > deploy.env
-            docker pull ghcr.io/${{ github.repository_owner }}/crm-server:$VERSION
-            docker compose \
-            --env-file deploy.env \
-            up \
-            -d \
-            --pull never \
-            --remove-orphans
-          EOF
-
-      - name: Wait for container healthy
-        id: health
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            docker container inspect crm-server >/dev/null 2>&1 || {
-              echo "Container crm-server not found"
-              exit 1
-            }
-            for i in {1..12}; do
-              STATUS=\$(docker inspect \
-                --format '{{.State.Health.Status}}' \
-                crm-server)
-              echo "Health status: \$STATUS"
-              if [ "\$STATUS" = "healthy" ]; then
-                echo "Container is healthy"
-                exit 0
-              fi
-              if [ "\$STATUS" = "unhealthy" ]; then
-                echo "Container is unhealthy"
-                exit 1
-              fi
-              sleep 5
-            done
-            echo "Health check timeout"
-            docker ps
-            echo
-            docker logs --tail 50 crm-server || true
-            exit 1
-          EOF
-
-      - name: Save deployment version
-        if: steps.health.outcome == 'success'
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            cd "${{ env.DEPLOY_DIR }}"
-            echo "$VERSION" > current.version
-            date -u +"%Y-%m-%dT%H:%M:%SZ => $VERSION" >> deploy-history.log
-          EOF
-
-      - name: Rollback
-        if: failure() && steps.health.outcome == 'failure'
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            cd "${{ env.DEPLOY_DIR }}"
-
-            if [ ! -f previous.version ]; then
-              echo "No previous version."
-              exit 1
-            fi
-
-            PREVIOUS=\$(cat previous.version)
-            echo "Rollback to \$PREVIOUS"
-            echo "VERSION=\$PREVIOUS" > deploy.env
-            docker pull \
-              ghcr.io/${{ github.repository_owner }}/crm-server:\$PREVIOUS
-            docker compose \
-              --env-file deploy.env \
-              up -d \
-              --pull never \
-              --remove-orphans
-          EOF
-
-      - name: Wait rollback healthy
-        if: failure()
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            docker container inspect crm-server >/dev/null 2>&1 || {
-              echo "Container not found"
-              exit 1
-            }
-            for i in {1..12}; do
-              STATUS=\$(docker inspect \
-                --format '{{.State.Health.Status}}' \
-                crm-server)
-              echo "Rollback health: \$STATUS"
-              if [ "\$STATUS" = "healthy" ]; then
-                echo "Rollback completed"
-                exit 0
-              fi
-              if [ "\$STATUS" = "unhealthy" ]; then
-                exit 1
-              fi
-              sleep 5
-              done
-              echo "Rollback failed"
-              exit 1
-          EOF
-
-      - name: Verify deployment
-        if: always()
-        continue-on-error: true
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            echo "Running image:"
-            docker inspect crm-server --format '{{.Config.Image}}'
-
-            echo
-            cd "${{ env.DEPLOY_DIR }}"
-            docker compose ps
-
-            echo
-            docker logs --tail 30 crm-server || true
-
-            echo
-            echo "Health:"
-            docker inspect \
-            --format '{{.State.Health.Status}}' \
-            crm-server
-          EOF
-
-      - name: Cleanup old images
-        if: success()
-        run: |
-          ssh -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
-            set -euo pipefail
-            cd "${{ env.DEPLOY_DIR }}"
-
-            REPO="ghcr.io/${{ github.repository_owner }}/crm-server"
-
-            docker image ls "\$REPO" \
-              --format '{{.Repository}}:{{.Tag}} {{.Tag}}' \
-              | grep -v ':latest ' \
-              | sort -rk2 \
-              | tail -n +11 \
-              | while read -r IMAGE TAG
-              do
-                echo "Removing \$IMAGE"
-                docker image rm "$IMAGE" >/dev/null 2>&1 || true
-              done
-          EOF
+            -o BatchMode=yes \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "/opt/crm-server/scripts/deploy.sh $VERSION"
