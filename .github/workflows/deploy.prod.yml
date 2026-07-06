@@ -138,7 +138,7 @@ jobs:
             docker logs --tail 50 crm-server || true
             exit 1
 
-            EOF
+          EOF
 
       - name: Save deployment version
         if: steps.health.outcome == 'success'
