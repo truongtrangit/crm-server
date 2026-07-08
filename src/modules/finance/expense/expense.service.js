@@ -22,14 +22,45 @@ class ExpenseService {
     if (query.isActive !== undefined) {
       filter.isActive = query.isActive === "true" || query.isActive === true;
     }
-    const categories = await ExpenseCategory.find(filter).sort({ createdAt: -1 }).lean();
+    const categories = await ExpenseCategory.find(filter)
+      .populate('parentId', 'id name')
+      .sort({ createdAt: -1 })
+      .lean();
     return categories;
   }
 
   async createCategory(data) {
     const id = await generateMonotonicId(ID_PREFIXES.EXPENSE_CATEGORY);
-    const category = new ExpenseCategory({ ...data, id });
+    const category = new ExpenseCategory({
+      name: data.name,
+      description: data.description,
+      isActive: data.isActive,
+      id
+    });
     await category.save();
+
+    if (data.subCategories && Array.isArray(data.subCategories)) {
+      const bulkOps = [];
+      for (const sub of data.subCategories) {
+        if (!sub.name || sub.name === '') continue;
+        const subIdStr = await generateMonotonicId(ID_PREFIXES.EXPENSE_CATEGORY);
+        bulkOps.push({
+          insertOne: {
+            document: {
+              name: sub.name,
+              isActive: sub.isActive !== undefined ? sub.isActive : true,
+              id: subIdStr,
+              parentId: category._id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          }
+        });
+      }
+      if (bulkOps.length > 0) {
+        await ExpenseCategory.bulkWrite(bulkOps);
+      }
+    }
     return category;
   }
 
@@ -39,8 +70,62 @@ class ExpenseService {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
     const oldState = category.toObject();
-    Object.assign(category, data);
+    
+    if (data.name !== undefined) category.name = data.name;
+    if (data.description !== undefined) category.description = data.description;
+    if (data.isActive !== undefined) category.isActive = data.isActive;
+
     await category.save();
+    
+    // Update subCategories
+    if (data.subCategories && Array.isArray(data.subCategories)) {
+      const existingSubs = await ExpenseCategory.find({ parentId: category._id });
+      const incomingSubIds = new Set(data.subCategories.filter(s => s.id).map(s => s.id));
+
+      const idsToDelete = existingSubs
+        .filter(s => !incomingSubIds.has(s.id))
+        .map(s => s.id);
+
+      if (idsToDelete.length > 0) {
+        const isUsed = await Expense.exists({ category: { $in: existingSubs.filter(s => idsToDelete.includes(s.id)).map(s => s._id) } });
+        if (isUsed) {
+          throw createHttpError(400, "Không thể xoá danh mục con đang được sử dụng trong phiếu chi");
+        }
+        await ExpenseCategory.deleteMany({ id: { $in: idsToDelete } });
+      }
+
+      const bulkOps = [];
+      for (const sub of data.subCategories) {
+        if (!sub.name || sub.name === '') continue;
+        if (sub.id) {
+          bulkOps.push({
+            updateOne: {
+              filter: { id: sub.id, parentId: category._id },
+              update: { $set: { name: sub.name, isActive: sub.isActive, updatedAt: new Date() } }
+            }
+          });
+        } else {
+          const subIdStr = await generateMonotonicId(ID_PREFIXES.EXPENSE_CATEGORY);
+          bulkOps.push({
+            insertOne: {
+              document: {
+                name: sub.name,
+                isActive: sub.isActive !== undefined ? sub.isActive : true,
+                id: subIdStr,
+                parentId: category._id,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              }
+            }
+          });
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        await ExpenseCategory.bulkWrite(bulkOps);
+      }
+    }
+
     const newState = category.toObject();
     const changes = computeChanges(oldState, newState);
     return { category, changes };
@@ -51,16 +136,20 @@ class ExpenseService {
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
-    const isUsed = await Expense.exists({ category: category._id });
+    
+    const subCategories = await ExpenseCategory.find({ parentId: category._id });
+    const allIds = [category._id, ...subCategories.map(s => s._id)];
+
+    const isUsed = await Expense.exists({ category: { $in: allIds } });
     if (isUsed && !force) {
       throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa", { code: "RESOURCE_IN_USE" });
     }
 
     if (isUsed && force) {
-      await Expense.updateMany({ category: category._id }, { $set: { category: null } });
+      await Expense.updateMany({ category: { $in: allIds } }, { $set: { category: null } });
     }
 
-    await ExpenseCategory.deleteOne({ id });
+    await ExpenseCategory.deleteMany({ _id: { $in: allIds } });
     return category;
   }
 
