@@ -25,6 +25,7 @@ const createCustomerSchema = Joi.object({
   botvnPassword: Joi.string().pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/).optional().messages({
     "string.pattern.base": "Mật khẩu phải dài ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt",
   }),
+  isEduAccount: Joi.boolean().optional(),
 });
 
 const updateCustomerSchema = Joi.object({
@@ -47,6 +48,7 @@ const updateCustomerSchema = Joi.object({
   subType: Joi.string().allow("").optional(),
   alias: Joi.string().allow("").optional(),
   botvnRole: Joi.string().allow("").optional(),
+  isEduAccount: Joi.boolean().optional(),
 }).min(1).messages({
   "object.min": "At least one field is required to update",
 });

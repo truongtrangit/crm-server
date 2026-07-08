@@ -14,7 +14,7 @@ class CreditController {
       resource: "customers",
       resourceId: customerId,
       resourceName: req.user.name,
-      description: `Sử dụng mã voucher ${code} nhận ${result.rewardPoints} credit thưởng`,
+      description: `Sử dụng mã voucher ${code} nhận ${result.mainCredit} credit chính, ${result.rewardCredit} credit tặng, ${result.eduCredit} credit giáo dục`,
       req,
     });
 

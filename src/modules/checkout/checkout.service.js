@@ -10,7 +10,7 @@ const { ID_PREFIXES, generateMonotonicId } = require('../../core/utils/id');
 const {
   COURSE_TYPES,
   PAYMENT_METHODS,
-  COURSE_ENROLLMENT_STATUS
+  COURSE_ENROLLMENT_STATUS,
 } = require('../../core/constants/appData');
 
 class CheckoutService {
@@ -43,8 +43,9 @@ class CheckoutService {
         );
       }
 
-      let totalCreditRequired = 0;
+      let totalMainCreditRequired = 0;
       let totalRewardCreditRequired = 0;
+      let totalEduCreditRequired = 0;
       const enrollmentsToCreate = [];
 
       // Validate each item
@@ -98,13 +99,13 @@ class CheckoutService {
         if (courseType === COURSE_TYPES.OFFLINE && course.maxStudents > 0) {
           const registeredStudents = await CourseEnrollment.countDocuments({
             courseId: course.id,
-            status: COURSE_ENROLLMENT_STATUS.ACTIVE
+            status: COURSE_ENROLLMENT_STATUS.ACTIVE,
           }).session(session);
 
           if (registeredStudents >= course.maxStudents) {
             throw createHttpError(
               400,
-              `Khóa học ${course.id} đã đủ số lượng học viên tối đa`
+              `Khóa học ${course.id} đã đủ số lượng học viên tối đa`,
             );
           }
         }
@@ -139,11 +140,20 @@ class CheckoutService {
         const price = pkg.price || 0;
 
         switch (paymentMethod) {
-          case PAYMENT_METHODS.CREDIT:
-            totalCreditRequired += price;
+          case PAYMENT_METHODS.MAIN_CREDIT:
+            totalMainCreditRequired += price;
             break;
           case PAYMENT_METHODS.REWARD_CREDIT:
             totalRewardCreditRequired += price;
+            break;
+          case PAYMENT_METHODS.EDU_CREDIT:
+            if (!customer.isEduAccount) {
+              throw createHttpError(
+                400,
+                `Phương thức thanh toán ${paymentMethod} chỉ dành cho tài khoản giáo dục`,
+              );
+            }
+            totalEduCreditRequired += price;
             break;
           case PAYMENT_METHODS.FREE:
             break;
@@ -171,14 +181,15 @@ class CheckoutService {
         });
       }
 
-      const currentCredit = customer.credit || 0;
+      const currentCredit = customer.mainCredit || 0;
       const currentRewardCredit = customer.rewardCredit || 0;
+      const currentEduCredit = customer.eduCredit || 0;
 
       // Check balances
-      if (currentCredit < totalCreditRequired) {
+      if (currentCredit < totalMainCreditRequired) {
         throw createHttpError(
           400,
-          `Số dư Credit không đủ. Cần thêm ${totalCreditRequired - currentCredit} Credit`,
+          `Số dư Credit không đủ. Cần thêm ${totalMainCreditRequired - currentCredit} Credit`,
         );
       }
       if (currentRewardCredit < totalRewardCreditRequired) {
@@ -187,13 +198,22 @@ class CheckoutService {
           `Số dư Credit Thưởng không đủ. Cần thêm ${totalRewardCreditRequired - currentRewardCredit} Credit Thưởng`,
         );
       }
+      if (currentEduCredit < totalEduCreditRequired) {
+        throw createHttpError(
+          400,
+          `Số dư Credit Giáo dục không đủ. Cần thêm ${totalEduCreditRequired - currentEduCredit} Credit Giáo dục`,
+        );
+      }
 
       // Deduct balances
-      if (totalCreditRequired > 0) {
-        customer.credit = currentCredit - totalCreditRequired;
+      if (totalMainCreditRequired > 0) {
+        customer.mainCredit = currentCredit - totalMainCreditRequired;
       }
       if (totalRewardCreditRequired > 0) {
         customer.rewardCredit = currentRewardCredit - totalRewardCreditRequired;
+      }
+      if (totalEduCreditRequired > 0) {
+        customer.eduCredit = currentEduCredit - totalEduCreditRequired;
       }
 
       await customer.save({ session });
@@ -209,10 +229,12 @@ class CheckoutService {
         'checkout',
         {
           items,
-          totalCreditRequired,
+          totalMainCreditRequired,
           totalRewardCreditRequired,
-          remainingCredit: customer.credit,
+          totalEduCreditRequired,
+          remainingCredit: customer.mainCredit,
           remainingRewardCredit: customer.rewardCredit,
+          remainingEduCredit: customer.eduCredit,
         },
         studentId, // Actor
       );
@@ -223,8 +245,9 @@ class CheckoutService {
       return {
         message: 'Thanh toán và đăng ký thành công',
         enrollments: enrollmentsToCreate,
-        remainingCredit: customer.credit,
+        remainingCredit: customer.mainCredit,
         remainingRewardCredit: customer.rewardCredit,
+        remainingEduCredit: customer.eduCredit,
       };
     } catch (error) {
       await session.abortTransaction();

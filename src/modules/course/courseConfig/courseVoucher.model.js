@@ -19,9 +19,19 @@ const courseVoucherSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    rewardPoints: {
+    mainCredit: {
       type: Number,
-      required: true,
+      default: 0,
+      min: 0,
+    },
+    rewardCredit: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    eduCredit: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     maxUses: {

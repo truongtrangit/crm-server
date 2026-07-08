@@ -33,7 +33,9 @@ class CourseVoucherService {
     const {
       type,
       code,
-      rewardPoints,
+      mainCredit,
+      rewardCredit,
+      eduCredit,
       maxUses,
       usagePerUser,
       batch,
@@ -51,7 +53,9 @@ class CourseVoucherService {
     const voucherData = {
       type: type || VOUCHER_TYPES.SINGLE,
       code: code ? code.trim().toUpperCase() : generateVoucherCode(),
-      rewardPoints,
+      mainCredit,
+      rewardCredit,
+      eduCredit,
       maxUses: type === VOUCHER_TYPES.SINGLE ? 1 : maxUses,
       usagePerUser: usagePerUser ?? 1,
       batch: batch || null,
@@ -74,7 +78,7 @@ class CourseVoucherService {
    * Bulk generate single-use vouchers
    */
   async bulkCreateVouchers(data, adminId) {
-    const { prefix, count, rewardPoints, batch, status, expiresAt } = data;
+    const { prefix, count, mainCredit, rewardCredit, eduCredit, batch, status, expiresAt } = data;
 
     if (!count || count <= 0) {
       throw createHttpError(400, "Count must be greater than 0");
@@ -94,7 +98,9 @@ class CourseVoucherService {
       vouchers.push({
         type: VOUCHER_TYPES.SINGLE,
         code: generateVoucherCode(prefix),
-        rewardPoints,
+        mainCredit,
+        rewardCredit,
+        eduCredit,
         maxUses: 1,
         usagePerUser: 1,
         batch: batch || null,
@@ -171,7 +177,9 @@ class CourseVoucherService {
               $cond: [{ $eq: ["$status", VOUCHER_STATUSES.USED] }, 1, 0],
             },
           },
-          rewardPoints: { $first: "$rewardPoints" },
+          mainCredit: { $first: "$mainCredit" },
+          rewardCredit: { $first: "$rewardCredit" },
+          eduCredit: { $first: "$eduCredit" },
           createdAt: { $first: "$createdAt" },
           expiresAt: { $first: "$expiresAt" },
           createdBy: { $first: "$createdBy" },
@@ -195,7 +203,9 @@ class CourseVoucherService {
           batch: { $ifNull: ["$_id", "Không có đợt"] },
           totalVouchers: 1,
           usedVouchers: 1,
-          rewardPoints: 1,
+          mainCredit: 1,
+          rewardCredit: 1,
+          eduCredit: 1,
           createdAt: 1,
           expiresAt: 1,
           createdBy: {
