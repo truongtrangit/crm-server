@@ -1,9 +1,15 @@
+const mongoose = require("mongoose");
 const Customer = require("../customer/customer.model");
 const CourseVoucher = require("../../course/courseConfig/courseVoucher.model");
 const VoucherRedemption = require("../../course/courseConfig/voucherRedemption.model");
+const CreditTransaction = require("./creditTransaction.model");
 const {
   VOUCHER_STATUSES,
   VOUCHER_TYPES,
+  CREDIT_TRANSACTION_TYPES,
+  CREDIT_TYPES,
+  CREDIT_SOURCES,
+  CREDIT_TRANSACTION_STATUS,
 } = require("../../../core/constants/appData");
 const { createHttpError } = require("../../../core/utils/http");
 
@@ -161,10 +167,143 @@ class CreditService {
    * @returns {Array} List of redemptions
    */
   async getHistory(customerId) {
-    const history = await VoucherRedemption.find({ userId: customerId })
-      .sort({ redeemedAt: -1 })
-      .lean();
-    return history;
+    const vouchers = await VoucherRedemption.find({ userId: customerId }).lean();
+    const transactions = await CreditTransaction.find({ 
+      userId: customerId, 
+      status: CREDIT_TRANSACTION_STATUS.SUCCESS, 
+      transactionType: CREDIT_TRANSACTION_TYPES.IN 
+    }).lean();
+
+    const formattedTransactions = transactions.map(t => ({
+      _id: t._id,
+      code: t.reference,
+      rewardPoints: t.amount,
+      redeemedAt: t.createdAt,
+      source: t.source
+    }));
+
+    const combined = [...vouchers, ...formattedTransactions].sort((a, b) => {
+      const dateA = new Date(a.redeemedAt);
+      const dateB = new Date(b.redeemedAt);
+      return dateB - dateA;
+    });
+
+    return combined;
+  }
+
+  /**
+   * Redeem a SmaxAi code
+   * @param {string} customerId
+   * @param {string} code
+   * @param {string} idempotencyKey
+   * @returns {object} { success, amount, currentCredit }
+   */
+  async redeemSmaxAi(customerId, code, idempotencyKey) {
+    if (!code) throw createHttpError(400, "Mã code không được để trống");
+    
+    const customer = await Customer.findOne({ id: customerId });
+    if (!customer) throw createHttpError(404, "Không tìm thấy khách hàng");
+
+    const cleanCode = code.trim().toUpperCase();
+
+    // 1. Check idempotency key from client
+    if (idempotencyKey) {
+      const existingTx = await CreditTransaction.findOne({ idempotencyKey });
+      if (existingTx) {
+        if (existingTx.status === CREDIT_TRANSACTION_STATUS.SUCCESS) {
+           return { success: true, amount: existingTx.amount, currentCredit: customer.mainCredit };
+        }
+        throw createHttpError(400, "Yêu cầu đang được xử lý hoặc đã thất bại.");
+      }
+    }
+
+    // 2. Pre-check if code already used
+    const usedCode = await CreditTransaction.findOne({ 
+      source: CREDIT_SOURCES.SMAXAI, 
+      reference: cleanCode, 
+      status: CREDIT_TRANSACTION_STATUS.SUCCESS 
+    });
+    if (usedCode) {
+      throw createHttpError(400, "Mã code đã được nạp trước đó");
+    }
+
+    // 3. Create PENDING transaction
+    let transaction;
+    try {
+      transaction = await CreditTransaction.create({
+        userId: customerId,
+        amount: 0, 
+        creditType: CREDIT_TYPES.MAIN,
+        transactionType: CREDIT_TRANSACTION_TYPES.IN,
+        source: CREDIT_SOURCES.SMAXAI,
+        reference: cleanCode,
+        idempotencyKey: idempotencyKey || undefined,
+        status: CREDIT_TRANSACTION_STATUS.PENDING
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        throw createHttpError(400, "Mã code đã được nạp trước đó hoặc yêu cầu trùng lặp.");
+      }
+      throw error;
+    }
+
+    // 4. Call 3rd Party API (Mock for now)
+    let valid = false;
+    let amount = 0;
+    try {
+      // Giả lập network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Giả lập logic trả về: mã code bắt đầu bằng SMAX thì tặng 100k, SMAX50 tặng 50k
+      if (cleanCode.startsWith("SMAX50")) {
+        valid = true;
+        amount = 50000;
+      } else if (cleanCode.startsWith("SMAX")) {
+        valid = true;
+        amount = 100000;
+      } else {
+        valid = false;
+      }
+    } catch (apiError) {
+      await CreditTransaction.updateOne({ _id: transaction._id }, { status: CREDIT_TRANSACTION_STATUS.FAILED, description: 'Lỗi kết nối API SmaxAi' });
+      throw createHttpError(500, "Không thể kết nối đến hệ thống SmaxAi");
+    }
+
+    if (!valid) {
+      await CreditTransaction.updateOne({ _id: transaction._id }, { status: CREDIT_TRANSACTION_STATUS.FAILED, description: 'Mã không hợp lệ' });
+      throw createHttpError(400, "Mã SmaxAi không hợp lệ");
+    }
+
+    // 5. Success -> Update Transaction and Customer (Using transaction for ACID safety)
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    let updatedCustomer;
+    try {
+      updatedCustomer = await Customer.findOneAndUpdate(
+        { id: customerId },
+        { $inc: { mainCredit: amount } },
+        { new: true, session }
+      );
+      
+      await CreditTransaction.updateOne(
+        { _id: transaction._id },
+        { status: CREDIT_TRANSACTION_STATUS.SUCCESS, amount: amount },
+        { session }
+      );
+      
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw createHttpError(500, "Lỗi hệ thống khi cập nhật điểm");
+    } finally {
+      session.endSession();
+    }
+
+    return {
+      success: true,
+      amount: amount,
+      currentCredit: updatedCustomer.mainCredit
+    };
   }
 }
 

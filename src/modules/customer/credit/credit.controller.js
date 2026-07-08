@@ -21,6 +21,35 @@ class CreditController {
     return sendSuccess(res, 200, "Voucher redeemed successfully", result);
   };
 
+  redeemSmaxAi = async (req, res, next) => {
+    try {
+      const customerId = req.user.id || req.user._id;
+      const { code } = req.body;
+      const idempotencyKey = req.headers['idempotency-key'];
+
+      const result = await creditService.redeemSmaxAi(customerId, code, idempotencyKey);
+
+      SystemLogService.log({
+        action: "update",
+        resource: "customers",
+        resourceId: customerId,
+        resourceName: req.user.name,
+        description: `Sử dụng mã SmaxAi ${code} nhận ${result.amount} credit`,
+        req,
+      });
+
+      return sendSuccess(res, 200, "Nạp SmaxAi thành công", result);
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(400).json({
+          statusCode: 400,
+          message: "Mã code đã được nạp trước đó hoặc yêu cầu trùng lặp."
+        });
+      }
+      next(error);
+    }
+  };
+
   getCredits = async (req, res) => {
     const customerId = req.user.id || req.user._id;
     const credits = await creditService.getCredits(customerId);

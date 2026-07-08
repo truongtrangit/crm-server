@@ -30,4 +30,12 @@ creditsRouter.post(
   creditController.redeemVoucher,
 );
 
+// Redeem SmaxAi code
+creditsRouter.post(
+  "/smaxai/redeem",
+  voucherRedeemLimiter, // Can reuse the same rate limiter for now
+  validate(creditValidation.redeemSmaxAi, "body"),
+  creditController.redeemSmaxAi,
+);
+
 module.exports = creditsRouter;
