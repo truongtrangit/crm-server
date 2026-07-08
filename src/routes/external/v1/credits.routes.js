@@ -24,7 +24,7 @@ creditsRouter.get("/history", creditController.getHistory);
 
 // Redeem a voucher with Rate Limiting (10 requests / 15 mins)
 creditsRouter.post(
-  "/redeem",
+  "/voucher/redeem",
   voucherRedeemLimiter,
   validate(creditValidation.redeemVoucher, "body"),
   creditController.redeemVoucher,

@@ -139,6 +139,7 @@ const CREDIT_TRANSACTION_TYPES = Object.freeze({
 const CREDIT_TYPES = Object.freeze({
   MAIN: "main",
   REWARD: "reward",
+  EDU: "edu",
 });
 
 const CREDIT_SOURCES = Object.freeze({

@@ -44,6 +44,10 @@ const creditTransactionSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+    transactionGroupId: {
+      type: String,
+      index: true,
+    },
     status: {
       type: String,
       enum: Object.values(CREDIT_TRANSACTION_STATUS),
@@ -66,10 +70,10 @@ creditTransactionSchema.index(
   { unique: true, sparse: true }
 );
 
-// Prevent double spending of the same voucher/code (smaxai codes are uniquely one-time use)
+// Prevent double spending of the same voucher/code (smaxai codes are uniquely one-time use globally)
 creditTransactionSchema.index(
   { source: 1, reference: 1 },
-  { unique: true }
+  { unique: true, partialFilterExpression: { source: CREDIT_SOURCES.SMAXAI } }
 );
 
 creditTransactionSchema.plugin(softDeletePlugin);
