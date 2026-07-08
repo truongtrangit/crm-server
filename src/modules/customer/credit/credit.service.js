@@ -25,15 +25,21 @@ class CreditService {
     if (idempotencyKey) {
       // Check for existing transactions to prevent double click
       const existingTxs = await CreditTransaction.find({
-        idempotencyKey: { $in: [`${idempotencyKey}-MAIN`, `${idempotencyKey}-REWARD`, `${idempotencyKey}-EDU`] },
-        status: CREDIT_TRANSACTION_STATUS.SUCCESS
+        idempotencyKey: {
+          $in: [
+            `${idempotencyKey}-MAIN`,
+            `${idempotencyKey}-REWARD`,
+            `${idempotencyKey}-EDU`,
+          ],
+        },
+        status: CREDIT_TRANSACTION_STATUS.SUCCESS,
       });
-      
+
       if (existingTxs.length > 0) {
         let mainCredit = 0;
         let rewardCredit = 0;
         let eduCredit = 0;
-        existingTxs.forEach(tx => {
+        existingTxs.forEach((tx) => {
           if (tx.creditType === CREDIT_TYPES.MAIN) mainCredit += tx.amount;
           if (tx.creditType === CREDIT_TYPES.REWARD) rewardCredit += tx.amount;
           if (tx.creditType === CREDIT_TYPES.EDU) eduCredit += tx.amount;
@@ -107,9 +113,14 @@ class CreditService {
               reference: cleanCode,
               userId: customerId,
               status: CREDIT_TRANSACTION_STATUS.SUCCESS,
-            }).session(session).select('transactionGroupId').lean();
-            
-            const uniqueGroups = new Set(userTx.map(t => t.transactionGroupId));
+            })
+              .session(session)
+              .select('transactionGroupId')
+              .lean();
+
+            const uniqueGroups = new Set(
+              userTx.map((t) => t.transactionGroupId),
+            );
             if (uniqueGroups.size >= voucherInfo.usagePerUser) {
               throw createHttpError(
                 400,
@@ -138,7 +149,7 @@ class CreditService {
             await CourseVoucher.updateOne(
               { _id: updatedVoucher._id },
               { status: VOUCHER_STATUSES.USED },
-              { session }
+              { session },
             );
           }
           break;
@@ -168,7 +179,9 @@ class CreditService {
           transactionType: CREDIT_TRANSACTION_TYPES.IN,
           source: CREDIT_SOURCES.VOUCHER,
           reference: cleanCode,
-          idempotencyKey: idempotencyKey ? `${idempotencyKey}-REWARD` : undefined,
+          idempotencyKey: idempotencyKey
+            ? `${idempotencyKey}-REWARD`
+            : undefined,
           transactionGroupId,
           status: CREDIT_TRANSACTION_STATUS.SUCCESS,
         });
@@ -250,27 +263,28 @@ class CreditService {
   }
 
   /**
-   * Get deposit history for a customer
+   * Get credit transaction history for a customer
    * @param {string} customerId
-   * @returns {Array} List of redemptions
+   * @param {string} type - Transaction type (IN or OUT)
+   * @returns {Array} List of transactions
    */
-  async getHistory(customerId) {
+  async getHistory(customerId, type = CREDIT_TRANSACTION_TYPES.IN) {
     const transactions = await CreditTransaction.find({
       userId: customerId,
       status: CREDIT_TRANSACTION_STATUS.SUCCESS,
-      transactionType: CREDIT_TRANSACTION_TYPES.IN,
+      transactionType: type,
     })
       .sort({ createdAt: -1 })
       .lean();
 
-    // Group vouchers logically if needed, but for simplicity we will just map them as individual IN records
     const formattedTransactions = transactions.map((t) => ({
       _id: t._id,
       code: t.reference,
       rewardPoints: t.amount,
-      creditType: t.creditType, // Include this so the frontend knows what kind of credit was received
+      creditType: t.creditType,
       redeemedAt: t.createdAt,
       source: t.source,
+      description: t.description,
     }));
 
     return formattedTransactions;

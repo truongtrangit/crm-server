@@ -78,7 +78,8 @@ class CreditController {
 
   getHistory = async (req, res) => {
     const customerId = req.user.id || req.user._id;
-    const history = await creditService.getHistory(customerId);
+    const type = req.query.type || 'IN';
+    const history = await creditService.getHistory(customerId, type);
 
     return sendSuccess(res, 200, 'Get history successfully', history);
   };

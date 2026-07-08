@@ -7,10 +7,15 @@ const CourseOffline = require('../course/courseOffline/courseOffline.model');
 const Customer = require('../customer/customer/customer.model');
 const SystemLogService = require('../system/log/systemLog.service');
 const { ID_PREFIXES, generateMonotonicId } = require('../../core/utils/id');
+const CreditTransaction = require('../customer/credit/creditTransaction.model');
 const {
   COURSE_TYPES,
   PAYMENT_METHODS,
   COURSE_ENROLLMENT_STATUS,
+  CREDIT_TRANSACTION_TYPES,
+  CREDIT_TYPES,
+  CREDIT_SOURCES,
+  CREDIT_TRANSACTION_STATUS,
 } = require('../../core/constants/appData');
 
 class CheckoutService {
@@ -47,6 +52,7 @@ class CheckoutService {
       let totalRewardCreditRequired = 0;
       let totalEduCreditRequired = 0;
       const enrollmentsToCreate = [];
+      const courseTitles = [];
 
       // Validate each item
       for (const item of items) {
@@ -94,6 +100,7 @@ class CheckoutService {
 
         // Reassign courseId to the canonical string ID from the document
         courseId = course.id;
+        courseTitles.push(course.title || course.name || course.id);
 
         // Block if offline course is full
         if (courseType === COURSE_TYPES.OFFLINE && course.maxStudents > 0) {
@@ -205,18 +212,58 @@ class CheckoutService {
         );
       }
 
-      // Deduct balances
+      // Deduct balances and log transactions
+      const transactionsToCreate = [];
+      const transactionGroupId = await generateMonotonicId('TXG');
+      const coursesStr = courseTitles.join(', ');
+
       if (totalMainCreditRequired > 0) {
         customer.mainCredit = currentCredit - totalMainCreditRequired;
+        transactionsToCreate.push({
+          userId: customer.id,
+          amount: totalMainCreditRequired,
+          creditType: CREDIT_TYPES.MAIN,
+          transactionType: CREDIT_TRANSACTION_TYPES.OUT,
+          source: CREDIT_SOURCES.COURSE_PURCHASE,
+          reference: transactionGroupId,
+          transactionGroupId,
+          status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+          description: `Thanh toán ${totalMainCreditRequired} Credit chính cho: ${coursesStr}`,
+        });
       }
       if (totalRewardCreditRequired > 0) {
         customer.rewardCredit = currentRewardCredit - totalRewardCreditRequired;
+        transactionsToCreate.push({
+          userId: customer.id,
+          amount: totalRewardCreditRequired,
+          creditType: CREDIT_TYPES.REWARD,
+          transactionType: CREDIT_TRANSACTION_TYPES.OUT,
+          source: CREDIT_SOURCES.COURSE_PURCHASE,
+          reference: transactionGroupId,
+          transactionGroupId,
+          status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+          description: `Thanh toán ${totalRewardCreditRequired} Credit thưởng cho: ${coursesStr}`,
+        });
       }
       if (totalEduCreditRequired > 0) {
         customer.eduCredit = currentEduCredit - totalEduCreditRequired;
+        transactionsToCreate.push({
+          userId: customer.id,
+          amount: totalEduCreditRequired,
+          creditType: CREDIT_TYPES.EDU,
+          transactionType: CREDIT_TRANSACTION_TYPES.OUT,
+          source: CREDIT_SOURCES.COURSE_PURCHASE,
+          reference: transactionGroupId,
+          transactionGroupId,
+          status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+          description: `Thanh toán ${totalEduCreditRequired} Credit GD cho: ${coursesStr}`,
+        });
       }
 
       await customer.save({ session });
+      if (transactionsToCreate.length > 0) {
+        await CreditTransaction.insertMany(transactionsToCreate, { session });
+      }
 
       // Create enrollments
       await CourseEnrollment.insertMany(enrollmentsToCreate, { session });
