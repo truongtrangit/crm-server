@@ -4,9 +4,10 @@ const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 const logger = require('./logger');
+const env = require('../config/env');
 
 // 1. TCP Keep-Alive Configuration (Performance Improvement)
-// Node.js does not keep alive TCP connections by default. 
+// Node.js does not keep alive TCP connections by default.
 // We create agents that keep connections open for reuse, significantly reducing TLS handshake overhead.
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 100 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 100 });
@@ -23,14 +24,17 @@ const httpClient = axios.create({
 
 // 3. Configure Auto-Retry & Exponential Backoff
 axiosRetry(httpClient, {
-  retries: 3, // Retry up to 3 times
+  retries: env.enableHttpRetry ? 3 : 0, // Retry up to 3 times if enabled, else 0
   retryDelay: (retryCount) => {
     // Exponential backoff: 1000ms, 2000ms, 4000ms...
     return retryCount * 1000;
   },
   retryCondition: (error) => {
     // Retry on network errors or 5xx server errors
-    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.response?.status >= 500;
+    return (
+      axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+      error.response?.status >= 500
+    );
   },
   onRetry: (retryCount, error, requestConfig) => {
     logger.warn(`Retrying request attempt ${retryCount}`, {
@@ -45,7 +49,12 @@ axiosRetry(httpClient, {
 const maskSensitiveHeaders = (headers) => {
   if (!headers) return headers;
   const masked = { ...headers };
-  const sensitiveKeys = ['authorization', 'service-token', 'cookie', 'x-api-key'];
+  const sensitiveKeys = [
+    'authorization',
+    'service-token',
+    'cookie',
+    'x-api-key',
+  ];
   Object.keys(masked).forEach((key) => {
     if (sensitiveKeys.includes(key.toLowerCase())) {
       masked[key] = '***MASKED***';
@@ -60,7 +69,7 @@ httpClient.interceptors.request.use(
     // Generate a unique Request ID for tracing
     const requestId = config.headers['X-Request-ID'] || crypto.randomUUID();
     config.headers['X-Request-ID'] = requestId;
-    
+
     // Store metadata for duration calculation
     config.metadata = { startTime: Date.now(), requestId };
 
@@ -73,7 +82,7 @@ httpClient.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // 5. Response Interceptor (Error Normalization & Duration Tracking)
@@ -109,11 +118,14 @@ httpClient.interceptors.response.use(
       headers: maskSensitiveHeaders(error.config?.headers),
     };
 
-    logger.error(`[${errorDetails.requestId}] HTTP Request Failed`, errorDetails);
+    logger.error(
+      `[${errorDetails.requestId}] HTTP Request Failed`,
+      errorDetails,
+    );
 
     // Return the rejected promise so caller can handle it
     return Promise.reject(error);
-  }
+  },
 );
 
 // 6. Export modular functions matching typical usage

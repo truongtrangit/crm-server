@@ -364,7 +364,7 @@ class CreditService {
       const url = `${smaxCreditValidUrl}?code_redeem=${encodeURIComponent(cleanCode)}`;
       const responseData = await httpClient.get(url, {
         headers: {
-          authorization: smaxCreditValidToken || '',
+          authorization: `Bearer ${smaxCreditValidToken}`,
         },
       });
 

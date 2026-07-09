@@ -32,6 +32,7 @@ const env = {
 
   // ─── Feature Flags ───────────────────────────────────────────────────────────
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',
+  enableHttpRetry: process.env.ENABLE_HTTP_RETRY === 'true',
 
   // ─── Smax Ai ─────────────────────────────────────────────────────────────────
   smaxCreditValidationUrl:
