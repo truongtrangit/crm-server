@@ -305,7 +305,7 @@ class CreditService {
     const customer = await Customer.findOne({ id: customerId });
     if (!customer) throw createHttpError(404, 'Không tìm thấy khách hàng');
 
-    const cleanCode = code.trim().toUpperCase();
+    const cleanCode = code.trim();
 
     // 1. Check idempotency key from client
     if (idempotencyKey) {
@@ -329,7 +329,7 @@ class CreditService {
       status: CREDIT_TRANSACTION_STATUS.SUCCESS,
     });
     if (usedCode) {
-      throw createHttpError(400, 'Mã code đã được nạp trước đó');
+      throw createHttpError(400, 'Mã code đã được sử dụng.');
     }
 
     // 3. Create PENDING transaction
