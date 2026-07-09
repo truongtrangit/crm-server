@@ -1,18 +1,18 @@
-const mongoose = require("mongoose");
-const { softDeletePlugin } = require("../../../core/utils/softDelete");
+const mongoose = require('mongoose');
+const { softDeletePlugin } = require('../../../core/utils/softDelete');
 const {
   CREDIT_TRANSACTION_TYPES,
   CREDIT_TYPES,
   CREDIT_SOURCES,
   CREDIT_TRANSACTION_STATUS,
-} = require("../../../core/constants/appData");
+} = require('../../../core/constants/appData');
 
 const creditTransactionSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
       required: true,
-      ref: "Customer",
+      ref: 'Customer',
       index: true,
     },
     amount: {
@@ -55,27 +55,39 @@ const creditTransactionSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      default: "",
+      default: '',
     },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 // Prevent double processing of the exact same request
 creditTransactionSchema.index(
   { idempotencyKey: 1 },
-  { unique: true, sparse: true }
+  { unique: true, sparse: true },
 );
 
 // Prevent double spending of the same voucher/code (smaxai codes are uniquely one-time use globally)
 creditTransactionSchema.index(
   { source: 1, reference: 1 },
-  { unique: true, partialFilterExpression: { source: CREDIT_SOURCES.SMAXAI } }
+  { unique: true, partialFilterExpression: { source: CREDIT_SOURCES.SMAXAI } },
+);
+
+// Auto-delete failed zero-amount transactions after 30 days
+creditTransactionSchema.index(
+  { createdAt: 1 },
+  {
+    expireAfterSeconds: 30 * 24 * 60 * 60,
+    partialFilterExpression: {
+      status: CREDIT_TRANSACTION_STATUS.FAILED,
+      amount: 0,
+    },
+  },
 );
 
 creditTransactionSchema.plugin(softDeletePlugin);
 
-module.exports = mongoose.model("CreditTransaction", creditTransactionSchema);
+module.exports = mongoose.model('CreditTransaction', creditTransactionSchema);
