@@ -3,7 +3,7 @@ const router = express.Router();
 const checkoutController = require("../../../modules/checkout/checkout.controller");
 const {
   verifyCustomerAuth,
-} = require("../../../middlewares/customerAuth.middleware");
+} = require("../../../core/middleware/customerAuth");
 const validate = require("../../../core/middleware/validate");
 const checkoutValidation = require("../../../modules/checkout/checkout.validation");
 

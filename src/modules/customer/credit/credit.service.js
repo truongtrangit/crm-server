@@ -78,6 +78,13 @@ class CreditService {
       throw createHttpError(400, 'Voucher đã hết lượt sử dụng');
     }
 
+    if (voucherInfo.eduCredit > 0 && !customer.isEduAccount) {
+      throw createHttpError(
+        403,
+        'Tài khoản của bạn không được phép nạp voucher giáo dục',
+      );
+    }
+
     // 2. Start ACID Transaction for all modifications
     const session = await mongoose.startSession();
     session.startTransaction();
