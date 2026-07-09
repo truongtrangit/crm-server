@@ -98,6 +98,17 @@ class CheckoutService {
           );
         }
 
+        if (
+          courseType === COURSE_TYPES.OFFLINE &&
+          course.registrationDeadline &&
+          new Date(course.registrationDeadline).getTime() < Date.now()
+        ) {
+          throw createHttpError(
+            400,
+            `Khóa học ${course.title || courseId} đã hết hạn đăng ký`,
+          );
+        }
+
         // Reassign courseId to the canonical string ID from the document
         courseId = course.id;
         courseTitles.push(course.title || course.name || course.id);
