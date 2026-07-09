@@ -11,6 +11,8 @@ const {
   CREDIT_TRANSACTION_STATUS,
 } = require('../../../core/constants/appData');
 const { createHttpError } = require('../../../core/utils/http');
+const env = require('../../../core/config/env');
+const httpClient = require('../../../core/utils/httpClient');
 
 class CreditService {
   /**
@@ -353,32 +355,59 @@ class CreditService {
       throw error;
     }
 
-    // 4. Call 3rd Party API (Mock for now)
+    // 4. Call 3rd Party API
     let valid = false;
     let amount = 0;
     try {
-      // Giả lập network delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const smaxCreditValidToken = env.smaxCreditValidationToken;
+      const smaxCreditValidUrl = env.smaxCreditValidationUrl;
+      const url = `${smaxCreditValidUrl}?code_redeem=${encodeURIComponent(cleanCode)}`;
+      const responseData = await httpClient.get(url, {
+        headers: {
+          authorization: smaxCreditValidToken || '',
+        },
+      });
 
-      // Giả lập logic trả về: mã code bắt đầu bằng SMAX thì tặng 100k, SMAX50 tặng 50k
-      if (cleanCode.startsWith('SMAX50')) {
+      if (responseData && responseData.data) {
         valid = true;
-        amount = 50000;
-      } else if (cleanCode.startsWith('SMAX')) {
-        valid = true;
-        amount = 100000;
-      } else {
-        valid = false;
+        amount = responseData.data.amount || 0;
       }
     } catch (apiError) {
+      let clientErrorMessage = 'Không thể kết nối đến hệ thống SmaxAi';
+      let dbDescription = 'Lỗi kết nối API SmaxAi';
+
+      if (apiError.response) {
+        const smaxMessage =
+          apiError.response.data?.message ||
+          apiError.response.data?.error ||
+          `HTTP ${apiError.response.status}`;
+
+        if (apiError.response.status === 400) {
+          dbDescription = `Mã không hợp lệ: ${smaxMessage}`;
+          clientErrorMessage = `Lỗi xác thực mã: ${smaxMessage}`;
+        } else if (apiError.response.status === 403) {
+          dbDescription = 'Sai token xác thực SmaxAi';
+          clientErrorMessage =
+            'Lỗi cấu hình hệ thống (403). Vui lòng báo cho admin.';
+        } else {
+          dbDescription = `Lỗi API SmaxAi: ${smaxMessage}`;
+          clientErrorMessage = `Lỗi từ hệ thống SmaxAi: ${smaxMessage}`;
+        }
+      } else {
+        dbDescription = `Lỗi kết nối API SmaxAi: ${apiError.message}`;
+        clientErrorMessage = `Không thể kết nối đến hệ thống SmaxAi: ${apiError.message}`;
+      }
+
       await CreditTransaction.updateOne(
         { _id: transaction._id },
         {
           status: CREDIT_TRANSACTION_STATUS.FAILED,
-          description: 'Lỗi kết nối API SmaxAi',
+          description: dbDescription,
         },
       );
-      throw createHttpError(500, 'Không thể kết nối đến hệ thống SmaxAi');
+
+      const statusCode = apiError.response?.status === 400 ? 400 : 500;
+      throw createHttpError(statusCode, clientErrorMessage);
     }
 
     if (!valid) {
@@ -386,10 +415,10 @@ class CreditService {
         { _id: transaction._id },
         {
           status: CREDIT_TRANSACTION_STATUS.FAILED,
-          description: 'Mã không hợp lệ',
+          description: 'Mã code không hợp lệ hoặc thiếu dữ liệu credit',
         },
       );
-      throw createHttpError(400, 'Mã SmaxAi không hợp lệ');
+      throw createHttpError(400, 'Mã nạp không hợp lệ hoặc đã được sử dụng.');
     }
 
     // 5. Success -> Update Transaction and Customer (Using transaction for ACID safety)

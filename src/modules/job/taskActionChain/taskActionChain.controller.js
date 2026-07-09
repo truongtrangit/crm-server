@@ -14,6 +14,7 @@ const { ACTION_TYPE_CATEGORY_MAP } = require('../../../core/constants/actionConf
 const { executeBlockAutomation } = require('../../event/eventActionChain/blockAutomationExecutor');
 const SystemLogService = require('../../system/log/systemLog.service');
 const AutomationLogService = require('../../system/log/automationLog.service');
+const env = require('../../../core/config/env');
 
 // ─── Helpers ───
 
@@ -398,7 +399,7 @@ class TaskActionChainController {
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
     // Không cho xóa chuỗi đã đóng (trừ khi đang dev)
-    const nodeEnv = process.env.NODE_ENV || "";
+    const nodeEnv = env.nodeEnv || "";
     const isDev = nodeEnv === "development" || nodeEnv === "developer" || nodeEnv === "dev";
     if (chain.status === "closed" && !isDev) {
       throw createHttpError(403, "Không thể xóa chuỗi đã đóng");

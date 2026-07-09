@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const env = require('../config/env');
 
 /**
  * Middleware to log every HTTP request/response.
@@ -48,7 +49,7 @@ function requestLogger(req, res, next) {
       meta.body = sanitized;
     }
 
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction = env.nodeEnv === "production";
     const logLevel = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
 
     if (isProduction) {

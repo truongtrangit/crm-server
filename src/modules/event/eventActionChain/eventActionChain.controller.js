@@ -11,6 +11,7 @@ const { executeBlockAutomation } = require('./blockAutomationExecutor');
 const SystemLogService = require('../../system/log/systemLog.service');
 const AutomationLogService = require('../../system/log/automationLog.service');
 const { RESOURCES } = require('../../../core/constants/rbac');
+const env = require('../../../core/config/env');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
 
 const EventService = require('../event/event.service');
@@ -408,7 +409,7 @@ class EventActionChainController {
     if (!chain) throw createHttpError(404, "Chuỗi hành động không tồn tại");
 
     // Không cho xóa chuỗi đã đóng (trừ khi đang dev)
-    const nodeEnv = process.env.NODE_ENV || "";
+    const nodeEnv = env.nodeEnv || "";
     const isDev = nodeEnv === "development" || nodeEnv === "developer" || nodeEnv === "dev";
     if (chain.status === "closed" && !isDev) {
       throw createHttpError(403, "Không thể xóa chuỗi đã đóng");
