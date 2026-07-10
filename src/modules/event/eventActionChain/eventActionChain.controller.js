@@ -65,7 +65,7 @@ class EventActionChainController {
   // ─── GET /api/events/:eventId/chains ───
   async getChains(req, res) {
     const { eventId } = req.params;
-    const chains = await EventActionChain.find({ eventId }).sort({ order: 1 });
+    const chains = await EventActionChain.find({ eventId }).sort({ order: 1 }).lean();
     return sendSuccess(res, 200, "Get event action chains success", chains);
   }
 
@@ -465,7 +465,8 @@ class EventActionChainController {
 
     const chains = await EventActionChain.find(chainFilter)
       .sort({ "steps.scheduledAt": 1 })
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
 
     if (chains.length === 0) {
       return sendSuccess(res, 200, "Get task queue success", { items: [], total: 0 });
