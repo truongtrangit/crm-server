@@ -24,10 +24,18 @@ creditsRouter.get("/history", creditController.getHistory);
 
 // Redeem a voucher with Rate Limiting (10 requests / 15 mins)
 creditsRouter.post(
-  "/redeem",
+  "/voucher/redeem",
   voucherRedeemLimiter,
   validate(creditValidation.redeemVoucher, "body"),
   creditController.redeemVoucher,
+);
+
+// Redeem SmaxAi code
+creditsRouter.post(
+  "/smaxai/redeem",
+  voucherRedeemLimiter, // Can reuse the same rate limiter for now
+  validate(creditValidation.redeemSmaxAi, "body"),
+  creditController.redeemSmaxAi,
 );
 
 module.exports = creditsRouter;

@@ -4,153 +4,52 @@ const Company = require('../../hr/company/company.model');
 const ExpectedExpense = require('./expectedExpense.model');
 const Counter = require('../../../core/models/Counter');
 const User = require('../../system/user/user.model');
-const { resolvePagination, buildPaginatedResponse } = require('../../../core/utils/pagination');
+const {
+  resolvePagination,
+  buildPaginatedResponse,
+} = require('../../../core/utils/pagination');
 const { createHttpError } = require('../../../core/utils/http');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { EXPENSE_STATUSES } = require('../../../core/constants/finance');
 const { computeChanges } = require('../../../core/utils/diff');
 const { escapeRegex } = require('../../../core/utils/query');
 
+const FinanceCategoryBaseService = require('../finance_category_base.service');
+const FinanceStatsService = require('../finance_stats.service');
+
 class ExpenseService {
+  constructor() {
+    this.categoryService = new FinanceCategoryBaseService(
+      ExpenseCategory,
+      Expense,
+      ID_PREFIXES.EXPENSE_CATEGORY,
+      'phiếu chi',
+    );
+    this.statsService = new FinanceStatsService(
+      Expense,
+      ExpenseCategory,
+      ['transactionId', 'description'],
+      EXPENSE_STATUSES.CANCELLED,
+      'Chưa phân loại',
+    );
+  }
+
   // ─── Expense Categories ──────────────────────────────────────────────────
 
   async getCategories(query = {}) {
-    const filter = {};
-    if (query.search) {
-      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
-    }
-    if (query.isActive !== undefined) {
-      filter.isActive = query.isActive === "true" || query.isActive === true;
-    }
-    const categories = await ExpenseCategory.find(filter)
-      .populate('parentId', 'id name')
-      .sort({ createdAt: -1 })
-      .lean();
-    return categories;
+    return this.categoryService.getCategories(query);
   }
 
   async createCategory(data) {
-    const id = await generateMonotonicId(ID_PREFIXES.EXPENSE_CATEGORY);
-    const category = new ExpenseCategory({
-      name: data.name,
-      description: data.description,
-      isActive: data.isActive,
-      id
-    });
-    await category.save();
-
-    if (data.subCategories && Array.isArray(data.subCategories)) {
-      const bulkOps = [];
-      for (const sub of data.subCategories) {
-        if (!sub.name || sub.name === '') continue;
-        const subIdStr = await generateMonotonicId(ID_PREFIXES.EXPENSE_CATEGORY);
-        bulkOps.push({
-          insertOne: {
-            document: {
-              name: sub.name,
-              isActive: sub.isActive !== undefined ? sub.isActive : true,
-              id: subIdStr,
-              parentId: category._id,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            }
-          }
-        });
-      }
-      if (bulkOps.length > 0) {
-        await ExpenseCategory.bulkWrite(bulkOps);
-      }
-    }
-    return category;
+    return this.categoryService.createCategory(data);
   }
 
   async updateCategory(id, data) {
-    const category = await ExpenseCategory.findOne({ id });
-    if (!category) {
-      throw createHttpError(404, "Không tìm thấy danh mục");
-    }
-    const oldState = category.toObject();
-    
-    if (data.name !== undefined) category.name = data.name;
-    if (data.description !== undefined) category.description = data.description;
-    if (data.isActive !== undefined) category.isActive = data.isActive;
-
-    await category.save();
-    
-    // Update subCategories
-    if (data.subCategories && Array.isArray(data.subCategories)) {
-      const existingSubs = await ExpenseCategory.find({ parentId: category._id });
-      const incomingSubIds = new Set(data.subCategories.filter(s => s.id).map(s => s.id));
-
-      const idsToDelete = existingSubs
-        .filter(s => !incomingSubIds.has(s.id))
-        .map(s => s.id);
-
-      if (idsToDelete.length > 0) {
-        const isUsed = await Expense.exists({ category: { $in: existingSubs.filter(s => idsToDelete.includes(s.id)).map(s => s._id) } });
-        if (isUsed) {
-          throw createHttpError(400, "Không thể xoá danh mục con đang được sử dụng trong phiếu chi");
-        }
-        await ExpenseCategory.deleteMany({ id: { $in: idsToDelete } });
-      }
-
-      const bulkOps = [];
-      for (const sub of data.subCategories) {
-        if (!sub.name || sub.name === '') continue;
-        if (sub.id) {
-          bulkOps.push({
-            updateOne: {
-              filter: { id: sub.id, parentId: category._id },
-              update: { $set: { name: sub.name, isActive: sub.isActive, updatedAt: new Date() } }
-            }
-          });
-        } else {
-          const subIdStr = await generateMonotonicId(ID_PREFIXES.EXPENSE_CATEGORY);
-          bulkOps.push({
-            insertOne: {
-              document: {
-                name: sub.name,
-                isActive: sub.isActive !== undefined ? sub.isActive : true,
-                id: subIdStr,
-                parentId: category._id,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              }
-            }
-          });
-        }
-      }
-
-      if (bulkOps.length > 0) {
-        await ExpenseCategory.bulkWrite(bulkOps);
-      }
-    }
-
-    const newState = category.toObject();
-    const changes = computeChanges(oldState, newState);
-    return { category, changes };
+    return this.categoryService.updateCategory(id, data);
   }
 
   async deleteCategory(id, force = false) {
-    const category = await ExpenseCategory.findOne({ id });
-    if (!category) {
-      throw createHttpError(404, "Không tìm thấy danh mục");
-    }
-    
-    const subCategories = await ExpenseCategory.find({ parentId: category._id });
-    const allIds = [category._id, ...subCategories.map(s => s._id)];
-
-    const isUsed = await Expense.exists({ category: { $in: allIds } });
-    if (isUsed && !force) {
-      throw createHttpError(400, "Danh mục đang được sử dụng, không thể xóa", { code: "RESOURCE_IN_USE" });
-    }
-
-    if (isUsed && force) {
-      await Expense.updateMany({ category: { $in: allIds } }, { $set: { category: null } });
-    }
-
-    await ExpenseCategory.deleteMany({ _id: { $in: allIds } });
-    return category;
+    return this.categoryService.deleteCategory(id, force);
   }
 
   // ─── Expected Expenses ────────────────────────────────────────────────────
@@ -158,10 +57,10 @@ class ExpenseService {
   async getExpectedExpenses(query = {}) {
     const filter = {};
     if (query.search) {
-      filter.name = { $regex: escapeRegex(query.search), $options: "i" };
+      filter.name = { $regex: escapeRegex(query.search), $options: 'i' };
     }
     const expected = await ExpectedExpense.find(filter)
-      .populate("category", "id name")
+      .populate('category', 'id name')
       .sort({ createdAt: -1 })
       .lean();
     return expected;
@@ -175,13 +74,13 @@ class ExpenseService {
     let baseAmount = expected.amount;
     let remainder = 0;
 
-    if (expected.type === "yearly") {
+    if (expected.type === 'yearly') {
       baseAmount = Math.floor(expected.amount / months.length);
-      remainder = expected.amount - (baseAmount * months.length);
+      remainder = expected.amount - baseAmount * months.length;
     }
 
     const sortedMonths = [...months].sort((a, b) => {
-      if (typeof a === 'number') return a - b
+      if (typeof a === 'number') return a - b;
       const [mA, yA] = String(a).split('/');
       const [mB, yB] = String(b).split('/');
       if (yA !== yB) return Number(yA) - Number(yB);
@@ -201,7 +100,7 @@ class ExpenseService {
 
       let monthAmount = baseAmount;
 
-      if (expected.type === "yearly" && i === sortedMonths.length - 1) {
+      if (expected.type === 'yearly' && i === sortedMonths.length - 1) {
         monthAmount += remainder;
       }
 
@@ -217,7 +116,7 @@ class ExpenseService {
         companyProportions: expected.companyProportions,
         status: EXPENSE_STATUSES.PENDING,
         isExpected: true,
-        expectedExpenseId: expected._id
+        expectedExpenseId: expected._id,
       });
       await expense.save();
     }
@@ -227,10 +126,14 @@ class ExpenseService {
     if (!force) {
       const approved = await Expense.findOne({
         expectedExpenseId,
-        status: EXPENSE_STATUSES.APPROVED
+        status: EXPENSE_STATUSES.APPROVED,
       }).lean();
       if (approved) {
-        throw createHttpError(400, "Đã có chi phí được duyệt cho khoản này. Vui lòng xác nhận ghi đè.", { code: "RESOURCE_APPROVED_FORCE_REQUIRED" });
+        throw createHttpError(
+          400,
+          'Đã có chi phí được duyệt cho khoản này. Vui lòng xác nhận ghi đè.',
+          { code: 'RESOURCE_APPROVED_FORCE_REQUIRED' },
+        );
       }
     }
     await Expense.deleteMany({ expectedExpenseId });
@@ -238,61 +141,78 @@ class ExpenseService {
 
   async createExpectedExpense(data) {
     if (!data.companyProportions || data.companyProportions.length === 0) {
-      throw createHttpError(400, "Vui lòng phân bổ công ty");
+      throw createHttpError(400, 'Vui lòng phân bổ công ty');
     }
-    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
-    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+    const sum = data.companyProportions.reduce(
+      (acc, curr) => acc + curr.percentage,
+      0,
+    );
+    if (sum !== 100)
+      throw createHttpError(
+        400,
+        'Tổng tỷ lệ phần trăm các công ty phải bằng 100',
+      );
 
-    const companyIds = data.companyProportions.map(c => c.company);
+    const companyIds = data.companyProportions.map((c) => c.company);
     const companies = await Company.find({ id: { $in: companyIds } }).lean();
     if (companies.length !== companyIds.length) {
-      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+      throw createHttpError(400, 'Một hoặc nhiều công ty không tồn tại');
     }
 
     const category = await ExpenseCategory.findOne({ id: data.categoryId });
-    if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
+    if (!category) throw createHttpError(400, 'Danh mục không hợp lệ');
 
     const id = await generateMonotonicId(ID_PREFIXES.EXPECTED_EXPENSE);
     const expected = new ExpectedExpense({
       ...data,
       id,
-      category: category._id
+      category: category._id,
     });
     await expected.save();
     await this._generateExpectedExpenses(expected);
-    return expected.populate("category", "id name");
+    return expected.populate('category', 'id name');
   }
 
   async updateExpectedExpense(id, data, force = false) {
     const updateData = { ...data };
 
     if (!data.companyProportions || data.companyProportions.length === 0) {
-      throw createHttpError(400, "Vui lòng phân bổ công ty");
+      throw createHttpError(400, 'Vui lòng phân bổ công ty');
     }
-    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
-    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+    const sum = data.companyProportions.reduce(
+      (acc, curr) => acc + curr.percentage,
+      0,
+    );
+    if (sum !== 100)
+      throw createHttpError(
+        400,
+        'Tổng tỷ lệ phần trăm các công ty phải bằng 100',
+      );
 
-    const companyIds = data.companyProportions.map(c => c.company);
+    const companyIds = data.companyProportions.map((c) => c.company);
     const companies = await Company.find({ id: { $in: companyIds } }).lean();
     if (companies.length !== companyIds.length) {
-      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+      throw createHttpError(400, 'Một hoặc nhiều công ty không tồn tại');
     }
 
     if (data.categoryId) {
       const category = await ExpenseCategory.findOne({ id: data.categoryId });
-      if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
+      if (!category) throw createHttpError(400, 'Danh mục không hợp lệ');
       updateData.category = category._id;
     }
 
-    const expected = await ExpectedExpense.findOne({ id }).populate("category", "id name");
-    if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
+    const expected = await ExpectedExpense.findOne({ id }).populate(
+      'category',
+      'id name',
+    );
+    if (!expected) throw createHttpError(404, 'Không tìm thấy chi phí dự kiến');
 
     await this._removeExpectedExpenses(expected._id, force);
 
     const oldState = expected.toObject();
     Object.assign(expected, updateData);
     await expected.save();
-    await expected.populate("category", "id name");
+    await expected.populate('category', 'id name');
     const newState = expected.toObject();
     const changes = computeChanges(oldState, newState);
 
@@ -303,7 +223,7 @@ class ExpenseService {
 
   async deleteExpectedExpense(id, force = false) {
     const expected = await ExpectedExpense.findOne({ id });
-    if (!expected) throw createHttpError(404, "Không tìm thấy chi phí dự kiến");
+    if (!expected) throw createHttpError(404, 'Không tìm thấy chi phí dự kiến');
 
     await this._removeExpectedExpenses(expected._id, force);
     await ExpectedExpense.findByIdAndDelete(expected._id);
@@ -318,29 +238,35 @@ class ExpenseService {
 
     if (query.search) {
       filter.$or = [
-        { transactionId: { $regex: escapeRegex(query.search), $options: "i" } },
-        { description: { $regex: escapeRegex(query.search), $options: "i" } }
+        { transactionId: { $regex: escapeRegex(query.search), $options: 'i' } },
+        { description: { $regex: escapeRegex(query.search), $options: 'i' } },
       ];
     }
-    if (query.category && query.category !== "all") {
-      if (query.category === "empty") {
+    if (query.category && query.category !== 'all') {
+      if (query.category === 'empty') {
         filter.category = null;
       } else {
-        const cat = await ExpenseCategory.findOne({ id: query.category }).lean();
+        const cat = await ExpenseCategory.findOne({
+          id: query.category,
+        }).lean();
         if (cat) {
           filter.category = cat._id;
         }
       }
     }
-    if (query.status && query.status !== "all") {
+    if (query.status && query.status !== 'all') {
       filter.status = query.status;
     }
-    if (query.company && query.company !== "all") {
-      filter["companyProportions.company"] = query.company;
+    if (query.company && query.company !== 'all') {
+      filter['companyProportions.company'] = query.company;
     }
     // Time filter (year/month)
     if (query.month && query.year) {
-      const startDate = new Date(parseInt(query.year), parseInt(query.month) - 1, 1);
+      const startDate = new Date(
+        parseInt(query.year),
+        parseInt(query.month) - 1,
+        1,
+      );
       const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
       filter.recordDate = { $gte: startDate, $lt: endDate };
     } else if (query.year) {
@@ -351,12 +277,12 @@ class ExpenseService {
 
     const [items, total] = await Promise.all([
       Expense.find(filter)
-        .populate("category", "id name")
+        .populate('category', 'id name')
         .sort({ recordDate: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Expense.countDocuments(filter)
+      Expense.countDocuments(filter),
     ]);
 
     // Format assignee if needed (if we want to populate User, we need to do it)
@@ -364,16 +290,23 @@ class ExpenseService {
     // Wait, the assigneeId field is: `assigneeId: { type: String, ref: "User", default: null }`
     // If User schema has `_id` as ObjectId and `id` as String, this won't populate automatically unless we use localField/foreignField or just map it.
     // I'll fetch Users manually.
-    const userIds = [...new Set(items.map(i => i.assigneeId).filter(Boolean))];
+    const userIds = [
+      ...new Set(items.map((i) => i.assigneeId).filter(Boolean)),
+    ];
     if (userIds.length > 0) {
-      const users = await User.find({ id: { $in: userIds } }, "id fullName avatar").lean();
+      const users = await User.find(
+        { id: { $in: userIds } },
+        'id fullName avatar',
+      ).lean();
       const userMap = users.reduce((acc, u) => {
         acc[u.id] = u;
         return acc;
       }, {});
-      items.forEach(item => {
+      items.forEach((item) => {
         if (item.assigneeId) {
-          item.assignee = userMap[item.assigneeId] || { fullName: item.assigneeId };
+          item.assignee = userMap[item.assigneeId] || {
+            fullName: item.assigneeId,
+          };
         }
       });
     }
@@ -382,10 +315,15 @@ class ExpenseService {
   }
 
   async getExpenseById(id) {
-    const expense = await Expense.findById(id).populate("category", "id name").lean();
-    if (!expense) throw createHttpError(404, "Không tìm thấy chi phí");
+    const expense = await Expense.findById(id)
+      .populate('category', 'id name')
+      .lean();
+    if (!expense) throw createHttpError(404, 'Không tìm thấy chi phí');
     if (expense.assigneeId) {
-      expense.assignee = await User.findOne({ id: expense.assigneeId }, "id fullName avatar").lean() || { fullName: expense.assigneeId };
+      expense.assignee = (await User.findOne(
+        { id: expense.assigneeId },
+        'id fullName avatar',
+      ).lean()) || { fullName: expense.assigneeId };
     }
     return expense;
   }
@@ -402,7 +340,7 @@ class ExpenseService {
     const counter = await Counter.findByIdAndUpdate(
       counterKey,
       { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     const stt = String(counter.seq - 1).padStart(2, '0');
@@ -411,21 +349,28 @@ class ExpenseService {
 
   async createExpense(data) {
     if (!data.companyProportions || data.companyProportions.length === 0) {
-      throw createHttpError(400, "Vui lòng phân bổ công ty");
+      throw createHttpError(400, 'Vui lòng phân bổ công ty');
     }
-    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
-    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+    const sum = data.companyProportions.reduce(
+      (acc, curr) => acc + curr.percentage,
+      0,
+    );
+    if (sum !== 100)
+      throw createHttpError(
+        400,
+        'Tổng tỷ lệ phần trăm các công ty phải bằng 100',
+      );
 
-    const companyIds = data.companyProportions.map(c => c.company);
+    const companyIds = data.companyProportions.map((c) => c.company);
     const companies = await Company.find({ id: { $in: companyIds } }).lean();
     if (companies.length !== companyIds.length) {
-      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+      throw createHttpError(400, 'Một hoặc nhiều công ty không tồn tại');
     }
 
     let categoryObj = null;
     if (data.categoryId) {
       categoryObj = await ExpenseCategory.findOne({ id: data.categoryId });
-      if (!categoryObj) throw createHttpError(400, "Danh mục không hợp lệ");
+      if (!categoryObj) throw createHttpError(400, 'Danh mục không hợp lệ');
     }
 
     const transactionId = await this._generateTransactionId(data.recordDate);
@@ -433,22 +378,22 @@ class ExpenseService {
     const expense = new Expense({
       ...data,
       category: categoryObj ? categoryObj._id : null,
-      transactionId
+      transactionId,
     });
     await expense.save();
-    return expense.populate("category", "id name");
+    return expense.populate('category', 'id name');
   }
 
   async updateExpense(id, data) {
     const existingExpense = await Expense.findById(id);
-    if (!existingExpense) throw createHttpError(404, "Không tìm thấy chi phí");
+    if (!existingExpense) throw createHttpError(404, 'Không tìm thấy chi phí');
 
     const oldState = existingExpense.toObject();
 
     if (existingExpense.isExpected) {
       existingExpense.status = data.status;
       await existingExpense.save();
-      await existingExpense.populate("category", "id name");
+      await existingExpense.populate('category', 'id name');
       const newState = existingExpense.toObject();
       const changes = computeChanges(oldState, newState);
       return { expense: existingExpense, changes };
@@ -456,21 +401,28 @@ class ExpenseService {
 
     const updateData = { ...data };
     if (!data.companyProportions || data.companyProportions.length === 0) {
-      throw createHttpError(400, "Vui lòng phân bổ công ty");
+      throw createHttpError(400, 'Vui lòng phân bổ công ty');
     }
-    const sum = data.companyProportions.reduce((acc, curr) => acc + curr.percentage, 0);
-    if (sum !== 100) throw createHttpError(400, "Tổng tỷ lệ phần trăm các công ty phải bằng 100");
+    const sum = data.companyProportions.reduce(
+      (acc, curr) => acc + curr.percentage,
+      0,
+    );
+    if (sum !== 100)
+      throw createHttpError(
+        400,
+        'Tổng tỷ lệ phần trăm các công ty phải bằng 100',
+      );
 
-    const companyIds = data.companyProportions.map(c => c.company);
+    const companyIds = data.companyProportions.map((c) => c.company);
     const companies = await Company.find({ id: { $in: companyIds } }).lean();
     if (companies.length !== companyIds.length) {
-      throw createHttpError(400, "Một hoặc nhiều công ty không tồn tại");
+      throw createHttpError(400, 'Một hoặc nhiều công ty không tồn tại');
     }
 
     if (data.categoryId !== undefined) {
       if (data.categoryId) {
         const category = await ExpenseCategory.findOne({ id: data.categoryId });
-        if (!category) throw createHttpError(400, "Danh mục không hợp lệ");
+        if (!category) throw createHttpError(400, 'Danh mục không hợp lệ');
         updateData.category = category._id;
       } else {
         updateData.category = null;
@@ -479,7 +431,7 @@ class ExpenseService {
 
     Object.assign(existingExpense, updateData);
     await existingExpense.save();
-    await existingExpense.populate("category", "id name");
+    await existingExpense.populate('category', 'id name');
     const newState = existingExpense.toObject();
     const changes = computeChanges(oldState, newState);
 
@@ -488,7 +440,7 @@ class ExpenseService {
 
   async deleteExpense(id) {
     const expense = await Expense.findById(id);
-    if (!expense) throw createHttpError(404, "Không tìm thấy chi phí");
+    if (!expense) throw createHttpError(404, 'Không tìm thấy chi phí');
     await expense.deleteOne();
     return expense;
   }
@@ -496,78 +448,7 @@ class ExpenseService {
   // ─── Stats ─────────────────────────────────────────────────────────────
 
   async getExpenseStats(query) {
-    const filter = {};
-    if (query.search) {
-      filter.$or = [
-        { customerName: { $regex: escapeRegex(query.search), $options: "i" } },
-        { orderId: { $regex: escapeRegex(query.search), $options: "i" } },
-        { details: { $regex: escapeRegex(query.search), $options: "i" } },
-      ];
-    }
-    if (query.category && query.category !== "all") {
-      if (query.category === "empty") {
-        filter.category = null;
-      } else {
-        const cat = await ExpenseCategory.findOne({ id: query.category }).lean();
-        if (cat) filter.category = cat._id;
-      }
-    }
-    if (query.status && query.status !== "all") {
-      filter.status = query.status;
-    }
-    if (query.company && query.company !== "all") {
-      filter["companyProportions.company"] = query.company;
-    }
-
-    if (query.month && query.year) {
-      const startDate = new Date(parseInt(query.year), parseInt(query.month) - 1, 1);
-      const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
-      filter.recordDate = { $gte: startDate, $lt: endDate };
-    } else if (query.year) {
-      const startDate = new Date(parseInt(query.year), 0, 1);
-      const endDate = new Date(parseInt(query.year) + 1, 0, 1);
-      filter.recordDate = { $gte: startDate, $lt: endDate };
-    }
-
-
-    const expenses = await Expense.find(filter).populate('category', 'name id').lean();
-
-    let totalAmount = 0;
-    const categoryMap = {};
-
-    for (const exp of expenses) {
-      if (exp.status === EXPENSE_STATUSES.CANCELLED) continue;
-
-      let amount = exp.amount || 0;
-      if (query.company && query.company !== "all" && exp.companyProportions && exp.companyProportions.length > 0) {
-        const prop = exp.companyProportions.find(c => c.company === query.company);
-        if (prop) {
-          amount = amount * (prop.percentage / 100);
-        } else {
-          amount = 0;
-        }
-      } else if (query.company && query.company !== "all" && (!exp.companyProportions || exp.companyProportions.length === 0)) {
-        amount = 0;
-      }
-
-      totalAmount += amount;
-
-      const catName = exp.category?.name || "Chưa phân loại";
-      if (!categoryMap[catName]) {
-        categoryMap[catName] = 0;
-      }
-      categoryMap[catName] += amount;
-    }
-
-    const categoriesStat = Object.keys(categoryMap).map(name => ({
-      name,
-      total: categoryMap[name]
-    }));
-
-    return {
-      totalAmount,
-      categories: categoriesStat
-    };
+    return this.statsService.getStats(query);
   }
 }
 

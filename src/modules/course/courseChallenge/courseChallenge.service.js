@@ -1,18 +1,19 @@
-const createHttpError = require("http-errors");
-const CourseChallenge = require("./courseChallenge.model");
-const CourseEnrollment = require("./courseEnrollment.model");
-const { ID_PREFIXES, generateMonotonicId } = require("../../../core/utils/id");
+const createHttpError = require('http-errors');
+const CourseChallenge = require('./courseChallenge.model');
+const CourseEnrollment = require('./courseEnrollment.model');
+const { ID_PREFIXES, generateMonotonicId } = require('../../../core/utils/id');
 const {
   COURSE_CHALLENGE_TYPE,
-} = require("../../../core/constants/courseChallenge");
-const { COURSE_STATUS } = require("../../../core/constants/appData");
+} = require('../../../core/constants/courseChallenge');
+const { COURSE_STATUS } = require('../../../core/constants/appData');
 const {
   buildPaginatedResponse,
   resolvePagination,
-} = require("../../../core/utils/pagination");
-const { buildSearchRegex } = require("../../../core/utils/query");
-const { computePriceRange } = require("../../../core/utils/price");
-const CourseLecturer = require("../courseLecturer/courseLecturer.model");
+} = require('../../../core/utils/pagination');
+const { buildSearchRegex } = require('../../../core/utils/query');
+const { computePriceRange } = require('../../../core/utils/price');
+const env = require('../../../core/config/env');
+const CourseLecturer = require('../courseLecturer/courseLecturer.model');
 
 /**
  * Validate that the number of days matches totalDays
@@ -59,14 +60,14 @@ const getTemplates = async (queryParams) => {
       filter.$or = [{ title: searchRegex }];
 
       if (lecturerIds.length > 0) {
-        filter.$or.push({ "lecturers.lecturerId": { $in: lecturerIds } });
+        filter.$or.push({ 'lecturers.lecturerId': { $in: lecturerIds } });
       }
     }
   }
 
   if (category) {
-    filter.category = category.includes(",")
-      ? { $in: category.split(",") }
+    filter.category = category.includes(',')
+      ? { $in: category.split(',') }
       : category;
   }
 
@@ -74,8 +75,8 @@ const getTemplates = async (queryParams) => {
 
   const [templates, total] = await Promise.all([
     CourseChallenge.find(filter)
-      .populate("categoryDetails")
-      .populate("lecturers.details")
+      .populate('categoryDetails')
+      .populate('lecturers.details')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -92,11 +93,11 @@ const getTemplateById = async (id) => {
     isTemplate: true,
     isDeleted: { $ne: true },
   })
-    .populate("categoryDetails")
-    .populate("lecturers.details");
+    .populate('categoryDetails')
+    .populate('lecturers.details');
 
   if (!template) {
-    throw createHttpError(404, "Không tìm thấy Khóa mẫu");
+    throw createHttpError(404, 'Không tìm thấy Khóa mẫu');
   }
   return template;
 };
@@ -128,7 +129,7 @@ const updateTemplate = async (id, data, user) => {
     isDeleted: { $ne: true },
   });
   if (!template) {
-    throw createHttpError(404, "Không tìm thấy Khóa mẫu");
+    throw createHttpError(404, 'Không tìm thấy Khóa mẫu');
   }
 
   // Only creator or admin/owner can update. Let's assume controller/MLAC handles basic access,
@@ -159,7 +160,7 @@ const deleteTemplate = async (id) => {
     isDeleted: { $ne: true },
   });
   if (!template) {
-    throw createHttpError(404, "Không tìm thấy Khóa mẫu");
+    throw createHttpError(404, 'Không tìm thấy Khóa mẫu');
   }
   template.isDeleted = true;
   template.deletedAt = new Date();
@@ -187,7 +188,7 @@ const getCourses = async (queryParams) => {
       filter.$or = [{ title: searchRegex }];
 
       if (lecturerIds.length > 0) {
-        filter.$or.push({ "lecturers.lecturerId": { $in: lecturerIds } });
+        filter.$or.push({ 'lecturers.lecturerId': { $in: lecturerIds } });
       }
     }
   }
@@ -199,8 +200,8 @@ const getCourses = async (queryParams) => {
     filter.type = type;
   }
   if (category) {
-    filter.category = category.includes(",")
-      ? { $in: category.split(",") }
+    filter.category = category.includes(',')
+      ? { $in: category.split(',') }
       : category;
   }
 
@@ -208,8 +209,8 @@ const getCourses = async (queryParams) => {
 
   const [courses, total] = await Promise.all([
     CourseChallenge.find(filter)
-      .populate("categoryDetails")
-      .populate("lecturers.details")
+      .populate('categoryDetails')
+      .populate('lecturers.details')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -226,11 +227,11 @@ const getCourseById = async (id) => {
     isTemplate: false,
     isDeleted: { $ne: true },
   })
-    .populate("categoryDetails")
-    .populate("lecturers.details");
+    .populate('categoryDetails')
+    .populate('lecturers.details');
 
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy Khóa triển khai");
+    throw createHttpError(404, 'Không tìm thấy Khóa triển khai');
   }
   return course;
 };
@@ -241,7 +242,7 @@ const cloneTemplateToCourse = async (templateId, configData, user) => {
     isDeleted: { $ne: true },
   }).lean();
   if (!template) {
-    throw createHttpError(404, "Không tìm thấy Khóa mẫu");
+    throw createHttpError(404, 'Không tìm thấy Khóa mẫu');
   }
 
   const newId = await generateMonotonicId(ID_PREFIXES.COURSE_CHALLENGE);
@@ -291,7 +292,7 @@ const updateCourse = async (id, data, user) => {
     isDeleted: { $ne: true },
   });
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy Khóa triển khai");
+    throw createHttpError(404, 'Không tìm thấy Khóa triển khai');
   }
 
   if (course.status === COURSE_STATUS.PUBLISHED && data.startDate) {
@@ -302,22 +303,22 @@ const updateCourse = async (id, data, user) => {
     if (oldDate !== newDate) {
       throw createHttpError(
         400,
-        "Không thể cập nhật ngày khai giảng khi khóa học đang diễn ra.",
+        'Không thể cập nhật ngày khai giảng khi khóa học đang diễn ra.',
       );
     }
   }
 
-  if (process.env.ENABLE_CLONE_UPDATE !== "true") {
+  if (!env.enableCloneUpdate) {
     const lockedFields = [
-      "title",
-      "slug",
-      "category",
-      "headline",
-      "subheadline",
-      "isBestseller",
-      "type",
-      "description",
-      "curriculum",
+      'title',
+      'slug',
+      'category',
+      'headline',
+      'subheadline',
+      'isBestseller',
+      'type',
+      'description',
+      'curriculum',
     ];
     lockedFields.forEach((field) => {
       delete data[field];
@@ -341,7 +342,7 @@ const updateCourse = async (id, data, user) => {
         if (day.unlockAt) {
           throw createHttpError(
             400,
-            "Khóa học xoay vòng (Rolling) không được thiết lập ngày giờ cụ thể (unlockAt).",
+            'Khóa học xoay vòng (Rolling) không được thiết lập ngày giờ cụ thể (unlockAt).',
           );
         }
       });
@@ -362,7 +363,7 @@ const deleteCourse = async (id) => {
     isDeleted: { $ne: true },
   });
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy Khóa triển khai");
+    throw createHttpError(404, 'Không tìm thấy Khóa triển khai');
   }
   course.isDeleted = true;
   course.deletedAt = new Date();
@@ -379,12 +380,12 @@ const getMyProgress = async (courseId, studentId) => {
     isTemplate: false,
     isDeleted: { $ne: true },
   })
-    .populate("categoryDetails")
-    .populate("lecturers.details")
+    .populate('categoryDetails')
+    .populate('lecturers.details')
     .lean({ virtuals: true });
 
   if (!course) {
-    throw createHttpError(404, "Khóa học không tồn tại");
+    throw createHttpError(404, 'Khóa học không tồn tại');
   }
 
   const enrollment = await CourseEnrollment.findOne({
@@ -392,7 +393,7 @@ const getMyProgress = async (courseId, studentId) => {
     studentId,
   }).lean();
   if (!enrollment) {
-    throw createHttpError(403, "Bạn chưa đăng ký khóa học này");
+    throw createHttpError(403, 'Bạn chưa đăng ký khóa học này');
   }
 
   const now = new Date();
@@ -410,13 +411,16 @@ const getMyProgress = async (courseId, studentId) => {
   const mappedCurriculum = course.curriculum.map((day, index) => {
     const dayProgress = progressMap[day.id] || { isCompleted: false };
     let isLocked = true;
-    let unlockTimeInfo = "";
+    let unlockTimeInfo = '';
     let unlockTime = null;
 
     const formatUnlockTime = (date) => {
       const d = new Date(date);
       // Ensure we get local time string in a predictable format, e.g., '14:30 22/06/2026'
-      const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const timeStr = d.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
       const dateStr = d.toLocaleDateString('vi-VN');
       return `Mở vào ${timeStr} ${dateStr}`;
     };
@@ -445,7 +449,7 @@ const getMyProgress = async (courseId, studentId) => {
     // 2. Allow advance submit
     if (course.allowAdvanceSubmit) {
       isLocked = false;
-      unlockTimeInfo = "Có thể xem và nộp bài trước";
+      unlockTimeInfo = 'Có thể xem và nộp bài trước';
     }
 
     // 3. Auto unlock next
@@ -460,18 +464,18 @@ const getMyProgress = async (courseId, studentId) => {
 
     // Calculate Deadline (assume 24h from original unlockTime)
     let deadline = new Date(unlockTime.getTime() + 24 * 60 * 60 * 1000);
-    let status = "LOCKED";
+    let status = 'LOCKED';
     let canSubmit = false;
 
     if (dayProgress.isCompleted) {
-      status = "COMPLETED";
+      status = 'COMPLETED';
     } else if (!isLocked) {
       // It is unlocked
       if (now > deadline) {
-        status = "OVERDUE";
+        status = 'OVERDUE';
         canSubmit = course.allowLateSubmission;
       } else {
-        status = "OPEN";
+        status = 'OPEN';
         canSubmit = true;
       }
     }
@@ -507,19 +511,19 @@ const submitDayAssignment = async (
     isTemplate: false,
     isDeleted: { $ne: true },
   }).lean();
-  if (!course) throw createHttpError(404, "Khóa học không tồn tại");
+  if (!course) throw createHttpError(404, 'Khóa học không tồn tại');
 
   let enrollment = await CourseEnrollment.findOne({ courseId, studentId });
-  if (!enrollment) throw createHttpError(403, "Bạn chưa đăng ký khóa học này");
+  if (!enrollment) throw createHttpError(403, 'Bạn chưa đăng ký khóa học này');
 
   // Check if the day exists and is unlocked
   const { timeline } = await getMyProgress(courseId, studentId);
   const dayData = timeline.find((d) => d.id === dayId);
 
-  if (!dayData) throw createHttpError(404, "Ngày học không tồn tại");
+  if (!dayData) throw createHttpError(404, 'Ngày học không tồn tại');
   if (dayData.isLocked)
-    throw createHttpError(403, "Ngày học này đang bị khóa, chưa thể nộp bài");
-  if (!dayData.canSubmit) throw createHttpError(403, "Đã quá hạn nộp bài");
+    throw createHttpError(403, 'Ngày học này đang bị khóa, chưa thể nộp bài');
+  if (!dayData.canSubmit) throw createHttpError(403, 'Đã quá hạn nộp bài');
 
   // Add or update progress
   const existingProgressIndex = enrollment.progress.findIndex(
@@ -528,8 +532,8 @@ const submitDayAssignment = async (
   const progressItem = {
     dayId: dayId,
     isCompleted: true,
-    submissionUrl: submissionData.submissionUrl || "",
-    submissionText: submissionData.submissionText || "",
+    submissionUrl: submissionData.submissionUrl || '',
+    submissionText: submissionData.submissionText || '',
     submittedAt: new Date(),
   };
 
@@ -553,8 +557,8 @@ const getPublicCourses = async (queryParams, studentId = null) => {
 
   const [courses, total] = await Promise.all([
     CourseChallenge.find(filter)
-      .populate("categoryDetails")
-      .populate("lecturers.details")
+      .populate('categoryDetails')
+      .populate('lecturers.details')
       .sort({ isBestseller: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -588,12 +592,12 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
     isDeleted: { $ne: true },
     status: COURSE_STATUS.PUBLISHED,
   })
-    .populate("categoryDetails")
-    .populate("lecturers.details")
+    .populate('categoryDetails')
+    .populate('lecturers.details')
     .lean({ virtuals: true });
 
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy khóa học");
+    throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
   let isEnrolled = false;
@@ -624,17 +628,17 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
 
       if (day.lessons) {
         day.lessons.forEach((lesson) => {
-          if (lesson.accessLevel === "Paid") {
+          if (lesson.accessLevel === 'Paid') {
             if (isLocked) {
-              lesson.videoUrl = "";
+              lesson.videoUrl = '';
             }
           }
         });
       }
 
-      if (day.accessLevel === "Paid" && day.videoUrl) {
+      if (day.accessLevel === 'Paid' && day.videoUrl) {
         if (isLocked) {
-          day.videoUrl = "";
+          day.videoUrl = '';
         }
       }
     });
