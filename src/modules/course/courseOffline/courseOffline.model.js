@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { COURSE_STATUS } = require("../../../core/constants/appData");
+const { COURSE_STATUS, PAYMENT_METHODS, LESSON_ACCESS_LEVEL } = require("../../../core/constants/appData");
 
 const lecturerSchema = new mongoose.Schema(
   {
@@ -28,7 +28,7 @@ const lessonSchema = new mongoose.Schema(
     id: { type: String },
     title: { type: String, required: true },
     duration: { type: Number, default: 0 },
-    accessLevel: { type: String, enum: ["Free", "Paid"], default: "Paid" },
+    accessLevel: { type: String, enum: Object.values(LESSON_ACCESS_LEVEL), default: LESSON_ACCESS_LEVEL.PAID },
     videoUrl: { type: String, default: "" }, // Mặc dù offline không có video học, vẫn giữ cho đồng bộ data structure
     attachments: [
       {
@@ -56,7 +56,7 @@ const pricingPackageSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0 },
   originalPrice: { type: Number, default: 0, min: 0 },
   discountRate: { type: Number, default: 0, min: 0 },
-  paymentTypes: { type: [{ type: String, enum: ['credit', 'rewardCredit'] }], default: ['credit'] },
+  paymentTypes: { type: [{ type: String, enum: Object.values(PAYMENT_METHODS) }], default: [PAYMENT_METHODS.MAIN_CREDIT] },
   gifts: { type: [String], default: [] },
   hasRefundPolicy: { type: Boolean, default: false }
 }, { _id: false });

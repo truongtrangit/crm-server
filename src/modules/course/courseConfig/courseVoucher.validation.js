@@ -6,7 +6,9 @@ const createVoucher = Joi.object({
     .valid(...Object.values(VOUCHER_TYPES))
     .optional(),
   code: Joi.string().max(20).optional(),
-  rewardPoints: Joi.number().min(0).required(),
+  mainCredit: Joi.number().min(0).required(),
+  rewardCredit: Joi.number().min(0).required(),
+  eduCredit: Joi.number().min(0).required(),
   maxUses: Joi.number().min(1).optional(),
   usagePerUser: Joi.number().min(0).optional(),
   batch: Joi.string().allow(null, "").optional(),
@@ -19,7 +21,9 @@ const createVoucher = Joi.object({
 const bulkCreateVouchers = Joi.object({
   prefix: Joi.string().max(10).optional(),
   count: Joi.number().min(1).max(1000).required(),
-  rewardPoints: Joi.number().min(0).required(),
+  mainCredit: Joi.number().min(0).required(),
+  rewardCredit: Joi.number().min(0).required(),
+  eduCredit: Joi.number().min(0).required(),
   batch: Joi.string().allow(null, "").optional(),
   status: Joi.string()
     .valid(...Object.values(VOUCHER_STATUSES))
