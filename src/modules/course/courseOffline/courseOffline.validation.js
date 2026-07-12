@@ -1,4 +1,5 @@
 const Joi = require("joi");
+const { PAYMENT_METHODS, LESSON_ACCESS_LEVEL, COURSE_STATUS } = require("../../../core/constants/appData");
 
 const pricingPackageSchema = Joi.object({
   id: Joi.string().required(),
@@ -6,7 +7,7 @@ const pricingPackageSchema = Joi.object({
   price: Joi.number().min(0).required(),
   originalPrice: Joi.number().min(0).default(0),
   discountRate: Joi.number().min(0).max(100).default(0),
-  paymentTypes: Joi.array().items(Joi.string().valid('credit', 'rewardCredit')).default(['credit']),
+  paymentTypes: Joi.array().items(Joi.string().valid(...Object.values(PAYMENT_METHODS))).default([PAYMENT_METHODS.MAIN_CREDIT]),
   gifts: Joi.array().items(Joi.string()).default([]),
   hasRefundPolicy: Joi.boolean().default(false)
 });
@@ -25,7 +26,7 @@ const lessonSchema = Joi.object({
   id: Joi.string().allow("", null),
   title: Joi.string().required(),
   duration: Joi.number().min(0).default(0),
-  accessLevel: Joi.string().valid("Free", "Paid").default("Paid"),
+  accessLevel: Joi.string().valid(...Object.values(LESSON_ACCESS_LEVEL)).default(LESSON_ACCESS_LEVEL.PAID),
   videoUrl: Joi.string().allow("", null),
   attachments: Joi.array().items(lessonAttachmentSchema).default([]),
   description: Joi.string().allow("", null),
@@ -42,8 +43,8 @@ const createCourseOffline = Joi.object({
   slug: Joi.string().required(),
   category: Joi.array().items(Joi.string()).default([]),
   status: Joi.string()
-    .valid("draft", "published", "private", "expired")
-    .default("draft"),
+    .valid(...Object.values(COURSE_STATUS))
+    .default(COURSE_STATUS.DRAFT),
   type: Joi.string().valid("offline").default("offline"),
   isBestseller: Joi.boolean().default(false),
   headline: Joi.string().allow("", null),
@@ -71,7 +72,7 @@ const updateCourseOffline = Joi.object({
   title: Joi.string(),
   slug: Joi.string(),
   category: Joi.array().items(Joi.string()),
-  status: Joi.string().valid("draft", "published", "private", "expired"),
+  status: Joi.string().valid(...Object.values(COURSE_STATUS)),
   type: Joi.string().valid("offline"),
   isBestseller: Joi.boolean(),
   headline: Joi.string().allow("", null),

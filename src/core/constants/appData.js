@@ -113,9 +113,15 @@ const COURSE_TYPES = Object.freeze({
 });
 
 const PAYMENT_METHODS = Object.freeze({
-  CREDIT: 'credit',
+  MAIN_CREDIT: 'mainCredit',
   REWARD_CREDIT: 'rewardCredit',
+  EDU_CREDIT: 'eduCredit',
   FREE: 'free',
+});
+
+const LESSON_ACCESS_LEVEL = Object.freeze({
+  FREE: "Free",
+  PAID: "Paid",
 });
 
 const BOTVN_ROLES = Object.freeze({
@@ -123,6 +129,31 @@ const BOTVN_ROLES = Object.freeze({
   INSTRUCTOR: "INSTRUCTOR",
   TA: "TA",
   STUDENT: "STUDENT",
+});
+
+const CREDIT_TRANSACTION_TYPES = Object.freeze({
+  IN: "IN",
+  OUT: "OUT",
+});
+
+const CREDIT_TYPES = Object.freeze({
+  MAIN: "main",
+  REWARD: "reward",
+  EDU: "edu",
+});
+
+const CREDIT_SOURCES = Object.freeze({
+  SMAXAI: "smaxai",
+  VOUCHER: "voucher",
+  BANK_TRANSFER: "bank_transfer",
+  COURSE_PURCHASE: "course_purchase",
+  OTHER: "other",
+});
+
+const CREDIT_TRANSACTION_STATUS = Object.freeze({
+  PENDING: "PENDING",
+  SUCCESS: "SUCCESS",
+  FAILED: "FAILED",
 });
 
 module.exports = {
@@ -148,4 +179,9 @@ module.exports = {
   COURSE_TYPES,
   PAYMENT_METHODS,
   BOTVN_ROLES,
+  CREDIT_TRANSACTION_TYPES,
+  CREDIT_TYPES,
+  CREDIT_SOURCES,
+  CREDIT_TRANSACTION_STATUS,
+  LESSON_ACCESS_LEVEL,
 };

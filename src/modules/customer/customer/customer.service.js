@@ -223,6 +223,7 @@ class CustomerService {
         botvnPassword: await hashPassword(payload.botvnPassword),
       }),
       botvnRole: payload.botvnRole || undefined,
+      isEduAccount: payload.isEduAccount ?? false,
     });
 
     await CacheService.bumpNamespaceVersion("customers");
@@ -292,12 +293,13 @@ class CustomerService {
       extraInfo: payload.extraInfo !== undefined ? payload.extraInfo : existing.extraInfo,
       isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
       botvnRole: payload.botvnRole !== undefined ? (payload.botvnRole || undefined) : existing.botvnRole,
+      isEduAccount: payload.isEduAccount !== undefined ? payload.isEduAccount : existing.isEduAccount,
     });
 
     await existing.save();
 
     const newState = existing.toObject();
-    const keysToCheck = ["name", "avatar", "mainType", "subType", "alias", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "tags", "extraInfo", "isActive"];
+    const keysToCheck = ["name", "avatar", "mainType", "subType", "alias", "type", "email", "phone", "biz", "platforms", "group", "registeredAt", "tags", "extraInfo", "isActive", "isEduAccount"];
     const changes = computeChanges(oldState, newState, keysToCheck);
 
     await CacheService.bumpNamespaceVersion("customers");

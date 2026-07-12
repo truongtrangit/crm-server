@@ -8,6 +8,7 @@ const {
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { CUSTOMER_MAIN_TYPES } = require('../../../core/constants/appData');
 const BotvnConfig = require('../../course/courseConfig/botvnConfig.model');
+const env = require('../../../core/config/env');
 
 class BotvnAuthService {
   _normalizeEmail(value) {
@@ -82,16 +83,9 @@ class BotvnAuthService {
 
     // Override the default CRM token TTL for botvn users to keep them separate
     const now = Date.now();
-    const botvnAccessTtlMs =
-      (Number(process.env.BOTVN_ACCESS_TOKEN_TTL_MINUTES) || 60 * 24 * 30) *
-      60 *
-      1000; // default 30 days
+    const botvnAccessTtlMs = env.botvnAccessTokenTtlMinutes * 1000;
     const botvnRefreshTtlMs =
-      (Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 90) *
-      24 *
-      60 *
-      60 *
-      1000; // default 90 days
+      env.botvnRefreshTokenTtlDays * 24 * 60 * 60 * 1000;
 
     tokens.session.accessTokenExpiresAt = new Date(now + botvnAccessTtlMs);
     tokens.session.refreshTokenExpiresAt = new Date(now + botvnRefreshTtlMs);

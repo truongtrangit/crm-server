@@ -6,11 +6,20 @@ const CourseOnline = require('../course/courseOnline/courseOnline.model');
 const CourseOffline = require('../course/courseOffline/courseOffline.model');
 const Customer = require('../customer/customer/customer.model');
 const SystemLogService = require('../system/log/systemLog.service');
-const { ID_PREFIXES, generateMonotonicId } = require('../../core/utils/id');
+const {
+  ID_PREFIXES,
+  generateMonotonicId,
+  generateMonotonicIdsBatch,
+} = require('../../core/utils/id');
+const CreditTransaction = require('../customer/credit/creditTransaction.model');
 const {
   COURSE_TYPES,
   PAYMENT_METHODS,
-  COURSE_ENROLLMENT_STATUS
+  COURSE_ENROLLMENT_STATUS,
+  CREDIT_TRANSACTION_TYPES,
+  CREDIT_TYPES,
+  CREDIT_SOURCES,
+  CREDIT_TRANSACTION_STATUS,
 } = require('../../core/constants/appData');
 
 class CheckoutService {
@@ -43,46 +52,108 @@ class CheckoutService {
         );
       }
 
-      let totalCreditRequired = 0;
-      let totalRewardCreditRequired = 0;
-      const enrollmentsToCreate = [];
+      // --- BATCH DATA LOADING (Fix N+1 query problem) ---
+      const challengeQueries = [];
+      const onlineQueries = [];
+      const offlineQueries = [];
+      const allCourseIds = [];
 
-      // Validate each item
       for (const item of items) {
-        let { courseId, courseType, packageId, paymentMethod } = item;
-
-        let course;
-        const orQuery = [{ id: courseId }];
-        if (mongoose.Types.ObjectId.isValid(courseId)) {
-          orQuery.push({ _id: courseId });
+        allCourseIds.push(item.courseId);
+        const orQ = [{ id: item.courseId }];
+        if (mongoose.Types.ObjectId.isValid(item.courseId)) {
+          orQ.push({ _id: item.courseId });
         }
 
-        switch (courseType) {
-          case COURSE_TYPES.CHALLENGE:
-            course = await CourseChallenge.findOne({
-              $or: orQuery,
+        if (item.courseType === COURSE_TYPES.CHALLENGE)
+          challengeQueries.push(...orQ);
+        else if (item.courseType === COURSE_TYPES.ONLINE)
+          onlineQueries.push(...orQ);
+        else if (item.courseType === COURSE_TYPES.OFFLINE)
+          offlineQueries.push(...orQ);
+      }
+
+      const [challenges, onlines, offlines] = await Promise.all([
+        challengeQueries.length
+          ? CourseChallenge.find({
+              $or: challengeQueries,
               isTemplate: false,
               isDeleted: { $ne: true },
-            }).session(session);
-            break;
-          case COURSE_TYPES.ONLINE:
-            course = await CourseOnline.findOne({
-              $or: orQuery,
+            })
+              .lean()
+              .session(session)
+          : [],
+        onlineQueries.length
+          ? CourseOnline.find({ $or: onlineQueries, isDeleted: { $ne: true } })
+              .lean()
+              .session(session)
+          : [],
+        offlineQueries.length
+          ? CourseOffline.find({
+              $or: offlineQueries,
               isDeleted: { $ne: true },
-            }).session(session);
-            break;
-          case COURSE_TYPES.OFFLINE:
-            course = await CourseOffline.findOne({
-              $or: orQuery,
-              isDeleted: { $ne: true },
-            }).session(session);
-            break;
-          default:
-            throw createHttpError(
-              400,
-              `Loại khóa học ${courseType} chưa được hỗ trợ`,
-            );
-        }
+            })
+              .lean()
+              .session(session)
+          : [],
+      ]);
+
+      const courseMap = new Map();
+      const populateMap = (arr) =>
+        arr.forEach((c) => {
+          courseMap.set(c.id, c);
+          if (c._id) courseMap.set(c._id.toString(), c);
+        });
+      populateMap(challenges);
+      populateMap(onlines);
+      populateMap(offlines);
+
+      // Check existing enrollments
+      const existingEnrollments = await CourseEnrollment.find({
+        studentId,
+        courseId: { $in: allCourseIds },
+      })
+        .lean()
+        .session(session);
+      const enrolledSet = new Set(existingEnrollments.map((e) => e.courseId));
+
+      // Fetch active enrollments count for offline courses to check maxStudents
+      const offlineCanonicalIds = offlines.map((c) => c.id);
+      const offlineEnrollments =
+        offlineCanonicalIds.length > 0
+          ? await CourseEnrollment.find({
+              courseId: { $in: offlineCanonicalIds },
+              status: COURSE_ENROLLMENT_STATUS.ACTIVE,
+            })
+              .select('courseId')
+              .lean()
+              .session(session)
+          : [];
+
+      const countMap = new Map();
+      for (const enr of offlineEnrollments) {
+        countMap.set(enr.courseId, (countMap.get(enr.courseId) || 0) + 1);
+      }
+
+      // Pre-generate IDs
+      const newIds = await generateMonotonicIdsBatch(
+        ID_PREFIXES.COURSE_CHALLENGE_ENROLLMENT,
+        items.length,
+      );
+      // ---------------------------------------------------
+
+      let totalMainCreditRequired = 0;
+      let totalRewardCreditRequired = 0;
+      let totalEduCreditRequired = 0;
+      const enrollmentsToCreate = [];
+      const courseTitles = [];
+
+      // Validate each item (In-memory loop)
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        let { courseId, courseType, packageId, paymentMethod } = item;
+
+        const course = courseMap.get(courseId);
 
         if (!course || course.status !== 'published') {
           throw createHttpError(
@@ -91,32 +162,39 @@ class CheckoutService {
           );
         }
 
+        if (
+          courseType === COURSE_TYPES.OFFLINE &&
+          course.registrationDeadline &&
+          new Date(course.registrationDeadline).getTime() < Date.now()
+        ) {
+          throw createHttpError(
+            400,
+            `Khóa học ${course.title || courseId} đã hết hạn đăng ký`,
+          );
+        }
+
         // Reassign courseId to the canonical string ID from the document
         courseId = course.id;
+        courseTitles.push(course.title || course.name || course.id);
 
         // Block if offline course is full
         if (courseType === COURSE_TYPES.OFFLINE && course.maxStudents > 0) {
-          const registeredStudents = await CourseEnrollment.countDocuments({
-            courseId: course.id,
-            status: COURSE_ENROLLMENT_STATUS.ACTIVE
-          }).session(session);
-
+          const registeredStudents = countMap.get(course.id) || 0;
           if (registeredStudents >= course.maxStudents) {
             throw createHttpError(
               400,
-              `Khóa học ${course.id} đã đủ số lượng học viên tối đa`
+              `Khóa học ${course.id} đã đủ số lượng học viên tối đa`,
             );
           }
+          // Increment locally in case multiple items map to same course
+          countMap.set(course.id, registeredStudents + 1);
         }
 
         // Ensure user is not already enrolled
-        const existingEnrollment = await CourseEnrollment.findOne({
-          courseId,
-          studentId,
-        }).session(session);
-        if (existingEnrollment) {
+        if (enrolledSet.has(courseId)) {
           throw createHttpError(400, `Bạn đã đăng ký khóa học ${courseId} rồi`);
         }
+        enrolledSet.add(courseId); // Mark enrolled locally to prevent duplicates in same cart
 
         // Find package
         const pkg =
@@ -139,11 +217,20 @@ class CheckoutService {
         const price = pkg.price || 0;
 
         switch (paymentMethod) {
-          case PAYMENT_METHODS.CREDIT:
-            totalCreditRequired += price;
+          case PAYMENT_METHODS.MAIN_CREDIT:
+            totalMainCreditRequired += price;
             break;
           case PAYMENT_METHODS.REWARD_CREDIT:
             totalRewardCreditRequired += price;
+            break;
+          case PAYMENT_METHODS.EDU_CREDIT:
+            if (!customer.isEduAccount) {
+              throw createHttpError(
+                400,
+                `Phương thức thanh toán ${paymentMethod} chỉ dành cho tài khoản giáo dục`,
+              );
+            }
+            totalEduCreditRequired += price;
             break;
           case PAYMENT_METHODS.FREE:
             break;
@@ -154,11 +241,8 @@ class CheckoutService {
             );
         }
 
-        const newId = await generateMonotonicId(
-          ID_PREFIXES.COURSE_CHALLENGE_ENROLLMENT,
-        );
         enrollmentsToCreate.push({
-          id: newId,
+          id: newIds[i],
           courseId,
           courseType,
           studentId,
@@ -171,14 +255,15 @@ class CheckoutService {
         });
       }
 
-      const currentCredit = customer.credit || 0;
+      const currentCredit = customer.mainCredit || 0;
       const currentRewardCredit = customer.rewardCredit || 0;
+      const currentEduCredit = customer.eduCredit || 0;
 
       // Check balances
-      if (currentCredit < totalCreditRequired) {
+      if (currentCredit < totalMainCreditRequired) {
         throw createHttpError(
           400,
-          `Số dư Credit không đủ. Cần thêm ${totalCreditRequired - currentCredit} Credit`,
+          `Số dư Credit không đủ. Cần thêm ${totalMainCreditRequired - currentCredit} Credit`,
         );
       }
       if (currentRewardCredit < totalRewardCreditRequired) {
@@ -187,16 +272,65 @@ class CheckoutService {
           `Số dư Credit Thưởng không đủ. Cần thêm ${totalRewardCreditRequired - currentRewardCredit} Credit Thưởng`,
         );
       }
+      if (currentEduCredit < totalEduCreditRequired) {
+        throw createHttpError(
+          400,
+          `Số dư Credit Giáo dục không đủ. Cần thêm ${totalEduCreditRequired - currentEduCredit} Credit Giáo dục`,
+        );
+      }
 
-      // Deduct balances
-      if (totalCreditRequired > 0) {
-        customer.credit = currentCredit - totalCreditRequired;
+      // Deduct balances and log transactions
+      const transactionsToCreate = [];
+      const transactionGroupId = await generateMonotonicId('TXG');
+      const coursesStr = courseTitles.join(', ');
+
+      if (totalMainCreditRequired > 0) {
+        customer.mainCredit = currentCredit - totalMainCreditRequired;
+        transactionsToCreate.push({
+          userId: customer.id,
+          amount: totalMainCreditRequired,
+          creditType: CREDIT_TYPES.MAIN,
+          transactionType: CREDIT_TRANSACTION_TYPES.OUT,
+          source: CREDIT_SOURCES.COURSE_PURCHASE,
+          reference: transactionGroupId,
+          transactionGroupId,
+          status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+          description: `Thanh toán ${totalMainCreditRequired} Credit chính cho: ${coursesStr}`,
+        });
       }
       if (totalRewardCreditRequired > 0) {
         customer.rewardCredit = currentRewardCredit - totalRewardCreditRequired;
+        transactionsToCreate.push({
+          userId: customer.id,
+          amount: totalRewardCreditRequired,
+          creditType: CREDIT_TYPES.REWARD,
+          transactionType: CREDIT_TRANSACTION_TYPES.OUT,
+          source: CREDIT_SOURCES.COURSE_PURCHASE,
+          reference: transactionGroupId,
+          transactionGroupId,
+          status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+          description: `Thanh toán ${totalRewardCreditRequired} Credit thưởng cho: ${coursesStr}`,
+        });
+      }
+      if (totalEduCreditRequired > 0) {
+        customer.eduCredit = currentEduCredit - totalEduCreditRequired;
+        transactionsToCreate.push({
+          userId: customer.id,
+          amount: totalEduCreditRequired,
+          creditType: CREDIT_TYPES.EDU,
+          transactionType: CREDIT_TRANSACTION_TYPES.OUT,
+          source: CREDIT_SOURCES.COURSE_PURCHASE,
+          reference: transactionGroupId,
+          transactionGroupId,
+          status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+          description: `Thanh toán ${totalEduCreditRequired} Credit GD cho: ${coursesStr}`,
+        });
       }
 
       await customer.save({ session });
+      if (transactionsToCreate.length > 0) {
+        await CreditTransaction.insertMany(transactionsToCreate, { session });
+      }
 
       // Create enrollments
       await CourseEnrollment.insertMany(enrollmentsToCreate, { session });
@@ -209,10 +343,12 @@ class CheckoutService {
         'checkout',
         {
           items,
-          totalCreditRequired,
+          totalMainCreditRequired,
           totalRewardCreditRequired,
-          remainingCredit: customer.credit,
+          totalEduCreditRequired,
+          remainingCredit: customer.mainCredit,
           remainingRewardCredit: customer.rewardCredit,
+          remainingEduCredit: customer.eduCredit,
         },
         studentId, // Actor
       );
@@ -223,8 +359,9 @@ class CheckoutService {
       return {
         message: 'Thanh toán và đăng ký thành công',
         enrollments: enrollmentsToCreate,
-        remainingCredit: customer.credit,
+        remainingCredit: customer.mainCredit,
         remainingRewardCredit: customer.rewardCredit,
+        remainingEduCredit: customer.eduCredit,
       };
     } catch (error) {
       await session.abortTransaction();
