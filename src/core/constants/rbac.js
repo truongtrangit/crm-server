@@ -36,6 +36,7 @@ const RESOURCES = {
   COURSES_OFFLINE: "courses_offline", // Khóa học offline
   COURSES_CHALLENGES: "courses_challenges", // Khóa học thử thách
   COURSES_ENROLLMENTS: "courses_enrollments", // Đăng ký khóa học
+  COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
 };
 
 // Actions
@@ -293,6 +294,12 @@ const PERMISSIONS = {
   // Course Enrollments
   COURSE_ENROLLMENTS_READ: `${RESOURCES.COURSES_ENROLLMENTS}_${ACTIONS.READ}`,
   COURSE_ENROLLMENTS_UPDATE: `${RESOURCES.COURSES_ENROLLMENTS}_${ACTIONS.UPDATE}`,
+
+  // Course Knowledge
+  COURSES_KNOWLEDGE_READ: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.READ}`,
+  COURSES_KNOWLEDGE_CREATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.CREATE}`,
+  COURSES_KNOWLEDGE_UPDATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.UPDATE}`,
+  COURSES_KNOWLEDGE_DELETE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.DELETE}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -411,6 +418,11 @@ const MANAGER_PERMISSIONS = Array.from(
 
     PERMISSIONS.COURSE_ENROLLMENTS_READ,
     PERMISSIONS.COURSE_ENROLLMENTS_UPDATE,
+
+    PERMISSIONS.COURSES_KNOWLEDGE_READ,
+    PERMISSIONS.COURSES_KNOWLEDGE_CREATE,
+    PERMISSIONS.COURSES_KNOWLEDGE_UPDATE,
+    PERMISSIONS.COURSES_KNOWLEDGE_DELETE,
   ]),
 );
 
@@ -739,6 +751,13 @@ const MODULE_DEFINITIONS = {
     parentKey: "courses",
     actions: ["view", "create", "edit", "delete"],
   },
+  "courses.knowledge": {
+    key: "courses.knowledge",
+    label: "Kiến thức",
+    type: "sub",
+    parentKey: "courses",
+    actions: ["view", "create", "edit", "delete"],
+  },
   "courses.instructors": {
     key: "courses.instructors",
     label: "Giảng viên",
@@ -978,6 +997,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.COURSES_CHALLENGES_UPDATE, PERMISSIONS.COURSE_ENROLLMENTS_UPDATE],
     delete: [PERMISSIONS.COURSES_CHALLENGES_DELETE],
     clone: [PERMISSIONS.COURSES_CHALLENGES_CLONE],
+  },
+  "courses.knowledge": {
+    view: [PERMISSIONS.COURSES_KNOWLEDGE_READ],
+    create: [PERMISSIONS.COURSES_KNOWLEDGE_CREATE],
+    edit: [PERMISSIONS.COURSES_KNOWLEDGE_UPDATE],
+    delete: [PERMISSIONS.COURSES_KNOWLEDGE_DELETE],
   },
 };
 
