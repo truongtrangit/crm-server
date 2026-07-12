@@ -435,7 +435,7 @@ class CreditService {
     try {
       updatedCustomer = await Customer.findOneAndUpdate(
         { id: customerId },
-        { $inc: { mainCredit: amount } },
+        { $inc: { rewardCredit: amount } },
         { new: true, session },
       );
 
