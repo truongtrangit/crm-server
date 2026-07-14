@@ -39,7 +39,9 @@ class KnowledgeService {
     }
 
     if (category) {
-      const catObj = await KnowledgeCategory.findOne({ id: category }).select('id').lean();
+      const catObj = await KnowledgeCategory.findOne({ id: category })
+        .select('id')
+        .lean();
       if (catObj) {
         filter.category = catObj.id;
       } else {
@@ -117,23 +119,29 @@ class KnowledgeService {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const result = await KnowledgeRead.updateOne(
-        { knowledgeId: knowledge.id, viewerKey, viewDate: today },
-        {
-          $setOnInsert: {
-            readAt: new Date(),
-            customerId: customer?.id || null,
+      try {
+        const result = await KnowledgeRead.updateOne(
+          { knowledgeId: knowledge.id, viewerKey, viewDate: today },
+          {
+            $setOnInsert: {
+              readAt: new Date(),
+              customerId: customer?.id || null,
+            },
           },
-        },
-        { upsert: true },
-      );
-
-      // Only increment viewCount if this is a new unique view (upserted)
-      if (result.upsertedCount > 0) {
-        await Knowledge.updateOne(
-          { _id: knowledge._id },
-          { $inc: { viewCount: 1 } },
+          { upsert: true },
         );
+
+        // Only increment viewCount if this is a new unique view (upserted)
+        if (result.upsertedCount > 0) {
+          await Knowledge.updateOne(
+            { _id: knowledge._id },
+            { $inc: { viewCount: 1 } },
+          );
+        }
+      } catch (error) {
+        if (error.code !== 11000) {
+          throw error;
+        }
       }
     }
 
