@@ -98,6 +98,12 @@ const COURSE_ENROLLMENT_STATUS = Object.freeze({
   INACTIVE: 'INACTIVE',
 });
 
+const KNOWLEDGE_STATUS = Object.freeze({
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  ARCHIVED: 'archived',
+});
+
 const COURSE_STATUS = Object.freeze({
   DRAFT: 'draft',
   PUBLISHED: 'published',
@@ -176,6 +182,7 @@ module.exports = {
   VOUCHER_STATUSES,
   COURSE_ENROLLMENT_STATUS,
   COURSE_STATUS,
+  KNOWLEDGE_STATUS,
   COURSE_TYPES,
   PAYMENT_METHODS,
   BOTVN_ROLES,
