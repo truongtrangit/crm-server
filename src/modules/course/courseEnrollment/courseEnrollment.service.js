@@ -4,6 +4,7 @@ const {
   resolvePagination,
   buildPaginatedResponse,
 } = require('../../../core/utils/pagination');
+const { COURSE_ENROLLMENT_STATUS } = require('../../../core/constants/appData');
 
 class CourseEnrollmentService {
   async getEnrollmentsByCourseId(courseId, query) {
