@@ -72,6 +72,9 @@ const ID_PREFIXES = Object.freeze({
   // Knowledge
   KNOWLEDGE: "KNW",
   KNOWLEDGE_CATEGORY: "KNC",
+
+  // Submission
+  COURSE_SUBMISSION: "CSB",
 });
 
 /**

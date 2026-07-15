@@ -73,6 +73,8 @@ const courseVoucherSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false, toJSON: { virtuals: true }, toObject: { virtuals: true } },
 );

@@ -1,12 +1,17 @@
-const mongoose = require("mongoose");
-const { COURSE_STATUS, PAYMENT_METHODS, LESSON_ACCESS_LEVEL } = require("../../../core/constants/appData");
+const mongoose = require('mongoose');
+const {
+  COURSE_STATUS,
+  PAYMENT_METHODS,
+  LESSON_ACCESS_LEVEL,
+  SUBMISSION_LEVEL,
+} = require('../../../core/constants/appData');
 
 const lecturerSchema = new mongoose.Schema(
   {
     lecturerId: {
       type: String,
       required: true,
-      ref: "CourseLecturer",
+      ref: 'CourseLecturer',
     },
     isMain: {
       type: Boolean,
@@ -16,10 +21,10 @@ const lecturerSchema = new mongoose.Schema(
   { _id: false, toJSON: { virtuals: true }, toObject: { virtuals: true } },
 );
 
-lecturerSchema.virtual("details", {
-  ref: "CourseLecturer",
-  localField: "lecturerId",
-  foreignField: "id",
+lecturerSchema.virtual('details', {
+  ref: 'CourseLecturer',
+  localField: 'lecturerId',
+  foreignField: 'id',
   justOne: true,
 });
 
@@ -28,17 +33,21 @@ const lessonSchema = new mongoose.Schema(
     id: { type: String },
     title: { type: String, required: true },
     duration: { type: Number, default: 0 },
-    accessLevel: { type: String, enum: Object.values(LESSON_ACCESS_LEVEL), default: LESSON_ACCESS_LEVEL.PAID },
-    videoUrl: { type: String, default: "" }, // Mặc dù offline không có video học, vẫn giữ cho đồng bộ data structure
+    accessLevel: {
+      type: String,
+      enum: Object.values(LESSON_ACCESS_LEVEL),
+      default: LESSON_ACCESS_LEVEL.PAID,
+    },
+    videoUrl: { type: String, default: '' }, // Mặc dù offline không có video học, vẫn giữ cho đồng bộ data structure
     attachments: [
       {
         name: { type: String },
         url: { type: String },
       },
     ],
-    description: { type: String, default: "" },
+    description: { type: String, default: '' },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const chapterSchema = new mongoose.Schema(
@@ -47,19 +56,25 @@ const chapterSchema = new mongoose.Schema(
     title: { type: String, required: true },
     lessons: { type: [lessonSchema], default: [] },
   },
-  { _id: false }
+  { _id: false },
 );
 
-const pricingPackageSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  name: { type: String, required: true },
-  price: { type: Number, required: true, min: 0 },
-  originalPrice: { type: Number, default: 0, min: 0 },
-  discountRate: { type: Number, default: 0, min: 0 },
-  paymentTypes: { type: [{ type: String, enum: Object.values(PAYMENT_METHODS) }], default: [PAYMENT_METHODS.MAIN_CREDIT] },
-  gifts: { type: [String], default: [] },
-  hasRefundPolicy: { type: Boolean, default: false }
-}, { _id: false });
+const pricingPackageSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    originalPrice: { type: Number, default: 0, min: 0 },
+    discountRate: { type: Number, default: 0, min: 0 },
+    paymentTypes: {
+      type: [{ type: String, enum: Object.values(PAYMENT_METHODS) }],
+      default: [PAYMENT_METHODS.MAIN_CREDIT],
+    },
+    gifts: { type: [String], default: [] },
+    hasRefundPolicy: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
 
 const courseOfflineSchema = new mongoose.Schema(
   {
@@ -78,10 +93,12 @@ const courseOfflineSchema = new mongoose.Schema(
       required: true,
     },
     category: {
-      type: [{
-        type: String,
-        ref: "CourseCategory",
-      }],
+      type: [
+        {
+          type: String,
+          ref: 'CourseCategory',
+        },
+      ],
       default: [],
     },
     status: {
@@ -91,7 +108,7 @@ const courseOfflineSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      default: "offline",
+      default: 'offline',
     },
     isBestseller: {
       type: Boolean,
@@ -99,11 +116,11 @@ const courseOfflineSchema = new mongoose.Schema(
     },
     headline: {
       type: String,
-      default: "",
+      default: '',
     },
     subheadline: {
       type: String,
-      default: "",
+      default: '',
     },
     packages: {
       type: [pricingPackageSchema],
@@ -140,27 +157,29 @@ const courseOfflineSchema = new mongoose.Schema(
       default: [],
     },
     hashtags: {
-      type: [{
-        type: String,
-        ref: "CourseHashtag",
-      }],
+      type: [
+        {
+          type: String,
+          ref: 'CourseHashtag',
+        },
+      ],
       default: [],
     },
     targetAudience: {
       type: String,
-      default: "",
+      default: '',
     },
     description: {
       type: String, // Rich HTML
-      default: "",
+      default: '',
     },
     location: {
       type: String,
-      default: "", // Vị trí tỉnh thành, vd: Hà Nội (Cầu Giấy)
+      default: '', // Vị trí tỉnh thành, vd: Hà Nội (Cầu Giấy)
     },
     address: {
       type: String,
-      default: "", // Địa chỉ cụ thể
+      default: '', // Địa chỉ cụ thể
     },
     startDate: {
       type: Date,
@@ -172,7 +191,7 @@ const courseOfflineSchema = new mongoose.Schema(
     },
     schedule: {
       type: String,
-      default: "", // Lịch học, VD: Thứ 7, Chủ Nhật
+      default: '', // Lịch học, VD: Thứ 7, Chủ Nhật
     },
     maxStudents: {
       type: Number,
@@ -185,6 +204,15 @@ const courseOfflineSchema = new mongoose.Schema(
     curriculum: {
       type: [chapterSchema],
       default: [],
+    },
+    submissionSettings: {
+      isCourseSubmissionRequired: { type: Boolean, default: false },
+      requireToProgress: { type: Boolean, default: false },
+
+      lessonDeadlineHours: { type: Number, default: 0 },
+      chapterDeadlineHours: { type: Number, default: 0 },
+      courseDeadlineHours: { type: Number, default: 0 },
+      courseDeadlineDate: { type: Date, default: null },
     },
     createdBy: {
       type: String, // req.user.id
@@ -206,18 +234,18 @@ const courseOfflineSchema = new mongoose.Schema(
   },
 );
 
-courseOfflineSchema.virtual("categoryDetails", {
-  ref: "CourseCategory",
-  localField: "category",
-  foreignField: "id",
+courseOfflineSchema.virtual('categoryDetails', {
+  ref: 'CourseCategory',
+  localField: 'category',
+  foreignField: 'id',
   justOne: false,
 });
 
-courseOfflineSchema.virtual("hashtagDetails", {
-  ref: "CourseHashtag",
-  localField: "hashtags",
-  foreignField: "id",
+courseOfflineSchema.virtual('hashtagDetails', {
+  ref: 'CourseHashtag',
+  localField: 'hashtags',
+  foreignField: 'id',
   justOne: false,
 });
 
-module.exports = mongoose.model("CourseOffline", courseOfflineSchema);
+module.exports = mongoose.model('CourseOffline', courseOfflineSchema);

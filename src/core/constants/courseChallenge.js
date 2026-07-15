@@ -3,6 +3,14 @@ const COURSE_CHALLENGE_TYPE = {
   ROLLING: "rolling",
 };
 
+const CHALLENGE_DAY_STATUS = {
+  LOCKED: "LOCKED",
+  COMPLETED: "COMPLETED",
+  OVERDUE: "OVERDUE",
+  OPEN: "OPEN",
+};
+
 module.exports = {
   COURSE_CHALLENGE_TYPE,
+  CHALLENGE_DAY_STATUS,
 };

@@ -6,7 +6,7 @@ const { computeChanges } = require('../../../core/utils/diff');
 class CourseLecturerService {
   async getLecturers(queryParams = {}) {
     const { search, createdAt } = queryParams;
-    const query = {};
+    const query = { isDeleted: { $ne: true } };
 
     if (search) {
       const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -37,7 +37,7 @@ class CourseLecturerService {
   }
 
   async getLecturerById(id) {
-    const lecturer = await CourseLecturer.findOne({ id }).lean();
+    const lecturer = await CourseLecturer.findOne({ id, isDeleted: { $ne: true } }).lean();
     if (!lecturer) {
       throw createHttpError(404, "Không tìm thấy giảng viên");
     }
@@ -58,7 +58,7 @@ class CourseLecturerService {
   }
 
   async updateLecturer(id, data) {
-    const lecturer = await CourseLecturer.findOne({ id });
+    const lecturer = await CourseLecturer.findOne({ id, isDeleted: { $ne: true } });
     if (!lecturer) {
       throw createHttpError(404, "Không tìm thấy giảng viên");
     }
@@ -98,7 +98,7 @@ class CourseLecturerService {
   }
 
   async deleteLecturer(id, force = false) {
-    const lecturer = await CourseLecturer.findOne({ id });
+    const lecturer = await CourseLecturer.findOne({ id, isDeleted: { $ne: true } });
     if (!lecturer) {
       throw createHttpError(404, "Không tìm thấy giảng viên");
     }
@@ -113,7 +113,10 @@ class CourseLecturerService {
     //   await Course.updateMany({ lecturerId: id }, { $set: { lecturerId: null } });
     // }
 
-    await CourseLecturer.deleteOne({ id });
+    lecturer.isDeleted = true;
+    lecturer.deletedAt = new Date();
+    lecturer.slug = `${lecturer.slug}-deleted-${Date.now()}`;
+    await lecturer.save();
 
     return lecturer;
   }

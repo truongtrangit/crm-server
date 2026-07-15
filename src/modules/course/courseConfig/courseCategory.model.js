@@ -8,6 +8,8 @@ const courseCategorySchema = new mongoose.Schema(
     icon: { type: String, default: null }, // font-awesome class
     logo: { type: String, default: null }, // URL
     color: { type: String, default: "#0668e1" }, // hex color
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false, id: false }
 );

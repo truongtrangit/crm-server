@@ -4,6 +4,9 @@ const {
   LESSON_ACCESS_LEVEL,
   COURSE_STATUS,
 } = require('../../../core/constants/appData');
+const {
+  submissionSettingsSchema,
+} = require('../courseSubmission/courseSubmission.validation');
 
 const pricingPackageSchema = Joi.object({
   id: Joi.string().required(),
@@ -16,6 +19,11 @@ const pricingPackageSchema = Joi.object({
     .default([PAYMENT_METHODS.MAIN_CREDIT]),
   gifts: Joi.array().items(Joi.string()).default([]),
   hasRefundPolicy: Joi.boolean().default(false),
+}).custom((value, helpers) => {
+  if (value.originalPrice > 0 && value.price > value.originalPrice) {
+    return helpers.message('Giá bán thực tế không được lớn hơn giá trước giảm');
+  }
+  return value;
 });
 
 const lecturerSchema = Joi.object({
@@ -38,12 +46,14 @@ const lessonSchema = Joi.object({
   videoUrl: Joi.string().allow('', null),
   attachments: Joi.array().items(lessonAttachmentSchema).default([]),
   description: Joi.string().allow('', null),
+  isSubmissionRequired: Joi.boolean().default(false),
 });
 
 const chapterSchema = Joi.object({
   id: Joi.string().allow('', null),
   title: Joi.string().required(),
   lessons: Joi.array().items(lessonSchema).default([]),
+  isSubmissionRequired: Joi.boolean().default(false),
 });
 
 const createCourseOnline = Joi.object({
@@ -68,6 +78,9 @@ const createCourseOnline = Joi.object({
   description: Joi.string().allow('', null),
   lecturers: Joi.array().items(lecturerSchema).default([]),
   curriculum: Joi.array().items(chapterSchema).default([]),
+  submissionSettings: submissionSettingsSchema.keys({
+    allowLateSubmission: Joi.any().strip(),
+  }),
 });
 
 const updateCourseOnline = Joi.object({
@@ -90,6 +103,9 @@ const updateCourseOnline = Joi.object({
   description: Joi.string().allow('', null),
   lecturers: Joi.array().items(lecturerSchema),
   curriculum: Joi.array().items(chapterSchema),
+  submissionSettings: submissionSettingsSchema.keys({
+    allowLateSubmission: Joi.any().strip(),
+  }),
 });
 
 module.exports = {

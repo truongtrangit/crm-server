@@ -1,12 +1,16 @@
-const mongoose = require("mongoose");
-const { COURSE_ENROLLMENT_STATUS, COURSE_TYPES, PAYMENT_METHODS } = require("../../../core/constants/appData");
+const mongoose = require('mongoose');
+const {
+  COURSE_ENROLLMENT_STATUS,
+  COURSE_TYPES,
+  PAYMENT_METHODS,
+} = require('../../../core/constants/appData');
 
 const progressSchema = new mongoose.Schema(
   {
     dayId: { type: String, required: true },
     isCompleted: { type: Boolean, default: false },
-    submissionUrl: { type: String, default: "" },
-    submissionText: { type: String, default: "" },
+    submissionUrl: { type: String, default: '' },
+    submissionText: { type: String, default: '' },
     submittedAt: { type: Date, default: null },
   },
   { _id: false },
@@ -47,8 +51,12 @@ const courseEnrollmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(COURSE_ENROLLMENT_STATUS || { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' }),
-      default: 'ACTIVE',
+      enum: Object.values(
+        COURSE_ENROLLMENT_STATUS || { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' },
+      ),
+      default: COURSE_ENROLLMENT_STATUS
+        ? COURSE_ENROLLMENT_STATUS.ACTIVE
+        : 'ACTIVE',
     },
     enrolledAt: {
       type: Date,
@@ -58,6 +66,10 @@ const courseEnrollmentSchema = new mongoose.Schema(
       type: [progressSchema],
       default: [],
     },
+    lastLessonIndex: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -66,7 +78,4 @@ const courseEnrollmentSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model(
-  "CourseEnrollment",
-  courseEnrollmentSchema,
-);
+module.exports = mongoose.model('CourseEnrollment', courseEnrollmentSchema);
