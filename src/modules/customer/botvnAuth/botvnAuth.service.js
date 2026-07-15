@@ -59,6 +59,14 @@ class BotvnAuthService {
     }
 
     const config = await BotvnConfig.findOne();
+    
+    if (config?.login?.emailPassword === false) {
+      const error = new Error('Tính năng đăng nhập bằng email đang bị khóa.');
+      error.status = 403;
+      error.code = 'LOGIN_METHOD_DISABLED';
+      throw error;
+    }
+
     if (config && config.maintenance && config.maintenance.isActive) {
       const allowedRoles = config.maintenance.allowedRoles || [];
       if (!customer.botvnRole || !allowedRoles.includes(customer.botvnRole)) {
@@ -128,6 +136,14 @@ class BotvnAuthService {
     const email = this._normalizeEmail(payload?.email);
     const password = payload?.password || '';
     const name = typeof payload?.name === 'string' ? payload.name.trim() : '';
+
+    const config = await BotvnConfig.findOne();
+    if (config?.login?.allowRegistration === false || config?.login?.emailPassword === false) {
+      const error = new Error('Tính năng đăng ký tài khoản bằng email đang bị khóa.');
+      error.status = 403;
+      error.code = 'REGISTRATION_DISABLED';
+      throw error;
+    }
 
     const existingCustomer = await Customer.findOne({
       email,

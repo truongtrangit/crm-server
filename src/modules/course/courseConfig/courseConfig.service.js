@@ -215,6 +215,13 @@ class CourseConfigService {
       };
     }
 
+    if (data.login !== undefined) {
+      config.login = {
+        ...config.login,
+        ...data.login,
+      };
+    }
+
     if (data.maintenance !== undefined) {
       config.maintenance = {
         ...config.maintenance,
