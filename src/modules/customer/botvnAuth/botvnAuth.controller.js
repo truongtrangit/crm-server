@@ -22,6 +22,10 @@ class BotvnAuthController {
         avatar: customer.avatar,
         isActive: customer.isActive,
         botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
       },
       sessionId: tokens.sessionId,
       accessToken: tokens.accessToken,
@@ -62,6 +66,10 @@ class BotvnAuthController {
         name: customer.name,
         email: customer.email,
         isActive: customer.isActive,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
       },
     };
 

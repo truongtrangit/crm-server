@@ -14,6 +14,7 @@ const botvnConfigSchema = new mongoose.Schema(
       offline: { type: Boolean, default: true },
       challenge: { type: Boolean, default: true },
       nextMarketer: { type: Boolean, default: true },
+      knowledge: { type: Boolean, default: true },
     },
     maintenance: {
       isActive: { type: Boolean, default: false },
