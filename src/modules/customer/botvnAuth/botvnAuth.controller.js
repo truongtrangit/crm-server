@@ -1,8 +1,8 @@
-const BotvnAuthService = require("./botvnAuth.service");
-const { sendSuccess } = require("../../../core/utils/http");
-const SystemLogService = require("../../system/log/systemLog.service");
-const { RESOURCES } = require("../../../core/constants/rbac");
-const { QR_SESSION_STATUS } = require("../../../core/constants/appData");
+const BotvnAuthService = require('./botvnAuth.service');
+const { sendSuccess } = require('../../../core/utils/http');
+const SystemLogService = require('../../system/log/systemLog.service');
+const { RESOURCES } = require('../../../core/constants/rbac');
+const { QR_SESSION_STATUS } = require('../../../core/constants/appData');
 
 class BotvnAuthController {
   /**
@@ -35,30 +35,30 @@ class BotvnAuthController {
       refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
     };
 
-    return sendSuccess(res, 200, "Login success", payload);
+    return sendSuccess(res, 200, 'Login success', payload);
   }
 
   async logout(req, res) {
     await BotvnAuthService.logout(req.body);
-    return sendSuccess(res, 200, "Logout success", null);
+    return sendSuccess(res, 200, 'Logout success', null);
   }
 
   async register(req, res) {
     const customer = await BotvnAuthService.register(req.body, req);
 
     SystemLogService.log({
-      action: "create",
+      action: 'create',
       resource: RESOURCES.CUSTOMERS,
       resourceId: customer.id,
       resourceName: customer.name,
-      description: "Bot.vn user registration",
+      description: 'Bot.vn user registration',
       performedBy: {
         userId: null,
         userName: customer.name,
-        userAvatar: "",
+        userAvatar: '',
       },
-      status: "success",
-      ipAddress: req.ip || "unknown",
+      status: 'success',
+      ipAddress: req.ip || 'unknown',
     });
 
     const payload = {
@@ -74,7 +74,7 @@ class BotvnAuthController {
       },
     };
 
-    return sendSuccess(res, 201, "Registration success", payload);
+    return sendSuccess(res, 201, 'Registration success', payload);
   }
 
   // ==========================================
@@ -83,32 +83,39 @@ class BotvnAuthController {
 
   async generateQr(req, res) {
     const result = await BotvnAuthService.generateQrToken(req);
-    return sendSuccess(res, 200, "QR Code generated", result);
+    return sendSuccess(res, 200, 'QR Code generated', result);
   }
 
   async scanQr(req, res) {
     const { token } = req.params;
     const result = await BotvnAuthService.scanQrToken(token);
-    return sendSuccess(res, 200, "QR Scanned", result);
+    return sendSuccess(res, 200, 'QR Scanned', result);
   }
 
   async getQrStatus(req, res) {
     const { token } = req.params;
     const MAX_WAIT_MS = 20000; // 20 giây tối đa
-    const INTERVAL_MS = 1500;  // Quét Redis mỗi 1.5 giây
+    const INTERVAL_MS = 1500; // Quét Redis mỗi 1.5 giây
     let elapsed = 0;
     let isClientClosed = false;
 
     // Lắng nghe sự kiện trình duyệt huỷ kết nối (đóng tab, modal)
-    req.on("close", () => {
+    req.on('close', () => {
       isClientClosed = true;
     });
 
+    // Lấy current_status từ query (mặc định là PENDING nếu client không gửi)
+    const currentClientStatus = req.query.current_status || QR_SESSION_STATUS.PENDING;
+
     while (elapsed < MAX_WAIT_MS && !isClientClosed) {
       const session = await BotvnAuthService.getQrStatus(token);
-      
-      // Nếu trạng thái đã thay đổi khỏi PENDING, lập tức trả về kết quả
-      if (session.status !== QR_SESSION_STATUS.PENDING) {
+
+      // Nếu trạng thái trong Cache khác với trạng thái hiện tại của Client, lập tức trả về!
+      // Điều này giúp: 
+      // 1. Từ PENDING -> SCANNED: báo ngay cho Client biết để mờ UI.
+      // 2. Client gọi lại với current_status=SCANNED -> Server tiếp tục hold.
+      // 3. Từ SCANNED -> AUTHENTICATED: báo ngay cho Client biết để login.
+      if (session.status !== currentClientStatus) {
         // Nếu AUTHENTICATED, format payload trả về kèm user info để client tự login
         if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
           const { customer, tokens } = session;
@@ -133,31 +140,34 @@ class BotvnAuthController {
             accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
             refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
           };
-          
+
           SystemLogService.log({
-            action: "login",
+            action: 'login',
             resource: RESOURCES.CUSTOMERS,
             resourceId: customer.id,
             resourceName: customer.name,
-            description: "Bot.vn user login via Zalo QR",
+            description: 'Bot.vn user login via Zalo QR',
             performedBy: {
               userId: customer.id,
               userName: customer.name,
               userAvatar: customer.avatar,
             },
-            status: "success",
-            ipAddress: req.ip || "unknown",
+            status: 'success',
+            ipAddress: req.ip || 'unknown',
           });
 
-          return sendSuccess(res, 200, "QR Authenticated", payload);
+          return sendSuccess(res, 200, 'QR Authenticated', payload);
         }
-        
+
         // Nếu trạng thái khác (SCANNED, NEEDS_REGISTRATION, v.v.), trả về trực tiếp
-        return sendSuccess(res, 200, "QR Status", { status: session.status, zaloProfile: session.zaloProfile });
+        return sendSuccess(res, 200, 'QR Status', {
+          status: session.status,
+          zaloProfile: session.zaloProfile,
+        });
       }
 
       // Đợi 1 nhịp trước khi quét lại
-      await new Promise(resolve => setTimeout(resolve, INTERVAL_MS));
+      await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS));
       elapsed += INTERVAL_MS;
     }
 
@@ -165,18 +175,24 @@ class BotvnAuthController {
     if (isClientClosed) return;
 
     // Hết 20s mà vẫn PENDING, trả về PENDING để Client tự nối lại
-    return sendSuccess(res, 200, "QR Status Timeout", { status: QR_SESSION_STATUS.PENDING });
+    return sendSuccess(res, 200, 'QR Status Timeout', {
+      status: QR_SESSION_STATUS.PENDING,
+    });
   }
 
   async verifyQr(req, res) {
     const { qrToken, zaloProfile } = req.body;
-    
+
     if (!qrToken || !zaloProfile) {
-      return sendSuccess(res, 400, "Thiếu qrToken hoặc zaloProfile", null);
+      return sendSuccess(res, 400, 'Thiếu qrToken hoặc zaloProfile', null);
     }
 
-    const result = await BotvnAuthService.verifyQrToken(qrToken, zaloProfile, req);
-    return sendSuccess(res, 200, "Verify QR success", result);
+    const result = await BotvnAuthService.verifyQrToken(
+      qrToken,
+      zaloProfile,
+      req,
+    );
+    return sendSuccess(res, 200, 'Verify QR success', result);
   }
 }
 

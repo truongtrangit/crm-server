@@ -244,16 +244,13 @@ class BotvnAuthService {
       throw error;
     }
 
-    // Nếu bật tính năng BẮT BUỘC xác nhận, ta chuyển trạng thái sang SCANNED
-    // để chặn verify trực tiếp từ PENDING.
-    if (env.botvnQrRequireContextConfirm) {
-      session.status = QR_SESSION_STATUS.SCANNED;
-      await CacheService.set(
-        `botvn_qr:${qrToken}`,
-        session,
-        env.botvnQrTokenTtlSeconds, // Giữ nguyên TTL (hoặc có thể trừ đi khoảng tgian đã trôi qua, nhưng giữ nguyên cũng ổn)
-      );
-    }
+    // Luôn chuyển trạng thái sang SCANNED để Frontend cập nhật giao diện
+    session.status = QR_SESSION_STATUS.SCANNED;
+    await CacheService.set(
+      `botvn_qr:${qrToken}`,
+      session,
+      env.botvnQrTokenTtlSeconds,
+    );
 
     return {
       ip: session.ip,
@@ -295,11 +292,8 @@ class BotvnAuthService {
       throw error;
     }
 
-    // Nếu bật chế độ BẮT BUỘC xác nhận, Zalo Mini App PHẢI gọi API /qr/scan trước khi gọi /qr/verify
-    if (
-      env.botvnQrRequireContextConfirm &&
-      session.status !== QR_SESSION_STATUS.SCANNED
-    ) {
+    // Zalo Mini App PHẢI gọi API /qr/scan trước khi gọi /qr/verify
+    if (session.status !== QR_SESSION_STATUS.SCANNED) {
       const error = new Error(
         'Thiết bị chưa xác nhận ngữ cảnh quét (Context Confirm). Vui lòng gọi API /qr/scan trước.',
       );
