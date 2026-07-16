@@ -52,6 +52,34 @@ class CourseEnrollmentService {
         },
       },
       {
+        $lookup: {
+          from: 'coursesubmissions',
+          let: { eId: '$id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$enrollmentId', '$$eId'] },
+                    { $eq: ['$isDeleted', false] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                id: 1,
+                targetId: 1,
+                status: 1,
+                submissionLevel: 1,
+                submittedAt: 1,
+              },
+            },
+          ],
+          as: 'submissions',
+        },
+      },
+      {
         $project: {
           customer: 0, // remove array
         },
