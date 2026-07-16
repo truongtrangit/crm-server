@@ -94,53 +94,78 @@ class BotvnAuthController {
 
   async getQrStatus(req, res) {
     const { token } = req.params;
-    const session = await BotvnAuthService.getQrStatus(token);
-    
-    // Nếu AUTHENTICATED, format payload trả về kèm user info để client tự login
-    if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
-      const { customer, tokens } = session;
-      const payload = {
-        status: session.status,
-        customer: {
-          id: customer.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          avatar: customer.avatar,
-          isActive: customer.isActive,
-          botvnRole: customer.botvnRole,
-          rewardCredit: customer.rewardCredit || 0,
-          mainCredit: customer.mainCredit || 0,
-          eduCredit: customer.eduCredit || 0,
-          isEduAccount: customer.isEduAccount || false,
-        },
-        sessionId: tokens.sessionId,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
-        refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
-      };
-      
-      SystemLogService.log({
-        action: "login",
-        resource: RESOURCES.CUSTOMERS,
-        resourceId: customer.id,
-        resourceName: customer.name,
-        description: "Bot.vn user login via Zalo QR",
-        performedBy: {
-          userId: customer.id,
-          userName: customer.name,
-          userAvatar: customer.avatar,
-        },
-        status: "success",
-        ipAddress: req.ip || "unknown",
-      });
+    const MAX_WAIT_MS = 20000; // 20 giây tối đa
+    const INTERVAL_MS = 1500;  // Quét Redis mỗi 1.5 giây
+    let elapsed = 0;
+    let isClientClosed = false;
 
-      return sendSuccess(res, 200, "QR Authenticated", payload);
+    // Lắng nghe sự kiện trình duyệt huỷ kết nối (đóng tab, modal)
+    req.on("close", () => {
+      isClientClosed = true;
+    });
+
+    while (elapsed < MAX_WAIT_MS && !isClientClosed) {
+      const session = await BotvnAuthService.getQrStatus(token);
+      
+      // Nếu trạng thái đã thay đổi khỏi PENDING, lập tức trả về kết quả
+      if (session.status !== QR_SESSION_STATUS.PENDING) {
+        // Nếu AUTHENTICATED, format payload trả về kèm user info để client tự login
+        if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
+          const { customer, tokens } = session;
+          const payload = {
+            status: session.status,
+            customer: {
+              id: customer.id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              avatar: customer.avatar,
+              isActive: customer.isActive,
+              botvnRole: customer.botvnRole,
+              rewardCredit: customer.rewardCredit || 0,
+              mainCredit: customer.mainCredit || 0,
+              eduCredit: customer.eduCredit || 0,
+              isEduAccount: customer.isEduAccount || false,
+            },
+            sessionId: tokens.sessionId,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+            refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+          };
+          
+          SystemLogService.log({
+            action: "login",
+            resource: RESOURCES.CUSTOMERS,
+            resourceId: customer.id,
+            resourceName: customer.name,
+            description: "Bot.vn user login via Zalo QR",
+            performedBy: {
+              userId: customer.id,
+              userName: customer.name,
+              userAvatar: customer.avatar,
+            },
+            status: "success",
+            ipAddress: req.ip || "unknown",
+          });
+
+          return sendSuccess(res, 200, "QR Authenticated", payload);
+        }
+        
+        // Nếu trạng thái khác (SCANNED, NEEDS_REGISTRATION, v.v.), trả về trực tiếp
+        return sendSuccess(res, 200, "QR Status", { status: session.status, zaloProfile: session.zaloProfile });
+      }
+
+      // Đợi 1 nhịp trước khi quét lại
+      await new Promise(resolve => setTimeout(resolve, INTERVAL_MS));
+      elapsed += INTERVAL_MS;
     }
-    
-    // Nếu trạng thái khác (PENDING, NEEDS_REGISTRATION, v.v.), trả về trực tiếp
-    return sendSuccess(res, 200, "QR Status", { status: session.status, zaloProfile: session.zaloProfile });
+
+    // Nếu vòng lặp kết thúc do client đóng kết nối, không trả HTTP response
+    if (isClientClosed) return;
+
+    // Hết 20s mà vẫn PENDING, trả về PENDING để Client tự nối lại
+    return sendSuccess(res, 200, "QR Status Timeout", { status: QR_SESSION_STATUS.PENDING });
   }
 
   async verifyQr(req, res) {
