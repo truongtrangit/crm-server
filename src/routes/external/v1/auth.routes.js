@@ -6,6 +6,10 @@ const {
   verifyBotvnQrLoginWebhookToken,
 } = require('../../../core/middleware/webhookAuth');
 const {
+  qrGenerateLimiter,
+  qrStatusLimiter,
+} = require('../../../core/middleware/rateLimiter');
+const {
   loginSchema,
   registerSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
@@ -21,8 +25,8 @@ router.post(
 router.post('/logout', BotvnAuthController.logout);
 
 // Zalo QR Login
-router.post('/qr/generate', BotvnAuthController.generateQr);
-router.get('/qr/status/:token', BotvnAuthController.getQrStatus);
+router.post('/qr/generate', qrGenerateLimiter, BotvnAuthController.generateQr);
+router.get('/qr/status/:token', qrStatusLimiter, BotvnAuthController.getQrStatus);
 router.post(
   '/qr/verify',
   verifyBotvnQrLoginWebhookToken,

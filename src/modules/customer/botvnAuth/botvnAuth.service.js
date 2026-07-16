@@ -302,6 +302,8 @@ class BotvnAuthService {
           // Gắn zaloId vào tài khoản hiện tại nếu muốn, hoặc báo lỗi. Ở đây ta ưu tiên gắn zaloId vào tk có cùng phone.
           customer = existingPhone;
           customer.zaloId = zaloId;
+          if (name && customer.name !== name) customer.name = name;
+          if (avatar && customer.avatar !== avatar) customer.avatar = avatar;
           await customer.save();
         }
       }
@@ -322,6 +324,20 @@ class BotvnAuthService {
           isActive: true, // Auto active
           registeredAt: new Date().toISOString(),
         });
+        await customer.save();
+      }
+    } else {
+      // Đồng bộ thông tin profile mới nhất từ Zalo
+      let changed = false;
+      if (name && customer.name !== name) {
+        customer.name = name;
+        changed = true;
+      }
+      if (avatar && customer.avatar !== avatar) {
+        customer.avatar = avatar;
+        changed = true;
+      }
+      if (changed) {
         await customer.save();
       }
     }
