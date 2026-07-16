@@ -32,6 +32,7 @@ const env = {
   botvnRefreshTokenTtlDays:
     Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 15, // 15 days
   botvnQrTokenTtlSeconds: Number(process.env.BOTVN_QR_TOKEN_TTL_SECONDS) || 180, // Default 3 minutes
+  botvnQrRequireContextConfirm: process.env.BOTVN_QR_REQUIRE_CONTEXT_CONFIRM === 'true',
 
   // ─── Feature Flags ───────────────────────────────────────────────────────────
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',

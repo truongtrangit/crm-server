@@ -27,6 +27,7 @@ router.post('/logout', BotvnAuthController.logout);
 // Zalo QR Login
 router.post('/qr/generate', qrGenerateLimiter, BotvnAuthController.generateQr);
 router.get('/qr/status/:token', qrStatusLimiter, BotvnAuthController.getQrStatus);
+router.get('/qr/scan/:token', BotvnAuthController.scanQr);
 router.post(
   '/qr/verify',
   verifyBotvnQrLoginWebhookToken,

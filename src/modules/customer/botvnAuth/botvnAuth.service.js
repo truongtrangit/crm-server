@@ -6,7 +6,11 @@ const {
   hashPassword,
 } = require('../../../core/utils/auth');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
-const { CUSTOMER_MAIN_TYPES } = require('../../../core/constants/appData');
+const {
+  CUSTOMER_MAIN_TYPES,
+  QR_SESSION_STATUS,
+  AUTH_ERROR_CODES,
+} = require('../../../core/constants/appData');
 const BotvnConfig = require('../../course/courseConfig/botvnConfig.model');
 const env = require('../../../core/config/env');
 const CacheService = require('../../../core/services/CacheService');
@@ -31,7 +35,7 @@ class BotvnAuthService {
     if (!email || !password) {
       const error = new Error('email and password are required');
       error.status = 400;
-      error.code = 'VALIDATION_ERROR';
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
       throw error;
     }
 
@@ -45,7 +49,7 @@ class BotvnAuthService {
     ) {
       const error = new Error('Invalid email or password');
       error.status = 401;
-      error.code = 'INVALID_CREDENTIALS';
+      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
       error.context = { email };
       throw error;
     }
@@ -55,7 +59,7 @@ class BotvnAuthService {
         'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
       );
       error.status = 403;
-      error.code = 'ACCOUNT_INACTIVE';
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
       error.context = { email, customerId: customer.id };
       throw error;
     }
@@ -65,7 +69,7 @@ class BotvnAuthService {
     if (config?.login?.emailPassword === false) {
       const error = new Error('Tính năng đăng nhập bằng email đang bị khóa.');
       error.status = 403;
-      error.code = 'LOGIN_METHOD_DISABLED';
+      error.code = AUTH_ERROR_CODES.LOGIN_METHOD_DISABLED;
       throw error;
     }
 
@@ -76,7 +80,7 @@ class BotvnAuthService {
           'Hệ thống đang bảo trì. Tài khoản của bạn không có quyền truy cập lúc này.',
         );
         error.status = 503;
-        error.code = 'MAINTENANCE_MODE';
+        error.code = AUTH_ERROR_CODES.MAINTENANCE_MODE;
         error.context = {
           type: config.maintenance.type,
           title: config.maintenance.title,
@@ -148,7 +152,7 @@ class BotvnAuthService {
         'Tính năng đăng ký tài khoản bằng email đang bị khóa.',
       );
       error.status = 403;
-      error.code = 'REGISTRATION_DISABLED';
+      error.code = AUTH_ERROR_CODES.REGISTRATION_DISABLED;
       throw error;
     }
 
@@ -160,7 +164,7 @@ class BotvnAuthService {
     if (existingCustomer) {
       const error = new Error('Email này đã được đăng ký.');
       error.status = 409;
-      error.code = 'EMAIL_EXISTS';
+      error.code = AUTH_ERROR_CODES.EMAIL_EXISTS;
       throw error;
     }
 
@@ -190,24 +194,26 @@ class BotvnAuthService {
 
   /**
    * Bước 1: Client web gọi API để sinh mã QR
-   * Tạo 1 UUID và lưu vào Redis với trạng thái PENDING
+   * Tạo 1 UUID và lưu vào Redis với trạng thái PENDING cùng thông tin thiết bị tạo mã.
    */
-  async generateQrToken() {
+  async generateQrToken(req) {
     const config = await BotvnConfig.findOne().lean();
     if (config?.login?.qrCode === false) {
       const error = new Error('Tính năng đăng nhập bằng QR Code đang bị khóa.');
       error.status = 403;
-      error.code = 'LOGIN_METHOD_DISABLED';
+      error.code = AUTH_ERROR_CODES.LOGIN_METHOD_DISABLED;
       throw error;
     }
 
     const qrToken = crypto.randomUUID();
 
-    // Lưu vào cache
+    // Lưu vào cache cùng thông tin IP và Trình duyệt của Web Client
     await CacheService.set(
       `botvn_qr:${qrToken}`,
       {
-        status: 'PENDING',
+        status: QR_SESSION_STATUS.PENDING,
+        ip: req?.ip || 'unknown',
+        userAgent: req?.headers ? req.headers['user-agent'] : 'unknown',
         createdAt: Date.now(),
       },
       env.botvnQrTokenTtlSeconds,
@@ -220,6 +226,43 @@ class BotvnAuthService {
   }
 
   /**
+   * Bước 1.5 (Tuỳ chọn): Zalo Mini App gọi để lấy thông tin thiết bị Web và cảnh báo User
+   */
+  async scanQrToken(qrToken) {
+    const session = await CacheService.get(`botvn_qr:${qrToken}`);
+    if (!session) {
+      const error = new Error('Mã QR đã hết hạn hoặc không tồn tại.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.QR_EXPIRED;
+      throw error;
+    }
+
+    if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
+      const error = new Error('Mã QR này đã được sử dụng.');
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.QR_ALREADY_USED;
+      throw error;
+    }
+
+    // Nếu bật tính năng BẮT BUỘC xác nhận, ta chuyển trạng thái sang SCANNED
+    // để chặn verify trực tiếp từ PENDING.
+    if (env.botvnQrRequireContextConfirm) {
+      session.status = QR_SESSION_STATUS.SCANNED;
+      await CacheService.set(
+        `botvn_qr:${qrToken}`,
+        session,
+        env.botvnQrTokenTtlSeconds, // Giữ nguyên TTL (hoặc có thể trừ đi khoảng tgian đã trôi qua, nhưng giữ nguyên cũng ổn)
+      );
+    }
+
+    return {
+      ip: session.ip,
+      userAgent: session.userAgent,
+      status: session.status,
+    };
+  }
+
+  /**
    * Bước 2: Client web polling để kiểm tra trạng thái
    */
   async getQrStatus(qrToken) {
@@ -227,12 +270,12 @@ class BotvnAuthService {
     if (!session) {
       const error = new Error('Mã QR đã hết hạn hoặc không tồn tại.');
       error.status = 404;
-      error.code = 'QR_EXPIRED';
+      error.code = AUTH_ERROR_CODES.QR_EXPIRED;
       throw error;
     }
 
     // Nếu đã đăng nhập thành công, xóa khỏi cache để token chỉ dùng 1 lần
-    if (session.status === 'AUTHENTICATED') {
+    if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
       await CacheService.del(`botvn_qr:${qrToken}`);
     }
 
@@ -248,14 +291,30 @@ class BotvnAuthService {
     if (!session) {
       const error = new Error('Mã QR đã hết hạn hoặc không tồn tại.');
       error.status = 404;
-      error.code = 'QR_EXPIRED';
+      error.code = AUTH_ERROR_CODES.QR_EXPIRED;
       throw error;
     }
 
-    if (session.status !== 'PENDING') {
-      const error = new Error('Mã QR này đã được sử dụng.');
+    // Nếu bật chế độ BẮT BUỘC xác nhận, Zalo Mini App PHẢI gọi API /qr/scan trước khi gọi /qr/verify
+    if (
+      env.botvnQrRequireContextConfirm &&
+      session.status !== QR_SESSION_STATUS.SCANNED
+    ) {
+      const error = new Error(
+        'Thiết bị chưa xác nhận ngữ cảnh quét (Context Confirm). Vui lòng gọi API /qr/scan trước.',
+      );
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.QR_CONTEXT_NOT_CONFIRMED;
+      throw error;
+    }
+
+    if (
+      session.status !== QR_SESSION_STATUS.PENDING &&
+      session.status !== QR_SESSION_STATUS.SCANNED
+    ) {
+      const error = new Error('Mã QR này đã được sử dụng hoặc không hợp lệ.');
       error.status = 400;
-      error.code = 'QR_ALREADY_USED';
+      error.code = AUTH_ERROR_CODES.QR_ALREADY_USED;
       throw error;
     }
 
@@ -263,7 +322,7 @@ class BotvnAuthService {
     if (!zaloId) {
       const error = new Error('zaloProfile thiếu trường zaloId bắt buộc.');
       error.status = 400;
-      error.code = 'VALIDATION_ERROR';
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
       throw error;
     }
 
@@ -281,14 +340,14 @@ class BotvnAuthService {
         await CacheService.set(
           `botvn_qr:${qrToken}`,
           {
-            status: 'REGISTRATION_DISABLED',
+            status: QR_SESSION_STATUS.REGISTRATION_DISABLED,
           },
           env.botvnQrTokenTtlSeconds,
         );
 
         const error = new Error('Hệ thống đang khóa đăng ký.');
         error.status = 403;
-        error.code = 'REGISTRATION_DISABLED';
+        error.code = AUTH_ERROR_CODES.REGISTRATION_DISABLED;
         throw error;
       }
 
@@ -347,14 +406,14 @@ class BotvnAuthService {
       await CacheService.set(
         `botvn_qr:${qrToken}`,
         {
-          status: 'ACCOUNT_INACTIVE',
+          status: QR_SESSION_STATUS.ACCOUNT_INACTIVE,
         },
         env.botvnQrTokenTtlSeconds,
       );
 
       const error = new Error('Tài khoản đã bị vô hiệu hóa.');
       error.status = 403;
-      error.code = 'ACCOUNT_INACTIVE';
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
       throw error;
     }
 
@@ -380,8 +439,8 @@ class BotvnAuthService {
       refreshTokenHash: tokens.session.refreshTokenHash,
       accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
       refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
-      userAgent: 'Zalo Mini App / Web QR',
-      ipAddress: req.ip,
+      userAgent: session.userAgent || 'Zalo Mini App / Web QR', // Ưu tiên dùng User-Agent của máy tính tạo mã
+      ipAddress: session.ip || req.ip, // Ưu tiên dùng IP của máy tính tạo mã
       lastUsedAt: tokens.session.lastUsedAt,
     });
 
@@ -395,7 +454,7 @@ class BotvnAuthService {
     await CacheService.set(
       `botvn_qr:${qrToken}`,
       {
-        status: 'AUTHENTICATED',
+        status: QR_SESSION_STATUS.AUTHENTICATED,
         tokens,
         customer,
       },

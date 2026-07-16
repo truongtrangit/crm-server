@@ -2,6 +2,7 @@ const BotvnAuthService = require("./botvnAuth.service");
 const { sendSuccess } = require("../../../core/utils/http");
 const SystemLogService = require("../../system/log/systemLog.service");
 const { RESOURCES } = require("../../../core/constants/rbac");
+const { QR_SESSION_STATUS } = require("../../../core/constants/appData");
 
 class BotvnAuthController {
   /**
@@ -81,8 +82,14 @@ class BotvnAuthController {
   // ==========================================
 
   async generateQr(req, res) {
-    const result = await BotvnAuthService.generateQrToken();
+    const result = await BotvnAuthService.generateQrToken(req);
     return sendSuccess(res, 200, "QR Code generated", result);
+  }
+
+  async scanQr(req, res) {
+    const { token } = req.params;
+    const result = await BotvnAuthService.scanQrToken(token);
+    return sendSuccess(res, 200, "QR Scanned", result);
   }
 
   async getQrStatus(req, res) {
@@ -90,7 +97,7 @@ class BotvnAuthController {
     const session = await BotvnAuthService.getQrStatus(token);
     
     // Nếu AUTHENTICATED, format payload trả về kèm user info để client tự login
-    if (session.status === 'AUTHENTICATED') {
+    if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
       const { customer, tokens } = session;
       const payload = {
         status: session.status,
