@@ -1,4 +1,5 @@
 const CourseEnrollment = require('../courseChallenge/courseEnrollment.model');
+const Customer = require('../../customer/customer/customer.model');
 const createHttpError = require('http-errors');
 const {
   resolvePagination,
@@ -13,6 +14,23 @@ class CourseEnrollmentService {
 
     if (query.status) {
       filter.status = query.status;
+    }
+
+    if (query.packageId) {
+      filter.packageId = query.packageId;
+    }
+
+    if (query.search) {
+      const searchRegex = new RegExp(query.search, 'i');
+      const matchedCustomers = await Customer.find({ name: searchRegex })
+        .select('id')
+        .lean();
+      const matchedIds = matchedCustomers.map((c) => c.id);
+
+      filter.$or = [
+        { studentId: searchRegex },
+        { studentId: { $in: matchedIds } },
+      ];
     }
 
     const enrollments = await CourseEnrollment.aggregate([
