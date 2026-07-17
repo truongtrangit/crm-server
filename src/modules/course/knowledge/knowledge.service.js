@@ -321,7 +321,7 @@ class KnowledgeService {
   // ==========================================
 
   async getCategories() {
-    return await KnowledgeCategory.find().lean();
+    return await KnowledgeCategory.find({ isDeleted: { $ne: true } }).lean();
   }
 
   async createCategory(data) {
@@ -340,7 +340,7 @@ class KnowledgeService {
   }
 
   async updateCategory(id, data) {
-    const category = await KnowledgeCategory.findOne({ id });
+    const category = await KnowledgeCategory.findOne({ id, isDeleted: { $ne: true } });
     if (!category) throw createHttpError(404, 'Không tìm thấy danh mục');
 
     if (data.parentId === id) {
@@ -364,7 +364,7 @@ class KnowledgeService {
   }
 
   async deleteCategory(id, force) {
-    const category = await KnowledgeCategory.findOne({ id });
+    const category = await KnowledgeCategory.findOne({ id, isDeleted: { $ne: true } });
     if (!category) throw createHttpError(404, 'Không tìm thấy danh mục');
 
     const hasChildren = await KnowledgeCategory.exists({ parentId: id });
@@ -379,7 +379,9 @@ class KnowledgeService {
       );
     }
 
-    await KnowledgeCategory.deleteOne({ id });
+    category.isDeleted = true;
+    category.deletedAt = new Date();
+    await category.save();
     return category;
   }
   // ==========================================

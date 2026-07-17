@@ -1,5 +1,8 @@
 const Joi = require("joi");
 const { PAYMENT_METHODS, LESSON_ACCESS_LEVEL, COURSE_STATUS } = require("../../../core/constants/appData");
+const {
+  submissionSettingsSchema,
+} = require('../courseSubmission/courseSubmission.validation');
 
 const pricingPackageSchema = Joi.object({
   id: Joi.string().required(),
@@ -10,6 +13,11 @@ const pricingPackageSchema = Joi.object({
   paymentTypes: Joi.array().items(Joi.string().valid(...Object.values(PAYMENT_METHODS))).default([PAYMENT_METHODS.MAIN_CREDIT]),
   gifts: Joi.array().items(Joi.string()).default([]),
   hasRefundPolicy: Joi.boolean().default(false)
+}).custom((value, helpers) => {
+  if (value.originalPrice > 0 && value.price > value.originalPrice) {
+    return helpers.message('Giá bán thực tế không được lớn hơn giá trước giảm');
+  }
+  return value;
 });
 
 const lecturerSchema = Joi.object({
@@ -66,6 +74,9 @@ const createCourseOffline = Joi.object({
   maxStudents: Joi.number().min(0).default(0),
   lecturers: Joi.array().items(lecturerSchema).default([]),
   curriculum: Joi.array().items(chapterSchema).default([]),
+  submissionSettings: submissionSettingsSchema.keys({
+    allowLateSubmission: Joi.any().strip(),
+  }),
 });
 
 const updateCourseOffline = Joi.object({
@@ -94,6 +105,9 @@ const updateCourseOffline = Joi.object({
   maxStudents: Joi.number().min(0),
   lecturers: Joi.array().items(lecturerSchema),
   curriculum: Joi.array().items(chapterSchema),
+  submissionSettings: submissionSettingsSchema.keys({
+    allowLateSubmission: Joi.any().strip(),
+  }),
 });
 
 module.exports = {

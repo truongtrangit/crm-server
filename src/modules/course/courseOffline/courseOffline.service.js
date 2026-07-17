@@ -1,22 +1,36 @@
-const createHttpError = require("http-errors");
+const createHttpError = require('http-errors');
 const { generateMonotonicId } = require('../../../core/utils/id');
 const CourseOffline = require('./courseOffline.model');
 const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
-const { buildPaginatedResponse, resolvePagination } = require('../../../core/utils/pagination');
+const {
+  buildPaginatedResponse,
+  resolvePagination,
+} = require('../../../core/utils/pagination');
 const { buildSearchRegex } = require('../../../core/utils/query');
 const { computePriceRange } = require('../../../core/utils/price');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
 const CourseEnrollment = require('../courseChallenge/courseEnrollment.model');
+const { COURSE_ENROLLMENT_STATUS } = require('../../../core/constants/appData');
 
 const createCourse = async (courseBody, user) => {
-  const existingSlug = await CourseOffline.findOne({ slug: courseBody.slug, isDeleted: { $ne: true } });
+  const existingSlug = await CourseOffline.findOne({
+    slug: courseBody.slug,
+    isDeleted: { $ne: true },
+  });
   if (existingSlug) {
-    throw createHttpError(400, "Slug đã tồn tại");
+    throw createHttpError(400, 'Slug đã tồn tại');
   }
 
   computePriceRange(courseBody);
 
-  const id = await generateMonotonicId("COF");
+  const id = await generateMonotonicId('COF');
+
+  if (courseBody.submissionSettings) {
+    courseBody.submissionSettings.lessonDeadlineHours = 0;
+    courseBody.submissionSettings.chapterDeadlineHours = 0;
+    courseBody.submissionSettings.courseDeadlineHours = 0;
+  }
+
   const course = new CourseOffline({
     ...courseBody,
     id,
@@ -34,12 +48,13 @@ const getCourses = async (queryParams, studentId = null) => {
   if (search) {
     const searchRegex = buildSearchRegex(search);
     if (searchRegex) {
-      const matchingLecturers = await CourseLecturer.find({ name: searchRegex }, { id: 1 }).lean();
-      const lecturerIds = matchingLecturers.map(l => l.id);
+      const matchingLecturers = await CourseLecturer.find(
+        { name: searchRegex },
+        { id: 1 },
+      ).lean();
+      const lecturerIds = matchingLecturers.map((l) => l.id);
 
-      filter.$or = [
-        { title: searchRegex }
-      ];
+      filter.$or = [{ title: searchRegex }];
 
       if (lecturerIds.length > 0) {
         filter.$or.push({ 'lecturers.lecturerId': { $in: lecturerIds } });
@@ -50,58 +65,74 @@ const getCourses = async (queryParams, studentId = null) => {
     filter.status = status;
   }
   if (category) {
-    filter.category = category.includes(',') ? { $in: category.split(',') } : category;
+    filter.category = category.includes(',')
+      ? { $in: category.split(',') }
+      : category;
   }
   if (hashtags) {
-    filter.hashtags = hashtags.includes(',') ? { $in: hashtags.split(',') } : hashtags;
+    filter.hashtags = hashtags.includes(',')
+      ? { $in: hashtags.split(',') }
+      : hashtags;
   }
 
   const { page, limit, skip } = resolvePagination(queryParams || {});
 
   const [courses, total] = await Promise.all([
     CourseOffline.find(filter)
-      .populate("categoryDetails")
-      .populate("hashtagDetails")
-      .populate("lecturers.details")
+      .populate('categoryDetails')
+      .populate('hashtagDetails')
+      .populate('lecturers.details')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean({ virtuals: true }),
-    CourseOffline.countDocuments(filter)
+    CourseOffline.countDocuments(filter),
   ]);
 
   if (courses.length > 0) {
-    courses.forEach(course => {
+    courses.forEach((course) => {
       course.isEnrolled = false;
     });
   }
 
   if (studentId && courses.length > 0) {
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
     const enrollments = await CourseEnrollment.find({
       studentId,
       courseId: { $in: courseIds },
-      status: "ACTIVE"
     }).lean();
 
-    const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
-    courses.forEach(course => {
-      course.isEnrolled = enrolledCourseIds.has(course.id);
+    const activeCourseIds = new Set(
+      enrollments
+        .filter((e) => e.status === COURSE_ENROLLMENT_STATUS.ACTIVE)
+        .map((e) => e.courseId),
+    );
+    const lockedCourseIds = new Set(
+      enrollments
+        .filter((e) => e.status !== COURSE_ENROLLMENT_STATUS.ACTIVE)
+        .map((e) => e.courseId),
+    );
+
+    courses.forEach((course) => {
+      course.isEnrolled = activeCourseIds.has(course.id);
+      if (lockedCourseIds.has(course.id)) {
+        course.isLocked = true;
+      }
     });
   }
 
   // Calculate registered students
   if (courses.length > 0) {
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
     const enrollmentCounts = await CourseEnrollment.aggregate([
-      { $match: { courseId: { $in: courseIds }, status: "ACTIVE" } },
-      { $group: { _id: "$courseId", count: { $sum: 1 } } }
+      { $match: { courseId: { $in: courseIds }, status: 'ACTIVE' } },
+      { $group: { _id: '$courseId', count: { $sum: 1 } } },
     ]);
     const countMap = enrollmentCounts.reduce((acc, curr) => {
       acc[curr._id] = curr.count;
       return acc;
     }, {});
-    courses.forEach(course => {
+    courses.forEach((course) => {
       course.registeredStudents = countMap[course.id] || 0;
     });
   }
@@ -111,16 +142,16 @@ const getCourses = async (queryParams, studentId = null) => {
 
 const getCourseById = async (id) => {
   const course = await CourseOffline.findOne({ id, isDeleted: { $ne: true } })
-    .populate("categoryDetails")
-    .populate("hashtagDetails")
-    .populate("lecturers.details");
+    .populate('categoryDetails')
+    .populate('hashtagDetails')
+    .populate('lecturers.details');
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy khóa học");
+    throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
   const registeredStudents = await CourseEnrollment.countDocuments({
     courseId: id,
-    status: "ACTIVE"
+    status: 'ACTIVE',
   });
 
   const courseObj = course.toObject();
@@ -129,24 +160,28 @@ const getCourseById = async (id) => {
   return courseObj; // Return object with registeredStudents
 };
 
-const getCourseByIdentifier = async (identifier, requiredStatus = null, studentId = null) => {
+const getCourseByIdentifier = async (
+  identifier,
+  requiredStatus = null,
+  studentId = null,
+) => {
   const query = {
     $or: [{ id: identifier }, { slug: identifier }],
-    isDeleted: { $ne: true }
+    isDeleted: { $ne: true },
   };
-  
+
   if (requiredStatus) {
     query.status = requiredStatus;
   }
 
   let course = await CourseOffline.findOne(query)
-    .populate("categoryDetails")
-    .populate("hashtagDetails")
-    .populate("lecturers.details")
+    .populate('categoryDetails')
+    .populate('hashtagDetails')
+    .populate('lecturers.details')
     .lean({ virtuals: true });
-  
+
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy khóa học");
+    throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
   course.isEnrolled = false;
@@ -155,17 +190,21 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null, studentI
     const enrollment = await CourseEnrollment.findOne({
       studentId,
       courseId: course.id,
-      status: "ACTIVE"
     }).lean();
 
     if (enrollment) {
-      course.isEnrolled = true;
+      if (enrollment.status === 'ACTIVE') {
+        course.isEnrolled = true;
+        course.enrollmentId = enrollment.id;
+      } else {
+        course.isLocked = true;
+      }
     }
   }
 
   const registeredStudents = await CourseEnrollment.countDocuments({
     courseId: course.id,
-    status: "ACTIVE"
+    status: 'ACTIVE',
   });
   course.registeredStudents = registeredStudents;
 
@@ -175,22 +214,31 @@ const getCourseByIdentifier = async (identifier, requiredStatus = null, studentI
 const updateCourse = async (id, updateBody, user) => {
   const course = await CourseOffline.findOne({ id, isDeleted: { $ne: true } });
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy khóa học");
+    throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
   // RLAC Check: Only Admin/Owner or Creator can update
   if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
-    throw createHttpError(403, "Bạn không có quyền cập nhật khóa học này");
+    throw createHttpError(403, 'Bạn không có quyền cập nhật khóa học này');
   }
 
   if (updateBody.slug && updateBody.slug !== course.slug) {
-    const existingSlug = await CourseOffline.findOne({ slug: updateBody.slug, isDeleted: { $ne: true } });
+    const existingSlug = await CourseOffline.findOne({
+      slug: updateBody.slug,
+      isDeleted: { $ne: true },
+    });
     if (existingSlug) {
-      throw createHttpError(400, "Slug đã tồn tại");
+      throw createHttpError(400, 'Slug đã tồn tại');
     }
   }
 
   computePriceRange(updateBody);
+
+  if (updateBody.submissionSettings) {
+    updateBody.submissionSettings.lessonDeadlineHours = 0;
+    updateBody.submissionSettings.chapterDeadlineHours = 0;
+    updateBody.submissionSettings.courseDeadlineHours = 0;
+  }
 
   Object.assign(course, updateBody);
   await course.save();
@@ -200,12 +248,12 @@ const updateCourse = async (id, updateBody, user) => {
 const deleteCourse = async (id, user) => {
   const course = await CourseOffline.findOne({ id, isDeleted: { $ne: true } });
   if (!course) {
-    throw createHttpError(404, "Không tìm thấy khóa học");
+    throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
   // RLAC Check: Only Admin/Owner or Creator can delete
   if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
-    throw createHttpError(403, "Bạn không có quyền xóa khóa học này");
+    throw createHttpError(403, 'Bạn không có quyền xóa khóa học này');
   }
 
   course.isDeleted = true;

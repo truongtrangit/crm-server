@@ -3,6 +3,7 @@ const {
   COURSE_STATUS,
   PAYMENT_METHODS,
   LESSON_ACCESS_LEVEL,
+  SUBMISSION_LEVEL,
 } = require('../../../core/constants/appData');
 
 const lecturerSchema = new mongoose.Schema(
@@ -45,6 +46,7 @@ const lessonSchema = new mongoose.Schema(
       },
     ],
     description: { type: String, default: '' },
+    isSubmissionRequired: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -54,6 +56,7 @@ const chapterSchema = new mongoose.Schema(
     id: { type: String },
     title: { type: String, required: true },
     lessons: { type: [lessonSchema], default: [] },
+    isSubmissionRequired: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -174,6 +177,14 @@ const courseOnlineSchema = new mongoose.Schema(
     curriculum: {
       type: [chapterSchema],
       default: [],
+    },
+    submissionSettings: {
+      isCourseSubmissionRequired: { type: Boolean, default: false },
+      requireToProgress: { type: Boolean, default: false },
+
+      lessonDeadlineHours: { type: Number, default: 0 },
+      chapterDeadlineHours: { type: Number, default: 0 },
+      courseDeadlineHours: { type: Number, default: 0 },
     },
     createdBy: {
       type: String, // req.user.id

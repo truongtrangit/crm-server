@@ -9,6 +9,8 @@ const knowledgeCategorySchema = new mongoose.Schema(
     icon: { type: String, default: '' },
     logo: { type: String, default: '' },
     color: { type: String, default: '' },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   {
     timestamps: true,

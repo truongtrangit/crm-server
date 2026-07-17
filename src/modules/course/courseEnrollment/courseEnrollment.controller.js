@@ -29,6 +29,18 @@ class CourseEnrollmentController {
     );
     return sendSuccess(res, 200, "Cập nhật trạng thái thành công", result);
   }
+
+  async updateProgress(req, res) {
+    const { id } = req.params;
+    const { lastLessonIndex } = req.body;
+    const studentId = req.user.id;
+    const result = await courseEnrollmentService.updateProgress(
+      id,
+      studentId,
+      lastLessonIndex,
+    );
+    return sendSuccess(res, 200, "Lưu tiến trình thành công", result);
+  }
 }
 
 module.exports = new CourseEnrollmentController();

@@ -11,7 +11,7 @@ class CourseConfigService {
   // ==========================================
 
   async getCategories() {
-    return await CourseCategory.find().lean();
+    return await CourseCategory.find({ isDeleted: { $ne: true } }).lean();
   }
 
   async createCategory(data) {
@@ -35,7 +35,7 @@ class CourseConfigService {
   }
 
   async updateCategory(id, data) {
-    const category = await CourseCategory.findOne({ id });
+    const category = await CourseCategory.findOne({ id, isDeleted: { $ne: true } });
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
@@ -64,7 +64,7 @@ class CourseConfigService {
   }
 
   async deleteCategory(id, force) {
-    const category = await CourseCategory.findOne({ id });
+    const category = await CourseCategory.findOne({ id, isDeleted: { $ne: true } });
     if (!category) {
       throw createHttpError(404, "Không tìm thấy danh mục");
     }
@@ -91,7 +91,9 @@ class CourseConfigService {
       // await Course.updateMany({ categoryId: id }, { $set: { categoryId: null } });
     }
 
-    await CourseCategory.deleteOne({ id });
+    category.isDeleted = true;
+    category.deletedAt = new Date();
+    await category.save();
 
     return category;
   }
@@ -101,7 +103,7 @@ class CourseConfigService {
   // ==========================================
 
   async getHashtags() {
-    return await CourseHashtag.find().lean();
+    return await CourseHashtag.find({ isDeleted: { $ne: true } }).lean();
   }
 
   async createHashtag(data) {
@@ -113,7 +115,7 @@ class CourseConfigService {
     if (!formattedName.startsWith("#")) formattedName = "#" + formattedName;
     formattedName = formattedName.replace(/\s+/g, "_");
 
-    const exists = await CourseHashtag.findOne({ name: formattedName });
+    const exists = await CourseHashtag.findOne({ name: formattedName, isDeleted: { $ne: true } });
     if (exists) {
       throw createHttpError(400, "Hashtag đã tồn tại");
     }
@@ -131,7 +133,7 @@ class CourseConfigService {
   }
 
   async updateHashtag(id, data) {
-    const hashtag = await CourseHashtag.findOne({ id });
+    const hashtag = await CourseHashtag.findOne({ id, isDeleted: { $ne: true } });
     if (!hashtag) {
       throw createHttpError(404, "Không tìm thấy hashtag");
     }
@@ -144,7 +146,7 @@ class CourseConfigService {
       formattedName = formattedName.replace(/\s+/g, "_");
 
       if (formattedName !== hashtag.name) {
-        const exists = await CourseHashtag.findOne({ name: formattedName });
+        const exists = await CourseHashtag.findOne({ name: formattedName, isDeleted: { $ne: true } });
         if (exists) throw createHttpError(400, "Tên hashtag đã tồn tại");
       }
       hashtag.name = formattedName;
@@ -161,7 +163,7 @@ class CourseConfigService {
   }
 
   async deleteHashtag(id, force) {
-    const hashtag = await CourseHashtag.findOne({ id });
+    const hashtag = await CourseHashtag.findOne({ id, isDeleted: { $ne: true } });
     if (!hashtag) {
       throw createHttpError(404, "Không tìm thấy hashtag");
     }
@@ -177,7 +179,10 @@ class CourseConfigService {
       // await Course.updateMany({ hashtags: id }, { $pull: { hashtags: id } });
     }
 
-    await CourseHashtag.deleteOne({ id });
+    hashtag.isDeleted = true;
+    hashtag.deletedAt = new Date();
+    hashtag.name = `${hashtag.name}-deleted-${Date.now()}`;
+    await hashtag.save();
 
     return hashtag;
   }

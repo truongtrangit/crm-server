@@ -123,7 +123,7 @@ class CourseVoucherService {
     const { page, limit, skip } = resolvePagination(query);
     const { batch, status, type, search } = query;
 
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
     if (batch) filter.batch = batch;
     if (status) filter.status = status;
     if (type) filter.type = type;
@@ -161,7 +161,7 @@ class CourseVoucherService {
     const { page, limit, skip } = resolvePagination(query);
     const { search } = query;
 
-    const matchStage = { type: VOUCHER_TYPES.SINGLE };
+    const matchStage = { type: VOUCHER_TYPES.SINGLE, isDeleted: { $ne: true } };
     if (search) {
       matchStage.batch = { $regex: escapeRegex(search), $options: "i" };
     }
@@ -253,7 +253,7 @@ class CourseVoucherService {
    */
   async getVouchersForExport(query) {
     const { batch, status, type, search } = query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
     if (batch) filter.batch = batch;
     if (status) filter.status = status;
     if (type) filter.type = type;
@@ -268,7 +268,13 @@ class CourseVoucherService {
    * Delete a voucher by ID
    */
   async deleteVoucher(id) {
-    return CourseVoucher.findByIdAndDelete(id);
+    const voucher = await CourseVoucher.findOne({ _id: id, isDeleted: { $ne: true } });
+    if (!voucher) return null;
+    voucher.isDeleted = true;
+    voucher.deletedAt = new Date();
+    voucher.code = `${voucher.code}-deleted-${Date.now()}`;
+    await voucher.save();
+    return voucher;
   }
 
   /**
@@ -276,14 +282,24 @@ class CourseVoucherService {
    */
   async deleteVouchersByBatch(batch) {
     if (!batch) throw createHttpError(400, "Batch name is required");
-    return CourseVoucher.deleteMany({ batch });
+    const deletedAt = new Date();
+    const cursor = CourseVoucher.find({ batch, isDeleted: { $ne: true } }).cursor();
+    let count = 0;
+    for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
+      doc.isDeleted = true;
+      doc.deletedAt = deletedAt;
+      doc.code = `${doc.code}-deleted-${Date.now()}-${count}`;
+      await doc.save();
+      count++;
+    }
+    return { deletedCount: count };
   }
 
   /**
    * Update voucher status (e.g. active to inactive)
    */
   async updateVoucherStatus(id, status) {
-    const voucher = await CourseVoucher.findById(id);
+    const voucher = await CourseVoucher.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!voucher) throw createHttpError(404, "Không tìm thấy vourcher");
     if (
       voucher.status === VOUCHER_STATUSES.USED ||

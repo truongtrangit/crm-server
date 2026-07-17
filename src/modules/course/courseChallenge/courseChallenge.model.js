@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const {
   COURSE_CHALLENGE_TYPE,
 } = require("../../../core/constants/courseChallenge");
-const { COURSE_STATUS, PAYMENT_METHODS, LESSON_ACCESS_LEVEL } = require("../../../core/constants/appData");
+const { COURSE_STATUS, PAYMENT_METHODS, LESSON_ACCESS_LEVEL, SUBMISSION_LEVEL } = require("../../../core/constants/appData");
 
 const lecturerSchema = new mongoose.Schema(
   {
@@ -40,6 +40,7 @@ const lessonSchema = new mongoose.Schema(
       },
     ],
     description: { type: String, default: "" },
+    isSubmissionRequired: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -51,6 +52,7 @@ const challengeDaySchema = new mongoose.Schema(
     lessons: { type: [lessonSchema], default: [] },
     unlockDelayHours: { type: Number, default: 0 },
     unlockAt: { type: Date, default: null },
+    isSubmissionRequired: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -177,21 +179,19 @@ const courseChallengeSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    allowAdvanceSubmit: {
-      type: Boolean,
-      default: false,
-    },
-    allowLateSubmission: {
-      type: Boolean,
-      default: false, // For Fixed Date
-    },
-    autoUnlockNext: {
-      type: Boolean,
-      default: false, // For Rolling
-    },
     curriculum: {
       type: [challengeDaySchema],
       default: [],
+    },
+    submissionSettings: {
+      isCourseSubmissionRequired: { type: Boolean, default: false },
+      requireToProgress: { type: Boolean, default: false },
+      allowLateSubmission: { type: Boolean, default: false },
+      lessonDeadlineHours: { type: Number, default: 24 },
+      chapterDeadlineHours: { type: Number, default: 0 },
+      courseDeadlineHours: { type: Number, default: 0 },
+      allowAdvanceSubmit: { type: Boolean, default: false },
+      autoUnlockNext: { type: Boolean, default: false },
     },
     createdBy: {
       type: String, // req.user.id

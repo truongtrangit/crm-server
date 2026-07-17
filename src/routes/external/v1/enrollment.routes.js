@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.use(botvnAuthenticateRequest);
 router.get("/my", CourseEnrollmentController.getMyEnrollments);
+router.put("/:id/progress", CourseEnrollmentController.updateProgress);
 
 module.exports = router;
