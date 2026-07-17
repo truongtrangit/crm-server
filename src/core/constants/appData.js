@@ -162,6 +162,19 @@ const CREDIT_TRANSACTION_STATUS = Object.freeze({
   FAILED: "FAILED",
 });
 
+const SUBMISSION_LEVEL = Object.freeze({
+  NONE: 'none',
+  LESSON: 'lesson',
+  CHAPTER: 'chapter',
+  COURSE: 'course',
+});
+
+const SUBMISSION_STATUS = Object.freeze({
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+});
+
 module.exports = {
   PLATFORMS,
   COMPANIES,
@@ -191,4 +204,6 @@ module.exports = {
   CREDIT_SOURCES,
   CREDIT_TRANSACTION_STATUS,
   LESSON_ACCESS_LEVEL,
+  SUBMISSION_LEVEL,
+  SUBMISSION_STATUS,
 };

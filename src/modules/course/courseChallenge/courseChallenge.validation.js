@@ -7,6 +7,9 @@ const {
   PAYMENT_METHODS,
   LESSON_ACCESS_LEVEL,
 } = require('../../../core/constants/appData');
+const {
+  submissionSettingsSchema,
+} = require('../courseSubmission/courseSubmission.validation');
 
 const pricingPackageSchema = Joi.object({
   id: Joi.string().required(),
@@ -19,23 +22,29 @@ const pricingPackageSchema = Joi.object({
     .default([PAYMENT_METHODS.MAIN_CREDIT]),
   gifts: Joi.array().items(Joi.string()).default([]),
   hasRefundPolicy: Joi.boolean().default(false),
+}).custom((value, helpers) => {
+  if (value.originalPrice > 0 && value.price > value.originalPrice) {
+    return helpers.message('Giá bán thực tế không được lớn hơn giá trước giảm');
+  }
+  return value;
 });
 
 const lessonSchema = Joi.object({
   id: Joi.string().optional(),
   title: Joi.string().required(),
   duration: Joi.number().min(0).optional(),
-  accessLevel: Joi.string().valid(...Object.values(LESSON_ACCESS_LEVEL)).optional(),
-  videoUrl: Joi.string().allow('').optional(),
-  attachments: Joi.array()
-    .items(
-      Joi.object({
-        name: Joi.string().optional(),
-        url: Joi.string().optional(),
-      }),
-    )
+  accessLevel: Joi.string()
+    .valid(...Object.values(LESSON_ACCESS_LEVEL))
     .optional(),
+  videoUrl: Joi.string().allow('').optional(),
+  attachments: Joi.array().items(
+    Joi.object({
+      name: Joi.string().optional(),
+      url: Joi.string().optional(),
+    }),
+  ),
   description: Joi.string().allow('').optional(),
+  isSubmissionRequired: Joi.boolean().default(false),
 });
 
 const challengeDaySchema = Joi.object({
@@ -44,6 +53,7 @@ const challengeDaySchema = Joi.object({
   lessons: Joi.array().items(lessonSchema).optional(),
   unlockDelayHours: Joi.number().min(0).optional(),
   unlockAt: Joi.date().allow(null).optional(),
+  isSubmissionRequired: Joi.boolean().default(false),
 });
 
 const createTemplate = Joi.object({
@@ -75,6 +85,7 @@ const createTemplate = Joi.object({
     .optional(),
   totalDays: Joi.number().min(1).required(),
   curriculum: Joi.array().items(challengeDaySchema).optional(),
+  submissionSettings: submissionSettingsSchema,
 });
 
 const updateTemplate = createTemplate.fork(
@@ -91,10 +102,8 @@ const cloneCourse = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional().allow(null),
   }),
-  allowAdvanceSubmit: Joi.boolean().optional(),
-  allowLateSubmission: Joi.boolean().optional(),
-  autoUnlockNext: Joi.boolean().optional(),
   packages: Joi.array().items(pricingPackageSchema).optional(),
+  submissionSettings: submissionSettingsSchema,
 });
 
 const updateCourse = Joi.object({
@@ -105,14 +114,12 @@ const updateCourse = Joi.object({
     .optional(),
   type: Joi.forbidden(),
   startDate: Joi.date().allow(null).optional(),
-  allowAdvanceSubmit: Joi.boolean().optional(),
-  allowLateSubmission: Joi.boolean().optional(),
-  autoUnlockNext: Joi.boolean().optional(),
   totalDays: Joi.number().min(1).optional(),
   curriculum: Joi.array().items(challengeDaySchema).optional(),
   // Add other basic fields as needed
   packages: Joi.array().items(pricingPackageSchema).optional(),
   covers: Joi.array().items(Joi.string()).optional(),
+  submissionSettings: submissionSettingsSchema,
 });
 
 const submitAssignment = Joi.object({

@@ -23,6 +23,8 @@ const courseLecturerSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false }, // Nổi bật
     createdBy: { type: String, required: true }, // userId of creator
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false, id: false },
 );

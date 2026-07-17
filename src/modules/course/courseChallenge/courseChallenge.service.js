@@ -4,8 +4,12 @@ const CourseEnrollment = require('./courseEnrollment.model');
 const { ID_PREFIXES, generateMonotonicId } = require('../../../core/utils/id');
 const {
   COURSE_CHALLENGE_TYPE,
+  CHALLENGE_DAY_STATUS,
 } = require('../../../core/constants/courseChallenge');
-const { COURSE_STATUS } = require('../../../core/constants/appData');
+const {
+  COURSE_STATUS,
+  COURSE_ENROLLMENT_STATUS,
+} = require('../../../core/constants/appData');
 const {
   buildPaginatedResponse,
   resolvePagination,
@@ -233,6 +237,46 @@ const getCourseById = async (id) => {
   if (!course) {
     throw createHttpError(404, 'Không tìm thấy Khóa triển khai');
   }
+
+  const courseIds = [course.id];
+  const templateIds = course.templateId ? [course.templateId] : [];
+  const siblingCourses = course.templateId ? await CourseChallenge.find({ templateId: course.templateId }, { id: 1, templateId: 1 }).lean() : [];
+  
+  const allCourseIdsToCount = new Set(courseIds);
+  siblingCourses.forEach(c => allCourseIdsToCount.add(c.id));
+  
+  const stats = await CourseEnrollment.aggregate([
+    { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
+    {
+      $group: {
+        _id: "$courseId",
+        totalStudents: { $sum: 1 },
+        activeStudents: {
+          $sum: {
+            $cond: [{ $eq: ["$status", COURSE_ENROLLMENT_STATUS.ACTIVE] }, 1, 0]
+          }
+        }
+      }
+    }
+  ]);
+  
+  const statsByCourse = stats.reduce((acc, curr) => {
+    acc[curr._id] = curr;
+    return acc;
+  }, {});
+  
+  course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
+  
+  if (course.templateId) {
+    let totalStudied = 0;
+    siblingCourses.forEach(c => {
+      totalStudied += (statsByCourse[c.id]?.totalStudents || 0);
+    });
+    course.completedStudents = totalStudied;
+  } else {
+    course.completedStudents = statsByCourse[course.id]?.totalStudents || 0;
+  }
+
   return course;
 };
 const cloneTemplateToCourse = async (templateId, configData, user) => {
@@ -447,13 +491,13 @@ const getMyProgress = async (courseId, studentId) => {
     isLocked = now < unlockTime;
 
     // 2. Allow advance submit
-    if (course.allowAdvanceSubmit) {
+    if (course.submissionSettings?.allowAdvanceSubmit) {
       isLocked = false;
       unlockTimeInfo = 'Có thể xem và nộp bài trước';
     }
 
     // 3. Auto unlock next
-    if (isLocked && course.autoUnlockNext && index > 0) {
+    if (isLocked && course.submissionSettings?.autoUnlockNext && index > 0) {
       const prevDay = course.curriculum[index - 1];
       const prevProgress = progressMap[prevDay.id];
       if (prevProgress && prevProgress.isCompleted) {
@@ -462,20 +506,25 @@ const getMyProgress = async (courseId, studentId) => {
       }
     }
 
-    // Calculate Deadline (assume 24h from original unlockTime)
-    let deadline = new Date(unlockTime.getTime() + 24 * 60 * 60 * 1000);
-    let status = 'LOCKED';
+    // Calculate Deadline from submissionSettings (fallback to 24h for backward compat)
+    const deadlineHours = course.submissionSettings?.lessonDeadlineHours ?? 24;
+    let deadline =
+      deadlineHours > 0
+        ? new Date(unlockTime.getTime() + deadlineHours * 60 * 60 * 1000)
+        : null; // null = no deadline
+
+    let status = CHALLENGE_DAY_STATUS.LOCKED;
     let canSubmit = false;
 
     if (dayProgress.isCompleted) {
-      status = 'COMPLETED';
+      status = CHALLENGE_DAY_STATUS.COMPLETED;
     } else if (!isLocked) {
       // It is unlocked
-      if (now > deadline) {
-        status = 'OVERDUE';
-        canSubmit = course.allowLateSubmission;
+      if (deadline && now > deadline) {
+        status = CHALLENGE_DAY_STATUS.OVERDUE;
+        canSubmit = course.submissionSettings?.allowLateSubmission ?? false;
       } else {
-        status = 'OPEN';
+        status = CHALLENGE_DAY_STATUS.OPEN;
         canSubmit = true;
       }
     }
@@ -573,14 +622,71 @@ const getPublicCourses = async (queryParams, studentId = null) => {
       courseId: { $in: courseIds },
     }).lean();
 
-    const enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
+    const activeCourseIds = new Set(
+      enrollments
+        .filter((e) => e.status === COURSE_ENROLLMENT_STATUS.ACTIVE)
+        .map((e) => e.courseId),
+    );
+    const lockedCourseIds = new Set(
+      enrollments
+        .filter((e) => e.status !== COURSE_ENROLLMENT_STATUS.ACTIVE)
+        .map((e) => e.courseId),
+    );
 
     courses.forEach((course) => {
-      if (enrolledCourseIds.has(course.id)) {
+      if (activeCourseIds.has(course.id)) {
         course.isEnrolled = true;
+      } else if (lockedCourseIds.has(course.id)) {
+        course.isLocked = true;
       }
     });
   }
+
+  if (courses.length > 0) {
+    const courseIds = courses.map((c) => c.id);
+    const templateIds = courses.map((c) => c.templateId).filter(Boolean);
+    
+    const siblingCourses = await CourseChallenge.find({ templateId: { $in: templateIds } }, { id: 1, templateId: 1 }).lean();
+    
+    const allCourseIdsToCount = new Set(courseIds);
+    siblingCourses.forEach(c => allCourseIdsToCount.add(c.id));
+    
+    const stats = await CourseEnrollment.aggregate([
+      { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
+      {
+        $group: {
+          _id: "$courseId",
+          totalStudents: { $sum: 1 },
+          activeStudents: {
+            $sum: {
+              $cond: [{ $eq: ["$status", COURSE_ENROLLMENT_STATUS.ACTIVE] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+    
+    const statsByCourse = stats.reduce((acc, curr) => {
+      acc[curr._id] = curr;
+      return acc;
+    }, {});
+    
+    const statsByTemplate = {};
+    siblingCourses.forEach(c => {
+      if (!statsByTemplate[c.templateId]) statsByTemplate[c.templateId] = 0;
+      statsByTemplate[c.templateId] += (statsByCourse[c.id]?.totalStudents || 0);
+    });
+    
+    courses.forEach(course => {
+      course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
+      if (course.templateId) {
+        course.completedStudents = statsByTemplate[course.templateId] || 0;
+      } else {
+        course.completedStudents = statsByCourse[course.id]?.totalStudents || 0;
+      }
+    });
+  }
+
 
   return buildPaginatedResponse(courses, total, page, limit);
 };
@@ -607,13 +713,18 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
       studentId,
     });
     if (enrollment) {
-      isEnrolled = true;
-      course.isEnrolled = true;
-      const progressData = await module.exports.getMyProgress(
-        course.id,
-        studentId,
-      );
-      course.curriculum = progressData.timeline;
+      if (enrollment.status === COURSE_ENROLLMENT_STATUS.ACTIVE) {
+        isEnrolled = true;
+        course.isEnrolled = true;
+        course.enrollmentId = enrollment.id;
+        const progressData = await module.exports.getMyProgress(
+          course.id,
+          studentId,
+        );
+        course.curriculum = progressData.timeline;
+      } else {
+        course.isLocked = true;
+      }
     }
   }
 
