@@ -19,6 +19,8 @@ const env = {
   // ─── Webhook ─────────────────────────────────────────────────────────────────
   webhookSecret:
     process.env.WEBHOOK_SECRET || 'whsec_dev_secret_key_change_in_production',
+  botvnQrLoginWebhookSecret:
+    process.env.BOTVN_QR_LOGIN_WEBHOOK_SECRET || 'botvn_whsec_dev_secret_key',
   webhookAllowedIps: process.env.WEBHOOK_ALLOWED_IPS || '', // comma-separated, empty = allow all
 
   // ─── External API ────────────────────────────────────────────────────────────
@@ -29,6 +31,7 @@ const env = {
     Number(process.env.BOTVN_ACCESS_TOKEN_TTL_MINUTES || 60 * 24) * 60 * 1000, // 1 day
   botvnRefreshTokenTtlDays:
     Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 15, // 15 days
+  botvnQrTokenTtlSeconds: Number(process.env.BOTVN_QR_TOKEN_TTL_SECONDS) || 180, // Default 3 minutes
 
   // ─── Feature Flags ───────────────────────────────────────────────────────────
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',

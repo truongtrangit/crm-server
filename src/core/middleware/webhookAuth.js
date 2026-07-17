@@ -1,41 +1,53 @@
-const crypto = require("crypto");
+const crypto = require('crypto');
 const env = require('../config/env');
 const { sendError } = require('../utils/http');
 const WebhookLog = require('../../modules/system/webhook/webhookLog.model');
 const logger = require('../utils/logger');
 
 /**
- * Verify webhook bearer token.
- * 3rd party sends: Authorization: Bearer <WEBHOOK_SECRET>
+ * Factory to create webhook verify middleware with a specific secret
  */
-function verifyWebhookToken(req, res, next) {
-  const authHeader = req.get("authorization") || "";
+function createWebhookVerifier(secretValue) {
+  return function verifyWebhook(req, res, next) {
+    const authHeader = req.get('authorization') || '';
 
-  if (!authHeader.startsWith("Bearer ")) {
-    logger.warn("Webhook: Missing or malformed Authorization header", {
-      ip: req.ip,
-    });
-    return sendError(res, 401, "Authentication required", {
-      code: "WEBHOOK_AUTH_REQUIRED",
-    });
-  }
+    if (!authHeader.startsWith('Bearer ')) {
+      logger.warn('Webhook: Missing or malformed Authorization header', {
+        ip: req.ip,
+      });
+      return sendError(res, 401, 'Authentication required', {
+        code: 'WEBHOOK_AUTH_REQUIRED',
+      });
+    }
 
-  const token = authHeader.slice(7).trim();
+    const token = authHeader.slice(7).trim();
+    const expected = secretValue;
 
-  // Use timing-safe comparison to prevent timing attacks
-  const expected = env.webhookSecret;
-  if (
-    token.length !== expected.length ||
-    !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))
-  ) {
-    logger.warn("Webhook: Invalid token", { ip: req.ip });
-    return sendError(res, 401, "Invalid webhook token", {
-      code: "WEBHOOK_INVALID_TOKEN",
-    });
-  }
+    if (
+      token.length !== expected.length ||
+      !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))
+    ) {
+      logger.warn('Webhook: Invalid token', { ip: req.ip });
+      return sendError(res, 401, 'Invalid webhook token', {
+        code: 'WEBHOOK_INVALID_TOKEN',
+      });
+    }
 
-  return next();
+    return next();
+  };
 }
+
+/**
+ * Verify default webhook bearer token (used by original external services)
+ */
+const verifyWebhookToken = createWebhookVerifier(env.webhookSecret);
+
+/**
+ * Verify BotVN QR Login webhook bearer token
+ */
+const verifyBotvnQrLoginWebhookToken = createWebhookVerifier(
+  env.botvnQrLoginWebhookSecret,
+);
 
 /**
  * Optional IP allowlist check.
@@ -50,7 +62,7 @@ function checkIpAllowlist(req, res, next) {
   }
 
   const whitelist = allowedIps
-    .split(",")
+    .split(',')
     .map((ip) => ip.trim())
     .filter(Boolean);
 
@@ -58,15 +70,15 @@ function checkIpAllowlist(req, res, next) {
     return next();
   }
 
-  const clientIp = req.ip || req.socket?.remoteAddress || "";
+  const clientIp = req.ip || req.socket?.remoteAddress || '';
 
   if (!whitelist.includes(clientIp)) {
-    logger.warn("Webhook: IP not in allowlist", {
+    logger.warn('Webhook: IP not in allowlist', {
       ip: clientIp,
       allowed: whitelist,
     });
-    return sendError(res, 403, "IP address not allowed", {
-      code: "WEBHOOK_IP_FORBIDDEN",
+    return sendError(res, 403, 'IP address not allowed', {
+      code: 'WEBHOOK_IP_FORBIDDEN',
     });
   }
 
@@ -80,7 +92,7 @@ function checkIpAllowlist(req, res, next) {
  *   - If not provided → skip check, deliveryId = null
  */
 async function checkIdempotency(req, res, next) {
-  const deliveryId = req.get("x-webhook-delivery-id") || null;
+  const deliveryId = req.get('x-webhook-delivery-id') || null;
 
   req.webhookDeliveryId = deliveryId;
 
@@ -88,9 +100,9 @@ async function checkIdempotency(req, res, next) {
     const existing = await WebhookLog.findOne({ deliveryId });
 
     if (existing) {
-      logger.info("Webhook: Duplicate delivery rejected", { deliveryId });
-      return sendError(res, 409, "Webhook already processed", {
-        code: "WEBHOOK_DUPLICATE_DELIVERY",
+      logger.info('Webhook: Duplicate delivery rejected', { deliveryId });
+      return sendError(res, 409, 'Webhook already processed', {
+        code: 'WEBHOOK_DUPLICATE_DELIVERY',
         details: { deliveryId, status: existing.status },
       });
     }
@@ -101,6 +113,7 @@ async function checkIdempotency(req, res, next) {
 
 module.exports = {
   verifyWebhookToken,
+  verifyBotvnQrLoginWebhookToken,
   checkIpAllowlist,
   checkIdempotency,
 };
