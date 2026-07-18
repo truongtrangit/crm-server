@@ -70,7 +70,7 @@ const customerSchema = new mongoose.Schema(
     eduCredit: { type: Number, default: 0 },
     
     // Zalo
-    zaloId: { type: String, trim: true, index: true },
+    zaloId: { type: String, trim: true },
   },
   {
     timestamps: true,
@@ -100,16 +100,20 @@ customerSchema.index(
   { email: 1 },
   {
     unique: true,
-    sparse: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+    partialFilterExpression: { 
+      email: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.USER 
+    }
   }
 );
 
 customerSchema.index(
   { phone: 1 },
   {
-    sparse: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+    partialFilterExpression: { 
+      phone: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.USER 
+    }
   }
 );
 
@@ -117,8 +121,10 @@ customerSchema.index(
   { zaloId: 1 },
   {
     unique: true,
-    sparse: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+    partialFilterExpression: { 
+      zaloId: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.USER 
+    }
   }
 );
 
@@ -127,8 +133,10 @@ customerSchema.index(
   { alias: 1 },
   {
     unique: true,
-    sparse: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.BIZ }
+    partialFilterExpression: { 
+      alias: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.BIZ 
+    }
   }
 );
 
