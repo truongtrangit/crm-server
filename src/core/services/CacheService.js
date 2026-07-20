@@ -3,6 +3,8 @@ const logger = require('../utils/logger');
 const crypto = require("crypto");
 const stringify = require("fast-json-stable-stringify");
 
+const memoryCache = new Map(); // In-memory fallback cache
+
 function safeParse(str, client, key) {
   try {
     return JSON.parse(str);
@@ -10,6 +12,8 @@ function safeParse(str, client, key) {
     // Tự động xoá cache bị lỗi định dạng
     if (client && key) {
       client.del(key).catch(e => logger.error("Failed to delete corrupted cache", { key, error: e.message }));
+    } else if (key) {
+      memoryCache.delete(key);
     }
     return null;
   }
@@ -24,9 +28,22 @@ class CacheService {
   static async get(key) {
     try {
       const client = getRedisClient();
-      if (!client) return null;
+      let data = null;
 
-      const data = await client.get(key);
+      if (!client) {
+        // Fallback in-memory
+        const item = memoryCache.get(key);
+        if (item) {
+          if (Date.now() > item.expiresAt) {
+            memoryCache.delete(key);
+          } else {
+            data = item.value;
+          }
+        }
+      } else {
+        data = await client.get(key);
+      }
+
       if (data) {
         return safeParse(data, client, key);
       }
@@ -46,13 +63,27 @@ class CacheService {
   static async set(key, value, ttlSeconds = 86400) {
     try {
       const client = getRedisClient();
-      if (!client) return;
 
       // TTL validation/max limit để tránh lưu vô thời hạn (Max 7 ngày)
       const MAX_TTL = 604800;
       const finalTtl = Math.min(ttlSeconds, MAX_TTL);
 
       const stringValue = JSON.stringify(value || {});
+
+      if (!client) {
+        // Fallback in-memory
+        const expiresAt = Date.now() + finalTtl * 1000;
+        memoryCache.set(key, { value: stringValue, expiresAt });
+        
+        // Thỉnh thoảng dọn dẹp bộ nhớ thừa
+        if (memoryCache.size > 10000) {
+          for (const [k, v] of memoryCache.entries()) {
+            if (Date.now() > v.expiresAt) memoryCache.delete(k);
+          }
+        }
+        return;
+      }
+
       await client.set(key, stringValue, "EX", finalTtl);
     } catch (error) {
       logger.error("Cache SET error", { key, error: error.message });
@@ -66,7 +97,10 @@ class CacheService {
   static async del(key) {
     try {
       const client = getRedisClient();
-      if (!client) return;
+      if (!client) {
+        memoryCache.delete(key);
+        return;
+      }
 
       await client.del(key);
     } catch (error) {

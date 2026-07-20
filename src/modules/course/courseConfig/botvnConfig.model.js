@@ -16,6 +16,13 @@ const botvnConfigSchema = new mongoose.Schema(
       nextMarketer: { type: Boolean, default: true },
       knowledge: { type: Boolean, default: true },
     },
+    login: {
+      emailPassword: { type: Boolean, default: true },
+      facebook: { type: Boolean, default: true },
+      google: { type: Boolean, default: true },
+      qrCode: { type: Boolean, default: true },
+      allowRegistration: { type: Boolean, default: true },
+    },
     maintenance: {
       isActive: { type: Boolean, default: false },
       type: {

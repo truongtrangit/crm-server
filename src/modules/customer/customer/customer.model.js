@@ -32,7 +32,7 @@ const customerSchema = new mongoose.Schema(
     alias: { type: String, default: "", trim: true },
     /** Loại khách hàng (legacy field, giữ để backward-compat) */
     type: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true },
+    email: { type: String, trim: true, lowercase: true },
     phone: { type: String },
     biz: { type: [String], default: [] },
     bizDetails: {
@@ -68,6 +68,9 @@ const customerSchema = new mongoose.Schema(
     rewardCredit: { type: Number, default: 0 },
     mainCredit: { type: Number, default: 0 },
     eduCredit: { type: Number, default: 0 },
+    
+    // Zalo
+    zaloId: { type: String, trim: true },
   },
   {
     timestamps: true,
@@ -84,6 +87,12 @@ customerSchema.pre("save", function () {
   if (!this.alias) {
     this.alias = undefined;
   }
+  if (!this.email) {
+    this.email = undefined;
+  }
+  if (!this.zaloId) {
+    this.zaloId = undefined;
+  }
 });
 
 // Unique email and phone only for 'user' customers to allow multiple businesses (mainType: 'biz') to share emails/phones
@@ -91,15 +100,31 @@ customerSchema.index(
   { email: 1 },
   {
     unique: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+    partialFilterExpression: { 
+      email: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.USER 
+    }
   }
 );
 
 customerSchema.index(
   { phone: 1 },
   {
-    sparse: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.USER }
+    partialFilterExpression: { 
+      phone: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.USER 
+    }
+  }
+);
+
+customerSchema.index(
+  { zaloId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { 
+      zaloId: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.USER 
+    }
   }
 );
 
@@ -108,8 +133,10 @@ customerSchema.index(
   { alias: 1 },
   {
     unique: true,
-    sparse: true,
-    partialFilterExpression: { mainType: CUSTOMER_MAIN_TYPES.BIZ }
+    partialFilterExpression: { 
+      alias: { $type: "string" },
+      mainType: CUSTOMER_MAIN_TYPES.BIZ 
+    }
   }
 );
 
