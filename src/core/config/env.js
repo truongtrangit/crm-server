@@ -26,6 +26,13 @@ const env = {
   // ─── External API ────────────────────────────────────────────────────────────
   externalApiKey: process.env.EXTERNAL_API_KEY || 'botvn_key_123',
 
+  // ─── Video Encryption ─────────────────────────────────────────────────────────
+  // 32-byte hex key for AES-256-GCM videoId encryption.
+  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  videoEncryptionKey:
+    process.env.VIDEO_ENCRYPTION_KEY ||
+    'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
+
   // ─── BotVN Auth ────────────────────────────────────────────────────────────
   botvnAccessTokenTtlMinutes:
     Number(process.env.BOTVN_ACCESS_TOKEN_TTL_MINUTES || 60 * 24) * 60 * 1000, // 1 day
