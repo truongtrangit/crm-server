@@ -2,6 +2,7 @@ const { sendSuccess } = require("../../../core/utils/http");
 const CourseChallengeService = require("./courseChallenge.service");
 const SystemLogService = require("../../system/log/systemLog.service");
 const { RESOURCES } = require("../../../core/constants/rbac");
+const { encryptVideoId } = require('../videoProvider/videoCrypto');
 
 // ---------------------------------------------------------------------------
 // TEMPLATES
@@ -152,6 +153,20 @@ class CourseChallengeController {
   async getPublicCourses(req, res) {
     const studentId = req.user?.id || null;
     const data = await CourseChallengeService.getPublicCourses(req.query, studentId);
+
+    // Strip internal fields from each course item
+    if (data?.items) {
+      data.items.forEach((item) => {
+        delete item.createdBy;
+        delete item.isDeleted;
+        delete item.deletedAt;
+        delete item.__v;
+        delete item._id;
+        delete item.isTemplate;
+        delete item.templateId;
+      });
+    }
+
     return sendSuccess(res, 200, "Lấy danh sách khóa học thành công", data);
   }
 
@@ -159,9 +174,60 @@ class CourseChallengeController {
     const { slug } = req.params;
     const studentId = req.user?.id || null;
     const course = await CourseChallengeService.getPublicCourseBySlug(slug, studentId);
+
+    // Strip internal fields for external clients
+    delete course.createdBy;
+    delete course.isDeleted;
+    delete course.deletedAt;
+    delete course.__v;
+    delete course._id;
+    delete course.isTemplate;
+    delete course.templateId;
+
     return sendSuccess(res, 200, "Lấy chi tiết khóa học thành công", course);
   }
 
+  async getLessonVideoUrl(req, res) {
+    const { courseId, lessonId } = req.params;
+    const studentId = req.user.id;
+    const result = await CourseChallengeService.getLessonVideoUrl(
+      courseId,
+      lessonId,
+      studentId,
+      {
+        ip: req.ip || req.headers["x-forwarded-for"],
+        userAgent: req.headers["user-agent"],
+      },
+    );
+
+    // Encrypt videoId before sending to client
+    if (result?.videoId) {
+      result.encryptedVideoId = encryptVideoId(result.videoId);
+      delete result.videoId;
+    }
+
+    return sendSuccess(res, 200, "Lấy video URL thành công", result);
+  }
+
+  async logVideoEvent(req, res) {
+    const { courseId, lessonId } = req.params;
+    const { eventType, eventData } = req.body;
+    const studentId = req.user.id;
+
+    await CourseChallengeService.logVideoEvent(
+      courseId,
+      lessonId,
+      studentId,
+      eventType,
+      eventData,
+      {
+        ip: req.ip || req.headers["x-forwarded-for"],
+        userAgent: req.headers["user-agent"],
+      },
+    );
+
+    return sendSuccess(res, 200, "Event logged");
+  }
 
 }
 

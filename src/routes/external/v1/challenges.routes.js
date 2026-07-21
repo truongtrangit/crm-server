@@ -6,6 +6,9 @@ const {
   optionalBotvnAuthenticateRequest,
   botvnAuthenticateRequest,
 } = require("../../../core/middleware/externalAuth");
+const {
+  videoAccessLimiter,
+} = require("../../../core/middleware/rateLimiter");
 
 const router = express.Router();
 
@@ -30,6 +33,22 @@ router.post(
   botvnAuthenticateRequest,
   validate(validation.submitAssignment),
   CourseChallengeController.submitDayAssignment,
+);
+
+// Video URL endpoint — requires auth + rate limited
+router.get(
+  "/:courseId/lessons/:lessonId/video",
+  botvnAuthenticateRequest,
+  videoAccessLimiter,
+  CourseChallengeController.getLessonVideoUrl,
+);
+
+// Video player event logging — requires auth
+router.post(
+  "/:courseId/lessons/:lessonId/video/events",
+  botvnAuthenticateRequest,
+  videoAccessLimiter,
+  CourseChallengeController.logVideoEvent,
 );
 
 module.exports = router;
