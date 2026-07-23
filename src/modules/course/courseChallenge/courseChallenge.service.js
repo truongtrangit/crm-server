@@ -18,6 +18,9 @@ const { buildSearchRegex } = require('../../../core/utils/query');
 const { computePriceRange } = require('../../../core/utils/price');
 const env = require('../../../core/config/env');
 const CourseLecturer = require('../courseLecturer/courseLecturer.model');
+const { getVideoProvider } = require('../videoProvider');
+const VideoAccessLog = require('../videoProvider/videoAccessLog.model');
+const { VALID_EVENT_TYPES } = require('../videoProvider/videoAccessLog.model');
 
 /**
  * Validate that the number of days matches totalDays
@@ -240,37 +243,46 @@ const getCourseById = async (id) => {
 
   const courseIds = [course.id];
   const templateIds = course.templateId ? [course.templateId] : [];
-  const siblingCourses = course.templateId ? await CourseChallenge.find({ templateId: course.templateId }, { id: 1, templateId: 1 }).lean() : [];
-  
+  const siblingCourses = course.templateId
+    ? await CourseChallenge.find(
+        { templateId: course.templateId },
+        { id: 1, templateId: 1 },
+      ).lean()
+    : [];
+
   const allCourseIdsToCount = new Set(courseIds);
-  siblingCourses.forEach(c => allCourseIdsToCount.add(c.id));
-  
+  siblingCourses.forEach((c) => allCourseIdsToCount.add(c.id));
+
   const stats = await CourseEnrollment.aggregate([
     { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
     {
       $group: {
-        _id: "$courseId",
+        _id: '$courseId',
         totalStudents: { $sum: 1 },
         activeStudents: {
           $sum: {
-            $cond: [{ $eq: ["$status", COURSE_ENROLLMENT_STATUS.ACTIVE] }, 1, 0]
-          }
-        }
-      }
-    }
+            $cond: [
+              { $eq: ['$status', COURSE_ENROLLMENT_STATUS.ACTIVE] },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
   ]);
-  
+
   const statsByCourse = stats.reduce((acc, curr) => {
     acc[curr._id] = curr;
     return acc;
   }, {});
-  
+
   course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
-  
+
   if (course.templateId) {
     let totalStudied = 0;
-    siblingCourses.forEach(c => {
-      totalStudied += (statsByCourse[c.id]?.totalStudents || 0);
+    siblingCourses.forEach((c) => {
+      totalStudied += statsByCourse[c.id]?.totalStudents || 0;
     });
     course.completedStudents = totalStudied;
   } else {
@@ -606,6 +618,7 @@ const getPublicCourses = async (queryParams, studentId = null) => {
 
   const [courses, total] = await Promise.all([
     CourseChallenge.find(filter)
+      .select('-curriculum -description')
       .populate('categoryDetails')
       .populate('lecturers.details')
       .sort({ isBestseller: -1, createdAt: -1 })
@@ -645,39 +658,46 @@ const getPublicCourses = async (queryParams, studentId = null) => {
   if (courses.length > 0) {
     const courseIds = courses.map((c) => c.id);
     const templateIds = courses.map((c) => c.templateId).filter(Boolean);
-    
-    const siblingCourses = await CourseChallenge.find({ templateId: { $in: templateIds } }, { id: 1, templateId: 1 }).lean();
-    
+
+    const siblingCourses = await CourseChallenge.find(
+      { templateId: { $in: templateIds } },
+      { id: 1, templateId: 1 },
+    ).lean();
+
     const allCourseIdsToCount = new Set(courseIds);
-    siblingCourses.forEach(c => allCourseIdsToCount.add(c.id));
-    
+    siblingCourses.forEach((c) => allCourseIdsToCount.add(c.id));
+
     const stats = await CourseEnrollment.aggregate([
       { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
       {
         $group: {
-          _id: "$courseId",
+          _id: '$courseId',
           totalStudents: { $sum: 1 },
           activeStudents: {
             $sum: {
-              $cond: [{ $eq: ["$status", COURSE_ENROLLMENT_STATUS.ACTIVE] }, 1, 0]
-            }
-          }
-        }
-      }
+              $cond: [
+                { $eq: ['$status', COURSE_ENROLLMENT_STATUS.ACTIVE] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
     ]);
-    
+
     const statsByCourse = stats.reduce((acc, curr) => {
       acc[curr._id] = curr;
       return acc;
     }, {});
-    
+
     const statsByTemplate = {};
-    siblingCourses.forEach(c => {
+    siblingCourses.forEach((c) => {
       if (!statsByTemplate[c.templateId]) statsByTemplate[c.templateId] = 0;
-      statsByTemplate[c.templateId] += (statsByCourse[c.id]?.totalStudents || 0);
+      statsByTemplate[c.templateId] += statsByCourse[c.id]?.totalStudents || 0;
     });
-    
-    courses.forEach(course => {
+
+    courses.forEach((course) => {
       course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
       if (course.templateId) {
         course.completedStudents = statsByTemplate[course.templateId] || 0;
@@ -686,7 +706,6 @@ const getPublicCourses = async (queryParams, studentId = null) => {
       }
     });
   }
-
 
   return buildPaginatedResponse(courses, total, page, limit);
 };
@@ -728,7 +747,7 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
     }
   }
 
-  // Hide paid video URLs
+  // Hide paid content for locked lessons
   if (course.curriculum) {
     course.curriculum.forEach((day) => {
       const isLocked = isEnrolled
@@ -739,23 +758,148 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
 
       if (day.lessons) {
         day.lessons.forEach((lesson) => {
-          if (lesson.accessLevel === 'Paid') {
-            if (isLocked) {
-              lesson.videoUrl = '';
-            }
+          if (lesson.accessLevel === 'Paid' && isLocked) {
+            lesson.videoUrl = '';
+            lesson.attachments = [];
+            lesson.description = '';
           }
         });
       }
 
-      if (day.accessLevel === 'Paid' && day.videoUrl) {
-        if (isLocked) {
-          day.videoUrl = '';
-        }
+      if (day.accessLevel === 'Paid' && isLocked) {
+        day.videoUrl = '';
+        day.description = '';
+        day.attachments = [];
       }
     });
   }
 
   return course;
+};
+/**
+ * Get a secure video embed URL for a specific challenge lesson.
+ * Handles day-based access: checks enrollment + day lock status.
+ *
+ * @param {string} courseId - Course ID or slug
+ * @param {string} lessonId - Lesson ID within a day
+ * @param {string} studentId - Authenticated student ID
+ * @param {object} reqMeta - { ip, userAgent } for audit logging
+ * @returns {{ embedUrl: string, playerType: string }}
+ */
+const getLessonVideoUrl = async (
+  courseId,
+  lessonId,
+  studentId,
+  reqMeta = {},
+) => {
+  const course = await CourseChallenge.findOne({
+    $or: [{ id: courseId }, { slug: courseId }],
+    isTemplate: false,
+    isDeleted: { $ne: true },
+  }).lean();
+
+  if (!course) {
+    throw createHttpError(404, 'Không tìm thấy khóa học');
+  }
+
+  // Find lesson in curriculum days
+  let targetLesson = null;
+  let targetDay = null;
+  for (const day of course.curriculum || []) {
+    // Check if lesson is at the day level (day.videoUrl)
+    if (day.id === lessonId && day.videoUrl) {
+      targetLesson = day;
+      targetDay = day;
+      break;
+    }
+    // Check lessons within a day
+    for (const lesson of day.lessons || []) {
+      if (lesson.id === lessonId) {
+        targetLesson = lesson;
+        targetDay = day;
+        break;
+      }
+    }
+    if (targetLesson) break;
+  }
+
+  if (!targetLesson) {
+    throw createHttpError(404, 'Không tìm thấy bài học');
+  }
+
+  if (!targetLesson.videoUrl) {
+    throw createHttpError(404, 'Bài học chưa có video');
+  }
+
+  // Free lessons → return immediately
+  const accessLevel = targetLesson.accessLevel || targetDay?.accessLevel;
+  if (accessLevel === 'Free') {
+    const provider = getVideoProvider();
+    const result = provider.buildEmbedUrl(targetLesson.videoUrl);
+    if (!result) throw createHttpError(404, 'Không thể tạo video URL');
+    return result;
+  }
+
+  // Paid lessons → verify enrollment
+  const enrollment = await CourseEnrollment.findOne({
+    studentId,
+    courseId: course.id,
+    status: COURSE_ENROLLMENT_STATUS.ACTIVE,
+  }).lean();
+
+  if (!enrollment) {
+    throw createHttpError(403, 'Bạn chưa đăng ký khóa học này');
+  }
+
+  // Build secure embed URL via provider abstraction
+  const provider = getVideoProvider();
+  const result = provider.buildEmbedUrl(targetLesson.videoUrl);
+
+  if (!result) {
+    throw createHttpError(404, 'Không thể tạo video URL');
+  }
+
+  // Audit log (fire-and-forget)
+  VideoAccessLog.create({
+    studentId,
+    courseId: course.id,
+    courseType: 'challenge',
+    lessonId,
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  }).catch(() => {});
+
+  return result;
+};
+
+/**
+ * Log a video player event (play, pause, seek, ended).
+ * Fire-and-forget — errors are silently caught.
+ */
+const logVideoEvent = async (
+  courseId,
+  lessonId,
+  studentId,
+  eventType,
+  eventData = {},
+  reqMeta = {},
+) => {
+  if (!VALID_EVENT_TYPES.includes(eventType)) return;
+
+  return VideoAccessLog.create({
+    studentId,
+    courseId,
+    courseType: 'challenge',
+    lessonId,
+    eventType,
+    eventData: {
+      currentTime: eventData.currentTime,
+      duration: eventData.duration,
+      seekFrom: eventData.seekFrom,
+    },
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  }).catch(() => {});
 };
 
 module.exports = {
@@ -776,4 +920,6 @@ module.exports = {
 
   getPublicCourses,
   getPublicCourseBySlug,
+  getLessonVideoUrl,
+  logVideoEvent,
 };

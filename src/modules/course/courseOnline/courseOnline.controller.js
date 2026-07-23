@@ -3,6 +3,7 @@ const CourseOnlineService = require('./courseOnline.service');
 const SystemLogService = require('../../system/log/systemLog.service');
 const { RESOURCES } = require('../../../core/constants/rbac');
 const { COURSE_STATUS } = require('../../../core/constants/appData');
+const { encryptVideoId } = require('../videoProvider/videoCrypto');
 
 // ============================================================================
 // INTERNAL APIs (Sử dụng cho CRM Admin, CMS)
@@ -75,6 +76,12 @@ const deleteCourse = async (req, res) => {
 // EXTERNAL APIs (Sử dụng cho Client bên ngoài như botvn, website)
 // ============================================================================
 
+const INTERNAL_FIELDS = ['createdBy', 'isDeleted', 'deletedAt', '__v', '_id'];
+
+const stripInternalFields = (obj) => {
+  INTERNAL_FIELDS.forEach((f) => delete obj[f]);
+};
+
 const getExternalCourses = async (req, res) => {
   const queryParams = {
     ...req.query,
@@ -82,6 +89,11 @@ const getExternalCourses = async (req, res) => {
   };
   const studentId = req.user?.id || null;
   const result = await CourseOnlineService.getCourses(queryParams, studentId);
+
+  // Strip internal fields from each course item
+  if (result?.items) {
+    result.items.forEach(stripInternalFields);
+  }
 
   return sendSuccess(res, 200, "Lấy danh sách khóa học thành công", result);
 };
@@ -93,7 +105,53 @@ const getCourseByIdentifier = async (req, res) => {
     COURSE_STATUS.PUBLISHED,
     studentId
   );
+
+  // Strip internal fields for external clients
+  stripInternalFields(course);
+
   return sendSuccess(res, 200, "Lấy thông tin khóa học thành công", course);
+};
+
+const getLessonVideoUrl = async (req, res) => {
+  const { courseId, lessonId } = req.params;
+  const studentId = req.user.id;
+  const result = await CourseOnlineService.getLessonVideoUrl(
+    courseId,
+    lessonId,
+    studentId,
+    {
+      ip: req.ip || req.headers["x-forwarded-for"],
+      userAgent: req.headers["user-agent"],
+    },
+  );
+
+  // Encrypt videoId before sending to client
+  if (result?.videoId) {
+    result.encryptedVideoId = encryptVideoId(result.videoId);
+    delete result.videoId;
+  }
+
+  return sendSuccess(res, 200, "Lấy video URL thành công", result);
+};
+
+const logVideoEvent = async (req, res) => {
+  const { courseId, lessonId } = req.params;
+  const { eventType, eventData } = req.body;
+  const studentId = req.user.id;
+
+  await CourseOnlineService.logVideoEvent(
+    courseId,
+    lessonId,
+    studentId,
+    eventType,
+    eventData,
+    {
+      ip: req.ip || req.headers["x-forwarded-for"],
+      userAgent: req.headers["user-agent"],
+    },
+  );
+
+  return sendSuccess(res, 200, "Event logged");
 };
 
 module.exports = {
@@ -107,4 +165,6 @@ module.exports = {
   // External
   getExternalCourses,
   getCourseByIdentifier,
+  getLessonVideoUrl,
+  logVideoEvent,
 };
