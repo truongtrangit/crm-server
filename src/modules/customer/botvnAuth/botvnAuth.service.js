@@ -328,23 +328,6 @@ class BotvnAuthService {
 
     if (!customer) {
       // Auto-register (Đăng ký nhanh) do email không còn bắt buộc
-      const config = await BotvnConfig.findOne().lean();
-      if (config?.login?.allowRegistration === false) {
-        // Cập nhật session sang lỗi
-        await CacheService.set(
-          `botvn_qr:${qrToken}`,
-          {
-            status: QR_SESSION_STATUS.REGISTRATION_DISABLED,
-          },
-          env.botvnQrTokenTtlSeconds,
-        );
-
-        const error = new Error('Hệ thống đang khóa đăng ký.');
-        error.status = 403;
-        error.code = AUTH_ERROR_CODES.REGISTRATION_DISABLED;
-        throw error;
-      }
-
       // Kiểm tra xem số điện thoại có bị trùng không
       if (phone) {
         const existingPhone = await Customer.findOne({
