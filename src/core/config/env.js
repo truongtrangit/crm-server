@@ -40,6 +40,12 @@ const env = {
     Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 15, // 15 days
   botvnQrTokenTtlSeconds: Number(process.env.BOTVN_QR_TOKEN_TTL_SECONDS) || 180, // Default 3 minutes
 
+  // ─── ZCode ──────────────────────────────────────────────────────────────────
+  zcodeSkus: process.env.ZCODE_SKUS || 'ZB5000,ZB10000,ZC10GB,ZC100GB,ZC500GB,ZC1T',
+  zcodeAllowedIps: process.env.ZCODE_ALLOWED_IPS || '', // comma-separated, empty = allow all
+  zcodeApiKey: process.env.ZCODE_API_KEY || 'zcode_secret_key_change_in_production',
+  zcodeEncryptionKey: process.env.ZCODE_ENCRYPTION_KEY || 'zcode_encryption_key_change_in_production',
+
   // ─── Feature Flags ───────────────────────────────────────────────────────────
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',
   enableHttpRetry: process.env.ENABLE_HTTP_RETRY === 'true',
