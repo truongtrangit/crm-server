@@ -191,7 +191,12 @@ class ZCodeController {
       throw createHttpError(400, error.details[0].message);
     }
 
-    const callerIp = req.ip || req.socket?.remoteAddress || '';
+    const callerIp =
+      req.headers['cf-connecting-ip'] ||
+      (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+      req.ip ||
+      req.socket?.remoteAddress ||
+      '';
     const result = await zcodeService.redeemCode(
       value.sku,
       value.partialCode,
