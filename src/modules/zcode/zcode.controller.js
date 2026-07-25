@@ -7,6 +7,7 @@ const {
   updateStatusSchema,
   checkDuplicatesSchema,
   redeemCodeSchema,
+  markDuplicatesSchema,
 } = require('./zcode.validation');
 
 class ZCodeController {
@@ -210,6 +211,37 @@ class ZCodeController {
       partA: result.partA,
       sku: result.sku,
     });
+  }
+
+  // ─── Duplicate Scan (Admin) ────────────────────────────────────────────────
+
+  async findDuplicateGroups(req, res) {
+    const groups = await zcodeService.findDuplicateGroups();
+    return sendSuccess(res, 200, 'Quét mã trùng lặp thành công', {
+      totalGroups: groups.length,
+      groups,
+    });
+  }
+
+  async markDuplicates(req, res) {
+    const { error, value } = markDuplicatesSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.markDuplicates(value.ids);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.ZCODES,
+      resourceId: null,
+      resourceName: `Đánh dấu ${result.markedCount} mã trùng lặp`,
+      description: `Admin đánh dấu ${result.markedCount} mã ZCode là trùng lặp (bỏ qua ${result.skippedCount} mã đã SUCCESS)`,
+      metadata: { ids: value.ids, ...result },
+      req,
+    });
+
+    return sendSuccess(res, 200, `Đã đánh dấu ${result.markedCount} mã trùng lặp`, result);
   }
 }
 

@@ -12,6 +12,7 @@ const SYSTEM_LOG_ACTIONS = [
   "login", "logout",
   "force_delete", "assign", "unassign",
   "activate", "deactivate",
+  "redeem",
   "other",
 ];
 

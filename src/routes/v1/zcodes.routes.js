@@ -12,6 +12,20 @@ router.get(
   ZCodeController.getStats,
 );
 
+// Duplicate scan (admin)
+router.get(
+  '/duplicates',
+  requirePermission(PERMISSIONS.ZCODES_READ),
+  ZCodeController.findDuplicateGroups,
+);
+
+// Mark duplicates (admin)
+router.post(
+  '/mark-duplicates',
+  requirePermission(PERMISSIONS.ZCODES_UPDATE),
+  ZCodeController.markDuplicates,
+);
+
 // Export
 router.get(
   '/export',

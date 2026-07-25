@@ -60,9 +60,21 @@ const redeemCodeSchema = Joi.object({
   }),
 });
 
+const markDuplicatesSchema = Joi.object({
+  ids: Joi.array()
+    .items(Joi.string().trim())
+    .min(1)
+    .required()
+    .messages({
+      'array.min': 'Danh sách mã cần đánh dấu không được rỗng',
+      'any.required': 'Danh sách mã là bắt buộc',
+    }),
+});
+
 module.exports = {
   createZCodesSchema,
   updateStatusSchema,
   checkDuplicatesSchema,
   redeemCodeSchema,
+  markDuplicatesSchema,
 };

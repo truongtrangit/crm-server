@@ -18,7 +18,12 @@ function checkZcodeIpAllowlist(req, res, next) {
     return next();
   }
 
-  const clientIp = req.ip || req.socket?.remoteAddress || '';
+  const clientIp =
+    req.headers['cf-connecting-ip'] ||
+    (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+    req.ip ||
+    req.socket?.remoteAddress ||
+    '';
 
   if (whitelist.length === 0) {
     logger.warn('ZCode: IP not in allowlist (whitelist is empty)', {

@@ -4,7 +4,7 @@ const {
 } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
 const { generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
-const { ZCODE_STATUSES } = require('../../core/constants/zcode');
+const { ZCODE_STATUSES, ZCODE_ERROR_REASONS } = require('../../core/constants/zcode');
 const { getValidSkus } = require('../../core/constants/zcode');
 const { escapeRegex } = require('../../core/utils/query');
 const { encryptZCodeField, decryptZCodeField } = require('../../core/utils/crypto');
@@ -394,62 +394,175 @@ class ZCodeService {
     if (parts.length !== 2) throw createHttpError(400, 'Mã không hợp lệ');
     const [partB, partC] = parts;
 
-    const zcode = await ZCode.findOneAndUpdate(
-      {
-        sku,
-        partB: encryptZCodeField(partB),
-        partC: encryptZCodeField(partC),
-        status: ZCODE_STATUSES.AVAILABLE,
-      },
-      {
-        $set: {
-          status: ZCODE_STATUSES.SUCCESS,
-          calledAt,
-          respondedAt: new Date(),
-          callerIp,
-        },
-      },
-      { new: true },
-    ).lean();
+    const encPartB = encryptZCodeField(partB);
+    const encPartC = encryptZCodeField(partC);
 
-    if (!zcode) {
-      // Check if code exists but is not available
-      const exists = await ZCode.findOne({ 
-        sku, 
-        partB: encryptZCodeField(partB),
-        partC: encryptZCodeField(partC) 
-      }).lean();
-      if (exists) {
-        const reason =
-          exists.status === ZCODE_STATUSES.SUCCESS
-            ? 'Code already redeemed'
-            : exists.status === ZCODE_STATUSES.UNAVAILABLE
-              ? 'Code is unavailable'
-              : 'Code is in error state';
-        throw createHttpError(409, reason, {
-          code: 'ZCODE_NOT_AVAILABLE',
-          currentStatus: exists.status,
-        });
-      }
-      throw createHttpError(404, 'Code not found', {
-        code: 'ZCODE_NOT_FOUND',
+    // Check for duplicate partB-partC among AVAILABLE codes
+    const availableCodes = await ZCode.find({
+      sku,
+      partB: encPartB,
+      partC: encPartC,
+      status: ZCODE_STATUSES.AVAILABLE,
+    }).lean();
+
+    if (availableCodes.length > 1) {
+      // Duplicate partB-partC detected — mark all matching codes as ERROR
+      const duplicateIds = availableCodes.map((c) => c._id);
+      await ZCode.updateMany(
+        { _id: { $in: duplicateIds } },
+        {
+          $set: {
+            status: ZCODE_STATUSES.ERROR,
+            errorReason: ZCODE_ERROR_REASONS.DUPLICATE_CODE,
+            calledAt,
+            respondedAt: new Date(),
+            callerIp,
+          },
+        },
+      );
+      throw createHttpError(400, 'Duplicate codes detected – matching codes have been marked as error', {
+        code: 'ZCODE_DUPLICATE_CODE',
+        duplicateCount: availableCodes.length,
       });
     }
 
-    // Calculate response time
-    const respondedAt = zcode.respondedAt;
-    const diffMs = respondedAt.getTime() - calledAt.getTime();
-    const responseTime = `${(diffMs / 1000).toFixed(1)}s`;
+    if (availableCodes.length === 1) {
+      // Exactly one available code — redeem it
+      const zcode = await ZCode.findOneAndUpdate(
+        { _id: availableCodes[0]._id, status: ZCODE_STATUSES.AVAILABLE },
+        {
+          $set: {
+            status: ZCODE_STATUSES.SUCCESS,
+            calledAt,
+            respondedAt: new Date(),
+            callerIp,
+          },
+        },
+        { new: true },
+      ).lean();
 
-    await ZCode.updateOne(
-      { _id: zcode._id },
-      { $set: { responseTime } },
+      if (!zcode) {
+        throw createHttpError(409, 'Code was just redeemed by another request', {
+          code: 'ZCODE_RACE_CONDITION',
+        });
+      }
+
+      // Calculate response time
+      const respondedAt = zcode.respondedAt;
+      const diffMs = respondedAt.getTime() - calledAt.getTime();
+      const responseTime = `${(diffMs / 1000).toFixed(1)}s`;
+
+      await ZCode.updateOne(
+        { _id: zcode._id },
+        { $set: { responseTime } },
+      );
+
+      return {
+        partA: decryptZCodeField(zcode.partA),
+        sku: zcode.sku,
+        id: zcode.id,
+      };
+    }
+
+    // No available codes found — check if code exists in other states
+    const exists = await ZCode.findOne({ 
+      sku, 
+      partB: encPartB,
+      partC: encPartC,
+    }).lean();
+    if (exists) {
+      const reason =
+        exists.status === ZCODE_STATUSES.SUCCESS
+          ? 'Code already redeemed'
+          : exists.status === ZCODE_STATUSES.UNAVAILABLE
+            ? 'Code is unavailable'
+            : 'Code is in error state';
+      throw createHttpError(409, reason, {
+        code: 'ZCODE_NOT_AVAILABLE',
+        currentStatus: exists.status,
+      });
+    }
+    throw createHttpError(404, 'Code not found', {
+      code: 'ZCODE_NOT_FOUND',
+    });
+  }
+
+  // ─── Duplicate Scan (Admin) ─────────────────────────────────────────────────
+
+  /**
+   * Find all groups of codes that share the same (partB, partC).
+   * Returns groups with >1 member so Admin can review.
+   */
+  async findDuplicateGroups() {
+    const groups = await ZCode.aggregate([
+      {
+        $group: {
+          _id: { partB: '$partB', partC: '$partC' },
+          count: { $sum: 1 },
+          docs: {
+            $push: {
+              _id: '$_id',
+              id: '$id',
+              keyCode: '$keyCode',
+              partA: '$partA',
+              sku: '$sku',
+              status: '$status',
+              errorReason: '$errorReason',
+              batchDate: '$batchDate',
+            },
+          },
+        },
+      },
+      { $match: { count: { $gt: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+
+    return groups.map((g) => {
+      const partB = decryptZCodeField(g._id.partB);
+      const partC = decryptZCodeField(g._id.partC);
+      return {
+        partialCode: `${partB}-${partC}`,
+        count: g.count,
+        codes: g.docs.map((d) => ({
+          id: d.id,
+          keyCode: decryptZCodeField(d.keyCode),
+          partA: decryptZCodeField(d.partA),
+          sku: d.sku,
+          status: d.status,
+          errorReason: d.errorReason,
+          batchDate: d.batchDate,
+        })),
+      };
+    });
+  }
+
+  /**
+   * Mark selected ZCode IDs as ERROR with reason DUPLICATE_CODE.
+   * Skips codes already in SUCCESS status.
+   * @param {string[]} ids - Array of ZCode `id` values
+   * @returns {{ markedCount: number, skippedCount: number }}
+   */
+  async markDuplicates(ids) {
+    if (!ids || ids.length === 0) {
+      throw createHttpError(400, 'Danh sách mã cần đánh dấu không được rỗng');
+    }
+
+    const result = await ZCode.updateMany(
+      {
+        id: { $in: ids },
+        status: { $ne: ZCODE_STATUSES.SUCCESS },
+      },
+      {
+        $set: {
+          status: ZCODE_STATUSES.ERROR,
+          errorReason: ZCODE_ERROR_REASONS.DUPLICATE_CODE,
+        },
+      },
     );
 
     return {
-      partA: decryptZCodeField(zcode.partA),
-      sku: zcode.sku,
-      id: zcode.id,
+      markedCount: result.modifiedCount,
+      skippedCount: ids.length - result.modifiedCount,
     };
   }
 }
