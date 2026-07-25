@@ -50,9 +50,21 @@ const videoAccessLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const zcodeRedeemLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Max 30 redeem requests per minute per IP
+  message: {
+    success: false,
+    message: 'Too many redeem requests. Please try again after 1 minute.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   voucherRedeemLimiter,
   qrGenerateLimiter,
   qrStatusLimiter,
   videoAccessLimiter,
+  zcodeRedeemLimiter,
 };
