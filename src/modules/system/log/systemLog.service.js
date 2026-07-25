@@ -56,7 +56,12 @@ class SystemLogService {
   }) {
     // Extract performedBy from req.user if not explicitly provided
     const actor = performedBy || SystemLogService.extractPerformer(req);
-    const ipAddress = req?.ip || req?.socket?.remoteAddress || "";
+    const ipAddress = 
+      req?.headers?.['cf-connecting-ip'] || 
+      (req?.headers?.['x-forwarded-for'] || '').split(',')[0].trim() || 
+      req?.ip || 
+      req?.socket?.remoteAddress || 
+      "";
 
     // Fire-and-forget — don't await, don't block
     SystemLog.create({

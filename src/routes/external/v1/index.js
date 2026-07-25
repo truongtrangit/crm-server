@@ -11,7 +11,10 @@ const {
 
 const externalV1Router = Router();
 
-// Áp dụng middleware kiểm tra API Key cho toàn bộ /api/external/v1
+// Các router sử dụng key riêng sẽ được khai báo trước middleware này
+externalV1Router.use('/zcodes', require('./zcodes.routes'));
+
+// Áp dụng middleware kiểm tra API Key cho các endpoint còn lại (BotVN)
 externalV1Router.use(requireExternalApiKey);
 
 // Các external endpoints không bị chặn bởi maintenance

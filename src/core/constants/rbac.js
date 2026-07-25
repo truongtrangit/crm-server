@@ -38,6 +38,7 @@ const RESOURCES = {
   COURSES_ENROLLMENTS: "courses_enrollments", // Đăng ký khóa học
   COURSES_SUBMISSIONS: "courses_submissions", // Nộp bài
   COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
+  ZCODES: "zcodes", // Quản lý ZCode
 };
 
 // Actions
@@ -305,6 +306,13 @@ const PERMISSIONS = {
   COURSES_KNOWLEDGE_CREATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.CREATE}`,
   COURSES_KNOWLEDGE_UPDATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.UPDATE}`,
   COURSES_KNOWLEDGE_DELETE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.DELETE}`,
+
+  // ZCode
+  ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
+  ZCODES_READ: `${RESOURCES.ZCODES}_${ACTIONS.READ}`,
+  ZCODES_UPDATE: `${RESOURCES.ZCODES}_${ACTIONS.UPDATE}`,
+  ZCODES_DELETE: `${RESOURCES.ZCODES}_${ACTIONS.DELETE}`,
+  ZCODES_MANAGE: `${RESOURCES.ZCODES}_${ACTIONS.MANAGE}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -467,6 +475,7 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.PROJECT_BONUS_MANAGE,
     PERMISSIONS.JOBHUB_WORK_MANAGE,
     PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_MANAGE,
+    PERMISSIONS.ZCODES_MANAGE,
   ]),
 );
 
@@ -773,6 +782,15 @@ const MODULE_DEFINITIONS = {
     parentKey: "courses",
     actions: ["view", "create", "edit", "delete"],
   },
+
+  zcode: { key: "zcode", label: "ZCode", type: "root", actions: [] },
+  "zcode.manage": {
+    key: "zcode.manage",
+    label: "Quản lý mã ZCode",
+    type: "sub",
+    parentKey: "zcode",
+    actions: ["view", "create", "edit", "delete", "export"],
+  },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
@@ -1011,6 +1029,13 @@ const MODULE_TO_PERMISSIONS_MAP = {
     create: [PERMISSIONS.COURSES_KNOWLEDGE_CREATE],
     edit: [PERMISSIONS.COURSES_KNOWLEDGE_UPDATE],
     delete: [PERMISSIONS.COURSES_KNOWLEDGE_DELETE],
+  },
+  "zcode.manage": {
+    view: [PERMISSIONS.ZCODES_READ],
+    create: [PERMISSIONS.ZCODES_CREATE],
+    edit: [PERMISSIONS.ZCODES_UPDATE],
+    delete: [PERMISSIONS.ZCODES_DELETE],
+    export: [PERMISSIONS.ZCODES_READ],
   },
 };
 

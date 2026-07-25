@@ -40,6 +40,7 @@ const courseVouchersRouter = require('./courseVouchers.routes');
 const courseChallengesRouter = require('./courseChallenges.routes');
 const coursesKnowledgeRouter = require('./knowledge.routes');
 const courseSubmissionsRouter = require('./courseSubmissions.routes');
+const zcodesRouter = require('./zcodes.routes');
 
 const { authenticateRequest } = require('../../core/middleware/auth');
 const { sendSuccess } = require('../../core/utils/http');
@@ -108,6 +109,7 @@ v1Router.use('/courses/vouchers', courseVouchersRouter);
 v1Router.use('/courses/challenges', courseChallengesRouter);
 v1Router.use('/courses/knowledge', coursesKnowledgeRouter);
 v1Router.use('/courses/submissions', courseSubmissionsRouter);
+v1Router.use('/zcodes', zcodesRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use('/organization', organizationRouter);

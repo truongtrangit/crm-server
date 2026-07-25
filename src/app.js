@@ -16,6 +16,7 @@ const v1Router = require("./routes/v1");
 const externalV1Router = require("./routes/external/v1");
 
 const app = express();
+app.set("trust proxy", "loopback");
 const allowedOrigins = env.clientUrl
   .split(",")
   .map((item) => item.trim())

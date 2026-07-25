@@ -41,10 +41,21 @@ const videoAccessLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 60, // Max 60 video URL requests per 15 min per user
   keyGenerator: (req) => req.user?.id || req.ip,
-  validate: { ipKeyGenerator: false }, // Suppress IPv6 warning — user ID is primary key
+  validate: { keyGeneratorIpFallback: false }, // Suppress IPv6 warning — user ID is primary key
   message: {
     success: false,
     message: 'Quá nhiều yêu cầu xem video. Vui lòng thử lại sau.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const zcodeRedeemLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Max 30 redeem requests per minute per IP
+  message: {
+    success: false,
+    message: 'Too many redeem requests. Please try again after 1 minute.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -55,4 +66,5 @@ module.exports = {
   qrGenerateLimiter,
   qrStatusLimiter,
   videoAccessLimiter,
+  zcodeRedeemLimiter,
 };

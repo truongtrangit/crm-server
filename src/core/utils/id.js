@@ -75,6 +75,9 @@ const ID_PREFIXES = Object.freeze({
 
   // Submission
   COURSE_SUBMISSION: "CSB",
+
+  // ZCode
+  ZCODE: "ZCD",
 });
 
 /**
