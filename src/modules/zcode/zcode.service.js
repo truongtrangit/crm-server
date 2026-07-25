@@ -450,7 +450,7 @@ class ZCodeService {
       // Calculate response time
       const respondedAt = zcode.respondedAt;
       const diffMs = respondedAt.getTime() - calledAt.getTime();
-      const responseTime = `${(diffMs / 1000).toFixed(1)}s`;
+      const responseTime = diffMs < 1000 ? `${diffMs}ms` : `${(diffMs / 1000).toFixed(2)}s`;
 
       await ZCode.updateOne(
         { _id: zcode._id },
