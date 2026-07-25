@@ -310,7 +310,7 @@
           "host": ["{{base_url}}"],
           "path": ["redeem"]
         },
-        "description": "**Test mã đã được nạp trước đó**\n\nGọi lại cùng partialCode đã redeem thành công (không có Idempotency-Key).\n\n**Expected Response (409):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Code already redeemed\",\n  \"code\": \"ZCODE_NOT_AVAILABLE\"\n}\n```"
+        "description": "**Test mã đã được nạp trước đó**\n\nGọi lại cùng partialCode đã redeem thành công (không có Idempotency-Key).\n\n**Expected Response (409):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Code already redeemed\",\n  \"code\": \"ZCODE_ALREADY_REDEEMED\"\n}\n```"
       },
       "event": [
         {

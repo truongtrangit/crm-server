@@ -203,6 +203,16 @@ Khi có nhiều mã cùng PartB-PartC trong hệ thống. Đây là lỗi dữ l
 }
 ```
 
+##### ❌ 403 — Mã Không Khả Dụng / Bị Khoá
+
+```json
+{
+  "success": false,
+  "message": "Code is unavailable",
+  "code": "ZCODE_UNAVAILABLE"
+}
+```
+
 ##### ❌ 404 — Mã Không Tồn Tại
 
 ```json
@@ -213,20 +223,25 @@ Khi có nhiều mã cùng PartB-PartC trong hệ thống. Đây là lỗi dữ l
 }
 ```
 
-##### ❌ 409 — Mã Đã Được Sử Dụng / Không Khả Dụng
+##### ❌ 409 — Mã Đã Được Sử Dụng
 
 ```json
 {
   "success": false,
   "message": "Code already redeemed",
-  "code": "ZCODE_NOT_AVAILABLE"
+  "code": "ZCODE_ALREADY_REDEEMED"
 }
 ```
 
-Các giá trị `message` có thể là:
-- `"Code already redeemed"` — Mã đã nạp thành công trước đó
-- `"Code is unavailable"` — Mã bị đánh dấu không khả dụng
-- `"Code is in error state"` — Mã bị lỗi
+##### ❌ 422 — Mã Bị Lỗi (Error State)
+
+```json
+{
+  "success": false,
+  "message": "Code is in error state",
+  "code": "ZCODE_ERROR_STATE"
+}
+```
 
 ##### ❌ 429 — Quá Nhiều Request
 
@@ -275,8 +290,12 @@ async function redeemZCode(sku, partialCode, requestId) {
     switch (data?.code) {
       case 'ZCODE_NOT_FOUND':
         return { success: false, reason: 'Mã không tồn tại' };
-      case 'ZCODE_NOT_AVAILABLE':
+      case 'ZCODE_ALREADY_REDEEMED':
         return { success: false, reason: 'Mã đã được sử dụng' };
+      case 'ZCODE_UNAVAILABLE':
+        return { success: false, reason: 'Mã đang bị khoá hoặc chưa kích hoạt' };
+      case 'ZCODE_ERROR_STATE':
+        return { success: false, reason: 'Mã bị lỗi trạng thái, vui lòng liên hệ admin' };
       case 'ZCODE_DUPLICATE_CODE':
         return { success: false, reason: 'Mã bị trùng lặp trong hệ thống, vui lòng liên hệ admin' };
       default:
@@ -306,7 +325,7 @@ curl -X POST https://final.vn/api/external/v1/zcodes/redeem \
 1. **Luôn gửi `X-Idempotency-Key`** cho mỗi giao dịch nạp mã để tránh nạp 2 lần khi có timeout/retry.
 2. **Set timeout ≤ 10 giây** cho mỗi request.
 3. **Retry tối đa 3 lần** với backoff (1s → 2s → 4s) khi gặp lỗi mạng hoặc HTTP 5xx.
-4. **Không retry** khi gặp HTTP 400, 401, 403, 404, 409 — đây là lỗi logic, retry không giải quyết được.
+4. **Không retry** khi gặp HTTP 400, 401, 403, 404, 409, 422 — đây là lỗi logic, retry không giải quyết được.
 5. **Lưu log** mọi response từ API để đối chiếu khi cần.
 
 ---
