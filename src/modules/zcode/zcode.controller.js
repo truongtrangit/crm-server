@@ -2,6 +2,7 @@ const zcodeService = require('./zcode.service');
 const { sendSuccess, createHttpError } = require('../../core/utils/http');
 const SystemLogService = require('../system/log/systemLog.service');
 const { RESOURCES } = require('../../core/constants/rbac');
+const { saveIdempotencyResult } = require('../../core/middleware/zcodeSecurityAuth');
 const {
   createZCodesSchema,
   updateStatusSchema,
@@ -207,10 +208,22 @@ class ZCodeController {
       req,
     });
 
-    return sendSuccess(res, 200, 'Redeem successful', {
+    const responseData = {
       partA: result.partA,
       sku: result.sku,
-    });
+    };
+
+    // Save idempotency cache (fire-and-forget)
+    const idempotencyKey = req.zcodeSecurityContext?.idempotencyKey;
+    if (idempotencyKey) {
+      saveIdempotencyResult(idempotencyKey, 200, {
+        success: true,
+        message: 'Redeem successful',
+        data: responseData,
+      });
+    }
+
+    return sendSuccess(res, 200, 'Redeem successful', responseData);
   }
 
   // ─── Duplicate Scan (Admin) ────────────────────────────────────────────────
