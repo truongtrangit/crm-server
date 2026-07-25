@@ -2,17 +2,29 @@ const { readBearerToken, hashToken } = require("../utils/auth");
 const BotvnUserSession = require("../../modules/customer/botvnAuth/botvnUserSession.model");
 const Customer = require("../../modules/customer/customer/customer.model");
 const env = require("../config/env");
+const { EXTERNAL_SYSTEMS } = require("../constants/externalSystems");
 const { sendError } = require("../utils/http");
 
-function requireExternalApiKey(req, res, next) {
-  const apiKey = req.header("X-API-Key");
-  if (!apiKey || apiKey !== env.externalApiKey) {
-    return sendError(res, 401, "Invalid or missing X-API-Key", {
-      code: "INVALID_API_KEY",
-    });
-  }
-  return next();
+/**
+ * Factory function to create a middleware that verifies X-API-Key header.
+ * @param {string} expectedKey The valid API key from env
+ * @param {string} systemName Name of the external system (for logging and error code)
+ */
+function requireApiKey(expectedKey, systemName = 'EXTERNAL') {
+  return function (req, res, next) {
+    const apiKey = req.header("X-API-Key");
+    if (!apiKey || apiKey !== expectedKey) {
+      const logger = require("../utils/logger");
+      logger.warn(`${systemName}: Invalid or missing API key`, { ip: req.ip });
+      return sendError(res, 401, "Invalid or missing X-API-Key", {
+        code: `${systemName.toUpperCase()}_INVALID_API_KEY`,
+      });
+    }
+    return next();
+  };
 }
+
+const requireExternalApiKey = requireApiKey(env.externalApiKey, EXTERNAL_SYSTEMS.BOTVN);
 
 async function botvnAuthenticateRequest(req, res, next) {
   try {
@@ -97,6 +109,7 @@ async function optionalBotvnAuthenticateRequest(req, res, next) {
 }
 
 module.exports = {
+  requireApiKey,
   requireExternalApiKey,
   botvnAuthenticateRequest,
   optionalBotvnAuthenticateRequest,

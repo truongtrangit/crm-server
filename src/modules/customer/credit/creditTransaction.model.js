@@ -41,7 +41,6 @@ const creditTransactionSchema = new mongoose.Schema(
     },
     idempotencyKey: {
       type: String,
-      sparse: true,
     },
     transactionGroupId: {
       type: String,

@@ -1,0 +1,330 @@
+{
+  "info": {
+    "name": "ZCode External API",
+    "description": "Collection for thirdparty integration with ZCode Redeem API.\n\n## Setup\n1. Set `base_url` variable to the CRM server URL\n2. Set `api_key` variable to your API key\n3. Set `sku` to the target SKU (e.g., ZB5000)\n\n## Authentication\n- All requests require `X-API-Key` header\n- Your server IP must be whitelisted",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4000/api/external/v1/zcodes",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "zcode_secret_key_change_in_production",
+      "type": "string"
+    },
+    {
+      "key": "sku",
+      "value": "ZB5000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Redeem ZCode — Success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "description": "API key provided by CRM admin"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "txn_{{$timestamp}}_{{$randomInt}}",
+            "description": "(Optional) Unique ID to prevent duplicate processing"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Nạp mã ZCode thành công**\n\nGửi SKU và partialCode (phần PartB-PartC) để nạp mã.\n\n**Expected Response (200):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Redeem successful\",\n  \"data\": {\n    \"partA\": \"K9DV\",\n    \"sku\": \"ZB5000\"\n  }\n}\n```"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has partA', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.have.property('partA');",
+              "    pm.expect(jsonData.data).to.have.property('sku');",
+              "    console.log('Full code: ' + jsonData.data.partA + '-' + pm.request.body.raw.match(/\"partialCode\":\\s*\"([^\"]+)\"/)[1]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Redeem ZCode — Idempotent Retry",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "txn_test_idempotent_001",
+            "description": "Same key as a previous request — should return cached result"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Test Idempotency**\n\nGửi lại cùng `X-Idempotency-Key` đã xử lý.\n\n**Expected Response (200):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Redeem successful\",\n  \"data\": { \"partA\": \"K9DV\", \"sku\": \"ZB5000\" },\n  \"idempotent\": true\n}\n```"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has idempotent flag', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.idempotent).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Redeem ZCode — Invalid API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "wrong_key_here",
+            "description": "Intentionally wrong API key"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Test sai API key**\n\n**Expected Response (401):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Invalid or missing X-API-Key\",\n  \"code\": \"ZCODE_INVALID_API_KEY\"\n}\n```"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test('Error code is correct', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Redeem ZCode — Missing API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Test không gửi API key**\n\n**Expected Response (401)**"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401', function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Redeem ZCode — Invalid SKU",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Test SKU trống**\n\n**Expected Response (400):**\n```json\n{\n  \"success\": false,\n  \"message\": \"SKU không được để trống\"\n}\n```"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Redeem ZCode — Code Not Found",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"XXXX-YYYY\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Test mã không tồn tại**\n\n**Expected Response (404):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Code not found\",\n  \"code\": \"ZCODE_NOT_FOUND\"\n}\n```"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('Error code is ZCODE_NOT_FOUND', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql('ZCODE_NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Redeem ZCode — Already Redeemed",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["redeem"]
+        },
+        "description": "**Test mã đã được nạp trước đó**\n\nGọi lại cùng partialCode đã redeem thành công (không có Idempotency-Key).\n\n**Expected Response (409):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Code already redeemed\",\n  \"code\": \"ZCODE_NOT_AVAILABLE\"\n}\n```"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -24,7 +24,7 @@ const videoAccessLogSchema = new mongoose.Schema(
     },
     ip: { type: String },
     userAgent: { type: String },
-    accessedAt: { type: Date, default: Date.now, index: true },
+    accessedAt: { type: Date, default: Date.now },
   },
   { timestamps: false },
 );
