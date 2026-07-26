@@ -43,6 +43,13 @@ class BankLogService {
     if (query.status && query.status !== 'all') {
       filter.status = query.status;
     }
+    if (query.rule) {
+      if (query.rule === 'none') {
+        filter.matchedRuleId = null;
+      } else {
+        filter.matchedRuleId = query.rule;
+      }
+    }
 
     const [items, total] = await Promise.all([
       BankLogTransaction.find(filter)
