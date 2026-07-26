@@ -78,6 +78,10 @@ const ID_PREFIXES = Object.freeze({
 
   // ZCode
   ZCODE: "ZCD",
+
+  // Bank Log
+  BANK_LOG_TX: "BLT",
+  BANK_LOG_RULE: "BLR",
 });
 
 /**

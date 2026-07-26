@@ -1,0 +1,118 @@
+const bankLogService = require('./bankLog.service');
+const { sendSuccess, createHttpError } = require('../../core/utils/http');
+const SystemLogService = require('../system/log/systemLog.service');
+const { RESOURCES } = require('../../core/constants/rbac');
+const {
+  createRuleSchema,
+  updateRuleSchema,
+  ingestTransactionSchema,
+} = require('./bankLog.validation');
+
+class BankLogController {
+  // ─── Transaction Endpoints ────────────────────────────────────────────────
+
+  async getTransactions(req, res) {
+    const result = await bankLogService.getTransactions(req.query);
+    return sendSuccess(res, 200, 'Lấy danh sách giao dịch thành công', result);
+  }
+
+  async getTransactionById(req, res) {
+    const tx = await bankLogService.getTransactionById(req.params.id);
+    return sendSuccess(res, 200, 'Lấy chi tiết giao dịch thành công', tx);
+  }
+
+  async getStats(req, res) {
+    const stats = await bankLogService.getStats();
+    return sendSuccess(res, 200, 'Lấy thống kê thành công', stats);
+  }
+
+  async retryTransaction(req, res) {
+    const result = await bankLogService.retryTransaction(req.params.id);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.BANK_LOGS,
+      resourceId: req.params.id,
+      resourceName: `Retry giao dịch ${result.txId}`,
+      description: `Retry giao dịch ${result.txId} (lần ${result.retryCount})`,
+      metadata: { txId: result.txId, retryCount: result.retryCount },
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Đã gửi retry giao dịch', result);
+  }
+
+  // ─── Routing Rule Endpoints ───────────────────────────────────────────────
+
+  async getRules(req, res) {
+    const result = await bankLogService.getRules(req.query);
+    return sendSuccess(res, 200, 'Lấy danh sách quy tắc thành công', result);
+  }
+
+  async createRule(req, res) {
+    const { error, value } = createRuleSchema.validate(req.body);
+    if (error) throw createHttpError(400, error.details[0].message);
+
+    const rule = await bankLogService.createRule(value, req.user?.id);
+
+    SystemLogService.log({
+      action: 'create',
+      resource: RESOURCES.BANK_LOG_RULES,
+      resourceId: rule.id,
+      resourceName: rule.name,
+      description: `Tạo quy tắc định tuyến "${rule.name}"`,
+      metadata: { ruleId: rule.id, targetApi: rule.targetApi?.url },
+      req,
+    });
+
+    return sendSuccess(res, 201, 'Tạo quy tắc thành công', rule);
+  }
+
+  async updateRule(req, res) {
+    const { error, value } = updateRuleSchema.validate(req.body);
+    if (error) throw createHttpError(400, error.details[0].message);
+
+    const rule = await bankLogService.updateRule(req.params.id, value);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.BANK_LOG_RULES,
+      resourceId: rule.id,
+      resourceName: rule.name,
+      description: `Cập nhật quy tắc "${rule.name}"`,
+      metadata: { ruleId: rule.id },
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Cập nhật quy tắc thành công', rule);
+  }
+
+  async deleteRule(req, res) {
+    const rule = await bankLogService.deleteRule(req.params.id);
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.BANK_LOG_RULES,
+      resourceId: rule.id,
+      resourceName: rule.name,
+      description: `Xóa quy tắc "${rule.name}"`,
+      metadata: { ruleId: rule.id },
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Xóa quy tắc thành công', rule);
+  }
+
+  // ─── Webhook Ingestion (Public) ───────────────────────────────────────────
+
+  async ingestTransaction(req, res) {
+    const { error, value } = ingestTransactionSchema.validate(req.body);
+    if (error) throw createHttpError(400, error.details[0].message);
+
+    const result = await bankLogService.ingestTransaction(value);
+
+    return sendSuccess(res, 200, 'Giao dịch đã được tiếp nhận', result);
+  }
+}
+
+module.exports = new BankLogController();
