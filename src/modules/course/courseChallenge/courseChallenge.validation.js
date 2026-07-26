@@ -109,16 +109,34 @@ const cloneCourse = Joi.object({
 const updateCourse = Joi.object({
   title: Joi.string().optional(),
   slug: Joi.string().optional(),
+  category: Joi.array().items(Joi.string()).optional(),
   status: Joi.string()
     .valid(...Object.values(COURSE_STATUS))
     .optional(),
   type: Joi.forbidden(),
+  isBestseller: Joi.boolean().optional(),
+  headline: Joi.string().allow('').optional(),
+  subheadline: Joi.string().allow('').optional(),
   startDate: Joi.date().allow(null).optional(),
   totalDays: Joi.number().min(1).optional(),
   curriculum: Joi.array().items(challengeDaySchema).optional(),
-  // Add other basic fields as needed
   packages: Joi.array().items(pricingPackageSchema).optional(),
   covers: Joi.array().items(Joi.string()).optional(),
+  previewVideo: Joi.array().items(Joi.string()).optional(),
+  benefits: Joi.array().items(Joi.string()).optional(),
+  tools: Joi.array().items(Joi.string()).optional(),
+  requirements: Joi.array().items(Joi.string()).optional(),
+  tags: Joi.array().items(Joi.string()).optional(),
+  targetAudience: Joi.string().allow('').optional(),
+  description: Joi.string().allow('').optional(),
+  lecturers: Joi.array()
+    .items(
+      Joi.object({
+        lecturerId: Joi.string().required(),
+        isMain: Joi.boolean().optional(),
+      }).unknown(true),
+    )
+    .optional(),
   submissionSettings: submissionSettingsSchema,
 });
 
