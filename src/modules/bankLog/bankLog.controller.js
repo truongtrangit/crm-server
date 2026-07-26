@@ -42,6 +42,25 @@ class BankLogController {
     return sendSuccess(res, 200, 'Đã gửi retry giao dịch', result);
   }
 
+  async dispatchTransaction(req, res) {
+    const { ruleId } = req.body;
+    if (!ruleId) throw createHttpError(400, 'ruleId là bắt buộc');
+
+    const result = await bankLogService.dispatchTransaction(req.params.id, ruleId);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.BANK_LOGS,
+      resourceId: req.params.id,
+      resourceName: `Dispatch giao dịch ${result.txId} → ${result.ruleName}`,
+      description: `Dispatch thủ công giao dịch ${result.txId} qua quy tắc "${result.ruleName}" (${result.status}, HTTP ${result.apiResponseCode})`,
+      metadata: { txId: result.txId, ruleId, ruleName: result.ruleName, status: result.status },
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Dispatch giao dịch thành công', result);
+  }
+
   // ─── Routing Rule Endpoints ───────────────────────────────────────────────
 
   async getRules(req, res) {

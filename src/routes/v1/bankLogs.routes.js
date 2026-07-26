@@ -33,6 +33,12 @@ router.post(
   BankLogController.retryTransaction,
 );
 
+router.post(
+  '/transactions/:id/dispatch',
+  requirePermission(PERMISSIONS.BANK_LOGS_UPDATE),
+  BankLogController.dispatchTransaction,
+);
+
 // ─── Routing Rules ──────────────────────────────────────────────────────────
 
 router.get(

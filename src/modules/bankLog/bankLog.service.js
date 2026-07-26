@@ -162,6 +162,69 @@ class BankLogService {
     return { id: tx.id, txId: tx.txId, retryCount: tx.retryCount };
   }
 
+  async dispatchTransaction(txId, ruleId) {
+    const tx = await BankLogTransaction.findOne({ id: txId });
+    if (!tx) throw createHttpError(404, 'Không tìm thấy giao dịch');
+
+    if (tx.status === BANK_LOG_TX_STATUSES.SUCCESS) {
+      throw createHttpError(400, 'Giao dịch đã thành công');
+    }
+
+    const rule = await BankLogRoutingRule.findOne({ id: ruleId }).lean();
+    if (!rule) throw createHttpError(404, 'Không tìm thấy quy tắc');
+
+    const startTime = Date.now();
+
+    try {
+      const result = await this._forwardToApi(tx, rule);
+
+      await BankLogTransaction.updateOne(
+        { _id: tx._id },
+        {
+          $set: {
+            status: result.success
+              ? BANK_LOG_TX_STATUSES.SUCCESS
+              : BANK_LOG_TX_STATUSES.FAILED,
+            matchedRuleName: rule.name,
+            matchedRuleId: rule.id,
+            targetApiUrl: rule.targetApi.url,
+            apiResponseCode: result.statusCode,
+            apiResponseBody: result.body,
+            processingDurationMs: Date.now() - startTime,
+            retryCount: (tx.retryCount || 0) + 1,
+            lastRetryAt: new Date(),
+          },
+        },
+      );
+
+      return {
+        id: tx.id,
+        txId: tx.txId,
+        ruleName: rule.name,
+        status: result.success ? 'success' : 'failed',
+        apiResponseCode: result.statusCode,
+      };
+    } catch (err) {
+      await BankLogTransaction.updateOne(
+        { _id: tx._id },
+        {
+          $set: {
+            status: BANK_LOG_TX_STATUSES.FAILED,
+            matchedRuleName: rule.name,
+            matchedRuleId: rule.id,
+            targetApiUrl: rule.targetApi.url,
+            apiResponseBody: { error: err.message },
+            processingDurationMs: Date.now() - startTime,
+            retryCount: (tx.retryCount || 0) + 1,
+            lastRetryAt: new Date(),
+          },
+        },
+      ).catch(() => {});
+
+      throw createHttpError(502, `Lỗi gọi API: ${err.message}`);
+    }
+  }
+
   // ─── Routing Rule Methods ─────────────────────────────────────────────────
 
   async getRules(query = {}) {
