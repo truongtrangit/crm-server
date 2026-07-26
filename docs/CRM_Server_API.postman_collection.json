@@ -7354,6 +7354,970 @@
           ]
         }
       ]
+    },
+    {
+      "name": "🏦 Bank Logs",
+      "item": [
+        {
+          "name": "Transactions",
+          "item": [
+            {
+              "name": "Get Stats",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "stats"
+                  ]
+                },
+                "description": "Lấy thống kê tổng quan: tổng giao dịch, thành công, thất bại, chưa xử lý."
+              }
+            },
+            {
+              "name": "List Transactions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/transactions?page=1&limit=20&search=&status=all&bank=all",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Trang hiện tại"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Số bản ghi mỗi trang"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Tìm theo txId, sender, content, id"
+                    },
+                    {
+                      "key": "status",
+                      "value": "all",
+                      "description": "Filter: all | success | failed | no_route | pending"
+                    },
+                    {
+                      "key": "bank",
+                      "value": "all",
+                      "description": "Filter theo tên ngân hàng"
+                    }
+                  ]
+                },
+                "description": "Danh sách giao dịch ngân hàng, hỗ trợ phân trang, tìm kiếm, lọc theo trạng thái và ngân hàng."
+              }
+            },
+            {
+              "name": "Get Transaction By ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/transactions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "transactions",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID giao dịch (e.g. BLT-...)"
+                    }
+                  ]
+                },
+                "description": "Lấy chi tiết một giao dịch theo ID."
+              }
+            },
+            {
+              "name": "Retry Transaction",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/transactions/:id/retry",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "transactions",
+                    ":id",
+                    "retry"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID giao dịch cần retry"
+                    }
+                  ]
+                },
+                "description": "Retry xử lý lại giao dịch failed/no_route. Trả về id, txId, retryCount."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Routing Rules",
+          "item": [
+            {
+              "name": "List Rules",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/rules?page=1&limit=20&search=&status=",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "rules"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Trang hiện tại"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Số bản ghi mỗi trang"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Tìm theo tên quy tắc hoặc URL"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "Filter: active | inactive (bỏ trống = tất cả)"
+                    }
+                  ]
+                },
+                "description": "Danh sách quy tắc định tuyến, phân trang, tìm kiếm, lọc trạng thái. createdBy trả về tên người tạo."
+              }
+            },
+            {
+              "name": "Create Rule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Quy tắc thanh toán > 1M\",\n  \"priority\": 1,\n  \"isActive\": true,\n  \"targetApi\": {\n    \"url\": \"https://api.example.com/payment-callback\",\n    \"method\": \"POST\",\n    \"authType\": \"bearer\",\n    \"authToken\": \"your-api-token\",\n    \"headers\": {},\n    \"timeout\": 10\n  },\n  \"conditions\": [\n    {\n      \"parameter\": \"amount\",\n      \"operator\": \"greater_than\",\n      \"value\": \"1000000\"\n    },\n    {\n      \"parameter\": \"content\",\n      \"operator\": \"contains\",\n      \"value\": \"thanh toan\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/rules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "rules"
+                  ]
+                },
+                "description": "Tạo quy tắc định tuyến mới.\n\n**targetApi.method**: POST | PUT | PATCH\n**targetApi.authType**: none | bearer | api_key | basic | custom_header\n**conditions.parameter**: amount | content | sender\n**conditions.operator**: greater_than | less_than | equal | contains | starts_with | ends_with | regex"
+              }
+            },
+            {
+              "name": "Update Rule",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Quy tắc đã cập nhật\",\n  \"isActive\": false,\n  \"priority\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/rules/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "rules",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID quy tắc (e.g. BLR-...)"
+                    }
+                  ]
+                },
+                "description": "Cập nhật quy tắc. Chỉ gửi các field cần thay đổi (partial update). Tối thiểu 1 field."
+              }
+            },
+            {
+              "name": "Delete Rule",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/bank-logs/rules/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bank-logs",
+                    "rules",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID quy tắc cần xóa"
+                    }
+                  ]
+                },
+                "description": "Xóa vĩnh viễn quy tắc định tuyến."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhook Ingest",
+          "item": [
+            {
+              "name": "Ingest Bank Transaction (Webhook)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Idempotency-Key",
+                    "value": "{{$guid}}",
+                    "description": "UUID duy nhất để tránh xử lý trùng"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"txId\": \"FT20250726001\",\n  \"bank\": \"ACB\",\n  \"sender\": \"NGUYEN VAN A\",\n  \"amount\": 1500000,\n  \"content\": \"thanh toan don hang 12345\",\n  \"transactionDate\": \"2025-07-26T09:00:00.000Z\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{host}}/api/v1/webhooks/bank-transaction",
+                  "host": [
+                    "{{host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "webhooks",
+                    "bank-transaction"
+                  ]
+                },
+                "description": "Webhook endpoint nhận giao dịch ngân hàng từ bank gateway (Casso/SePay/ACB).\n\n**KHÔNG cần Bearer token** — route này chỉ dùng idempotency check.\n\n**Fields:**\n- txId (required): Mã giao dịch từ ngân hàng\n- bank (required): Tên ngân hàng (ACB, VCB, TPBank...)\n- amount (required): Số tiền giao dịch\n- sender (optional): Tên người gửi\n- content (optional): Nội dung chuyển khoản\n- transactionDate (optional): Thời gian giao dịch\n\n**Header X-Idempotency-Key:** UUID duy nhất, hệ thống sẽ reject nếu key đã tồn tại (chống duplicate)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🎫 ZCode",
+      "item": [
+        {
+          "name": "Admin — Management",
+          "item": [
+            {
+              "name": "Get Stats",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    "stats"
+                  ]
+                },
+                "description": "Thống kê tổng quan ZCode: tổng mã, khả dụng, đã sử dụng, lỗi, trùng lặp."
+              }
+            },
+            {
+              "name": "List ZCodes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes?page=1&limit=20&search=&status=all&sku=all",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Trang hiện tại"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Số bản ghi mỗi trang"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Tìm theo id, SKU, keyCode, callerIp, partA, partB-partC"
+                    },
+                    {
+                      "key": "status",
+                      "value": "all",
+                      "description": "Filter: all | available | success | error | unavailable | duplicate"
+                    },
+                    {
+                      "key": "sku",
+                      "value": "all",
+                      "description": "Filter theo SKU (e.g. ZB5000)"
+                    }
+                  ]
+                },
+                "description": "Danh sách mã ZCode, hỗ trợ phân trang, tìm kiếm, lọc theo trạng thái và SKU."
+              }
+            },
+            {
+              "name": "Get ZCode By ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID mã ZCode (e.g. ZC-...)"
+                    }
+                  ]
+                },
+                "description": "Chi tiết một mã ZCode theo ID."
+              }
+            },
+            {
+              "name": "Batch Create ZCodes",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"ZB5000\",\n  \"batchDate\": \"2025-07-26\",\n  \"importedAt\": \"2025-07-26T09:00:00.000Z\",\n  \"listCode\": \"AAAA-BBBB-CCCC\\nDDDD-EEEE-FFFF\\nGGGG-HHHH-IIII\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes"
+                  ]
+                },
+                "description": "Nhập lô mã ZCode.\n\n**Fields:**\n- sku (required): Gói mã (e.g. ZB5000)\n- batchDate (required): Ngày lô\n- importedAt (required): Thời gian nhập\n- listCode (required): Danh sách mã, mỗi dòng 1 mã (format: AAAA-BBBB-CCCC)"
+              }
+            },
+            {
+              "name": "Check Duplicates",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"keys\": [\n    \"AAAA-BBBB-CCCC\",\n    \"DDDD-EEEE-FFFF\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/check-duplicates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    "check-duplicates"
+                  ]
+                },
+                "description": "Kiểm tra mã trùng trước khi nhập lô. Gửi danh sách key codes, trả về các mã đã tồn tại."
+              }
+            },
+            {
+              "name": "Update Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"unavailable\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/:id/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    ":id",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID mã ZCode"
+                    }
+                  ]
+                },
+                "description": "Cập nhật trạng thái mã ZCode.\n\n**status**: available | unavailable"
+              }
+            },
+            {
+              "name": "Retry ZCode",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/:id/retry",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    ":id",
+                    "retry"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "",
+                      "description": "ID mã ZCode bị lỗi"
+                    }
+                  ]
+                },
+                "description": "Reset mã ZCode lỗi về trạng thái available để có thể sử dụng lại."
+              }
+            },
+            {
+              "name": "Export ZCodes (Excel)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/export?status=all&sku=all",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    "export"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "all",
+                      "description": "Filter: all | available | success | error"
+                    },
+                    {
+                      "key": "sku",
+                      "value": "all",
+                      "description": "Filter theo SKU"
+                    }
+                  ]
+                },
+                "description": "Xuất danh sách mã ZCode ra file Excel (.xlsx). Response là binary file."
+              }
+            },
+            {
+              "name": "Find Duplicate Groups",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/duplicates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    "duplicates"
+                  ]
+                },
+                "description": "Quét và trả về các nhóm mã trùng lặp trong hệ thống."
+              }
+            },
+            {
+              "name": "Mark Duplicates",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"ZC-...\",\n    \"ZC-...\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/zcodes/mark-duplicates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "zcodes",
+                    "mark-duplicates"
+                  ]
+                },
+                "description": "Đánh dấu danh sách mã ZCode là trùng lặp (status → duplicate). Bỏ qua mã đã SUCCESS."
+              }
+            }
+          ]
+        },
+        {
+          "name": "External — Redeem API",
+          "description": "External API cho hệ thống B gọi redeem mã ZCode.\n\n**Auth:** X-API-Key header\n**IP Whitelist:** Required\n**Rate Limit:** 30 req/min per IP\n**Idempotency:** X-Idempotency-Key header (optional)",
+          "item": [
+            {
+              "name": "1. Redeem ZCode — Success",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{zcodeApiKey}}",
+                    "description": "API key — use zcodeApiKey env variable"
+                  },
+                  {
+                    "key": "X-Idempotency-Key",
+                    "value": "txn_{{$timestamp}}_{{$randomInt}}",
+                    "description": "(Optional) Unique ID to prevent duplicate processing"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Nạp mã ZCode thành công**\n\nGửi SKU và partialCode (phần PartB-PartC) để nạp mã.\n\n**Expected Response (200):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Redeem successful\",\n  \"data\": {\n    \"partA\": \"K9DV\",\n    \"sku\": \"ZB5000\"\n  }\n}\n```"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test('Response has partA', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.be.true;",
+                      "    pm.expect(jsonData.data).to.have.property('partA');",
+                      "    pm.expect(jsonData.data).to.have.property('sku');",
+                      "    console.log('Full code: ' + jsonData.data.partA + '-' + pm.request.body.raw.match(/\"partialCode\":\\s*\"([^\"]+)\"/)[1]);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Redeem ZCode — Idempotent Retry",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{zcodeApiKey}}",
+                    "description": "API key — use zcodeApiKey env variable"
+                  },
+                  {
+                    "key": "X-Idempotency-Key",
+                    "value": "txn_test_idempotent_001",
+                    "description": "Same key as a previous request — should return cached result"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Test Idempotency**\n\nGửi lại cùng `X-Idempotency-Key` đã xử lý.\n\n**Expected Response (200):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Redeem successful\",\n  \"data\": { \"partA\": \"K9DV\", \"sku\": \"ZB5000\" },\n  \"idempotent\": true\n}\n```"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test('Response has idempotent flag', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.idempotent).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3. Redeem ZCode — Invalid API Key",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "wrong_key_here",
+                    "description": "Intentionally wrong API key"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Test sai API key**\n\n**Expected Response (401):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Invalid or missing X-API-Key\",\n  \"code\": \"ZCODE_INVALID_API_KEY\"\n}\n```"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 401', function () {",
+                      "    pm.response.to.have.status(401);",
+                      "});",
+                      "",
+                      "pm.test('Error code is correct', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.be.false;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4. Redeem ZCode — Missing API Key",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Test không gửi API key**\n\n**Expected Response (401)**"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 401', function () {",
+                      "    pm.response.to.have.status(401);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "5. Redeem ZCode — Invalid SKU",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{zcodeApiKey}}",
+                    "description": "API key — use zcodeApiKey env variable"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Test SKU trống**\n\n**Expected Response (400):**\n```json\n{\n  \"success\": false,\n  \"message\": \"SKU không được để trống\"\n}\n```"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 400', function () {",
+                      "    pm.response.to.have.status(400);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6. Redeem ZCode — Code Not Found",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{zcodeApiKey}}",
+                    "description": "API key — use zcodeApiKey env variable"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"XXXX-YYYY\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Test mã không tồn tại**\n\n**Expected Response (404):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Code not found\",\n  \"code\": \"ZCODE_NOT_FOUND\"\n}\n```"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', function () {",
+                      "    pm.response.to.have.status(404);",
+                      "});",
+                      "",
+                      "pm.test('Error code is ZCODE_NOT_FOUND', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.code).to.eql('ZCODE_NOT_FOUND');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7. Redeem ZCode — Already Redeemed",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{zcodeApiKey}}",
+                    "description": "API key — use zcodeApiKey env variable"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"partialCode\": \"F3YP-R8MJ\"\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/redeem",
+                  "host": [
+                    "{{externalBaseUrl}}"
+                  ],
+                  "path": [
+                    "redeem"
+                  ]
+                },
+                "description": "**Test mã đã được nạp trước đó**\n\nGọi lại cùng partialCode đã redeem thành công (không có Idempotency-Key).\n\n**Expected Response (409):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Code already redeemed\",\n  \"code\": \"ZCODE_ALREADY_REDEEMED\"\n}\n```"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 409', function () {",
+                      "    pm.response.to.have.status(409);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }
