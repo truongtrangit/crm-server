@@ -25,7 +25,7 @@ async function setup() {
   await mongoose.connect(uri);
 
   // Seed RBAC (Roles + Permissions) — required for all permission checks
-  const { seedRbac } = require("../src/services/rbacSeed");
+  const { seedRbac } = require("../src/core/services/rbacSeed");
   await seedRbac();
 
   // Seed minimal fixture users

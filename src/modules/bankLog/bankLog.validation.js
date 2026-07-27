@@ -100,8 +100,26 @@ const ingestTransactionSchema = Joi.object({
   transactionDate: Joi.date().allow(null).default(null),
 }).options({ stripUnknown: false });
 
+// ─── ACB Webhook Transaction Schema ──────────────────────────────────────────
+
+const acbTransactionSchema = Joi.object({
+  txId: Joi.string().trim().required().messages({
+    'string.empty': 'Transaction ID không được để trống',
+    'any.required': 'Transaction ID là bắt buộc',
+  }),
+  amount: Joi.number().required().min(0).messages({
+    'number.base': 'Số tiền phải là số',
+    'number.min': 'Số tiền không được âm',
+    'any.required': 'Số tiền là bắt buộc',
+  }),
+  sender: Joi.string().trim().allow(null, '').default(null),
+  content: Joi.string().trim().allow(null, '').default(null),
+  transactionDate: Joi.date().allow(null).default(null),
+}).options({ stripUnknown: false });
+
 module.exports = {
   createRuleSchema,
   updateRuleSchema,
   ingestTransactionSchema,
+  acbTransactionSchema,
 };

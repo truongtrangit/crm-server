@@ -61,10 +61,23 @@ const zcodeRedeemLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const acbWebhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 300, // Max 300 webhook requests per minute per IP
+  message: {
+    success: false,
+    message: 'Too many webhook requests. Please try again after 1 minute.',
+    code: 'ACB_TOO_MANY_REQUESTS',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   voucherRedeemLimiter,
   qrGenerateLimiter,
   qrStatusLimiter,
   videoAccessLimiter,
   zcodeRedeemLimiter,
+  acbWebhookLimiter,
 };

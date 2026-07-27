@@ -1,4 +1,4 @@
-const ExternalApiLog = require('../../modules/zcode/externalApiLog.model');
+const ExternalApiLog = require('../models/externalApiLog.model');
 const logger = require('../utils/logger');
 
 /**

@@ -5,18 +5,11 @@ const {
   checkIdempotency,
 } = require('../../core/middleware/webhookAuth');
 const WebhookController = require('../../modules/system/webhook/webhook.controller');
-const BankLogController = require('../../modules/bankLog/bankLog.controller');
 
 const router = Router();
 
-// ─── Bank Log Webhook (own middleware — no IP/token check from CRM) ─────────
-// Bank transaction webhook chỉ cần idempotency check.
-// Auth sẽ do bank gateway (Casso/SePay) hoặc config riêng sau.
-router.post(
-  '/bank-transaction',
-  checkIdempotency,
-  BankLogController.ingestTransaction,
-);
+// ─── ACB Bank Webhook (own security — completely separate from CRM webhooks) ─
+router.use('/acb', require('./acbWebhook.routes'));
 
 // ─── CRM Webhook Security (áp dụng cho các route bên dưới) ─────────────────
 // 1. IP allowlist check (optional)

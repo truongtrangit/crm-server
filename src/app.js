@@ -91,6 +91,12 @@ app.use(
   }),
 );
 
+// ACB webhook cần raw body để verify HMAC signature — mount trước express.json() global
+app.use('/api/v1/webhooks/acb', express.json({
+  limit: '100kb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
+
 app.use(express.json());
 app.use(requestLogger);
 

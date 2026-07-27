@@ -114,18 +114,27 @@ class BankLogService {
   async ingestTransaction(payload) {
     const id = await generateMonotonicId(ID_PREFIXES.BANK_LOG_TX);
 
-    const tx = await BankLogTransaction.create({
-      id,
-      txId: payload.txId,
-      bank: payload.bank,
-      sender: payload.sender || null,
-      amount: payload.amount,
-      content: payload.content || null,
-      transactionDate: payload.transactionDate || new Date(),
-      status: BANK_LOG_TX_STATUSES.PENDING,
-      rawPayload: payload,
-      createdBy: 'system',
-    });
+    let tx;
+    try {
+      tx = await BankLogTransaction.create({
+        id,
+        txId: payload.txId,
+        bank: payload.bank,
+        sender: payload.sender || null,
+        amount: payload.amount,
+        content: payload.content || null,
+        transactionDate: payload.transactionDate || new Date(),
+        status: BANK_LOG_TX_STATUSES.PENDING,
+        rawPayload: payload,
+        createdBy: 'system',
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        logger.info('Bank Log: Duplicate transaction ignored', { txId: payload.txId });
+        return { txId: payload.txId, status: 'DUPLICATE', message: 'Transaction already ingested' };
+      }
+      throw err;
+    }
 
     // Fire-and-forget: process in background
     this._processTransaction(tx).catch((err) =>

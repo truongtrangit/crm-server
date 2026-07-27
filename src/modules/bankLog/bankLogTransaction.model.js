@@ -34,7 +34,8 @@ const bankLogTransactionSchema = new mongoose.Schema(
 );
 
 bankLogTransactionSchema.index({ bank: 1, status: 1 });
-bankLogTransactionSchema.index({ transactionDate: -1 });
+bankLogTransactionSchema.index({ transactionDate: -1, createdAt: -1 });
 bankLogTransactionSchema.index({ status: 1 });
+bankLogTransactionSchema.index({ matchedRuleId: 1 });
 
 module.exports = mongoose.model('BankLogTransaction', bankLogTransactionSchema);

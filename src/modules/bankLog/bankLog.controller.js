@@ -5,7 +5,7 @@ const { RESOURCES } = require('../../core/constants/rbac');
 const {
   createRuleSchema,
   updateRuleSchema,
-  ingestTransactionSchema,
+  acbTransactionSchema,
 } = require('./bankLog.validation');
 
 class BankLogController {
@@ -122,15 +122,25 @@ class BankLogController {
     return sendSuccess(res, 200, 'Xóa quy tắc thành công', rule);
   }
 
-  // ─── Webhook Ingestion (Public) ───────────────────────────────────────────
+  // ─── ACB Webhook Ingestion (Secure) ────────────────────────────────────────
 
-  async ingestTransaction(req, res) {
-    const { error, value } = ingestTransactionSchema.validate(req.body);
+  async ingestAcbTransaction(req, res) {
+    const { error, value } = acbTransactionSchema.validate(req.body);
     if (error) throw createHttpError(400, error.details[0].message);
 
-    const result = await bankLogService.ingestTransaction(value);
+    // Map ACB fields → internal bank log format
+    const mapped = {
+      txId: value.txId,
+      bank: 'ACB',
+      sender: value.sender || null,
+      amount: value.amount,
+      content: value.content || null,
+      transactionDate: value.transactionDate || new Date(),
+    };
 
-    return sendSuccess(res, 200, 'Giao dịch đã được tiếp nhận', result);
+    const result = await bankLogService.ingestTransaction(mapped);
+
+    return sendSuccess(res, 200, 'Transaction received', result);
   }
 }
 
