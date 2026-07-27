@@ -39,6 +39,8 @@ const RESOURCES = {
   COURSES_SUBMISSIONS: "courses_submissions", // Nộp bài
   COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
   ZCODES: "zcodes", // Quản lý ZCode
+  BANK_LOGS: "bank_logs", // Bank Log transactions
+  BANK_LOG_RULES: "bank_log_rules", // Bank Log routing rules
 };
 
 // Actions
@@ -313,6 +315,14 @@ const PERMISSIONS = {
   ZCODES_UPDATE: `${RESOURCES.ZCODES}_${ACTIONS.UPDATE}`,
   ZCODES_DELETE: `${RESOURCES.ZCODES}_${ACTIONS.DELETE}`,
   ZCODES_MANAGE: `${RESOURCES.ZCODES}_${ACTIONS.MANAGE}`,
+
+  // Bank Log
+  BANK_LOGS_READ: `${RESOURCES.BANK_LOGS}_${ACTIONS.READ}`,
+  BANK_LOGS_CREATE: `${RESOURCES.BANK_LOGS}_${ACTIONS.CREATE}`,
+  BANK_LOGS_UPDATE: `${RESOURCES.BANK_LOGS}_${ACTIONS.UPDATE}`,
+  BANK_LOGS_DELETE: `${RESOURCES.BANK_LOGS}_${ACTIONS.DELETE}`,
+  BANK_LOGS_MANAGE: `${RESOURCES.BANK_LOGS}_${ACTIONS.MANAGE}`,
+  BANK_LOG_RULES_CONFIG: `${RESOURCES.BANK_LOG_RULES}_${ACTIONS.CONFIG}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -476,6 +486,8 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.JOBHUB_WORK_MANAGE,
     PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_MANAGE,
     PERMISSIONS.ZCODES_MANAGE,
+    PERMISSIONS.BANK_LOGS_MANAGE,
+    PERMISSIONS.BANK_LOG_RULES_CONFIG,
   ]),
 );
 
@@ -791,6 +803,22 @@ const MODULE_DEFINITIONS = {
     parentKey: "zcode",
     actions: ["view", "create", "edit", "delete", "export"],
   },
+
+  bankLog: { key: "bankLog", label: "Bank Log", type: "root", actions: [] },
+  "bankLog.transactions": {
+    key: "bankLog.transactions",
+    label: "Lịch sử giao dịch",
+    type: "sub",
+    parentKey: "bankLog",
+    actions: ["view", "create", "edit", "delete"],
+  },
+  "bankLog.rules": {
+    key: "bankLog.rules",
+    label: "Quy tắc định tuyến",
+    type: "sub",
+    parentKey: "bankLog",
+    actions: ["view", "create", "edit", "delete"],
+  },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
@@ -1036,6 +1064,18 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.ZCODES_UPDATE],
     delete: [PERMISSIONS.ZCODES_DELETE],
     export: [PERMISSIONS.ZCODES_READ],
+  },
+  "bankLog.transactions": {
+    view: [PERMISSIONS.BANK_LOGS_READ],
+    create: [PERMISSIONS.BANK_LOGS_CREATE],
+    edit: [PERMISSIONS.BANK_LOGS_UPDATE],
+    delete: [PERMISSIONS.BANK_LOGS_DELETE],
+  },
+  "bankLog.rules": {
+    view: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
+    create: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
+    edit: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
+    delete: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
   },
 };
 

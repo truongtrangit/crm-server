@@ -50,6 +50,14 @@ const env = {
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',
   enableHttpRetry: process.env.ENABLE_HTTP_RETRY === 'true',
 
+  // ─── ACB Bank Webhook ─────────────────────────────────────────────────────────
+  acbWebhookApiKey: process.env.ACB_WEBHOOK_API_KEY || 'acb_webhook_key_change_in_production',
+  acbWebhookPublicKey: (
+    process.env.ACB_WEBHOOK_PUBLIC_KEY ||
+    `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAaUNy72LCX+ZLQv3PjVTNDDh1Qzih6o3XKxXLyWMF9hU=\n-----END PUBLIC KEY-----`
+  ).replace(/\\n/g, '\n'),
+  acbWebhookAllowedIps: process.env.ACB_WEBHOOK_ALLOWED_IPS || '', // comma-separated, '0.0.0.0' = allow all
+
   // ─── Smax Ai ─────────────────────────────────────────────────────────────────
   smaxCreditValidationUrl:
     process.env.SMAX_CREDIT_VALIDATION_URL ||

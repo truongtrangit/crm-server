@@ -7,7 +7,7 @@
 const mongoose = require("mongoose");
 const { connectDatabase } = require("../src/config/database");
 const { seedTestFixtures } = require("./utils/fixtures");
-const { seedRbac } = require("../src/services/rbacSeed");
+const { seedRbac } = require("../src/core/services/rbacSeed");
 const { clearTokenCache } = require("./utils/testHelpers");
 
 // Connect once per worker if not already connected

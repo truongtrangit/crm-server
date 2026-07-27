@@ -1,0 +1,635 @@
+{
+	"info": {
+		"_postman_id": "a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d",
+		"name": "ACB Webhook Integration Tests (Ed25519)",
+		"description": "Bộ Postman Collection đầy đủ nhất để test API Webhook ACB Ngân Hàng.\n\n### Tự Động Ký Ed25519 Signature & Timestamp\nMỗi request thành công đều được tích hợp **Pre-request Script** tự động sinh `X-Webhook-Timestamp` và `X-Webhook-Signature` (Ed25519 Asymmetric) trước khi gửi.\n\n### Yêu Cầu\n- **Postman Desktop** (không phải Web) vì cần `require('crypto')` trong Pre-request Script.\n- Hoặc dùng **Newman CLI** để chạy Collection qua terminal.\n\n### Cách Dùng\n1. Import file JSON này vào Postman.\n2. Đảm bảo Collection Variables `acbEd25519PrivateKey` chứa Private Key PEM khớp với Public Key trên server.\n3. Nhấn Send từng request, hoặc Run Collection để chạy tất cả.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:4000/api/v1/webhooks/acb",
+			"type": "string"
+		},
+		{
+			"key": "acbApiKey",
+			"value": "acb_webhook_key_change_in_production",
+			"type": "string"
+		},
+		{
+			"key": "acbEd25519PrivateKey",
+			"value": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIFmH1zibkgDF3UKSB88db1kkYCfCZpeZkRjmBheH/8bE\n-----END PRIVATE KEY-----",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Success Cases",
+			"item": [
+				{
+					"name": "1.1 Webhook Transaction - Success (200 OK)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// ─── Auto-generate unique txId and sign with Ed25519 ───",
+									"const crypto = require('crypto');",
+									"",
+									"const randomId = Math.floor(Math.random() * 100000);",
+									"const txId = 'ACB' + Date.now() + randomId;",
+									"",
+									"const bodyObj = {",
+									"  txId: txId,",
+									"  amount: 5000000,",
+									"  sender: 'NGUYEN VAN A',",
+									"  content: 'Thanh toan don hang DH' + randomId,",
+									"  transactionDate: new Date().toISOString()",
+									"};",
+									"",
+									"const bodyRaw = JSON.stringify(bodyObj);",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"// ─── Ed25519 Signing ───",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(timestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"const signature = 'ed25519=' + signatureHex;",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: signature });",
+									"",
+									"console.log('✅ txId:', txId);",
+									"console.log('✅ timestamp:', timestamp);",
+									"console.log('✅ signature:', signature.substring(0, 30) + '...');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success=true and data.txId', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"    pm.expect(json.data).to.have.property('id');",
+									"    pm.expect(json.data).to.have.property('txId');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "X-Webhook-Signature", "value": "auto-generated-by-script" },
+							{ "key": "X-Webhook-Timestamp", "value": "auto-generated-by-script" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"txId\":\"placeholder\",\"amount\":5000000}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Gửi giao dịch mới hợp lệ từ ACB.\n\n**Tự động:**\n- Sinh `txId` duy nhất\n- Ký Ed25519 signature từ `acbEd25519PrivateKey`\n- Gán `X-Webhook-Timestamp` và `X-Webhook-Signature`\n\n**Expected:** 200 OK với `data.id` và `data.txId`"
+					}
+				},
+				{
+					"name": "1.2 Webhook Transaction - Duplicate TxId (200 DUPLICATE)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// ─── Gửi lại cùng 1 txId cố định để test Idempotency ───",
+									"const crypto = require('crypto');",
+									"",
+									"const bodyObj = {",
+									"  txId: 'ACB_FIXED_TEST_DUPLICATE_001',",
+									"  amount: 1000000,",
+									"  sender: 'TRAN VAN B',",
+									"  content: 'Chuyen khoan trung lap',",
+									"  transactionDate: new Date().toISOString()",
+									"};",
+									"",
+									"const bodyRaw = JSON.stringify(bodyObj);",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"// ─── Ed25519 Signing ───",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(timestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK (idempotent)', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Handled idempotently without 500 error', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "X-Webhook-Signature", "value": "auto-generated-by-script" },
+							{ "key": "X-Webhook-Timestamp", "value": "auto-generated-by-script" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Test tính Idempotency khi gửi trùng `txId`.\n\n**Cách test:**\n1. Nhấn Send lần 1 → 200 OK (tạo mới)\n2. Nhấn Send lần 2 → 200 OK (duplicate, không crash 500)\n\n**Expected:** HTTP 200, `success: true`"
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Security & Error Cases",
+			"item": [
+				{
+					"name": "2.1 Invalid Content-Type (415)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 415 Unsupported Media Type', function () {",
+									"    pm.response.to.have.status(415);",
+									"});",
+									"",
+									"pm.test('Error code is ACB_INVALID_CONTENT_TYPE', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.code).to.eql('ACB_INVALID_CONTENT_TYPE');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "text/plain" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "invalid content type body"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test từ chối Content-Type không phải `application/json`.\n\n**Kỳ vọng:** 415 Unsupported Media Type, code `ACB_INVALID_CONTENT_TYPE`"
+					}
+				},
+				{
+					"name": "2.2 Invalid API Key (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ký signature hợp lệ, chỉ sai API key",
+									"const crypto = require('crypto');",
+									"",
+									"const bodyRaw = JSON.stringify({ txId: 'TX_INVALID_KEY_' + Date.now(), amount: 1000 });",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(timestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Error code is ACB_INVALID_API_KEY', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.code).to.eql('ACB_INVALID_API_KEY');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "WRONG_API_KEY_12345678901234567890123456" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test sai `X-API-Key`.\n\n**Chi tiết:** Signature vẫn ký đúng bằng Ed25519, nhưng API key sai.\n\n**Kỳ vọng:** 401 Unauthorized, code `ACB_INVALID_API_KEY`\n\n**⚠️ Lưu ý:** Mỗi lần test sai API key tính 1 auth failure. Sau 5 lần trong 10 phút → IP bị block 30 phút!"
+					}
+				},
+				{
+					"name": "2.3 Invalid Ed25519 Signature (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Gửi signature giả (không đúng Ed25519)",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"const bodyRaw = JSON.stringify({ txId: 'ACB_BAD_SIG_' + Date.now(), amount: 100000 });",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"// Signature giả 128 ký tự hex (64 bytes) — không phải Ed25519 hợp lệ",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + 'ff'.repeat(64) });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Error code is ACB_INVALID_SIGNATURE', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.code).to.eql('ACB_INVALID_SIGNATURE');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"txId\":\"ACB_BAD_SIG_001\",\"amount\":100000}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test signature Ed25519 không hợp lệ.\n\n**Chi tiết:** Gửi 128 ký tự hex giả thay vì Ed25519 signature thật.\n\n**Kỳ vọng:** 401 Unauthorized, code `ACB_INVALID_SIGNATURE`"
+					}
+				},
+				{
+					"name": "2.4 Expired Timestamp (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ký đúng Ed25519 nhưng timestamp từ 10 phút trước (> 5 phút drift limit)",
+									"const crypto = require('crypto');",
+									"",
+									"const bodyRaw = JSON.stringify({ txId: 'TX_EXPIRED_' + Date.now(), amount: 1000 });",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"// Timestamp 10 phút trước = 600 giây",
+									"const expiredTimestamp = (Math.floor(Date.now() / 1000) - 600).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(expiredTimestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: expiredTimestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });",
+									"",
+									"console.log('⏰ Expired timestamp:', expiredTimestamp, '(10 phút trước)');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Error code is ACB_TIMESTAMP_EXPIRED', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.code).to.eql('ACB_TIMESTAMP_EXPIRED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test timestamp quá hạn 5 phút.\n\n**Chi tiết:** Signature ký đúng bằng Ed25519, nhưng timestamp là 10 phút trước.\nServer reject vì `|now - timestamp| > 300 giây`.\n\n**Kỳ vọng:** 401 Unauthorized, code `ACB_TIMESTAMP_EXPIRED`"
+					}
+				},
+				{
+					"name": "2.5 Missing Signature Headers (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Error code is ACB_MISSING_SIGNATURE', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.code).to.eql('ACB_MISSING_SIGNATURE');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"txId\":\"TX_NO_SIG\",\"amount\":1000}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu cả 2 header `X-Webhook-Signature` và `X-Webhook-Timestamp`.\n\n**Kỳ vọng:** 401 Unauthorized, code `ACB_MISSING_SIGNATURE`"
+					}
+				},
+				{
+					"name": "2.6 Replay Attack (401) — Send TWICE",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// ─── Replay Attack Test ───",
+									"// Lần 1: Ký hợp lệ → 200 OK (hoặc 401 nếu là lần 2+)",
+									"// Lần 2: Cùng signature → 401 ACB_REPLAY_DETECTED",
+									"//",
+									"// CÁCH TEST: Nhấn Send 2 LẦN LIÊN TIẾP THẬT NHANH.",
+									"// Lần 1 sẽ pass, lần 2 sẽ bị reject.",
+									"const crypto = require('crypto');",
+									"",
+									"// Dùng txId cố định để isolate test replay (không bị trùng txId)",
+									"const bodyRaw = JSON.stringify({ txId: 'REPLAY_TEST_' + Date.now(), amount: 500000 });",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"// Dùng timestamp CỐ ĐỊNH trong 1 phiên test để signature giống nhau",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(timestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });",
+									"",
+									"console.log('🔄 Replay test — nhấn Send 2 lần liên tiếp để test');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Lần 1: 200 OK, Lần 2: 401 REPLAY",
+									"const status = pm.response.code;",
+									"",
+									"if (status === 200) {",
+									"    pm.test('Lần 1: Transaction accepted (200 OK)', function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"    console.log('➡️ Nhấn Send LẦN 2 ngay để test replay detection!');",
+									"} else {",
+									"    pm.test('Lần 2+: Replay detected (401)', function () {",
+									"        pm.response.to.have.status(401);",
+									"    });",
+									"    pm.test('Error code is ACB_REPLAY_DETECTED', function () {",
+									"        const json = pm.response.json();",
+									"        pm.expect(json.code).to.eql('ACB_REPLAY_DETECTED');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test chống Replay Attack.\n\n**Cách test:**\n1. Nhấn **Send lần 1** → 200 OK (giao dịch được chấp nhận)\n2. Nhấn **Send lần 2 NGAY LẬP TỨC** → 401 `ACB_REPLAY_DETECTED`\n\n**Lý do:** Server lưu mỗi signature đã dùng. Cùng 1 signature không thể gửi lại lần thứ 2.\n\n**⚠️ Lưu ý:** Pre-request Script tạo timestamp/signature MỚI mỗi lần Send. Để test replay, cần gửi nhanh trước khi timestamp thay đổi (cùng giây)."
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Validation Cases",
+			"item": [
+				{
+					"name": "3.1 Missing txId (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const crypto = require('crypto');",
+									"",
+									"// Body không có txId",
+									"const bodyRaw = JSON.stringify({ amount: 5000000, sender: 'TEST' });",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(timestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400 Bad Request', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu trường `txId` bắt buộc.\n\n**Kỳ vọng:** 400 Bad Request"
+					}
+				},
+				{
+					"name": "3.2 Missing amount (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const crypto = require('crypto');",
+									"",
+									"// Body không có amount",
+									"const bodyRaw = JSON.stringify({ txId: 'TX_NO_AMOUNT_' + Date.now() });",
+									"pm.request.body.update({ mode: 'raw', raw: bodyRaw });",
+									"",
+									"const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');",
+									"const timestamp = Math.floor(Date.now() / 1000).toString();",
+									"",
+									"const signedPayload = Buffer.concat([Buffer.from(timestamp + '.'), Buffer.from(bodyRaw)]);",
+									"const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');",
+									"",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });",
+									"pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400 Bad Request', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu trường `amount` bắt buộc.\n\n**Kỳ vọng:** 400 Bad Request"
+					}
+				}
+			]
+		}
+	]
+}
