@@ -373,19 +373,28 @@ ACB_WEBHOOK_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAaUNy72LCX+ZL
 - **Postman Desktop App** (không phải Postman Web) — cần `require('crypto')` trong Pre-request Script.
 - Hoặc dùng **Newman CLI** để chạy qua terminal.
 
-### 1. Import Collection
+### 1. Import Collection & Environment Files
 
 1. Mở **Postman Desktop**.
-2. Chọn **Import** → Kéo thả file `docs/ACB_Webhook_Postman_Collection.json`.
-3. Kiểm tra **Collection Variables** (tab Variables):
+2. Chọn **Import** → Kéo thả file Collection: `docs/ACB_Webhook_Postman_Collection.json`.
+3. Kéo thả các file Environment tương ứng với 3 môi trường:
+   - 🏠 **Local**: `docs/CRM_Local.postman_environment.json`
+   - 🧪 **Dev / Staging**: `docs/CRM_Dev.postman_environment.json`
+   - 🚀 **Production**: `docs/CRM_Prod.postman_environment.json`
 
-| Variable | Giá trị mặc định | Mô tả |
-|----------|------------------|-------|
-| `baseUrl` | `http://localhost:4000/api/v1/webhooks/acb` | URL server |
-| `acbApiKey` | `acb_webhook_key_change_in_production` | API Key |
-| `acbEd25519PrivateKey` | `-----BEGIN PRIVATE KEY-----\nMC4C...` | Private Key PEM |
+### 2. Cấu Hình 3 Môi Trường (3 Environments)
 
-### 2. Cơ Chế Tự Động Ký Ed25519 Trong Postman
+Chọn môi trường trong dropdown ở góc trên bên phải Postman:
+
+| Môi trường | File Config | `host` / Base URL | `acbApiKey` | `acbEd25519PrivateKey` |
+|------------|-------------|-------------------|-------------|------------------------|
+| **Local** | `CRM_Local` | `http://localhost:4000` | `acb_webhook_key_change_in_production` | Local Ed25519 Private Key PEM |
+| **Dev / Staging** | `CRM_Dev` | `https://crm-server-rvzz.onrender.com` | `acb_webhook_key_change_in_production` | Dev Ed25519 Private Key PEM |
+| **Production** | `CRM_Prod` | `https://final.vn` | `<Production API Key>` | `<Production Private Key PEM>` |
+
+> 💡 **Cơ chế ưu tiên:** Pre-request Script trong Collection sẽ ưu tiên lấy `acbApiKey` và `acbEd25519PrivateKey` từ **Environment active** (`pm.environment.get`). Nếu không chọn Environment nào, hệ thống tự động fallback về **Collection Variables** chuẩn Local.
+
+### 3. Cơ Chế Tự Động Ký Ed25519 Trong Postman
 
 Mọi test case đều tích hợp **Pre-request Script** tự động:
 
@@ -398,8 +407,8 @@ const bodyObj = { txId: 'ACB' + Date.now(), amount: 5000000 };
 const bodyRaw = JSON.stringify(bodyObj);
 pm.request.body.update({ mode: 'raw', raw: bodyRaw });
 
-// 2. Lấy Private Key từ Collection Variable
-const privateKeyPem = pm.collectionVariables.get('acbEd25519PrivateKey');
+// 2. Lấy Private Key từ Environment (ưu tiên) hoặc Collection Variable (fallback)
+const privateKeyPem = pm.environment.get('acbEd25519PrivateKey') || pm.collectionVariables.get('acbEd25519PrivateKey');
 const timestamp = Math.floor(Date.now() / 1000).toString();
 
 // 3. Tạo signed payload = "timestamp.rawBody"
