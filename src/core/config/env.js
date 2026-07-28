@@ -52,11 +52,11 @@ const env = {
 
   // ─── ACB Bank Webhook ─────────────────────────────────────────────────────────
   acbWebhookApiKey: process.env.ACB_WEBHOOK_API_KEY || 'acb_webhook_key_change_in_production',
-  acbWebhookPublicKey: (
-    process.env.ACB_WEBHOOK_PUBLIC_KEY ||
-    `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAaUNy72LCX+ZLQv3PjVTNDDh1Qzih6o3XKxXLyWMF9hU=\n-----END PUBLIC KEY-----`
-  ).replace(/\\n/g, '\n'),
-  acbWebhookAllowedIps: process.env.ACB_WEBHOOK_ALLOWED_IPS || '', // comma-separated, '0.0.0.0' = allow all
+  acbWebhookSecretKey: process.env.ACB_WEBHOOK_SECRET_KEY || 'acb_secret_key_change_in_production', // VIK tạo & cung cấp cho ACB (ACB gọi là "secret_key")
+  acbWebhookBankKey: process.env.ACB_WEBHOOK_BANK_KEY || 'acb_bank_key_change_in_production', // ACB tạo & cung cấp cho VIK (ACB gọi là "server_key")
+  acbWebhookChecksumHeader: process.env.ACB_WEBHOOK_CHECKSUM_HEADER || 'signature', // Tên header chứa checksum
+  acbWebhookChecksumAlgorithm: process.env.ACB_WEBHOOK_CHECKSUM_ALGORITHM || 'SHA256', // SHA1, SHA256, SHA512, MD5
+  acbWebhookAllowedIps: process.env.ACB_WEBHOOK_ALLOWED_IPS || '', // comma-separated, supports CIDR, '0.0.0.0' = allow all
 
   // ─── Smax Ai ─────────────────────────────────────────────────────────────────
   smaxCreditValidationUrl:

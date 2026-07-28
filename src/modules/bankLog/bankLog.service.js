@@ -3,7 +3,7 @@ const BankLogRoutingRule = require('./bankLogRoutingRule.model');
 const User = require('../system/user/user.model');
 const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
-const { generateMonotonicId, ID_PREFIXES } = require('../../core/utils/id');
+const { generateMonotonicId, generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
 const { BANK_LOG_TX_STATUSES, BANK_LOG_AUTH_TYPES } = require('../../core/constants/bankLog');
 const { escapeRegex } = require('../../core/utils/query');
 const CacheService = require('../../core/services/CacheService');
@@ -124,6 +124,13 @@ class BankLogService {
         amount: payload.amount,
         content: payload.content || null,
         transactionDate: payload.transactionDate || new Date(),
+        // ACB-specific fields (null for non-ACB sources)
+        debitOrCredit: payload.debitOrCredit || null,
+        accountNumber: payload.accountNumber || null,
+        transactionChannel: payload.transactionChannel || null,
+        acbTransactionCode: payload.acbTransactionCode || null,
+        acbClientRequestId: payload.acbClientRequestId || null,
+        effectiveDate: payload.effectiveDate || null,
         status: BANK_LOG_TX_STATUSES.PENDING,
         rawPayload: payload,
         createdBy: 'system',
@@ -145,6 +152,110 @@ class BankLogService {
     );
 
     return { id: tx.id, txId: tx.txId, status: tx.status };
+  }
+
+  /**
+   * Ingest batch of transactions from ACB webhook.
+   * Maps ACB transaction fields → internal BankLogTransaction format.
+   *
+   * Optimized for performance & atomicity:
+   *   - Batch ID generation: 1 DB call (generateMonotonicIdsBatch)
+   *   - Bulk insert: 1 DB call (insertMany, ordered: false)
+   *   - Duplicates silently skipped (dedup by txId unique index)
+   *   - Background processing: single rules fetch, parallel fire-and-forget
+   *
+   * ACB doesn't provide a unique txId, so we generate a composite key:
+   *   `ACB-{accountNumber}-{transactionCode}-{transactionDate}-{amount}`
+   *
+   * @param {Array} acbTransactions - Array of ACB transaction objects
+   * @param {string} clientRequestId - ACB's clientRequestId for dedup tracking
+   * @returns {Array} Array of ingestion results
+   */
+  async ingestAcbBatch(acbTransactions, clientRequestId) {
+    const count = acbTransactions.length;
+    if (count === 0) return [];
+
+    // 1 DB call: batch generate all IDs atomically
+    const ids = await generateMonotonicIdsBatch(ID_PREFIXES.BANK_LOG_TX, count);
+
+    // Map ACB fields → internal documents
+    const docs = acbTransactions.map((acbTx, i) => {
+      const txId = `ACB-${acbTx.accountNumber}-${acbTx.transactionCode || 0}-${acbTx.transactionDate}-${acbTx.amount}`;
+      return {
+        id: ids[i],
+        txId,
+        bank: 'ACB',
+        sender: acbTx.transactionEntityAttribute?.remitterName || null,
+        amount: acbTx.amount,
+        content: acbTx.transactionContent || null,
+        transactionDate: acbTx.transactionDate ? new Date(acbTx.transactionDate) : new Date(),
+        debitOrCredit: acbTx.debitOrCredit,
+        accountNumber: String(acbTx.accountNumber),
+        transactionChannel: acbTx.transactionChannel || null,
+        acbTransactionCode: acbTx.transactionCode || null,
+        acbTransactionStatus: acbTx.transactionStatus || null,
+        acbClientRequestId: clientRequestId,
+        effectiveDate: acbTx.effectiveDate ? new Date(acbTx.effectiveDate) : null,
+        status: BANK_LOG_TX_STATUSES.PENDING,
+        rawPayload: acbTx,
+        createdBy: 'system',
+      };
+    });
+
+    // 1 DB call: bulk insert, ordered:false → skip duplicates, don't fail batch
+    let insertedDocs = [];
+    try {
+      const result = await BankLogTransaction.insertMany(docs, { ordered: false });
+      insertedDocs = result;
+    } catch (err) {
+      // BulkWriteError: some inserts succeeded, some were duplicates
+      if (err.code === 11000 || err.name === 'MongoBulkWriteError') {
+        // insertedDocs = successfully written documents
+        insertedDocs = err.insertedDocs || [];
+        const dupCount = count - insertedDocs.length;
+        if (dupCount > 0) {
+          logger.info('Bank Log: ACB batch duplicates skipped', {
+            total: count,
+            inserted: insertedDocs.length,
+            duplicates: dupCount,
+            clientRequestId,
+          });
+        }
+      } else {
+        throw err;
+      }
+    }
+
+    // Fire-and-forget: process all new transactions in background
+    // Pre-fetch rules once for all transactions
+    if (insertedDocs.length > 0) {
+      this._getActiveRules()
+        .then((rules) => {
+          for (const tx of insertedDocs) {
+            this._processTransaction(tx, rules).catch((processErr) =>
+              logger.error('Bank Log: Background processing failed', {
+                txId: tx.txId,
+                error: processErr.message,
+              }),
+            );
+          }
+        })
+        .catch((rulesErr) => {
+          logger.error('Bank Log: Failed to fetch rules for batch processing', {
+            clientRequestId,
+            error: rulesErr.message,
+          });
+        });
+    }
+
+    // Build results: inserted + duplicates
+    const insertedTxIds = new Set(insertedDocs.map((d) => d.txId));
+    return docs.map((doc) => {
+      if (insertedTxIds.has(doc.txId)) {
+        return { id: doc.id, txId: doc.txId, status: doc.status };
+      }
+      return { txId: doc.txId, status: 'DUPLICATE', message: 'Transaction already ingested' };
+    });
   }
 
   async retryTransaction(id) {
@@ -334,13 +445,18 @@ class BankLogService {
     }
   }
 
-  // ─── Internal: Background Processing ──────────────────────────────────────
-
-  async _processTransaction(tx) {
+  /**
+   * Process a single transaction: evaluate rules → forward to target API.
+   * @param {Object} tx - BankLogTransaction document
+   * @param {Array} [rules] - Optional pre-fetched rules (avoids redundant DB call in batch)
+   */
+  async _processTransaction(tx, rules) {
     const startTime = Date.now();
 
     try {
-      const rules = await this._getActiveRules();
+      if (!rules) {
+        rules = await this._getActiveRules();
+      }
 
       // Find first matching rule (by priority)
       const matchedRule = this._evaluateRules(tx, rules);

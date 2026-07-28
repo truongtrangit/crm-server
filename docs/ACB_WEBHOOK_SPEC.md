@@ -1,6 +1,6 @@
 # ACB Bank Webhook — Tài Liệu Tích Hợp (Integration Spec)
 
-> **Version:** 2.0 (Ed25519 Asymmetric Signing)
+> **Version:** 3.0 (SHA256 Checksum)
 > **Prod Base URL:** `https://final.vn/api/v1/webhooks/acb`
 > **Dev Base URL:** `https://crm-server-rvzz.onrender.com/api/v1/webhooks/acb`
 > **Content-Type:** `application/json`
@@ -9,13 +9,13 @@
 
 ## Tổng Quan
 
-API webhook cho ACB gửi thông tin giao dịch ngân hàng sang CRM Server. ACB gọi endpoint này mỗi khi có giao dịch mới.
+API webhook cho ACB gửi thông báo biến động giao dịch (Credit / Debit) sang CRM Server (VIK). ACB gọi endpoint này mỗi khi có giao dịch mới phát sinh trên tài khoản đã đăng ký.
 
 ### Luồng Tích Hợp
 
 ```text
 ┌──────────────┐     ┌──────────────┐
-│ ACB Server   │     │ CRM Server   │
+│ ACB Server   │     │ VIK Server   │
 │ (Bank)       │     │ (Webhook)    │
 └──────┬───────┘     └──────┬───────┘
        │                    │
@@ -23,22 +23,25 @@ API webhook cho ACB gửi thông tin giao dịch ngân hàng sang CRM Server. AC
        │  /transaction      │
        │  Headers:          │
        │    X-API-Key       │
-       │    X-Webhook-      │
-       │    Signature       │
-       │    X-Webhook-      │
-       │    Timestamp       │
+       │    signature       │
+       │  Body:             │
+       │    { masterMeta,   │
+       │      requests[] }  │
        │───────────────────>│
        │                    │  2. Verify:
        │                    │     - Content-Type
-       │                    │     - IP Allowlist
+       │                    │     - IP Allowlist (CIDR)
        │                    │     - Brute-force check
        │                    │     - API Key (timing-safe)
-       │                    │     - Ed25519 Signature
-       │                    │     - Timestamp ±5 min
-       │                    │     - Replay nonce
+       │                    │     - SHA256 Checksum
+       │                    │     - clientRequestId dedup
        │                    │
        │  3. Response       │
        │  200 OK            │
+       │  { timestamp,      │
+       │    responseCode,   │
+       │    message,        │
+       │    responseBody }  │
        │<───────────────────│
        │                    │
 ```
@@ -46,11 +49,12 @@ API webhook cho ACB gửi thông tin giao dịch ngân hàng sang CRM Server. AC
 ### Security Pipeline (Thứ Tự Xác Thực)
 
 ```text
-Request → enforceJsonContentType (415)
-        → checkAcbIpAllowlist    (403)
-        → checkAcbBruteForce     (403)
-        → verifyAcbApiKey        (401)
-        → verifyAcbWebhookSignature (401)
+Request → enforceJsonContentType  (415)
+        → checkAcbIpAllowlist     (403) — CIDR support
+        → checkAcbBruteForce      (403)
+        → verifyAcbApiKey         (401) — X-API-Key
+        → verifyAcbChecksum       (401) — SHA256(body + secretKey + bankKey)
+        → checkAcbRequestIdDedup  (200) — idempotent dedup
         → Controller/Service
 ```
 
@@ -58,79 +62,116 @@ Mỗi layer reject sẽ dừng pipeline ngay — request không qua được lay
 
 ---
 
+## Thông Tin Cần Chuẩn Bị
+
+### VIK Cung Cấp Cho ACB
+
+| # | Thông tin | Giá trị | Ghi chú |
+|---|-----------|---------|---------|
+| 1 | **Callback URL** | `https://final.vn/api/v1/webhooks/acb/transaction` | Endpoint nhận thông báo giao dịch |
+| 2 | **IP tĩnh** | *(VIK cung cấp IP tĩnh của server)* | ACB cần để cấu hình |
+| 3 | **Phương thức xác thực** | **API Key** | |
+| 4 | **Tên Header API Key** | `X-API-Key` | |
+| 5 | **Giá trị API Key** | *(Sinh production key)* | Chia sẻ qua kênh bảo mật |
+| 6 | **Secret Key** | *(Sinh bằng script)* | VIK tạo & cung cấp cho ACB (ACB gọi là `secret_key`) |
+| 7 | **Thuật toán Checksum** | `SHA256` | |
+
+### ACB Cung Cấp Cho VIK
+
+| # | Thông tin | Ghi chú |
+|---|-----------|---------|
+| 1 | **Bank Key** | ACB tạo & cung cấp cho VIK (ACB gọi là `server_key`) |
+| 2 | **Danh sách IP callback** | Đã nhận — 14 IP/CIDR ranges |
+
+### Sinh Keys
+
+```bash
+# Sinh API Key + Secret Key cho ACB
+node src/scripts/generateAcbWebhookKeys.js
+```
+
+---
+
 ## Authentication
 
-### Bước 1: API Key
+### 1. API Key
 
-Mọi request phải gửi kèm header `X-API-Key`:
+Mọi request từ ACB phải gửi kèm header `X-API-Key`:
 
 ```
-X-API-Key: <api_key_do_CRM_cấp>
+X-API-Key: <api_key_do_VIK_cấp>
 ```
 
 Server so sánh API key bằng **timing-safe comparison** (`crypto.timingSafeEqual`) để ngăn timing attack.
 
-### Bước 2: Webhook Signature (Ed25519 Asymmetric Signing)
+### 2. SHA256 Checksum
 
-Mỗi request phải được **ký bằng Ed25519 Private Key** (phía ACB giữ) để đảm bảo:
-- **Non-repudiation:** Request thực sự đến từ ACB (chống chối bỏ)
-- **Integrity:** Payload chưa bị chỉnh sửa trên đường truyền
-- **Zero-trust:** CRM Server chỉ lưu **Public Key** — ngay cả khi leak cấu hình server, attacker không thể giả mạo signature
+ACB gửi checksum trong header `signature` để đảm bảo tính toàn vẹn dữ liệu.
 
-#### Quy Tắc
+#### Cấu hình Checksum
 
-| Đặc tính | Chi tiết |
-|----------|---------|
-| Algorithm | **Ed25519** (PureEd25519 / Curve25519) |
-| Private Key Format | PKCS8 PEM — Do ACB lưu trữ bí mật dùng để **KÝ** |
-| Public Key Format | SPKI PEM — Do CRM Server lưu trữ trong `ACB_WEBHOOK_PUBLIC_KEY` dùng để **XÁC MINH** |
-| Signature Header | `X-Webhook-Signature: ed25519=<hex_digest>` |
-| Signature Length | 128 ký tự hex (= 64 bytes raw) |
-| Timestamp Header | `X-Webhook-Timestamp: <unix_seconds>` |
-| Timestamp Tolerance | ±5 phút — request cũ hơn 5 phút sẽ bị reject |
-| Replay Protection | Mỗi signature chỉ dùng được **1 lần** — gửi lại cùng signature sẽ bị reject |
-
-#### Cách Tính Signature — Từng Bước
-
-```text
-Bước 1: Lấy timestamp hiện tại (Unix seconds)
-        → timestamp = Math.floor(Date.now() / 1000)
-        → Ví dụ: 1753612800
-
-Bước 2: Lấy raw JSON body (CHƯA parse, CHƯA format lại, giữ nguyên bytes)
-        → Ví dụ: {"txId":"ACB20260727001234","amount":5000000}
-
-Bước 3: Ghép payload bằng dấu chấm "."
-        → signed_payload = "<timestamp>.<raw_body>"
-        → Ví dụ: "1753612800.{"txId":"ACB20260727001234","amount":5000000}"
-
-Bước 4: Ký payload bằng Ed25519 Private Key
-        → signature_bytes = Ed25519_Sign(private_key, signed_payload_bytes)
-
-Bước 5: Chuyển signature sang hex string
-        → signature_hex = signature_bytes.toString('hex')
-        → Ví dụ: "a1b2c3d4e5f6....(128 ký tự hex)"
-
-Bước 6: Gửi 2 header:
-        → X-Webhook-Timestamp: 1753612800
-        → X-Webhook-Signature: ed25519=a1b2c3d4e5f6....(128 ký tự hex)
+```json
+{
+  "encrypt_config": {
+    "secret_key": "<Secret Key — VIK tạo & cung cấp cho ACB>",
+    "server_key": "<Bank Key — ACB tạo & cung cấp cho VIK>",
+    "header_key": "signature",
+    "algorithm": "SHA256"
+  }
+}
 ```
 
-> ⚠️ **Quan trọng:** `signed_payload` phải là Buffer concatenation: `Buffer.concat([Buffer.from(timestamp + '.'), rawBodyBuffer])` — KHÔNG phải string concatenation đơn thuần. Điều này đảm bảo raw body giữ nguyên byte encoding.
+#### Cách Tính Checksum
 
-### Bước 3: Content-Type (Bắt Buộc)
+```text
+Bước 1: Lấy raw JSON body (nguyên bytes, chưa parse, chưa format lại)
+        → Ví dụ: {"masterMeta":{"clientId":"abc","clientRequestId":"123","checksum":"xxx"},...}
 
-Mọi request **bắt buộc** gửi header:
+Bước 2: Nối chuỗi: RequestBody + SecretKey + BankKey
+        → data = rawBody + "acb_secret_key_xxx" + "acb_bank_key_yyy"
+
+Bước 3: Hash bằng SHA256
+        → checksum = SHA256(data).toLowerCase()
+
+Bước 4: Gửi trong header:
+        → signature: <checksum_value>
+```
+
+#### Ví Dụ Tính Checksum (Node.js)
+
+```javascript
+const crypto = require('crypto');
+
+const rawBody = '{"masterMeta":{"clientId":"abc","clientRequestId":"123","checksum":"xxx"},...}';
+const secretKey = 'acb_secret_key_xxx'; // VIK tạo & cung cấp cho ACB
+const bankKey = 'acb_bank_key_yyy'; // ACB tạo & cung cấp cho VIK
+
+const checksum = crypto
+  .createHash('sha256')
+  .update(rawBody + secretKey + bankKey)
+  .digest('hex');
+
+console.log(checksum);
+// → "a1b2c3d4e5f6..." (64 ký tự hex)
+```
+
+### 3. Content-Type (Bắt Buộc)
 
 ```
 Content-Type: application/json
 ```
 
-Request với Content-Type khác (XML, form-data, text/plain, ...) sẽ bị reject `415 Unsupported Media Type`.
+### 4. IP Allowlist
 
-### Bước 4: IP Allowlist (Tùy Chọn)
+VIK đã cấu hình whitelist các IP/CIDR sau từ ACB:
 
-Nếu ACB cung cấp được danh sách IP tĩnh, CRM sẽ cấu hình whitelist. Các request từ IP ngoài whitelist sẽ bị reject 403.
+```
+123.30.82.230/32, 123.30.83.216/29, 123.30.82.230/30,
+118.69.221.86/32, 118.69.223.64/27, 118.69.221.86/30,
+182.237.20.246/32, 182.237.22.176/28, 103.136.114.154/30,
+14.238.112.16/29, 120.72.112.202/30, 171.224.107.24/29,
+202.59.252.168, 202.59.252.169
+```
 
 ---
 
@@ -144,98 +185,227 @@ Nếu ACB cung cấp được danh sách IP tĩnh, CRM sẽ cấu hình whitelis
 | Max requests | 300 request/min/IP |
 | Headers trả về | `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` |
 
-Khi vượt quá limit, API trả về HTTP `429 Too Many Requests`.
-
 ### Brute-force Auto-block
 
 | Thông số | Giá trị |
 |----------|---------|
-| Ngưỡng | 5 lần auth fail (sai API key hoặc signature) |
+| Ngưỡng | 5 lần auth fail (sai API key hoặc checksum) |
 | Trong | 10 phút |
 | Hậu quả | IP bị block **30 phút**, mọi request trả 403 |
-
-> ⚠️ **Lưu ý quan trọng:** Nếu đang tích hợp và gặp lỗi 403 liên tục, có thể IP đã bị auto-block. Hãy đợi 30 phút hoặc liên hệ admin CRM để unblock.
 
 ---
 
 ## Endpoint
 
-### `POST /transaction` — Gửi Giao Dịch
+### `POST /transaction` — Gửi Thông Báo Giao Dịch
 
 #### Request
 
 ```http
 POST /api/v1/webhooks/acb/transaction
 Content-Type: application/json
-X-API-Key: acb_webhook_key_change_in_production
-X-Webhook-Signature: ed25519=a1b2c3d4e5f6...(128 hex chars)
-X-Webhook-Timestamp: 1753612800
+X-API-Key: <api_key_do_VIK_cấp>
+signature: <checksum_SHA256>
 ```
 
-**Body:**
-
-| Field | Type | Required | Mô tả |
-|-------|------|----------|-------|
-| `txId` | string | ✅ | Mã giao dịch duy nhất từ ACB |
-| `amount` | number | ✅ | Số tiền giao dịch (≥ 0) |
-| `sender` | string | ❌ | Tên người gửi |
-| `content` | string | ❌ | Nội dung chuyển khoản |
-| `transactionDate` | date | ❌ | Ngày giờ giao dịch (ISO 8601) |
+#### Request Body — Credit (Ghi Có)
 
 ```json
 {
-  "txId": "ACB20260727001234",
-  "amount": 5000000,
-  "sender": "NGUYEN VAN A",
-  "content": "Thanh toan don hang DH001",
-  "transactionDate": "2026-07-27T10:30:00.000Z"
+    "masterMeta": {
+        "clientId": "e1c935ed-2476-45d2-a2e3-e54254055f35",
+        "clientRequestId": "83104a68-9ad7-46fa-be2f-6f93159202ea",
+        "checksum": "bae69aa2de0238f2521f041f23445913"
+    },
+    "requests": [
+        {
+            "requestMeta": {
+                "requestType": "NOTIFICATION",
+                "requestCode": "TRANSACTION_UPDATE"
+            },
+            "requestParams": {
+                "transactions": [
+                    {
+                        "transactionStatus": "COMPLETED",
+                        "transactionChannel": "MAPP",
+                        "transactionCode": 4056,
+                        "accountNumber": 3309219,
+                        "transactionDate": "2025-11-26T11:27:45.000Z",
+                        "effectiveDate": "2025-11-27T00:00:00.000Z",
+                        "debitOrCredit": "credit",
+                        "virtualAccountInfo": null,
+                        "amount": 500000000,
+                        "transactionEntityAttribute": {
+                            "issuerBankName": "ACB - NH TMCP A CHAU",
+                            "receiverBankName": "ACB - NH TMCP A CHAU",
+                            "remitterName": "QUOC 272933 NGUYEN HAI",
+                            "remitterAccountNumber": "9267919"
+                        },
+                        "transactionContent": "Nạp tiền"
+                    }
+                ],
+                "pagination": {
+                    "page": 1,
+                    "pageSize": 1,
+                    "totalPage": 1
+                }
+            }
+        }
+    ]
 }
 ```
 
-> ℹ️ `txId` phải là duy nhất. Nếu gửi lại cùng `txId`, hệ thống trả về HTTP 200 với status `DUPLICATE` (idempotent — không gây lỗi 500).
+#### Request Body — Debit (Ghi Nợ)
+
+```json
+{
+    "masterMeta": {
+        "clientId": "e1c935ed-2476-45d2-a2e3-e54254055f35",
+        "clientRequestId": "e0377f18-c223-4541-853f-71c1a7acabc5",
+        "checksum": "9ff53a8961e5c7e33f40b897628a651c"
+    },
+    "requests": [
+        {
+            "requestMeta": {
+                "requestType": "NOTIFICATION",
+                "requestCode": "TRANSACTION_UPDATE"
+            },
+            "requestParams": {
+                "transactions": [
+                    {
+                        "transactionStatus": "COMPLETED",
+                        "transactionChannel": "MAPP",
+                        "transactionCode": 4064,
+                        "accountNumber": 3309219,
+                        "transactionDate": "2025-11-26T11:33:52.000Z",
+                        "effectiveDate": "2025-11-27T00:00:00.000Z",
+                        "debitOrCredit": "debit",
+                        "virtualAccountInfo": null,
+                        "amount": 10000,
+                        "transactionEntityAttribute": {
+                            "issuerBankName": "ACB - NH TMCP A CHAU",
+                            "receiverBankName": "ACB - NH TMCP A CHAU",
+                            "remitterName": "ADAM 10045",
+                            "remitterAccountNumber": "3309219"
+                        },
+                        "transactionContent": "Rút tiền"
+                    }
+                ],
+                "pagination": {
+                    "page": 1,
+                    "pageSize": 1,
+                    "totalPage": 1
+                }
+            }
+        }
+    ]
+}
+```
+
+#### Mô Tả Các Trường
+
+##### `masterMeta`
+
+| Trường | Type | Required | Mô tả | Example / Pattern |
+|--------|------|----------|-------|-------------------|
+| `clientId` | string | ✅ | Mã định danh khách hàng do ACB cấp | `ec0553c7-a9ca-40a9-82d3-b5d7011fdd16` |
+| `clientRequestId` | string | ✅ | Mã định danh duy nhất cho mỗi request do ACB tạo ra | `a01a68ab-39c7-425c-99eb-2763ccfa1dd9` |
+| `checksum` | string | ✅ | Mã hash kiểm tra tính chính xác của giao dịch | `e0ee0e988c7c6911eb57c6c9190ca540` |
+
+##### `requests[].requestMeta`
+
+| Trường | Type | Required | Giá trị cho phép | Mô tả |
+|--------|------|----------|-------------------|-------|
+| `requestType` | string | ✅ | `NOTIFICATION` | Loại dịch vụ yêu cầu |
+| `requestCode` | string | ✅ | `TRANSACTION_UPDATE`, `TRANSACTION_HISTORY` | `TRANSACTION_UPDATE`: thông báo nợ/có tức thì<br>`TRANSACTION_HISTORY`: thông báo nợ/có cuối ngày |
+
+##### `requests[].requestParams.transactions[]`
+
+| Trường | Type | Required | Giá trị / Chi tiết | Mô tả |
+|--------|------|----------|---------------------|-------|
+| `transactionStatus` | string | ✅ | `COMPLETED`, `ERRORCORRECTED` | `COMPLETED`: giao dịch thành công<br>`ERRORCORRECTED`: giao dịch bị hủy |
+| `transactionChannel` | string | ✅ | `MAPP`, `IBFT`, `ATM`, `API`, ... | Kênh thực hiện giao dịch (BAT, VRU, WWW, ATM, ONLI, ACH, FSC, CCM, API, MG, SECU, MAPP, SMS, ACHS, CCAT, AAP, IBFT, CLMS, REMI, TB, SOBA, BIZ) |
+| `transactionCode` | string/number | ✅ | e.g. `56327`, `4056` | Mã giao dịch do ACB tạo ra khi hoàn tất |
+| `accountNumber` | number/string | ✅ | e.g. `887988`, `3309219` | Số tài khoản nhận thông báo ghi có/nợ |
+| `transactionDate` | string (ISO) | ✅ | e.g. `2025-11-26T11:27:45.000Z` | Thời gian thực hiện giao dịch |
+| `effectiveDate` | string (ISO) | ✅ | e.g. `2025-11-27T00:00:00.000Z` | Thời gian hiệu lực giao dịch |
+| `debitOrCredit` | string | ✅ | `credit`, `debit` | `credit`: báo có (tiền vào)<br>`debit`: báo nợ (tiền ra) |
+| `virtualAccountInfo` | object | ❌ | `{ vaPrefixCd, vaNbr }` | Thông tin tài khoản ảo (khi nộp vào TK ảo) |
+| `virtualAccount` | string | ❌ | e.g. `HU1` | Tài khoản ảo |
+| `referenceNumber` | string | ❌ | e.g. `1234567890` | Mã tham chiếu do hệ thống KH tạo ra |
+| `partnerCustomerCode` | string | ❌ | e.g. `236789876` | Mã định danh người dùng hệ thống KH |
+| `partnerCustomerName` | string | ❌ | e.g. `HA BAC NINH` | Tên người dùng hệ thống KH |
+| `partnerCustomerType` | string | ❌ | e.g. `ORG` | Phân loại KH (KHCN, KHDN,...) |
+| `amount` | number | ✅ | ≥ 0 | Số tiền giao dịch |
+| `transactionEntityAttribute` | object | ❌ | Xem chi tiết bên dưới | Thông tin thuộc tính khác của giao dịch |
+| `transactionContent` | string | ✅ | e.g. `Nạp tiền` | Nội dung chuyển khoản/giao dịch |
+| `custom1` .. `custom10` | string | ❌ | Thông tin mở rộng | Các trường dữ liệu mở rộng tùy chọn |
+
+##### `virtualAccountInfo`
+
+| Trường | Type | Mô tả |
+|--------|------|-------|
+| `vaPrefixCd` | string | Đầu số tài khoản ảo (ví dụ: `HU1`) |
+| `vaNbr` | string | Số tài khoản ảo do ACB cấp cho khách hàng |
+
+##### `transactionEntityAttribute`
+
+| Trường | Type | Mô tả |
+|--------|------|-------|
+| `traceNumber` | string | Mã giao dịch |
+| `beneficiaryName` | string | Tên khách hàng thụ hưởng |
+| `beneficiaryAccountNumber` | string | Số tài khoản khách hàng thụ hưởng |
+| `receiverBankName` | string | Tên ngân hàng thụ hưởng (ví dụ: `ACB`) |
+| `remitterName` | string | Tên khách hàng chuyển tiền |
+| `remitterAccountNumber` | string | Số tài khoản khách hàng chuyển tiền |
+| `issuerBankName` | string | Tên ngân hàng chuyển tiền (ví dụ: `ACB`) |
+
+##### `requests[].requestParams.pagination`
+
+| Trường | Type | Required | Điều kiện | Mô tả |
+|--------|------|----------|-----------|-------|
+| `page` | number | ✅ | ≥ 1 | Số trang hiện tại |
+| `pageSize` | number | ✅ | 1 .. 1000 | Số dòng dữ liệu trong 1 trang |
+| `totalPage` | number | ✅ | ≥ 1 | Tổng số trang |
 
 ---
 
-#### Responses
+### Responses
 
-##### ✅ 200 — Tiếp nhận thành công
+#### ✅ 200 — Tiếp nhận thành công
 
 ```json
 {
-  "statusCode": 200,
-  "message": "Transaction received",
-  "data": {
-    "id": "BLT-20260727-0001",
-    "txId": "ACB20260727001234",
-    "status": "pending"
+  "timestamp": "2025-11-26T18:33:52.556595123",
+  "responseCode": "00000000",
+  "message": "Success",
+  "responseBody": {
+    "referenceCode": "83104a68-9ad7-46fa-be2f-6f93159202ea",
+    "index": 1
   }
 }
 ```
 
-##### ✅ 200 — Giao dịch trùng (Idempotent)
+| Trường | Type | Mô tả |
+|--------|------|-------|
+| `timestamp` | string (ISO) | Thời điểm VIK xử lý |
+| `responseCode` | string | `00000000` = thành công |
+| `message` | string | `Success` |
+| `responseBody.referenceCode` | string | `clientRequestId` từ ACB |
+| `responseBody.index` | number | Số giao dịch đã xử lý |
+
+#### ❌ 400 — Lỗi Validation
 
 ```json
 {
-  "statusCode": 200,
-  "message": "Transaction already received (duplicate)",
-  "data": {
-    "txId": "ACB20260727001234",
-    "status": "DUPLICATE"
-  }
+  "timestamp": "2025-11-26T18:33:52.556595123",
+  "responseCode": "99999999",
+  "message": "masterMeta.clientRequestId là bắt buộc",
+  "responseBody": null
 }
 ```
 
-##### ❌ 400 — Lỗi Validation
-
-```json
-{
-  "statusCode": 400,
-  "code": "BAD_REQUEST",
-  "message": "Transaction ID không được để trống"
-}
-```
-
-##### ❌ 401 — API Key không hợp lệ
+#### ❌ 401 — API Key không hợp lệ
 
 ```json
 {
@@ -245,49 +415,27 @@ X-Webhook-Timestamp: 1753612800
 }
 ```
 
-##### ❌ 401 — Thiếu Signature/Timestamp headers
+#### ❌ 401 — Checksum không hợp lệ
 
 ```json
 {
   "statusCode": 401,
-  "code": "ACB_MISSING_SIGNATURE",
-  "message": "Missing webhook signature"
+  "code": "ACB_INVALID_CHECKSUM",
+  "message": "Invalid checksum signature"
 }
 ```
 
-##### ❌ 401 — Signature không hợp lệ
+#### ❌ 401 — Thiếu Checksum header
 
 ```json
 {
   "statusCode": 401,
-  "code": "ACB_INVALID_SIGNATURE",
-  "message": "Invalid webhook signature"
+  "code": "ACB_MISSING_CHECKSUM",
+  "message": "Missing checksum signature"
 }
 ```
 
-##### ❌ 401 — Timestamp hết hạn
-
-```json
-{
-  "statusCode": 401,
-  "code": "ACB_TIMESTAMP_EXPIRED",
-  "message": "Webhook timestamp expired"
-}
-```
-
-##### ❌ 401 — Signature đã được sử dụng (Replay)
-
-```json
-{
-  "statusCode": 401,
-  "code": "ACB_REPLAY_DETECTED",
-  "message": "Webhook signature already used"
-}
-```
-
-> Mỗi signature chỉ dùng được 1 lần. Nếu cần gửi lại cùng payload, phải tạo timestamp mới và ký lại signature.
-
-##### ❌ 403 — IP không được phép
+#### ❌ 403 — IP không được phép
 
 ```json
 {
@@ -297,7 +445,7 @@ X-Webhook-Timestamp: 1753612800
 }
 ```
 
-##### ❌ 403 — IP bị block (Brute-force)
+#### ❌ 403 — IP bị block (Brute-force)
 
 ```json
 {
@@ -307,9 +455,7 @@ X-Webhook-Timestamp: 1753612800
 }
 ```
 
-> IP bị auto-block 30 phút sau 5 lần auth fail. Không retry — hãy đợi hết thời gian block.
-
-##### ❌ 415 — Content-Type không hợp lệ
+#### ❌ 415 — Content-Type không hợp lệ
 
 ```json
 {
@@ -319,7 +465,7 @@ X-Webhook-Timestamp: 1753612800
 }
 ```
 
-##### ❌ 429 — Quá nhiều request
+#### ❌ 429 — Quá nhiều request
 
 ```json
 {
@@ -331,174 +477,155 @@ X-Webhook-Timestamp: 1753612800
 
 ---
 
-## Hướng Dẫn Generate Ed25519 Keypair
+## Retry & Timeout
 
-### Dùng Script Có Sẵn (Node.js)
+### ACB Retry Policy
 
-```bash
-node src/scripts/generateEd25519Keys.js
-```
+- ACB retry tối đa **3 lần** khi VIK không phản hồi hoặc trả lỗi.
+- Nếu sau 3 lần vẫn thất bại, VIK sử dụng API tra cứu lịch sử giao dịch để đối soát.
 
-Output:
+### Timeout
 
-```text
-=== ACB WEBHOOK ED25519 KEYPAIR GENERATED ===
+- VIK endpoint phải phản hồi trong **17 giây**.
+- Sau 17 giây, ACB coi là timeout và thực hiện retry.
 
-🔐 PRIVATE KEY (Provide to ACB Bank / Client for Signing):
------BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFmH1zibkgDF3UKSB88db1kkYCfCZpeZkRjmBheH/8bE
------END PRIVATE KEY-----
+### ACB Xác Nhận Thành Công Khi
 
-🔓 PUBLIC KEY (Configure in CRM Server .env as ACB_WEBHOOK_PUBLIC_KEY):
------BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAaUNy72LCX+ZLQv3PjVTNDDh1Qzih6o3XKxXLyWMF9hU=
------END PUBLIC KEY-----
-```
-
-### Cách Cấu Hình .env
-
-```bash
-# Public Key (server dùng để VERIFY) — dùng \n thay xuống dòng
-ACB_WEBHOOK_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAaUNy72LCX+ZLQv3PjVTNDDh1Qzih6o3XKxXLyWMF9hU=\n-----END PUBLIC KEY-----"
-```
-
-> ⚠️ Private Key **KHÔNG BAO GIỜ** lưu trên CRM Server. Chỉ giao cho ACB/Client qua kênh bảo mật.
+- HTTP Status Code = **200 OK**
+- Response body đúng format: `{ timestamp, responseCode: "00000000", message: "Success", responseBody: { referenceCode, index } }`
 
 ---
 
-## Hướng Dẫn Test Bằng Postman
+## Cấu Hình .env
 
-### Yêu Cầu
+```bash
+# ─── ACB Bank Webhook (SHA256 Checksum) ─────────────────────────────────────
 
-- **Postman Desktop App** (không phải Postman Web) — cần `require('crypto')` trong Pre-request Script.
-- Hoặc dùng **Newman CLI** để chạy qua terminal.
+# API Key xác thực (VIK cung cấp cho ACB, truyền qua header X-API-Key)
+ACB_WEBHOOK_API_KEY=<production_api_key>
 
-### 1. Import Collection & Environment Files
+# Secret Key — VIK tạo & cung cấp cho ACB (ACB gọi là "secret_key")
+ACB_WEBHOOK_SECRET_KEY=<production_secret_key>
 
-1. Mở **Postman Desktop**.
-2. Chọn **Import** → Kéo thả file Collection: `docs/ACB_Webhook_Postman_Collection.json`.
-3. Kéo thả các file Environment tương ứng với 3 môi trường:
-   - 🏠 **Local**: `docs/CRM_Local.postman_environment.json`
-   - 🧪 **Dev / Staging**: `docs/CRM_Dev.postman_environment.json`
-   - 🚀 **Production**: `docs/CRM_Prod.postman_environment.json`
+# Bank Key — ACB tạo & cung cấp cho VIK (ACB gọi là "server_key")
+ACB_WEBHOOK_BANK_KEY=<giá_trị_ACB_cung_cấp>
 
-### 2. Cấu Hình 3 Môi Trường (3 Environments)
+# Tên header chứa checksum (mặc định: signature)
+ACB_WEBHOOK_CHECKSUM_HEADER=signature
 
-Chọn môi trường trong dropdown ở góc trên bên phải Postman:
+# Thuật toán băm (mặc định: SHA256)
+ACB_WEBHOOK_CHECKSUM_ALGORITHM=SHA256
 
-| Môi trường | File Config | `host` / Base URL | `acbApiKey` | `acbEd25519PrivateKey` |
-|------------|-------------|-------------------|-------------|------------------------|
-| **Local** | `CRM_Local` | `http://localhost:4000` | `acb_webhook_key_change_in_production` | Local Ed25519 Private Key PEM |
-| **Dev / Staging** | `CRM_Dev` | `https://crm-server-rvzz.onrender.com` | `acb_webhook_key_change_in_production` | Dev Ed25519 Private Key PEM |
-| **Production** | `CRM_Prod` | `https://final.vn` | `<Production API Key>` | `<Production Private Key PEM>` |
-
-> 💡 **Cơ chế ưu tiên:** Pre-request Script trong Collection sẽ ưu tiên lấy `acbApiKey` và `acbEd25519PrivateKey` từ **Environment active** (`pm.environment.get`). Nếu không chọn Environment nào, hệ thống tự động fallback về **Collection Variables** chuẩn Local.
-
-### 3. Cơ Chế Tự Động Ký Ed25519 Trong Postman
-
-Mọi test case đều tích hợp **Pre-request Script** tự động:
-
-```javascript
-// Pre-request Script trong Postman (chạy trước mỗi request):
-const crypto = require('crypto');
-
-// 1. Tạo body JSON
-const bodyObj = { txId: 'ACB' + Date.now(), amount: 5000000 };
-const bodyRaw = JSON.stringify(bodyObj);
-pm.request.body.update({ mode: 'raw', raw: bodyRaw });
-
-// 2. Lấy Private Key từ Environment (ưu tiên) hoặc Collection Variable (fallback)
-const privateKeyPem = pm.environment.get('acbEd25519PrivateKey') || pm.collectionVariables.get('acbEd25519PrivateKey');
-const timestamp = Math.floor(Date.now() / 1000).toString();
-
-// 3. Tạo signed payload = "timestamp.rawBody"
-const signedPayload = Buffer.concat([
-  Buffer.from(timestamp + '.'),
-  Buffer.from(bodyRaw)
-]);
-
-// 4. Ký Ed25519 → hex string
-const signatureHex = crypto.sign(null, signedPayload, privateKeyPem).toString('hex');
-
-// 5. Set headers
-pm.request.headers.upsert({ key: 'X-Webhook-Timestamp', value: timestamp });
-pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'ed25519=' + signatureHex });
+# IP allowlist (CIDR support, phân cách bằng dấu phẩy)
+ACB_WEBHOOK_ALLOWED_IPS=123.30.82.230/32,123.30.83.216/29,123.30.82.230/30,118.69.221.86/32,118.69.223.64/27,118.69.221.86/30,182.237.20.246/32,182.237.22.176/28,103.136.114.154/30,14.238.112.16/29,120.72.112.202/30,171.224.107.24/29,202.59.252.168,202.59.252.169
 ```
-
-### 3. Danh Sách Test Cases
-
-#### ✅ Success Cases
-
-| # | Request Name | HTTP Expected | Mô tả |
-|---|--------------|---------------|-------|
-| 1.1 | Webhook Transaction - Success | `200 OK` | Gửi webhook hợp lệ. Tự động sinh `txId` mới + ký Ed25519. |
-| 1.2 | Duplicate TxId | `200 OK (DUPLICATE)` | Gửi trùng `txId` cố định. Nhấn 2 lần: lần 1 tạo mới, lần 2 trả DUPLICATE. |
-
-#### ❌ Security & Error Cases
-
-| # | Request Name | HTTP Expected | Mô tả |
-|---|--------------|---------------|-------|
-| 2.1 | Invalid Content-Type | `415` | Gửi `Content-Type: text/plain`. |
-| 2.2 | Invalid API Key | `401` | API key sai, signature đúng. |
-| 2.3 | Invalid Ed25519 Signature | `401` | Gửi 128 hex chars giả (không phải Ed25519 hợp lệ). |
-| 2.4 | Expired Timestamp | `401` | Timestamp 10 phút trước (quá hạn 5 phút). Signature đúng. |
-| 2.5 | Missing Signature Headers | `401` | Thiếu cả `X-Webhook-Signature` và `X-Webhook-Timestamp`. |
-| 2.6 | Replay Attack | `401` | Nhấn Send 2 lần liên tiếp. Lần 2 bị `ACB_REPLAY_DETECTED`. |
-
-#### ❌ Validation Cases
-
-| # | Request Name | HTTP Expected | Mô tả |
-|---|--------------|---------------|-------|
-| 3.1 | Missing txId | `400` | Body thiếu trường `txId`. |
-| 3.2 | Missing amount | `400` | Body thiếu trường `amount`. |
 
 ---
 
-## Code Samples
+## Code Sample — cURL Test
 
-### Node.js (axios + Ed25519)
+```bash
+#!/bin/bash
+
+# ─── Variables ───
+API_KEY="<api_key_do_VIK_cấp>"
+SECRET_KEY="<secret_key_do_VIK_cấp>"
+BANK_KEY="<bank_key_do_ACB_cấp>"
+BASE_URL="https://final.vn/api/v1/webhooks/acb"
+
+# ─── Build JSON body ───
+CLIENT_REQUEST_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+BODY="{\"masterMeta\":{\"clientId\":\"e1c935ed-2476-45d2-a2e3-e54254055f35\",\"clientRequestId\":\"${CLIENT_REQUEST_ID}\",\"checksum\":\"test\"},\"requests\":[{\"requestMeta\":{\"requestType\":\"NOTIFICATION\",\"requestCode\":\"TRANSACTION_UPDATE\"},\"requestParams\":{\"transactions\":[{\"transactionStatus\":\"COMPLETED\",\"transactionChannel\":\"MAPP\",\"transactionCode\":4056,\"accountNumber\":3309219,\"transactionDate\":\"2025-11-26T11:27:45.000Z\",\"effectiveDate\":\"2025-11-27T00:00:00.000Z\",\"debitOrCredit\":\"credit\",\"virtualAccountInfo\":null,\"amount\":500000000,\"transactionEntityAttribute\":{\"issuerBankName\":\"ACB\",\"receiverBankName\":\"ACB\",\"remitterName\":\"NGUYEN VAN A\",\"remitterAccountNumber\":\"9267919\"},\"transactionContent\":\"Nap tien\"}],\"pagination\":{\"page\":1,\"pageSize\":1,\"totalPage\":1}}}]}"
+
+# ─── Compute SHA256 checksum ───
+CHECKSUM=$(printf '%s' "${BODY}${SECRET_KEY}${BANK_KEY}" | shasum -a 256 | awk '{print $1}')
+
+# ─── Send request ───
+echo "📤 Sending ACB webhook..."
+echo "   clientRequestId: ${CLIENT_REQUEST_ID}"
+echo "   checksum: ${CHECKSUM}"
+
+curl -s -w "\nHTTP Status: %{http_code}\n" \
+  -X POST "${BASE_URL}/transaction" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${API_KEY}" \
+  -H "signature: ${CHECKSUM}" \
+  -d "${BODY}"
+```
+
+---
+
+## Code Sample — Node.js
 
 ```javascript
 const crypto = require('crypto');
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
-const API_BASE = 'https://crm-server-rvzz.onrender.com/api/v1/webhooks/acb';
-const API_KEY = 'your_api_key';
+const API_BASE = 'https://final.vn/api/v1/webhooks/acb';
+const API_KEY = '<api_key_do_VIK_cấp>';
+const SECRET_KEY = '<secret_key_do_VIK_cấp>'; // VIK tạo & cung cấp cho ACB
+const BANK_KEY = '<bank_key_do_ACB_cấp>'; // ACB tạo & cung cấp cho VIK
 
-// Ed25519 Private Key (PKCS8 PEM) — do ACB giữ bí mật
-const PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFmH1zibkgDF3UKSB88db1kkYCfCZpeZkRjmBheH/8bE
------END PRIVATE KEY-----`;
+async function sendTransaction() {
+  const body = {
+    masterMeta: {
+      clientId: 'e1c935ed-2476-45d2-a2e3-e54254055f35',
+      clientRequestId: uuidv4(),
+      checksum: 'will-be-computed',
+    },
+    requests: [{
+      requestMeta: {
+        requestType: 'NOTIFICATION',
+        requestCode: 'TRANSACTION_UPDATE',
+      },
+      requestParams: {
+        transactions: [{
+          transactionStatus: 'COMPLETED',
+          transactionChannel: 'MAPP',
+          transactionCode: 4056,
+          accountNumber: 3309219,
+          transactionDate: new Date().toISOString(),
+          effectiveDate: new Date().toISOString(),
+          debitOrCredit: 'credit',
+          virtualAccountInfo: null,
+          amount: 500000000,
+          transactionEntityAttribute: {
+            issuerBankName: 'ACB - NH TMCP A CHAU',
+            receiverBankName: 'ACB - NH TMCP A CHAU',
+            remitterName: 'NGUYEN VAN A',
+            remitterAccountNumber: '9267919',
+          },
+          transactionContent: 'Nap tien',
+        }],
+        pagination: { page: 1, pageSize: 1, totalPage: 1 },
+      },
+    }],
+  };
 
-async function sendTransaction(transaction) {
-  const bodyRaw = JSON.stringify(transaction);
-  const timestamp = Math.floor(Date.now() / 1000);
+  const bodyRaw = JSON.stringify(body);
 
-  // Tạo signed payload: "<timestamp>.<rawBody>"
-  const signedPayload = Buffer.concat([
-    Buffer.from(`${timestamp}.`),
-    Buffer.from(bodyRaw),
-  ]);
-
-  // Ký Ed25519
-  const signatureHex = crypto.sign(null, signedPayload, PRIVATE_KEY_PEM).toString('hex');
+  // Compute SHA256 checksum
+  const checksum = crypto
+    .createHash('sha256')
+    .update(bodyRaw + SECRET_KEY + BANK_KEY)
+    .digest('hex');
 
   try {
     const response = await axios.post(
       `${API_BASE}/transaction`,
-      bodyRaw, // Gửi raw string, KHÔNG phải object
+      bodyRaw,
       {
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': API_KEY,
-          'X-Webhook-Signature': `ed25519=${signatureHex}`,
-          'X-Webhook-Timestamp': String(timestamp),
+          'signature': checksum,
         },
-        timeout: 10000,
+        timeout: 17000, // ACB timeout: 17 giây
       },
     );
 
-    console.log('✅ Transaction sent:', response.data);
+    console.log('✅ Response:', response.data);
     return response.data;
   } catch (error) {
     console.error('❌ Error:', error.response?.data || error.message);
@@ -506,164 +633,57 @@ async function sendTransaction(transaction) {
   }
 }
 
-// Usage
-sendTransaction({
-  txId: 'ACB20260727001234',
-  amount: 5000000,
-  sender: 'NGUYEN VAN A',
-  content: 'Thanh toan don hang DH001',
-  transactionDate: new Date().toISOString(),
-});
+sendTransaction();
 ```
-
-### Python (Ed25519)
-
-```python
-import json
-import time
-import requests
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import (
-    load_pem_private_key,
-    Encoding,
-    PrivateFormat,
-    NoEncryption,
-)
-
-API_BASE = "https://crm-server-rvzz.onrender.com/api/v1/webhooks/acb"
-API_KEY = "your_api_key"
-
-# Ed25519 Private Key (PKCS8 PEM) — do ACB giữ bí mật
-PRIVATE_KEY_PEM = b"""-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFmH1zibkgDF3UKSB88db1kkYCfCZpeZkRjmBheH/8bE
------END PRIVATE KEY-----"""
-
-private_key = load_pem_private_key(PRIVATE_KEY_PEM, password=None)
-
-def send_transaction(transaction: dict) -> dict:
-    # 1. Serialize body (compact, no spaces)
-    body_raw = json.dumps(transaction, separators=(",", ":"))
-    timestamp = str(int(time.time()))
-
-    # 2. Tạo signed payload: "<timestamp>.<rawBody>"
-    signed_payload = f"{timestamp}.{body_raw}".encode("utf-8")
-
-    # 3. Ký Ed25519
-    signature_bytes = private_key.sign(signed_payload)
-    signature_hex = signature_bytes.hex()
-
-    # 4. Gửi request
-    response = requests.post(
-        f"{API_BASE}/transaction",
-        data=body_raw,  # Gửi raw string, KHÔNG phải json=transaction
-        headers={
-            "Content-Type": "application/json",
-            "X-API-Key": API_KEY,
-            "X-Webhook-Signature": f"ed25519={signature_hex}",
-            "X-Webhook-Timestamp": timestamp,
-        },
-        timeout=10,
-    )
-
-    print(f"Status: {response.status_code}")
-    print(f"Response: {response.json()}")
-    return response.json()
-
-
-# Usage
-send_transaction({
-    "txId": "ACB20260727001234",
-    "amount": 5000000,
-    "sender": "NGUYEN VAN A",
-    "content": "Thanh toan don hang DH001",
-    "transactionDate": "2026-07-27T10:30:00.000Z",
-})
-```
-
-### cURL (Dùng openssl cho Ed25519)
-
-```bash
-#!/bin/bash
-
-# ─── Variables ───
-API_KEY="acb_webhook_key_change_in_production"
-BASE_URL="http://localhost:4000/api/v1/webhooks/acb"
-
-# Private Key file (lưu PEM vào file)
-PRIVATE_KEY_FILE="/tmp/acb_ed25519_private.pem"
-cat > "$PRIVATE_KEY_FILE" << 'EOF'
------BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFmH1zibkgDF3UKSB88db1kkYCfCZpeZkRjmBheH/8bE
------END PRIVATE KEY-----
-EOF
-
-# ─── Build JSON body ───
-TX_ID="ACB$(date +%s)$(shuf -i 10000-99999 -n 1)"
-BODY="{\"txId\":\"${TX_ID}\",\"amount\":5000000,\"sender\":\"NGUYEN VAN A\",\"content\":\"Thanh toan test\"}"
-TIMESTAMP=$(date +%s)
-
-# ─── Sign payload with Ed25519 ───
-SIGNED_PAYLOAD="${TIMESTAMP}.${BODY}"
-SIGNATURE=$(printf '%s' "$SIGNED_PAYLOAD" | openssl pkeyutl -sign -inkey "$PRIVATE_KEY_FILE" | xxd -p -c 256)
-
-# ─── Send request ───
-echo "📤 Sending transaction: ${TX_ID}"
-curl -s -w "\nHTTP Status: %{http_code}\n" \
-  -X POST "${BASE_URL}/transaction" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: ${API_KEY}" \
-  -H "X-Webhook-Signature: ed25519=${SIGNATURE}" \
-  -H "X-Webhook-Timestamp: ${TIMESTAMP}" \
-  -d "${BODY}"
-
-# Cleanup
-rm -f "$PRIVATE_KEY_FILE"
-```
-
-> ⚠️ **Lưu ý cURL:** `openssl pkeyutl -sign` yêu cầu OpenSSL ≥ 1.1.1 với hỗ trợ Ed25519. macOS mặc định có thể dùng LibreSSL — cần cài OpenSSL qua Homebrew: `brew install openssl`.
-
----
-
-## Khuyến Nghị Tích Hợp
-
-1. **Luôn gửi đủ 4 headers**: `Content-Type`, `X-API-Key`, `X-Webhook-Signature`, `X-Webhook-Timestamp`
-2. **Ký signature từ raw body bytes** — không format lại JSON sau khi stringify
-3. **Mỗi request phải có timestamp MỚI** — signature cũ không thể tái sử dụng (replay protection)
-4. **Set timeout ≤ 10 giây** cho mỗi request
-5. **Retry tối đa 3 lần** với backoff (1s → 2s → 4s) khi gặp lỗi mạng hoặc HTTP 5xx
-6. **Không retry** khi gặp HTTP 400, 401, 403, 415 — đây là lỗi logic
-7. **Đặc biệt không retry khi gặp 403 `ACB_IP_BLOCKED`** — IP đang bị block, retry sẽ chỉ kéo dài thời gian block
-8. **Đảm bảo `txId` duy nhất** cho mỗi giao dịch — trùng txId sẽ nhận response DUPLICATE
-9. **Lưu log** mọi response từ API để đối chiếu khi cần
-10. **Private Key phải được bảo mật tuyệt đối** — không commit vào git, không log, không share qua email/chat
 
 ---
 
 ## Error Codes — Tổng Hợp
 
-| HTTP | Code | Nguyên nhân | Nên retry? |
-|------|------|-------------|------------|
-| 200 | — | Thành công | — |
-| 200 | `DUPLICATE` | txId đã tồn tại (idempotent) | ❌ Giao dịch đã nhận |
-| 400 | `BAD_REQUEST` | Payload thiếu/sai field | ❌ Sửa payload |
+| HTTP | Code | Nguyên nhân | ACB nên retry? |
+|------|------|-------------|----------------|
+| 200 | `00000000` | Thành công | — |
+| 200 | `00000000` | Duplicate clientRequestId (idempotent) | ❌ Đã nhận |
+| 400 | `99999999` | Payload thiếu/sai field | ❌ Sửa payload |
 | 401 | `ACB_INVALID_API_KEY` | API key sai hoặc thiếu | ❌ Kiểm tra key |
-| 401 | `ACB_MISSING_SIGNATURE` | Thiếu header signature/timestamp | ❌ Sửa code |
-| 401 | `ACB_INVALID_SIGNATURE` | Ed25519 signature không hợp lệ | ❌ Kiểm tra private key |
-| 401 | `ACB_TIMESTAMP_EXPIRED` | Timestamp cách > 5 phút | ❌ Đồng bộ clock |
-| 401 | `ACB_REPLAY_DETECTED` | Signature đã dùng rồi | ❌ Tạo timestamp mới |
-| 403 | `ACB_IP_FORBIDDEN` | IP không trong whitelist | ❌ Liên hệ admin |
+| 401 | `ACB_MISSING_CHECKSUM` | Thiếu header signature | ❌ Sửa code |
+| 401 | `ACB_INVALID_CHECKSUM` | Checksum không khớp | ❌ Kiểm tra keys |
+| 403 | `ACB_IP_FORBIDDEN` | IP không trong whitelist | ❌ Liên hệ VIK |
 | 403 | `ACB_IP_BLOCKED` | IP bị auto-block (brute-force) | ❌ Đợi 30 phút |
 | 415 | `ACB_INVALID_CONTENT_TYPE` | Content-Type không phải JSON | ❌ Sửa header |
 | 429 | `ACB_TOO_MANY_REQUESTS` | Vượt 300 req/min | ✅ Đợi 1 phút |
-| 500 | `ACB_INTERNAL_ERROR` | Lỗi server CRM | ✅ Retry với backoff |
+| 500 | `ACB_INTERNAL_ERROR` | Lỗi server VIK | ✅ Retry (max 3 lần) |
+
+---
+
+## Quy Trình Kiểm Thử Tích Hợp
+
+1. **VIK cung cấp** cho ACB:
+   - Callback URL: `https://final.vn/api/v1/webhooks/acb/transaction`
+   - IP tĩnh server VIK
+   - API Key (header `X-API-Key`)
+   - Secret Key cho checksum (ACB gọi là `secret_key`)
+   - Thuật toán checksum: SHA256
+
+2. **ACB cung cấp** cho VIK:
+   - Bank Key cho checksum (ACB gọi là `server_key`)
+   - Danh sách IP callback ✅ (đã nhận)
+
+3. **ACB cấu hình** endpoint + policy trên môi trường kiểm thử
+
+4. **ACB tạo giao dịch** kiểm thử → gửi webhook đến Callback URL
+
+5. **VIK kiểm tra** tiếp nhận và xử lý giao dịch
+
+6. **Đối soát** kết quả hai bên
+
+> Nếu webhook không nhận thành công, VIK có thể sử dụng API tra cứu lịch sử giao dịch của ACB để đối soát.
 
 ---
 
 ## Liên Hệ Hỗ Trợ
 
-- Nhận API key qua kênh bảo mật
-- Tạo Ed25519 keypair bằng script: `node src/scripts/generateEd25519Keys.js`
-- Giao Private Key cho ACB qua kênh bảo mật (encrypted email, vault, ...)
-- Cấu hình Public Key trong `.env` của CRM Server
-- Cung cấp IP tĩnh của server ACB (nếu có) để được thêm vào whitelist
-- Liên hệ admin CRM khi gặp lỗi không xác định
+- Sinh API Key + Client Key: `node src/scripts/generateAcbWebhookKeys.js`
+- Chia sẻ keys qua kênh bảo mật (không qua email/chat)
+- Cung cấp IP tĩnh server VIK cho ACB
+- Liên hệ admin VIK khi gặp lỗi không xác định

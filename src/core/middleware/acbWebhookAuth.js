@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const env = require('../config/env');
-const { sendError } = require('../utils/http');
+const { sendAcbError, sendAcbSuccess } = require('../utils/http');
+const { ACB_RESPONSE_CODES } = require('../constants/bankLog');
 const logger = require('../utils/logger');
 
 /**
@@ -11,27 +12,15 @@ const logger = require('../utils/logger');
  *
  * Security layers:
  *   1. Content-Type enforcement
- *   2. IP allowlist
+ *   2. IP allowlist (supports CIDR notation)
  *   3. Brute-force auto-block (IP-based)
- *   4. Ed25519 asymmetric signature + timestamp + replay nonce
+ *   4. API Key verification (timing-safe)
+ *   5. SHA256 Checksum verification (RequestBody + SecretKey + BankKey)
+ *   6. clientRequestId dedup (replay protection)
  */
 
-const SIGNATURE_HEADER = 'x-webhook-signature';
-const TIMESTAMP_HEADER = 'x-webhook-timestamp';
-const SIGNATURE_PREFIX = 'ed25519=';
-const MAX_TIMESTAMP_DRIFT_MS = 5 * 60 * 1000; // 5 minutes
-
-// Cache Ed25519 public key as KeyObject once at module load (avoids PEM parsing per request)
-let _acbPublicKeyObject = null;
-function _getPublicKey() {
-  if (_acbPublicKeyObject) return _acbPublicKeyObject;
-  try {
-    _acbPublicKeyObject = crypto.createPublicKey(env.acbWebhookPublicKey);
-  } catch (err) {
-    logger.error('ACB Webhook: Failed to parse Ed25519 public key from env', { error: err.message });
-  }
-  return _acbPublicKeyObject;
-}
+// ─── Supported hash algorithms ──────────────────────────────────────────────
+const SUPPORTED_ALGORITHMS = new Set(['SHA1', 'SHA256', 'SHA512', 'MD5']);
 
 // ─── Brute-force Protection ─────────────────────────────────────────────────
 // Track auth failures per IP. After threshold → auto-block.
@@ -103,11 +92,55 @@ function _isIpBlocked(ip) {
   return Boolean(data.blockedUntil);
 }
 
-// ─── Replay Nonce Store ─────────────────────────────────────────────────────
-// Store used signatures to prevent replay within the timestamp window.
-// Map: signatureHex → expiresAt (timestamp ms)
-const _usedSignatures = new Map();
-const NONCE_STORE_MAX_SIZE = 5_000; // Hard cap — evict oldest when exceeded
+// ─── clientRequestId Dedup Store ────────────────────────────────────────────
+// Stores seen clientRequestIds to prevent duplicate processing.
+// Map: clientRequestId → receivedAt (timestamp ms)
+const _seenRequestIds = new Map();
+const REQUEST_ID_STORE_MAX_SIZE = 10_000;
+const REQUEST_ID_TTL_MS = 60 * 60 * 1000; // Keep for 1 hour
+
+// ─── CIDR IP Matching ───────────────────────────────────────────────────────
+
+/**
+ * Parse IP address string to 32-bit integer.
+ * Supports IPv4 only (ACB uses IPv4 exclusively).
+ */
+function _ipToLong(ip) {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+
+  let result = 0;
+  for (let i = 0; i < 4; i++) {
+    const octet = parseInt(parts[i], 10);
+    if (isNaN(octet) || octet < 0 || octet > 255) return null;
+    result = (result * 256) + octet;
+  }
+  return result >>> 0; // Ensure unsigned 32-bit
+}
+
+/**
+ * Check if an IP address matches a CIDR range or exact IP.
+ *
+ * @param {string} clientIp - The IP to check
+ * @param {string} entry - IP or CIDR notation (e.g., '123.30.82.230/30')
+ * @returns {boolean}
+ */
+function _matchesCidr(clientIp, entry) {
+  // Split entry into IP and prefix length
+  const [network, prefixStr] = entry.split('/');
+  const prefix = prefixStr !== undefined ? parseInt(prefixStr, 10) : 32;
+
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+  const clientLong = _ipToLong(clientIp);
+  const networkLong = _ipToLong(network);
+  if (clientLong === null || networkLong === null) return false;
+
+  // Create subnet mask: prefix bits of 1, rest 0
+  const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+
+  return (clientLong & mask) === (networkLong & mask);
+}
 
 // ─── Middleware: Content-Type Enforcement ────────────────────────────────────
 
@@ -122,42 +155,39 @@ function enforceJsonContentType(req, res, next) {
       ip: _getClientIp(req),
       contentType,
     });
-    return sendError(res, 415, 'Content-Type must be application/json', {
-      code: 'ACB_INVALID_CONTENT_TYPE',
-    });
+    return sendAcbError(res, 415, ACB_RESPONSE_CODES.INVALID_CONTENT, 'Content-Type must be application/json');
   }
   return next();
 }
 
-// ─── Middleware: IP Allowlist ────────────────────────────────────────────────
+// ─── Middleware: IP Allowlist (CIDR support) ─────────────────────────────────
 
 // Cache parsed allowlist — avoids split/map/filter on every request.
-// Invalidated automatically when env value changes (hot-reload safe).
 let _cachedAllowlistRaw = null;
-let _cachedAllowlistSet = null;
+let _cachedAllowlistEntries = null;
 let _cachedAllowAll = false;
 
-function _getAllowlistSet() {
+function _getAllowlistEntries() {
   const raw = env.acbWebhookAllowedIps || '';
-  if (raw === _cachedAllowlistRaw) return _cachedAllowlistSet;
+  if (raw === _cachedAllowlistRaw) return _cachedAllowlistEntries;
 
   _cachedAllowlistRaw = raw;
   const entries = raw.split(',').map((ip) => ip.trim()).filter(Boolean);
   _cachedAllowAll = entries.includes('0.0.0.0');
-  _cachedAllowlistSet = new Set(entries);
-  return _cachedAllowlistSet;
+  _cachedAllowlistEntries = entries;
+  return _cachedAllowlistEntries;
 }
 
 /**
- * IP allowlist check for ACB webhook.
+ * IP allowlist check for ACB webhook with CIDR support.
  *
  * Behaviour:
  *   - '0.0.0.0' in list → allow all (dev mode)
- *   - Non-empty list     → only allow listed IPs
+ *   - Non-empty list     → only allow listed IPs/CIDRs
  *   - Empty list         → block all (secure by default)
  */
 function checkAcbIpAllowlist(req, res, next) {
-  const whitelist = _getAllowlistSet();
+  const entries = _getAllowlistEntries();
 
   // Dev mode: 0.0.0.0 means allow all
   if (_cachedAllowAll) {
@@ -167,23 +197,21 @@ function checkAcbIpAllowlist(req, res, next) {
   const clientIp = _getClientIp(req);
 
   // Empty whitelist = block all (secure by default)
-  if (whitelist.size === 0) {
+  if (entries.length === 0) {
     logger.warn('ACB Webhook: IP blocked (allowlist is empty)', {
       ip: clientIp,
     });
-    return sendError(res, 403, 'IP address not allowed', {
-      code: 'ACB_IP_FORBIDDEN',
-    });
+    return sendAcbError(res, 403, ACB_RESPONSE_CODES.IP_FORBIDDEN, 'IP address not allowed');
   }
 
-  if (!whitelist.has(clientIp)) {
+  // Check client IP against each entry (exact or CIDR)
+  const isAllowed = entries.some((entry) => _matchesCidr(clientIp, entry));
+
+  if (!isAllowed) {
     logger.warn('ACB Webhook: IP not in allowlist', {
       ip: clientIp,
-      allowed: [...whitelist],
     });
-    return sendError(res, 403, 'IP address not allowed', {
-      code: 'ACB_IP_FORBIDDEN',
-    });
+    return sendAcbError(res, 403, ACB_RESPONSE_CODES.IP_FORBIDDEN, 'IP address not allowed');
   }
 
   return next();
@@ -193,7 +221,7 @@ function checkAcbIpAllowlist(req, res, next) {
 
 /**
  * Check if the IP is currently blocked due to repeated auth failures.
- * This runs BEFORE API key and signature checks.
+ * This runs BEFORE API key and checksum checks.
  *
  * Auto-block: 5 auth failures within 10 minutes → block IP for 30 minutes.
  */
@@ -202,9 +230,7 @@ function checkAcbBruteForce(req, res, next) {
 
   if (_isIpBlocked(clientIp)) {
     logger.warn('ACB Webhook: Request from blocked IP', { ip: clientIp });
-    return sendError(res, 403, 'Too many failed attempts. Try again later.', {
-      code: 'ACB_IP_BLOCKED',
-    });
+    return sendAcbError(res, 403, ACB_RESPONSE_CODES.IP_BLOCKED, 'Too many failed attempts. Try again later.');
   }
 
   // Attach helper so downstream middleware can record failures
@@ -213,170 +239,12 @@ function checkAcbBruteForce(req, res, next) {
   return next();
 }
 
-// ─── Middleware: Ed25519 Signature Verification ─────────────────────────────
-
-/**
- * Ed25519 asymmetric webhook signature verification.
- *
- * Required headers:
- *   - X-Webhook-Signature: ed25519=<hex_or_base64_digest>
- *   - X-Webhook-Timestamp: <unix_seconds>
- *
- * Signature is verified as:
- *   crypto.verify(null, Buffer(timestamp + "." + rawBody), publicKey, signatureBuffer)
- *
- * Security features:
- *   - Ed25519 asymmetric verification (server holds public key only)
- *   - Timestamp drift check (max 5 minutes) — anti-replay
- *   - Replay nonce — same signature cannot be used twice
- *   - Auto-block on repeated failures
- *   - Raw body required (set by express.json verify callback)
- */
-function verifyAcbWebhookSignature(req, res, next) {
-  const clientIp = _getClientIp(req);
-  const signatureHeader = req.get(SIGNATURE_HEADER);
-  const timestampHeader = req.get(TIMESTAMP_HEADER);
-
-  // Both headers are required
-  if (!signatureHeader || !timestampHeader) {
-    logger.warn('ACB Webhook: Missing signature or timestamp header', {
-      ip: clientIp,
-      hasSignature: !!signatureHeader,
-      hasTimestamp: !!timestampHeader,
-    });
-    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendError(res, 401, 'Missing webhook signature', {
-      code: 'ACB_MISSING_SIGNATURE',
-    });
-  }
-
-  // Validate timestamp format (must be numeric)
-  const timestamp = Number(timestampHeader);
-  if (!Number.isFinite(timestamp) || timestamp <= 0) {
-    logger.warn('ACB Webhook: Invalid timestamp format', {
-      ip: clientIp,
-      timestamp: timestampHeader,
-    });
-    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendError(res, 401, 'Invalid webhook timestamp', {
-      code: 'ACB_INVALID_TIMESTAMP',
-    });
-  }
-
-  // Anti-replay: reject if timestamp is too old or too far in the future
-  const now = Math.floor(Date.now() / 1000);
-  const drift = Math.abs(now - timestamp);
-  if (drift > MAX_TIMESTAMP_DRIFT_MS / 1000) {
-    logger.warn('ACB Webhook: Timestamp drift too large', {
-      ip: clientIp,
-      timestamp,
-      now,
-      driftSeconds: drift,
-    });
-    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendError(res, 401, 'Webhook timestamp expired', {
-      code: 'ACB_TIMESTAMP_EXPIRED',
-    });
-  }
-
-  // Extract hex digest from signature header
-  if (!signatureHeader.startsWith(SIGNATURE_PREFIX)) {
-    logger.warn('ACB Webhook: Invalid signature format', {
-      ip: clientIp,
-    });
-    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendError(res, 401, 'Invalid webhook signature format', {
-      code: 'ACB_INVALID_SIGNATURE',
-    });
-  }
-
-  const receivedDigest = signatureHeader.slice(SIGNATURE_PREFIX.length);
-
-  const rawBody = req.rawBody;
-  if (!rawBody) {
-    logger.error('ACB Webhook: rawBody not available — verify express.json({ verify }) is configured');
-    return sendError(res, 500, 'Internal server error', {
-      code: 'ACB_INTERNAL_ERROR',
-    });
-  }
-
-  // ─── Ed25519 Signature Verification ─────────────────────────────────────
-  // Payload signed by ACB Private Key = "<timestamp>.<rawBody>"
-  // Verified using ACB Public Key stored in env.acbWebhookPublicKey
-  const timestampPrefix = Buffer.from(`${timestamp}.`);
-  const signedPayloadBuffer = Buffer.concat([timestampPrefix, rawBody]);
-  const signatureBuffer = Buffer.from(
-    receivedDigest,
-    receivedDigest.length === 128 ? 'hex' : 'base64',
-  );
-
-  const publicKey = _getPublicKey();
-  if (!publicKey) {
-    logger.error('ACB Webhook: Ed25519 public key not configured');
-    return sendError(res, 500, 'Internal server error', {
-      code: 'ACB_INTERNAL_ERROR',
-    });
-  }
-
-  let isValidSignature = false;
-  try {
-    isValidSignature = crypto.verify(
-      null, // null algorithm for Ed25519 / PureEd25519
-      signedPayloadBuffer,
-      publicKey,
-      signatureBuffer,
-    );
-  } catch (err) {
-    logger.warn('ACB Webhook: Ed25519 signature verification error', {
-      ip: clientIp,
-      error: err.message,
-    });
-  }
-
-  if (!isValidSignature) {
-    logger.warn('ACB Webhook: Ed25519 signature mismatch or invalid', { ip: clientIp });
-    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendError(res, 401, 'Invalid webhook signature', {
-      code: 'ACB_INVALID_SIGNATURE',
-    });
-  }
-
-  // ─── Replay Nonce Check ─────────────────────────────────────────────────
-  // Even within the 5-minute timestamp window, the same signature
-  // cannot be used twice. This closes the replay gap completely.
-  if (_usedSignatures.has(receivedDigest)) {
-    const expiresAt = _usedSignatures.get(receivedDigest);
-    if (Date.now() > expiresAt) {
-      _usedSignatures.delete(receivedDigest); // Lazy cleanup expired nonce
-    } else {
-      logger.warn('ACB Webhook: Replay detected — signature already used', {
-        ip: clientIp,
-      });
-      return sendError(res, 401, 'Webhook signature already used', {
-        code: 'ACB_REPLAY_DETECTED',
-      });
-    }
-  }
-
-  // Store signature with TTL = remaining timestamp validity
-  // Evict oldest nonce if at capacity (FIFO)
-  if (_usedSignatures.size >= NONCE_STORE_MAX_SIZE) {
-    const oldestKey = _usedSignatures.keys().next().value;
-    _usedSignatures.delete(oldestKey);
-  }
-  const expiresAt = Date.now() + MAX_TIMESTAMP_DRIFT_MS;
-  _usedSignatures.set(receivedDigest, expiresAt);
-
-  return next();
-}
-
-// ─── Middleware: API Key with Brute-force Integration ───────────────────────
+// ─── Middleware: API Key Verification ───────────────────────────────────────
 
 /**
  * ACB-specific API key verification.
- * Unlike the shared requireApiKey, this integrates with the brute-force
- * auto-block tracker — failed API key attempts count toward the block threshold.
- * Also uses timing-safe comparison to prevent timing attacks on the key.
+ * Integrates with the brute-force auto-block tracker.
+ * Uses timing-safe comparison to prevent timing attacks on the key.
  */
 function verifyAcbApiKey(req, res, next) {
   const clientIp = _getClientIp(req);
@@ -390,10 +258,128 @@ function verifyAcbApiKey(req, res, next) {
   ) {
     logger.warn('ACB Webhook: Invalid or missing API key', { ip: clientIp });
     if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendError(res, 401, 'Invalid or missing X-API-Key', {
-      code: 'ACB_INVALID_API_KEY',
-    });
+    return sendAcbError(res, 401, ACB_RESPONSE_CODES.UNAUTHORIZED, 'Invalid or missing X-API-Key');
   }
+
+  return next();
+}
+
+// ─── Middleware: SHA256 Checksum Verification ────────────────────────────────
+
+/**
+ * ACB Checksum verification.
+ *
+ * ACB gửi checksum trong header (mặc định: `signature`).
+ * Checksum = hash(RequestBody + SecretKey + BankKey)
+ *
+ * Trong đó:
+ *   - RequestBody: raw JSON body (nguyên bytes)
+ *   - SecretKey: VIK tạo & cung cấp cho ACB (ACB gọi là "secret_key")
+ *   - BankKey: ACB tạo & cung cấp cho VIK (ACB gọi là "server_key")
+ *   - Algorithm: SHA256 (configurable: SHA1, SHA256, SHA512, MD5)
+ *
+ * So sánh bằng timing-safe comparison.
+ */
+function verifyAcbChecksum(req, res, next) {
+  const clientIp = _getClientIp(req);
+  const checksumHeader = env.acbWebhookChecksumHeader || 'signature';
+  const receivedChecksum = req.get(checksumHeader) || '';
+
+  if (!receivedChecksum) {
+    logger.warn('ACB Webhook: Missing checksum header', {
+      ip: clientIp,
+      header: checksumHeader,
+    });
+    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
+    return sendAcbError(res, 401, ACB_RESPONSE_CODES.MISSING_CHECKSUM, 'Missing checksum signature');
+  }
+
+  const rawBody = req.rawBody;
+  if (!rawBody) {
+    logger.error('ACB Webhook: rawBody not available — verify express.json({ verify }) is configured');
+    return sendAcbError(res, 500, ACB_RESPONSE_CODES.INTERNAL_ERROR, 'Internal server error');
+  }
+
+  // Determine algorithm
+  let nodeAlgorithm = (env.acbWebhookChecksumAlgorithm || 'SHA256').toLowerCase();
+  if (!SUPPORTED_ALGORITHMS.has(nodeAlgorithm.toUpperCase())) {
+    logger.warn('ACB Webhook: Unsupported checksum algorithm, falling back to sha256', {
+      configured: env.acbWebhookChecksumAlgorithm,
+      supported: Array.from(SUPPORTED_ALGORITHMS),
+    });
+    nodeAlgorithm = 'sha256';
+  }
+
+  // Compute expected checksum: hash(RequestBody + SecretKey + BankKey)
+  const secretKey = env.acbWebhookSecretKey || '';
+  const bankKey = env.acbWebhookBankKey || '';
+
+  const hash = crypto.createHash(nodeAlgorithm);
+  hash.update(rawBody); // rawBody is a Buffer
+  hash.update(secretKey);
+  hash.update(bankKey);
+  const expectedChecksum = hash.digest('hex');
+
+  // Timing-safe comparison
+  if (
+    receivedChecksum.length !== expectedChecksum.length ||
+    !crypto.timingSafeEqual(
+      Buffer.from(receivedChecksum),
+      Buffer.from(expectedChecksum),
+    )
+  ) {
+    logger.warn('ACB Webhook: Checksum mismatch', {
+      ip: clientIp,
+      received: receivedChecksum,
+      algorithm: nodeAlgorithm,
+    });
+    if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
+    return sendAcbError(res, 401, ACB_RESPONSE_CODES.INVALID_CHECKSUM, 'Invalid checksum signature');
+  }
+
+  return next();
+}
+
+// ─── Middleware: clientRequestId Dedup ───────────────────────────────────────
+
+/**
+ * Prevent duplicate processing of the same ACB webhook request.
+ * Uses `masterMeta.clientRequestId` from the ACB payload as dedup key.
+ *
+ * Note: This runs AFTER body parsing, so `req.body` is available.
+ */
+function checkAcbRequestIdDedup(req, res, next) {
+  const clientRequestId = req.body?.masterMeta?.clientRequestId;
+
+  if (!clientRequestId) {
+    // Let validation handle missing fields — just pass through
+    return next();
+  }
+
+  const now = Date.now();
+
+  // Lazy cleanup: remove expired entries
+  if (_seenRequestIds.has(clientRequestId)) {
+    const receivedAt = _seenRequestIds.get(clientRequestId);
+    if (now - receivedAt > REQUEST_ID_TTL_MS) {
+      _seenRequestIds.delete(clientRequestId);
+    } else {
+      logger.info('ACB Webhook: Duplicate clientRequestId detected', {
+        clientRequestId,
+        ip: _getClientIp(req),
+      });
+      // Return ACB-format success response (idempotent — not an error)
+      return sendAcbSuccess(res, clientRequestId, 1);
+    }
+  }
+
+  // Evict oldest if at capacity (FIFO)
+  if (_seenRequestIds.size >= REQUEST_ID_STORE_MAX_SIZE) {
+    const oldestKey = _seenRequestIds.keys().next().value;
+    _seenRequestIds.delete(oldestKey);
+  }
+
+  _seenRequestIds.set(clientRequestId, now);
 
   return next();
 }
@@ -403,5 +389,6 @@ module.exports = {
   checkAcbIpAllowlist,
   checkAcbBruteForce,
   verifyAcbApiKey,
-  verifyAcbWebhookSignature,
+  verifyAcbChecksum,
+  checkAcbRequestIdDedup,
 };

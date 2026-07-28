@@ -11,6 +11,23 @@ const bankLogTransactionSchema = new mongoose.Schema(
     amount: { type: Number, required: true },
     content: { type: String, default: null, trim: true },
     transactionDate: { type: Date, default: null },
+    // ─── ACB-specific fields ──────────────────────────────────────────────
+    debitOrCredit: { type: String, enum: ['credit', 'debit'], default: null },
+    accountNumber: { type: String, default: null, trim: true },
+    transactionChannel: {
+      type: String,
+      enum: [
+        'BAT', 'VRU', 'WWW', 'ATM', 'ONLI', 'ACH', 'FSC', 'CCM', 'API', 'MG',
+        'SECU', 'MAPP', 'SMS', 'ACHS', 'CCAT', 'AAP', 'IBFT', 'CLMS', 'REMI',
+        'TB', 'SOBA', 'BIZ',
+      ],
+      default: null,
+    },
+    acbTransactionCode: { type: mongoose.Schema.Types.Mixed, default: null },
+    acbClientRequestId: { type: String, default: null, trim: true },
+    acbTransactionStatus: { type: String, enum: ['COMPLETED', 'ERRORCORRECTED'], default: null },
+    effectiveDate: { type: Date, default: null },
+    // ─── Processing fields ────────────────────────────────────────────────
     status: {
       type: String,
       enum: Object.values(BANK_LOG_TX_STATUSES),
