@@ -472,18 +472,22 @@ class ZCodeService {
     }).lean();
     if (exists) {
       let reason, code, statusCode;
-      if (exists.status === ZCODE_STATUSES.SUCCESS) {
-        reason = 'Code already redeemed';
-        code = 'ZCODE_ALREADY_REDEEMED';
-        statusCode = 409; // Conflict
-      } else if (exists.status === ZCODE_STATUSES.UNAVAILABLE) {
-        reason = 'Code is unavailable';
-        code = 'ZCODE_UNAVAILABLE';
-        statusCode = 403; // Forbidden
-      } else {
-        reason = 'Code is in error state';
-        code = 'ZCODE_ERROR_STATE';
-        statusCode = 422; // Unprocessable Entity
+      switch (exists.status) {
+        case ZCODE_STATUSES.SUCCESS:
+          reason = 'Code already redeemed';
+          code = 'ZCODE_ALREADY_REDEEMED';
+          statusCode = 409; // Conflict
+          break;
+        case ZCODE_STATUSES.UNAVAILABLE:
+          reason = 'Code is unavailable';
+          code = 'ZCODE_UNAVAILABLE';
+          statusCode = 403; // Forbidden
+          break;
+        default:
+          reason = 'Code is in error state';
+          code = 'ZCODE_ERROR_STATE';
+          statusCode = 422; // Unprocessable Entity
+          break;
       }
       throw createHttpError(statusCode, reason, {
         code,

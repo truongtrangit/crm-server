@@ -1,11 +1,12 @@
 const bankLogService = require('./bankLog.service');
-const { sendSuccess, createHttpError } = require('../../core/utils/http');
+const { sendSuccess, sendAcbError, sendAcbSuccess, createHttpError } = require('../../core/utils/http');
+const { ACB_RESPONSE_CODES } = require('../../core/constants/bankLog');
 const SystemLogService = require('../system/log/systemLog.service');
 const { RESOURCES } = require('../../core/constants/rbac');
 const {
   createRuleSchema,
   updateRuleSchema,
-  acbTransactionSchema,
+  acbWebhookSchema,
 } = require('./bankLog.validation');
 
 class BankLogController {
@@ -122,25 +123,49 @@ class BankLogController {
     return sendSuccess(res, 200, 'Xóa quy tắc thành công', rule);
   }
 
-  // ─── ACB Webhook Ingestion (Secure) ────────────────────────────────────────
+  // ─── ACB Webhook Ingestion ────────────────────────────────────────────────
 
+  /**
+   * Tiếp nhận webhook giao dịch từ ACB.
+   *
+   * ACB gửi payload theo format:
+   *   { masterMeta, requests[].requestParams.transactions[] }
+   *
+   * Response format ACB yêu cầu:
+   *   { timestamp, responseCode, message, responseBody: { referenceCode, index } }
+   */
   async ingestAcbTransaction(req, res) {
-    const { error, value } = acbTransactionSchema.validate(req.body);
-    if (error) throw createHttpError(400, error.details[0].message);
+    const { error, value } = acbWebhookSchema.validate(req.body);
+    if (error) {
+      // Return ACB-format error response
+      return sendAcbError(res, 400, ACB_RESPONSE_CODES.INVALID_REQUEST, error.details[0].message);
+    }
 
-    // Map ACB fields → internal bank log format
-    const mapped = {
-      txId: value.txId,
-      bank: 'ACB',
-      sender: value.sender || null,
-      amount: value.amount,
-      content: value.content || null,
-      transactionDate: value.transactionDate || new Date(),
-    };
+    const { masterMeta, requests } = value;
+    const clientRequestId = masterMeta.clientRequestId;
+    const clientId = masterMeta.clientId;
 
-    const result = await bankLogService.ingestTransaction(mapped);
+    // Flatten all transactions from all requests
+    const allTransactions = [];
+    for (const request of requests) {
+      const { transactions } = request.requestParams;
+      const { requestCode } = request.requestMeta;
+      
+      for (const tx of transactions) {
+        tx.acbRequestCode = requestCode;
+        allTransactions.push(tx);
+      }
+    }
 
-    return sendSuccess(res, 200, 'Transaction received', result);
+    // Map ACB fields → internal bank log format and ingest
+    const results = await bankLogService.ingestAcbBatch(
+      allTransactions,
+      clientRequestId,
+      clientId,
+    );
+
+    // Return ACB-required response format
+    return sendAcbSuccess(res, clientRequestId, results.length);
   }
 }
 

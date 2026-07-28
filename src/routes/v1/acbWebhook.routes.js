@@ -4,7 +4,8 @@ const {
   checkAcbIpAllowlist,
   checkAcbBruteForce,
   verifyAcbApiKey,
-  verifyAcbWebhookSignature,
+  verifyAcbChecksum,
+  checkAcbRequestIdDedup,
 } = require('../../core/middleware/acbWebhookAuth');
 const { acbWebhookLimiter } = require('../../core/middleware/rateLimiter');
 const {
@@ -19,22 +20,24 @@ const router = Router();
 //
 // Security middleware chain (8 layers):
 // 1. enforceJsonContentType    — Reject non-JSON Content-Type
-// 2. checkAcbIpAllowlist       — IP whitelist (skip only if 0.0.0.0)
+// 2. checkAcbIpAllowlist       — IP whitelist with CIDR support
 // 3. checkAcbBruteForce        — Auto-block after 5 auth failures in 10min
-// 4. verifyAcbApiKey           — X-API-Key (timing-safe + brute-force aware)
-// 5. verifyAcbWebhookSignature — HMAC-SHA256 + timestamp + replay nonce
-// 6. acbWebhookLimiter         — 300 req/min
-// 7. externalApiLogger         — Audit trail
-// 8. ingestAcbTransaction      — Validate + save + async process
+// 4. acbWebhookLimiter         — 300 req/min
+// 5. externalApiLogger         — Audit trail (captures body before security drops it)
+// 6. verifyAcbApiKey           — X-API-Key (timing-safe + brute-force aware)
+// 7. verifyAcbChecksum         — SHA256 Checksum (body + secretKey + bankKey)
+// 8. checkAcbRequestIdDedup    — clientRequestId dedup (replay protection)
+// 9. ingestAcbTransaction      — Validate ACB payload + save + async process
 router.post(
   '/transaction',
   enforceJsonContentType,
   checkAcbIpAllowlist,
   checkAcbBruteForce,
-  verifyAcbApiKey,
-  verifyAcbWebhookSignature,
   acbWebhookLimiter,
   externalApiLogger(EXTERNAL_SYSTEMS.ACB),
+  verifyAcbApiKey,
+  verifyAcbChecksum,
+  checkAcbRequestIdDedup,
   BankLogController.ingestAcbTransaction,
 );
 
