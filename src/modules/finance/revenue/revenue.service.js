@@ -83,55 +83,60 @@ class RevenueService {
   }
 
   async _generateExpectedRevenues(expected) {
-    if (expected.type === 'single') {
-      if (!expected.expectedDate) return;
-      const orderId = await this._generateOrderId(expected.category);
-      const revenue = new Revenue({
-        orderId,
-        customerName: expected.name,
-        category: expected.category,
-        details: expected.name,
-        amount: expected.amount,
-        companyProportions: expected.companyProportions,
-        recordDate: expected.expectedDate,
-        status: REVENUE_STATUSES.PENDING,
-        isExpected: true,
-        expectedRevenueId: expected._id,
-      });
-      await revenue.save();
-    } else if (expected.type === 'yearly') {
-      const currentYear = new Date().getFullYear();
-      const months = expected.allocatedMonths || [];
-      if (months.length === 0) return;
-
-      const baseAmount = Math.floor(expected.amount / months.length);
-      const remainder = expected.amount - baseAmount * months.length;
-
-      const sortedMonths = [...months].sort((a, b) => a - b);
-
-      for (let i = 0; i < sortedMonths.length; i++) {
-        const m = sortedMonths[i];
-        let monthAmount = baseAmount;
-        if (i === sortedMonths.length - 1) {
-          monthAmount += remainder;
-        }
-
-        const recordDate = new Date(currentYear, m - 1, 1);
+    switch (expected.type) {
+      case 'single': {
+        if (!expected.expectedDate) return;
         const orderId = await this._generateOrderId(expected.category);
-
         const revenue = new Revenue({
           orderId,
           customerName: expected.name,
           category: expected.category,
           details: expected.name,
-          amount: monthAmount,
+          amount: expected.amount,
           companyProportions: expected.companyProportions,
-          recordDate,
+          recordDate: expected.expectedDate,
           status: REVENUE_STATUSES.PENDING,
           isExpected: true,
           expectedRevenueId: expected._id,
         });
         await revenue.save();
+        break;
+      }
+      case 'yearly': {
+        const currentYear = new Date().getFullYear();
+        const months = expected.allocatedMonths || [];
+        if (months.length === 0) return;
+
+        const baseAmount = Math.floor(expected.amount / months.length);
+        const remainder = expected.amount - baseAmount * months.length;
+
+        const sortedMonths = [...months].sort((a, b) => a - b);
+
+        for (let i = 0; i < sortedMonths.length; i++) {
+          const m = sortedMonths[i];
+          let monthAmount = baseAmount;
+          if (i === sortedMonths.length - 1) {
+            monthAmount += remainder;
+          }
+
+          const recordDate = new Date(currentYear, m - 1, 1);
+          const orderId = await this._generateOrderId(expected.category);
+
+          const revenue = new Revenue({
+            orderId,
+            customerName: expected.name,
+            category: expected.category,
+            details: expected.name,
+            amount: monthAmount,
+            companyProportions: expected.companyProportions,
+            recordDate,
+            status: REVENUE_STATUSES.PENDING,
+            isExpected: true,
+            expectedRevenueId: expected._id,
+          });
+          await revenue.save();
+        }
+        break;
       }
     }
   }

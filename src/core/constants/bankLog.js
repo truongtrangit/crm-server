@@ -8,6 +8,7 @@ const BANK_LOG_TX_STATUSES = Object.freeze({
   FAILED: 'failed',
   NO_ROUTE: 'no_route',
   PENDING: 'pending',
+  IGNORED: 'ignored',
 });
 
 const BANK_LOG_CONDITION_PARAMS = Object.freeze({

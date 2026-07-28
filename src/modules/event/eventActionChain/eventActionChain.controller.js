@@ -194,53 +194,61 @@ class EventActionChainController {
 
     // ─── Follow branch logic ───
     // Chỉ đóng chain khi: close_task, close_chain, close_chain_clone_task
-    const CLOSE_TYPES = ["close_task", "close_chain", "close_chain_clone_task"];
+    switch (nextStepType) {
+      case "close_task":
+      case "close_chain":
+      case "close_chain_clone_task":
+        // Đóng chuỗi
+        chain.status = "closed";
+        currentStep.activatedNextStepOrder = null;
+        break;
 
-    if (nextStepType && CLOSE_TYPES.includes(nextStepType)) {
-      // Đóng chuỗi
-      chain.status = "closed";
-      currentStep.activatedNextStepOrder = null;
-    } else if (nextStepType === "next_in_chain") {
-      // Tìm step tiếp theo theo nextActionId (trong branch) hoặc index kế tiếp
-      const nextActionId = matchedBranch?.nextActionId;
-      let nextIdx = nextActionId
-        ? chain.steps.findIndex(s => s.actionId === nextActionId && s.status === "pending")
-        : -1;
-      // Fallback: step kế tiếp theo index
-      if (nextIdx === -1) nextIdx = currentIdx + 1;
+      case "next_in_chain": {
+        // Tìm step tiếp theo theo nextActionId (trong branch) hoặc index kế tiếp
+        const nextActionId = matchedBranch?.nextActionId;
+        let nextIdx = nextActionId
+          ? chain.steps.findIndex(s => s.actionId === nextActionId && s.status === "pending")
+          : -1;
+        // Fallback: step kế tiếp theo index
+        if (nextIdx === -1) nextIdx = currentIdx + 1;
 
-      if (nextIdx !== -1 && nextIdx < chain.steps.length) {
-        const delayUnit = nextStepDelay?.delayUnit ?? matchedBranch?.delayUnit ?? null;
-        const delayValue = nextStepDelay?.delayValue ?? matchedBranch?.delayValue ?? null;
-        const editNote = nextStepDelay?.editNote ?? "";
+        if (nextIdx !== -1 && nextIdx < chain.steps.length) {
+          const delayUnit = nextStepDelay?.delayUnit ?? matchedBranch?.delayUnit ?? null;
+          const delayValue = nextStepDelay?.delayValue ?? matchedBranch?.delayValue ?? null;
+          const editNote = nextStepDelay?.editNote ?? "";
 
-        chain.steps[nextIdx].status = "active";
-        chain.steps[nextIdx].activatedAt = now;
-        chain.steps[nextIdx].scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
-        chain.steps[nextIdx].delayUnit = delayUnit;
-        chain.steps[nextIdx].delayValue = delayValue;
-        chain.steps[nextIdx].delayEditNote = editNote;
-        chain.currentStepIndex = nextIdx;
-        // Ghi lại step thực tế được activate
-        currentStep.activatedNextStepOrder = chain.steps[nextIdx].order;
+          chain.steps[nextIdx].status = "active";
+          chain.steps[nextIdx].activatedAt = now;
+          chain.steps[nextIdx].scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
+          chain.steps[nextIdx].delayUnit = delayUnit;
+          chain.steps[nextIdx].delayValue = delayValue;
+          chain.steps[nextIdx].delayEditNote = editNote;
+          chain.currentStepIndex = nextIdx;
+          // Ghi lại step thực tế được activate
+          currentStep.activatedNextStepOrder = chain.steps[nextIdx].order;
+        }
+        // Nếu không có next step → chain vẫn active (user phải tự đóng)
+        break;
       }
-      // Nếu không có next step → chain vẫn active (user phải tự đóng)
-    } else {
-      // create_order, call_block_automation, add_from_other_chain, etc.
-      // Advance sang step kế tiếp theo index nếu có
-      const nextIdx = currentIdx + 1;
-      if (nextIdx < chain.steps.length) {
-        const delayUnit = nextStepDelay?.delayUnit ?? null;
-        const delayValue = nextStepDelay?.delayValue ?? null;
-        chain.steps[nextIdx].status = "active";
-        chain.steps[nextIdx].activatedAt = now;
-        chain.steps[nextIdx].scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
-        chain.steps[nextIdx].delayUnit = delayUnit;
-        chain.steps[nextIdx].delayValue = delayValue;
-        chain.currentStepIndex = nextIdx;
-        currentStep.activatedNextStepOrder = chain.steps[nextIdx].order;
+
+      default: {
+        // create_order, call_block_automation, add_from_other_chain, etc.
+        // Advance sang step kế tiếp theo index nếu có
+        const nextIdx = currentIdx + 1;
+        if (nextIdx < chain.steps.length) {
+          const delayUnit = nextStepDelay?.delayUnit ?? null;
+          const delayValue = nextStepDelay?.delayValue ?? null;
+          chain.steps[nextIdx].status = "active";
+          chain.steps[nextIdx].activatedAt = now;
+          chain.steps[nextIdx].scheduledAt = calcScheduledAt(now, delayUnit, delayValue);
+          chain.steps[nextIdx].delayUnit = delayUnit;
+          chain.steps[nextIdx].delayValue = delayValue;
+          chain.currentStepIndex = nextIdx;
+          currentStep.activatedNextStepOrder = chain.steps[nextIdx].order;
+        }
+        // Nếu không còn step → chain vẫn active cho user tự đóng
+        break;
       }
-      // Nếu không còn step → chain vẫn active cho user tự đóng
     }
 
     chain.markModified("steps");

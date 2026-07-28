@@ -183,10 +183,13 @@ async function hasModuleAccess(user, moduleId) {
   const rootModule = moduleId.split(".")[0];
   let defaultAllowed = false;
 
-  if (roleUpper === USER_ROLE_VALUES.MANAGER) {
-    defaultAllowed = !MANAGER_EXCLUDED_MODULES.includes(rootModule);
-  } else if (roleUpper === USER_ROLE_VALUES.STAFF) {
-    defaultAllowed = STAFF_ALLOWED_MODULES.includes(rootModule);
+  switch (roleUpper) {
+    case USER_ROLE_VALUES.MANAGER:
+      defaultAllowed = !MANAGER_EXCLUDED_MODULES.includes(rootModule);
+      break;
+    case USER_ROLE_VALUES.STAFF:
+      defaultAllowed = STAFF_ALLOWED_MODULES.includes(rootModule);
+      break;
   }
 
   const entries = user.moduleAccess || [];

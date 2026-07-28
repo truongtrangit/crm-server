@@ -148,7 +148,10 @@ class BankLogController {
     const allTransactions = [];
     for (const request of requests) {
       const { transactions } = request.requestParams;
+      const { requestCode } = request.requestMeta;
+      
       for (const tx of transactions) {
+        tx.acbRequestCode = requestCode;
         allTransactions.push(tx);
       }
     }

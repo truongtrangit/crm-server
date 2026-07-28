@@ -17,14 +17,17 @@ class JobRecurringTaskService {
     end.setHours(23, 59, 59, 999);
 
     while (current <= end) {
-      if (rule.cycleType === "weekly") {
-        if (rule.cycleValues.includes(current.getDay())) {
-          dates.push(new Date(current));
-        }
-      } else if (rule.cycleType === "monthly") {
-        if (rule.cycleValues.includes(current.getDate())) {
-          dates.push(new Date(current));
-        }
+      switch (rule.cycleType) {
+        case "weekly":
+          if (rule.cycleValues.includes(current.getDay())) {
+            dates.push(new Date(current));
+          }
+          break;
+        case "monthly":
+          if (rule.cycleValues.includes(current.getDate())) {
+            dates.push(new Date(current));
+          }
+          break;
       }
       current.setDate(current.getDate() + 1);
     }

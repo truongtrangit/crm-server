@@ -90,12 +90,16 @@ function computeChanges(oldObj, newObj, keysToCheck = null) {
     // path của microdiff là mảng các keys, ví dụ ['address', 'city'] -> 'address.city'
     const pathStr = difference.path.join(".");
 
-    if (difference.type === "CHANGE") {
-      changes[pathStr] = { from: difference.oldValue, to: difference.value };
-    } else if (difference.type === "CREATE") {
-      changes[pathStr] = { from: null, to: difference.value };
-    } else if (difference.type === "REMOVE") {
-      changes[pathStr] = { from: difference.oldValue, to: null };
+    switch (difference.type) {
+      case "CHANGE":
+        changes[pathStr] = { from: difference.oldValue, to: difference.value };
+        break;
+      case "CREATE":
+        changes[pathStr] = { from: null, to: difference.value };
+        break;
+      case "REMOVE":
+        changes[pathStr] = { from: difference.oldValue, to: null };
+        break;
     }
   }
 

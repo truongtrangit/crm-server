@@ -180,7 +180,16 @@ class BankLogService {
 
     // Map ACB fields → internal documents
     const docs = acbTransactions.map((acbTx, i) => {
-      const txId = `ACB-${acbTx.accountNumber}-${acbTx.transactionCode || 0}-${acbTx.transactionDate}-${acbTx.amount}`;
+      const txId = acbTx.transactionCode ? `ACB-${acbTx.transactionCode}` : `ACB-UNKNOWN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      // Determine if we should process this or just log it
+      let initialStatus = BANK_LOG_TX_STATUSES.PENDING;
+      if (
+        acbTx.acbRequestCode !== 'TRANSACTION_UPDATE' ||
+        acbTx.transactionStatus !== 'COMPLETED'
+      ) {
+        initialStatus = BANK_LOG_TX_STATUSES.IGNORED;
+      }
+
       return {
         id: ids[i],
         txId,
@@ -194,9 +203,10 @@ class BankLogService {
         transactionChannel: acbTx.transactionChannel || null,
         acbTransactionCode: acbTx.transactionCode || null,
         acbTransactionStatus: acbTx.transactionStatus || null,
+        acbRequestCode: acbTx.acbRequestCode || null,
         acbClientRequestId: clientRequestId,
         effectiveDate: acbTx.effectiveDate ? new Date(acbTx.effectiveDate) : null,
-        status: BANK_LOG_TX_STATUSES.PENDING,
+        status: initialStatus,
         rawPayload: acbTx,
         createdBy: 'system',
       };
@@ -229,23 +239,27 @@ class BankLogService {
     // Fire-and-forget: process all new transactions in background
     // Pre-fetch rules once for all transactions
     if (insertedDocs.length > 0) {
-      this._getActiveRules()
-        .then((rules) => {
-          for (const tx of insertedDocs) {
-            this._processTransaction(tx, rules).catch((processErr) =>
-              logger.error('Bank Log: Background processing failed', {
-                txId: tx.txId,
-                error: processErr.message,
-              }),
-            );
-          }
-        })
-        .catch((rulesErr) => {
-          logger.error('Bank Log: Failed to fetch rules for batch processing', {
-            clientRequestId,
-            error: rulesErr.message,
+      const pendingDocs = insertedDocs.filter(d => d.status === BANK_LOG_TX_STATUSES.PENDING);
+      
+      if (pendingDocs.length > 0) {
+        this._getActiveRules()
+          .then((rules) => {
+            for (const tx of pendingDocs) {
+              this._processTransaction(tx, rules).catch((processErr) =>
+                logger.error('Bank Log: Background processing failed', {
+                  txId: tx.txId,
+                  error: processErr.message,
+                }),
+              );
+            }
+          })
+          .catch((rulesErr) => {
+            logger.error('Bank Log: Failed to fetch rules for batch processing', {
+              clientRequestId,
+              error: rulesErr.message,
+            });
           });
-        });
+      }
     }
 
     // Build results: inserted + duplicates
