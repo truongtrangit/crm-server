@@ -24,6 +24,7 @@ const bankLogTransactionSchema = new mongoose.Schema(
       default: null,
     },
     acbTransactionCode: { type: mongoose.Schema.Types.Mixed, default: null },
+    acbClientId: { type: String, default: null, trim: true },
     acbClientRequestId: { type: String, default: null, trim: true },
     acbRequestCode: { type: String, enum: ['TRANSACTION_UPDATE', 'TRANSACTION_HISTORY'], default: null },
     acbTransactionStatus: { type: String, enum: ['COMPLETED', 'ERRORCORRECTED'], default: null },

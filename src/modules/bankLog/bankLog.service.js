@@ -169,9 +169,10 @@ class BankLogService {
    *
    * @param {Array} acbTransactions - Array of ACB transaction objects
    * @param {string} clientRequestId - ACB's clientRequestId for dedup tracking
+   * @param {string} clientId - ACB's clientId
    * @returns {Array} Array of ingestion results
    */
-  async ingestAcbBatch(acbTransactions, clientRequestId) {
+  async ingestAcbBatch(acbTransactions, clientRequestId, clientId) {
     const count = acbTransactions.length;
     if (count === 0) return [];
 
@@ -204,6 +205,7 @@ class BankLogService {
         acbTransactionCode: acbTx.transactionCode || null,
         acbTransactionStatus: acbTx.transactionStatus || null,
         acbRequestCode: acbTx.acbRequestCode || null,
+        acbClientId: clientId,
         acbClientRequestId: clientRequestId,
         effectiveDate: acbTx.effectiveDate ? new Date(acbTx.effectiveDate) : null,
         status: initialStatus,

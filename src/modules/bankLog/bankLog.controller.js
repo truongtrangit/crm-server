@@ -143,6 +143,7 @@ class BankLogController {
 
     const { masterMeta, requests } = value;
     const clientRequestId = masterMeta.clientRequestId;
+    const clientId = masterMeta.clientId;
 
     // Flatten all transactions from all requests
     const allTransactions = [];
@@ -160,6 +161,7 @@ class BankLogController {
     const results = await bankLogService.ingestAcbBatch(
       allTransactions,
       clientRequestId,
+      clientId,
     );
 
     // Return ACB-required response format
