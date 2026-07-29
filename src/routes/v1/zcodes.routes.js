@@ -5,6 +5,13 @@ const { PERMISSIONS } = require('../../core/constants/rbac');
 
 const router = express.Router();
 
+// SKU Prices
+router.get(
+  '/sku-prices',
+  requirePermission(PERMISSIONS.ZCODES_READ),
+  ZCodeController.getSkuPrices,
+);
+
 // Stats
 router.get(
   '/stats',
@@ -31,6 +38,13 @@ router.get(
   '/export',
   requirePermission(PERMISSIONS.ZCODES_READ),
   ZCodeController.exportZCodes,
+);
+
+// List Batches
+router.get(
+  '/batches',
+  requirePermission(PERMISSIONS.ZCODES_READ),
+  ZCodeController.getZCodeBatches,
 );
 
 // List
