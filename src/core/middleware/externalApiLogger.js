@@ -1,4 +1,4 @@
-const ExternalApiLog = require('../../modules/zcode/externalApiLog.model');
+const ExternalApiLog = require('../models/externalApiLog.model');
 const logger = require('../utils/logger');
 
 /**
@@ -32,16 +32,32 @@ function externalApiLogger(systemName = 'ZCODE') {
         req.ip || '';
 
       // Fire-and-forget — don't await
-      ExternalApiLog.create({
-        method: req.method,
-        path: req.originalUrl,
-        system: systemName,
-        callerIp: clientIp,
-        apiKeyValid: secCtx.apiKeyValid !== false,
-        idempotencyKey: secCtx.idempotencyKey || null,
-        idempotentHit: secCtx.idempotentHit || false,
-        requestBody: req.body ? { sku: req.body.sku, partialCode: req.body.partialCode ? '***' : undefined } : null,
-        responseStatus: res.statusCode,
+        // Customize request body logging per system to prevent saving PII/secrets or huge payloads unnecessarily
+        let loggedBody = null;
+        if (req.body) {
+          switch (systemName) {
+            case 'ZCODE':
+              loggedBody = { sku: req.body.sku, partialCode: req.body.partialCode ? '***' : undefined };
+              break;
+            case 'ACB':
+              // Log the full ACB payload to debug Checksum/Signature mismatches
+              loggedBody = req.body;
+              break;
+            default:
+              loggedBody = req.body;
+          }
+        }
+
+        ExternalApiLog.create({
+          method: req.method,
+          path: req.originalUrl,
+          system: systemName,
+          callerIp: clientIp,
+          apiKeyValid: secCtx.apiKeyValid !== false,
+          idempotencyKey: secCtx.idempotencyKey || null,
+          idempotentHit: secCtx.idempotentHit || false,
+          requestBody: loggedBody,
+          responseStatus: res.statusCode,
         responseCode: capturedBody?.code || capturedBody?.data?.code || null,
         durationMs,
         error: res.statusCode >= 400 ? (capturedBody?.message || null) : null,

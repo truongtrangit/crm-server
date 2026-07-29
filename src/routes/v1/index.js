@@ -41,6 +41,7 @@ const courseChallengesRouter = require('./courseChallenges.routes');
 const coursesKnowledgeRouter = require('./knowledge.routes');
 const courseSubmissionsRouter = require('./courseSubmissions.routes');
 const zcodesRouter = require('./zcodes.routes');
+const bankLogsRouter = require('./bankLogs.routes');
 
 const { authenticateRequest } = require('../../core/middleware/auth');
 const { sendSuccess } = require('../../core/utils/http');
@@ -56,15 +57,32 @@ v1Router.get('/', (_req, res) =>
       'customers',
       'users',
       'events',
+      'event-chains',
+      'leads',
+      'lead-config',
+      'tasks',
+      'funnels',
+      'meta',
+      'staffs',
+      'salaries',
+      'salary-configs',
+      'revenues',
+      'expenses',
+      'finance',
+      'policy',
+      'companies',
+      'job-hub',
+      'courses',
+      'zcodes',
+      'bank-logs',
       'organization',
       'metadata',
       'functions',
+      'functional-groups',
       'rbac',
       'action-config',
-      'event-chains',
       'webhooks',
       'logs',
-      'meta',
     ],
   }),
 );
@@ -110,6 +128,7 @@ v1Router.use('/courses/challenges', courseChallengesRouter);
 v1Router.use('/courses/knowledge', coursesKnowledgeRouter);
 v1Router.use('/courses/submissions', courseSubmissionsRouter);
 v1Router.use('/zcodes', zcodesRouter);
+v1Router.use('/bank-logs', bankLogsRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use('/organization', organizationRouter);

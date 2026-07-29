@@ -618,7 +618,6 @@ const getPublicCourses = async (queryParams, studentId = null) => {
 
   const [courses, total] = await Promise.all([
     CourseChallenge.find(filter)
-      .select('-curriculum -description')
       .populate('categoryDetails')
       .populate('lecturers.details')
       .sort({ isBestseller: -1, createdAt: -1 })
@@ -627,6 +626,15 @@ const getPublicCourses = async (queryParams, studentId = null) => {
       .lean({ virtuals: true }),
     CourseChallenge.countDocuments(filter),
   ]);
+
+  // Strip curriculum to day titles only (for "Nội dung sơ lược" in list view)
+  courses.forEach((course) => {
+    if (course.curriculum) {
+      course.curriculum = course.curriculum.map((day) => ({
+        title: day.title,
+      }));
+    }
+  });
 
   if (studentId && courses.length > 0) {
     const courseIds = courses.map((c) => c.id);

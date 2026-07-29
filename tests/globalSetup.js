@@ -36,7 +36,7 @@ module.exports = async function globalSetup() {
   // 4. Connect + seed
   await mongoose.connect(uri);
 
-  const { seedRbac } = require("../src/services/rbacSeed");
+  const { seedRbac } = require("../src/core/services/rbacSeed");
   await seedRbac();
 
   const { seedTestFixtures } = require("./utils/fixtures");

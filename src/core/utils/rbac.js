@@ -59,6 +59,14 @@ async function resolveUserRole(user) {
   // 2. Cache miss -> Lấy từ MongoDB
   role = await Role.findOne({ id: user.roleId }).lean();
 
+  if (!role) {
+    const { ROLE_DEFINITIONS } = require('../constants/rbac');
+    const roleKey = String(user.roleId).toUpperCase();
+    if (ROLE_DEFINITIONS[roleKey]) {
+      role = ROLE_DEFINITIONS[roleKey];
+    }
+  }
+
   if (role) {
     await CacheService.set(cacheKey, role, env.cacheRoleTtlSeconds);
   }
@@ -167,18 +175,21 @@ async function getUserPermissions(user) {
 async function hasModuleAccess(user, moduleId) {
   if (!user) return false;
 
+  if (isOwnerOrAdmin(user)) return true;
+
   const role = await getUserRoleName(user);
   const roleUpper = (role || "").toUpperCase();
-
-  if (isOwnerOrAdmin(roleUpper)) return true;
 
   const rootModule = moduleId.split(".")[0];
   let defaultAllowed = false;
 
-  if (roleUpper === USER_ROLE_VALUES.MANAGER) {
-    defaultAllowed = !MANAGER_EXCLUDED_MODULES.includes(rootModule);
-  } else if (roleUpper === USER_ROLE_VALUES.STAFF) {
-    defaultAllowed = STAFF_ALLOWED_MODULES.includes(rootModule);
+  switch (roleUpper) {
+    case USER_ROLE_VALUES.MANAGER:
+      defaultAllowed = !MANAGER_EXCLUDED_MODULES.includes(rootModule);
+      break;
+    case USER_ROLE_VALUES.STAFF:
+      defaultAllowed = STAFF_ALLOWED_MODULES.includes(rootModule);
+      break;
   }
 
   const entries = user.moduleAccess || [];

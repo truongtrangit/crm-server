@@ -1,51 +1,44 @@
 # ZCode External API — Tài Liệu Tích Hợp (Integration Spec)
 
-> **Version:** 1.0  
-> **Base URL:** `https://final.vn/api/external/v1/zcodes`  
+> **Version:** 1.0
+> **Prod Base URL:** `https://final.vn/api/external/v1/zcodes`
+> **Dev Base URL:** `https://crm-server-rvzz.onrender.com/api/external/v1/zcodes`
 > **Content-Type:** `application/json`
 
 ---
 
 ## Tổng Quan
 
-ZCode External API cho phép hệ thống Thirdparty (Hệ thống B) gọi để **nạp mã ZCode** (redeem) khi người dùng cuối sử dụng mã trên hệ thống B.
+ZCode External API cho phép hệ thống Thirdparty (Hệ thống Zcode) gọi để **nạp mã ZCode** (redeem) khi người dùng cuối sử dụng mã trên hệ thống Zcode.
 
 ### Luồng Tích Hợp
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Người dùng  │     │ Hệ thống B   │     │ CRM Server   │
-│  (End User)  │     │ (Thirdparty) │     │ (ZCode API)  │
-└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
-       │                    │                    │
-       │  1. Nhập mã ZCode  │                    │
-       │  VD: F3YP-R8MJ     │                    │
-       │───────────────────>│                    │
-       │                    │                    │
-       │                    │  2. POST /redeem   │
-       │                    │  sku: ZB5000       │
-       │                    │  partialCode:      │
-       │                    │  F3YP-R8MJ         │
-       │                    │───────────────────>│
-       │                    │                    │
-       │                    │  3. Response       │
-       │                    │  partA: K9DV       │
-       │                    │<───────────────────│
-       │                    │                    │
-       │  4. Xác nhận nạp   │                    │
-       │  thành công        │                    │
-       │<───────────────────│                    │
-       │                    │                    │
+```text
+┌─────────────────┐     ┌──────────────┐
+│ Hệ thống Zcode  │     │ CRM Server   │
+│ (Thirdparty)    │     │ (ZCode API)  │
+└───────┬─────────┘     └──────┬───────┘
+        │                      │
+        │  1. POST /redeem     │
+        │  sku: ZB5000         │
+        │  partialCode:        │
+        │  F3YP-R8MJ           │
+        │─────────────────────>│
+        │                      │
+        │  2. Response         │
+        │  partA: K9DV         │
+        │<─────────────────────│
+        │                      │
 ```
 
 ### Quy Ước Mã ZCode
 
 Mỗi mã ZCode có cấu trúc `PartA-PartB-PartC`, ví dụ: `K9DV-F3YP-R8MJ`.
 
-| Phần | Ví dụ | Mô tả |
-|------|-------|-------|
-| **PartA** | `K9DV` | Phần bí mật — chỉ CRM Server biết, trả về sau khi redeem thành công |
-| **PartB-PartC** | `F3YP-R8MJ` | Phần công khai — người dùng nhập trên Hệ thống B, gọi là `partialCode` |
+| Phần            | Ví dụ       | Mô tả                                                                      |
+| --------------- | ----------- | -------------------------------------------------------------------------- |
+| **PartA**       | `K9DV`      | Phần bí mật — chỉ CRM Server biết, trả về sau khi redeem thành công        |
+| **PartB-PartC** | `F3YP-R8MJ` | Phần công khai — người dùng nhập trên Hệ thống Zcode, gọi là `partialCode` |
 
 ---
 
@@ -63,16 +56,16 @@ X-API-Key: <your_api_key>
 
 ### IP Whitelist
 
-Server chỉ chấp nhận request từ các IP đã được đăng ký trước. Vui lòng cung cấp IP tĩnh (static IP) của server Hệ thống B để được thêm vào whitelist.
+Server chỉ chấp nhận request từ các IP đã được đăng ký trước. Vui lòng cung cấp IP tĩnh (static IP) của server Hệ thống Zcode để được thêm vào whitelist.
 
 ---
 
 ## Rate Limiting
 
-| Thông số | Giá trị |
-|----------|---------|
-| Window | 1 phút |
-| Max requests | 30 request/IP |
+| Thông số       | Giá trị                                                     |
+| -------------- | ----------------------------------------------------------- |
+| Window         | 1 phút                                                      |
+| Max requests   | 30 request/IP                                               |
 | Headers trả về | `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` |
 
 Khi vượt quá limit, API trả về HTTP `429 Too Many Requests`.
@@ -81,17 +74,17 @@ Khi vượt quá limit, API trả về HTTP `429 Too Many Requests`.
 
 ## Idempotency (Tùy Chọn)
 
-Để tránh nạp mã 2 lần trong trường hợp timeout hoặc retry, Hệ thống B có thể gửi header:
+Để tránh nạp mã 2 lần trong trường hợp timeout hoặc retry, Hệ thống Zcode có thể gửi header:
 
 ```
 X-Idempotency-Key: <unique_request_id>
 ```
 
-| Đặc tính | Chi tiết |
-|----------|----------|
-| Format | Chuỗi bất kỳ, tối đa 128 ký tự (VD: UUID v4, transaction ID) |
-| TTL | 24 giờ — sau 24h, key hết hạn và có thể tái sử dụng |
-| Hành vi | Nếu key đã xử lý → trả lại kết quả cũ kèm `"idempotent": true` |
+| Đặc tính | Chi tiết                                                       |
+| -------- | -------------------------------------------------------------- |
+| Format   | Chuỗi bất kỳ, tối đa 128 ký tự (VD: UUID v4, transaction ID)   |
+| TTL      | 24 giờ — sau 24h, key hết hạn và có thể tái sử dụng            |
+| Hành vi  | Nếu key đã xử lý → trả lại kết quả cũ kèm `"idempotent": true` |
 
 ---
 
@@ -99,7 +92,7 @@ X-Idempotency-Key: <unique_request_id>
 
 ### `POST /redeem` — Nạp Mã ZCode
 
-Gọi API này khi người dùng nhập mã ZCode trên Hệ thống B để đổi thưởng.
+Gọi API này khi người dùng nhập mã ZCode trên Hệ thống Zcode để đổi thưởng.
 
 #### Request
 
@@ -112,10 +105,10 @@ X-Idempotency-Key: txn_20260725_001 (tùy chọn)
 
 **Body:**
 
-| Field | Type | Required | Mô tả |
-|-------|------|----------|-------|
-| `sku` | string | ✅ | Gói mã. Các giá trị hợp lệ: `ZB5000`, `ZB10000`, `ZC10GB`, `ZC100GB`, `ZC500GB`, `ZC1T` |
-| `partialCode` | string | ✅ | Phần PartB-PartC của mã ZCode. Format: `XXXX-XXXX` |
+| Field         | Type   | Required | Mô tả                                                                                   |
+| ------------- | ------ | -------- | --------------------------------------------------------------------------------------- |
+| `sku`         | string | ✅       | Gói mã. Các giá trị hợp lệ: `ZB5000`, `ZB10000`, `ZC10GB`, `ZC100GB`, `ZC500GB`, `ZC1T` |
+| `partialCode` | string | ✅       | Phần PartB-PartC của mã ZCode. Format: `XXXX-XXXX`                                      |
 
 ```json
 {
@@ -141,10 +134,10 @@ X-Idempotency-Key: txn_20260725_001 (tùy chọn)
 }
 ```
 
-| Field | Mô tả |
-|-------|-------|
+| Field        | Mô tả                                                                        |
+| ------------ | ---------------------------------------------------------------------------- |
 | `data.partA` | Phần bí mật của mã ZCode. Ghép với partialCode → mã đầy đủ: `K9DV-F3YP-R8MJ` |
-| `data.sku` | Gói mã đã nạp |
+| `data.sku`   | Gói mã đã nạp                                                                |
 
 ##### ✅ 200 — Idempotent (request trùng lặp)
 
@@ -173,7 +166,7 @@ Nếu gửi lại cùng `X-Idempotency-Key` đã xử lý trước đó:
 
 ##### ❌ 400 — Mã Trùng Lặp (Duplicate Code)
 
-Khi có nhiều mã cùng PartB-PartC trong hệ thống. Đây là lỗi dữ liệu phía CRM, không phải lỗi của Hệ thống B.
+Khi có nhiều mã cùng PartB-PartC trong hệ thống. Đây là lỗi dữ liệu phía CRM, không phải lỗi của Hệ thống Zcode.
 
 ```json
 {
@@ -261,7 +254,7 @@ Khi có nhiều mã cùng PartB-PartC trong hệ thống. Đây là lỗi dữ l
 ```javascript
 const axios = require('axios');
 
-const API_BASE = 'https://final.vn/api/external/v1/zcodes';
+const API_BASE = 'https://crm-server-rvzz.onrender.com/api/external/v1/zcodes';
 const API_KEY = 'your_api_key_here';
 
 async function redeemZCode(sku, partialCode, requestId) {
@@ -285,7 +278,7 @@ async function redeemZCode(sku, partialCode, requestId) {
   } catch (error) {
     const data = error.response?.data;
     console.error(`❌ Lỗi: ${data?.message || error.message}`);
-    
+
     // Xử lý theo mã lỗi
     switch (data?.code) {
       case 'ZCODE_NOT_FOUND':
@@ -293,13 +286,25 @@ async function redeemZCode(sku, partialCode, requestId) {
       case 'ZCODE_ALREADY_REDEEMED':
         return { success: false, reason: 'Mã đã được sử dụng' };
       case 'ZCODE_UNAVAILABLE':
-        return { success: false, reason: 'Mã đang bị khoá hoặc chưa kích hoạt' };
+        return {
+          success: false,
+          reason: 'Mã đang bị khoá hoặc chưa kích hoạt',
+        };
       case 'ZCODE_ERROR_STATE':
-        return { success: false, reason: 'Mã bị lỗi trạng thái, vui lòng liên hệ admin' };
+        return {
+          success: false,
+          reason: 'Mã bị lỗi trạng thái, vui lòng liên hệ admin',
+        };
       case 'ZCODE_DUPLICATE_CODE':
-        return { success: false, reason: 'Mã bị trùng lặp trong hệ thống, vui lòng liên hệ admin' };
+        return {
+          success: false,
+          reason: 'Mã bị trùng lặp trong hệ thống, vui lòng liên hệ admin',
+        };
       default:
-        return { success: false, reason: data?.message || 'Lỗi không xác định' };
+        return {
+          success: false,
+          reason: data?.message || 'Lỗi không xác định',
+        };
     }
   }
 }
@@ -311,7 +316,7 @@ redeemZCode('ZB5000', 'F3YP-R8MJ', 'txn_20260725_001');
 ### cURL
 
 ```bash
-curl -X POST https://final.vn/api/external/v1/zcodes/redeem \
+curl -X POST https://crm-server-rvzz.onrender.com/api/external/v1/zcodes/redeem \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -H "X-Idempotency-Key: txn_20260725_001" \

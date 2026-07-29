@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const { ZCODE_STATUSES, ZCODE_ERROR_REASONS } = require('../../core/constants/zcode');
+const { ZCODE_STATUSES, ZCODE_ERROR_REASONS, ZCODE_PRICE_ADJUSTMENT_TYPES } = require('../../core/constants/zcode');
 
 const zcodeSchema = new mongoose.Schema(
   {
@@ -22,6 +22,15 @@ const zcodeSchema = new mongoose.Schema(
       enum: [...Object.values(ZCODE_ERROR_REASONS), null],
       default: null,
     },
+    // Pricing fields
+    listPrice: { type: Number, default: null },
+    priceAdjustmentType: {
+      type: String,
+      enum: Object.values(ZCODE_PRICE_ADJUSTMENT_TYPES),
+      default: ZCODE_PRICE_ADJUSTMENT_TYPES.NONE,
+    },
+    priceAdjustmentValue: { type: Number, default: null },
+    finalPrice: { type: Number, default: null },
     calledAt: { type: Date, default: null },
     respondedAt: { type: Date, default: null },
     responseTime: { type: String, default: null },

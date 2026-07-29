@@ -65,12 +65,17 @@ class CheckoutService {
           orQ.push({ _id: item.courseId });
         }
 
-        if (item.courseType === COURSE_TYPES.CHALLENGE)
-          challengeQueries.push(...orQ);
-        else if (item.courseType === COURSE_TYPES.ONLINE)
-          onlineQueries.push(...orQ);
-        else if (item.courseType === COURSE_TYPES.OFFLINE)
-          offlineQueries.push(...orQ);
+        switch (item.courseType) {
+          case COURSE_TYPES.CHALLENGE:
+            challengeQueries.push(...orQ);
+            break;
+          case COURSE_TYPES.ONLINE:
+            onlineQueries.push(...orQ);
+            break;
+          case COURSE_TYPES.OFFLINE:
+            offlineQueries.push(...orQ);
+            break;
+        }
       }
 
       const [challenges, onlines, offlines] = await Promise.all([

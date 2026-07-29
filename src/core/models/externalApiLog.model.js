@@ -15,7 +15,7 @@ const externalApiLogSchema = new mongoose.Schema(
     path: { type: String, required: true },
 
     /** External system name */
-    system: { type: String, default: 'ZCODE' },
+    system: { type: String, default: 'UNKNOWN' },
 
     /** Caller IP (from CF-Connecting-IP or X-Forwarded-For) */
     callerIp: { type: String, default: '' },

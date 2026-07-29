@@ -3,12 +3,8 @@ const ZCodeController = require('../../../modules/zcode/zcode.controller');
 const env = require('../../../core/config/env');
 const { requireApiKey } = require('../../../core/middleware/externalAuth');
 const { EXTERNAL_SYSTEMS } = require('../../../core/constants/externalSystems');
-const {
-  checkZcodeIpAllowlist,
-} = require('../../../core/middleware/zcodeAuth');
-const {
-  zcodeRedeemLimiter,
-} = require('../../../core/middleware/rateLimiter');
+const { checkZcodeIpAllowlist } = require('../../../core/middleware/zcodeAuth');
+const { zcodeRedeemLimiter } = require('../../../core/middleware/rateLimiter');
 const {
   verifyIdempotency,
 } = require('../../../core/middleware/zcodeSecurityAuth');

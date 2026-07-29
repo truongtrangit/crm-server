@@ -1,0 +1,1156 @@
+{
+	"info": {
+		"_postman_id": "acb-webhook-sha256-v3",
+		"name": "ACB Webhook Integration Tests (SHA256 Checksum)",
+		"description": "Bộ Postman Collection đầy đủ để test API Webhook ACB.\n\n### Tự Động Tính SHA256 Checksum\nMỗi request thành công đều tích hợp **Pre-request Script** tự động:\n- Sinh `clientRequestId` (UUID) duy nhất\n- Tính `signature = SHA256(rawBody + secretKey + bankKey)`\n- Gán header `X-API-Key` và `signature`\n\n### Yêu Cầu\n- **Postman Desktop** (cần `require('crypto')` trong Pre-request Script)\n- Hoặc **Newman CLI** để chạy qua terminal\n\n### Cách Dùng\n1. Import file JSON này vào Postman\n2. Chọn Environment: **CRM - Local**, **CRM - Dev**, hoặc **CRM - Prod**\n3. Đảm bảo environment có các biến: `host`, `acbApiKey`, `acbSecretKey`, `acbBankKey`, `acbClientId`, `acbAccountNumber`\n4. Nhấn Send từng request hoặc Run Collection\n\n### ⚠️ Lưu Ý Brute-force\nSau 5 lần gửi sai API Key hoặc Checksum trong 10 phút → IP bị block 30 phút.\nĐể test error cases, nên dùng môi trường Dev với IP allowlist = 0.0.0.0",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "{{host}}/api/v1/webhooks/acb",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. ✅ Success Cases",
+			"item": [
+				{
+					"name": "1.1 Credit Transaction — Báo Có (Tiền VÀO)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// ─── Tự động sinh body + tính SHA256 checksum ───",
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const clientRequestId = pm.variables.replaceIn('{{$guid}}');",
+									"const txCode = Math.floor(Math.random() * 100000);",
+									"const txDate = new Date().toISOString();",
+									"",
+									"const body = {",
+									"    masterMeta: {",
+									"        clientId: pm.variables.get('acbClientId'),",
+									"        clientRequestId: clientRequestId,",
+									"        checksum: 'will-be-computed'",
+									"    },",
+									"    requests: [{",
+									"        requestMeta: {",
+									"            requestType: 'NOTIFICATION',",
+									"            requestCode: 'TRANSACTION_UPDATE'",
+									"        },",
+									"        requestParams: {",
+									"            transactions: [{",
+									"                transactionStatus: 'COMPLETED',",
+									"                transactionChannel: 'MAPP',",
+									"                transactionCode: txCode,",
+									"                accountNumber: parseInt(pm.variables.get('acbAccountNumber')),",
+									"                transactionDate: txDate,",
+									"                effectiveDate: txDate,",
+									"                debitOrCredit: 'credit',",
+									"                virtualAccountInfo: null,",
+									"                amount: 500000000,",
+									"                transactionEntityAttribute: {",
+									"                    issuerBankName: 'ACB - NH TMCP A CHAU',",
+									"                    receiverBankName: 'ACB - NH TMCP A CHAU',",
+									"                    remitterName: 'QUOC 272933 NGUYEN HAI',",
+									"                    remitterAccountNumber: '9267919'",
+									"                },",
+									"                transactionContent: 'Nap tien don hang DH' + txCode",
+									"            }],",
+									"            pagination: { page: 1, pageSize: 1, totalPage: 1 }",
+									"        }",
+									"    }]",
+									"};",
+									"",
+									"const rawBody = JSON.stringify(body);",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"// ─── Tính SHA256 Checksum: SHA256(body + secretKey + bankKey) ───",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(rawBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });",
+									"",
+									"// Lưu clientRequestId để test duplicate ở request 1.4",
+									"pm.collectionVariables.set('lastClientRequestId', clientRequestId);",
+									"pm.collectionVariables.set('lastRawBody', rawBody);",
+									"",
+									"console.log('✅ clientRequestId:', clientRequestId);",
+									"console.log('✅ checksum:', checksum.substring(0, 20) + '...');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has ACB format with responseCode 00000000', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('00000000');",
+									"    pm.expect(json.message).to.eql('Success');",
+									"    pm.expect(json).to.have.property('timestamp');",
+									"    pm.expect(json.responseBody).to.have.property('referenceCode');",
+									"    pm.expect(json.responseBody).to.have.property('index');",
+									"    pm.expect(json.responseBody.index).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Gửi giao dịch Credit (báo có — tiền VÀO tài khoản) thành công.\n\n**Tự động:**\n- Sinh `clientRequestId` UUID duy nhất\n- Sinh `transactionCode` ngẫu nhiên\n- Tính SHA256 checksum\n\n**Expected:**\n- HTTP 200\n- `responseCode: \"00000000\"`\n- `responseBody.referenceCode` = clientRequestId\n- `responseBody.index` = 1"
+					}
+				},
+				{
+					"name": "1.2 Debit Transaction — Báo Nợ (Tiền RA)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const clientRequestId = pm.variables.replaceIn('{{$guid}}');",
+									"const txCode = Math.floor(Math.random() * 100000);",
+									"const txDate = new Date().toISOString();",
+									"",
+									"const body = {",
+									"    masterMeta: {",
+									"        clientId: pm.variables.get('acbClientId'),",
+									"        clientRequestId: clientRequestId,",
+									"        checksum: 'test'",
+									"    },",
+									"    requests: [{",
+									"        requestMeta: {",
+									"            requestType: 'NOTIFICATION',",
+									"            requestCode: 'TRANSACTION_UPDATE'",
+									"        },",
+									"        requestParams: {",
+									"            transactions: [{",
+									"                transactionStatus: 'COMPLETED',",
+									"                transactionChannel: 'MAPP',",
+									"                transactionCode: txCode,",
+									"                accountNumber: parseInt(pm.variables.get('acbAccountNumber')),",
+									"                transactionDate: txDate,",
+									"                effectiveDate: txDate,",
+									"                debitOrCredit: 'debit',",
+									"                virtualAccountInfo: null,",
+									"                amount: 10000,",
+									"                transactionEntityAttribute: {",
+									"                    issuerBankName: 'ACB - NH TMCP A CHAU',",
+									"                    receiverBankName: 'ACB - NH TMCP A CHAU',",
+									"                    remitterName: 'ADAM 10045',",
+									"                    remitterAccountNumber: pm.variables.get('acbAccountNumber')",
+									"                },",
+									"                transactionContent: 'Rut tien'",
+									"            }],",
+									"            pagination: { page: 1, pageSize: 1, totalPage: 1 }",
+									"        }",
+									"    }]",
+									"};",
+									"",
+									"const rawBody = JSON.stringify(body);",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(rawBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });",
+									"",
+									"console.log('✅ Debit TX — clientRequestId:', clientRequestId);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has responseCode 00000000', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('00000000');",
+									"    pm.expect(json.responseBody.index).to.eql(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Gửi giao dịch Debit (báo nợ — tiền RA khỏi tài khoản).\n\n**Expected:** HTTP 200, responseCode \"00000000\""
+					}
+				},
+				{
+					"name": "1.3 Batch — Nhiều Giao Dịch Cùng Lúc",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const clientRequestId = pm.variables.replaceIn('{{$guid}}');",
+									"const txDate = new Date().toISOString();",
+									"const acctNum = parseInt(pm.variables.get('acbAccountNumber'));",
+									"",
+									"const body = {",
+									"    masterMeta: {",
+									"        clientId: pm.variables.get('acbClientId'),",
+									"        clientRequestId: clientRequestId,",
+									"        checksum: 'test'",
+									"    },",
+									"    requests: [{",
+									"        requestMeta: {",
+									"            requestType: 'NOTIFICATION',",
+									"            requestCode: 'TRANSACTION_UPDATE'",
+									"        },",
+									"        requestParams: {",
+									"            transactions: [",
+									"                {",
+									"                    transactionStatus: 'COMPLETED',",
+									"                    transactionChannel: 'IBFT',",
+									"                    transactionCode: 5001 + Math.floor(Math.random() * 10000),",
+									"                    accountNumber: acctNum,",
+									"                    transactionDate: txDate,",
+									"                    effectiveDate: txDate,",
+									"                    debitOrCredit: 'credit',",
+									"                    virtualAccountInfo: null,",
+									"                    amount: 1000000,",
+									"                    transactionEntityAttribute: {",
+									"                        issuerBankName: 'Vietcombank',",
+									"                        receiverBankName: 'ACB',",
+									"                        remitterName: 'LE THI B',",
+									"                        remitterAccountNumber: '0011234567'",
+									"                    },",
+									"                    transactionContent: 'Thanh toan don hang DH001'",
+									"                },",
+									"                {",
+									"                    transactionStatus: 'COMPLETED',",
+									"                    transactionChannel: 'MAPP',",
+									"                    transactionCode: 6001 + Math.floor(Math.random() * 10000),",
+									"                    accountNumber: acctNum,",
+									"                    transactionDate: txDate,",
+									"                    effectiveDate: txDate,",
+									"                    debitOrCredit: 'credit',",
+									"                    virtualAccountInfo: null,",
+									"                    amount: 2500000,",
+									"                    transactionEntityAttribute: {",
+									"                        issuerBankName: 'Techcombank',",
+									"                        receiverBankName: 'ACB',",
+									"                        remitterName: 'TRAN VAN C',",
+									"                        remitterAccountNumber: '19022345678'",
+									"                    },",
+									"                    transactionContent: 'Chuyen tien mua hang'",
+									"                },",
+									"                {",
+									"                    transactionStatus: 'COMPLETED',",
+									"                    transactionChannel: 'API',",
+									"                    transactionCode: 7001 + Math.floor(Math.random() * 10000),",
+									"                    accountNumber: acctNum,",
+									"                    transactionDate: txDate,",
+									"                    effectiveDate: txDate,",
+									"                    debitOrCredit: 'debit',",
+									"                    virtualAccountInfo: null,",
+									"                    amount: 50000,",
+									"                    transactionEntityAttribute: {",
+									"                        issuerBankName: 'ACB',",
+									"                        receiverBankName: 'BIDV',",
+									"                        remitterName: 'VIK COMPANY',",
+									"                        remitterAccountNumber: String(acctNum)",
+									"                    },",
+									"                    transactionContent: 'Thanh toan phi dich vu'",
+									"                }",
+									"            ],",
+									"            pagination: { page: 1, pageSize: 3, totalPage: 1 }",
+									"        }",
+									"    }]",
+									"};",
+									"",
+									"const rawBody = JSON.stringify(body);",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(rawBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });",
+									"",
+									"console.log('✅ Batch 3 TX — clientRequestId:', clientRequestId);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Processed 3 transactions', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('00000000');",
+									"    pm.expect(json.responseBody.index).to.eql(3);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Gửi batch 3 giao dịch (2 credit + 1 debit) trong 1 request.\n\n**Expected:** HTTP 200, responseCode \"00000000\", index = 3"
+					}
+				},
+				{
+					"name": "1.4 Duplicate clientRequestId — Idempotent (200)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// ─── Gửi lại cùng clientRequestId từ request 1.1 ───",
+									"// Phải chạy request 1.1 trước để lưu lastClientRequestId và lastRawBody",
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const lastBody = pm.variables.get('lastRawBody');",
+									"if (!lastBody) {",
+									"    console.error('❌ Chạy request 1.1 trước để lưu lastRawBody!');",
+									"    throw new Error('lastRawBody not found — run request 1.1 first');",
+									"}",
+									"",
+									"pm.request.body.update({ mode: 'raw', raw: lastBody });",
+									"",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(lastBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });",
+									"",
+									"console.log('🔄 Replaying clientRequestId:', pm.variables.get('lastClientRequestId'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK (idempotent)', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is still success (idempotent, not an error)', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('00000000');",
+									"    pm.expect(json.message).to.eql('Success');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Test Idempotency — gửi lại cùng `clientRequestId` từ request 1.1.\n\n**Cách test:**\n1. Chạy request 1.1 trước (để lưu lastClientRequestId)\n2. Chạy request này\n\n**Expected:** HTTP 200, responseCode \"00000000\" (idempotent — không xử lý lại, không phải lỗi)"
+					}
+				},
+				{
+					"name": "1.5 TRANSACTION_HISTORY — Cuối Ngày",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const body = {",
+									"    masterMeta: {",
+									"        clientId: pm.variables.get('acbClientId'),",
+									"        clientRequestId: pm.variables.replaceIn('{{$guid}}'),",
+									"        checksum: 'test'",
+									"    },",
+									"    requests: [{",
+									"        requestMeta: {",
+									"            requestType: 'NOTIFICATION',",
+									"            requestCode: 'TRANSACTION_HISTORY'",
+									"        },",
+									"        requestParams: {",
+									"            transactions: [{",
+									"                transactionStatus: 'COMPLETED',",
+									"                transactionChannel: 'ATM',",
+									"                transactionCode: 9000 + Math.floor(Math.random() * 1000),",
+									"                accountNumber: parseInt(pm.variables.get('acbAccountNumber')),",
+									"                transactionDate: new Date().toISOString(),",
+									"                effectiveDate: new Date().toISOString(),",
+									"                debitOrCredit: 'credit',",
+									"                virtualAccountInfo: null,",
+									"                amount: 15000000,",
+									"                transactionEntityAttribute: {",
+									"                    issuerBankName: 'BIDV',",
+									"                    receiverBankName: 'ACB',",
+									"                    remitterName: 'PHAM VAN D',",
+									"                    remitterAccountNumber: '31410001234567'",
+									"                },",
+									"                transactionContent: 'Giao dich cuoi ngay'",
+									"            }],",
+									"            pagination: { page: 1, pageSize: 1, totalPage: 1 }",
+									"        }",
+									"    }]",
+									"};",
+									"",
+									"const rawBody = JSON.stringify(body);",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(rawBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has responseCode 00000000', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('00000000');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Test requestCode TRANSACTION_HISTORY (thông báo giao dịch cuối ngày thay vì tức thì).\n\n**Expected:** HTTP 200, responseCode \"00000000\""
+					}
+				},
+				{
+					"name": "1.6 ERRORCORRECTED — Giao Dịch Bị Hủy/Đảo",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const body = {",
+									"    masterMeta: {",
+									"        clientId: pm.variables.get('acbClientId'),",
+									"        clientRequestId: pm.variables.replaceIn('{{$guid}}'),",
+									"        checksum: 'test'",
+									"    },",
+									"    requests: [{",
+									"        requestMeta: {",
+									"            requestType: 'NOTIFICATION',",
+									"            requestCode: 'TRANSACTION_UPDATE'",
+									"        },",
+									"        requestParams: {",
+									"            transactions: [{",
+									"                transactionStatus: 'ERRORCORRECTED',",
+									"                transactionChannel: 'MAPP',",
+									"                transactionCode: 8000 + Math.floor(Math.random() * 1000),",
+									"                accountNumber: parseInt(pm.variables.get('acbAccountNumber')),",
+									"                transactionDate: new Date().toISOString(),",
+									"                effectiveDate: new Date().toISOString(),",
+									"                debitOrCredit: 'credit',",
+									"                virtualAccountInfo: null,",
+									"                amount: 100000,",
+									"                transactionEntityAttribute: {",
+									"                    remitterName: 'REVERSED TX USER'",
+									"                },",
+									"                transactionContent: 'GD bi huy dao nguoc'",
+									"            }],",
+									"            pagination: { page: 1, pageSize: 1, totalPage: 1 }",
+									"        }",
+									"    }]",
+									"};",
+									"",
+									"const rawBody = JSON.stringify(body);",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(rawBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('ERRORCORRECTED accepted', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('00000000');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "✅ Test giao dịch bị hủy/đảo ngược (transactionStatus = ERRORCORRECTED).\n\n**Expected:** HTTP 200, responseCode \"00000000\""
+					}
+				}
+			]
+		},
+		{
+			"name": "2. ❌ Security Error Cases",
+			"description": "⚠️ CẨN THẬN: Các test sai API Key / Checksum sẽ tính vào brute-force counter.\nSau 5 lần fail trong 10 phút → IP bị block 30 phút!\nNên test trên môi trường Dev với ACB_WEBHOOK_ALLOWED_IPS=0.0.0.0",
+			"item": [
+				{
+					"name": "2.1 Invalid Content-Type (415)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 415', function () {",
+									"    pm.response.to.have.status(415);",
+									"});",
+									"",
+									"pm.test('ACB format error with responseCode 40000002', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000002');",
+									"    pm.expect(json.message).to.include('Content-Type');",
+									"    pm.expect(json).to.have.property('timestamp');",
+									"    pm.expect(json.responseBody).to.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "text/plain" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "this is not json"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test Content-Type không phải application/json.\n\n**Expected:** HTTP 415, responseCode \"40000002\""
+					}
+				},
+				{
+					"name": "2.2 Missing API Key (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"const rawBody = JSON.stringify({ masterMeta: { clientId: 'test', clientRequestId: pm.variables.replaceIn('{{$guid}}'), checksum: 'test' }, requests: [] });",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('ACB format error with responseCode 40100001', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40100001');",
+									"    pm.expect(json.message).to.include('X-API-Key');",
+									"    pm.expect(json.responseBody).to.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu header X-API-Key.\n\n**Expected:** HTTP 401, responseCode \"40100001\"\n\n⚠️ Tính 1 auth failure!"
+					}
+				},
+				{
+					"name": "2.3 Wrong API Key (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"const rawBody = JSON.stringify({ masterMeta: { clientId: 'test', clientRequestId: pm.variables.replaceIn('{{$guid}}'), checksum: 'test' }, requests: [] });",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('responseCode is 40100001', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40100001');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "WRONG_API_KEY_INTENTIONALLY_INCORRECT_VALUE_HERE" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test sai API Key (key sai nhưng checksum đúng).\n\n**Expected:** HTTP 401, responseCode \"40100001\"\n\n⚠️ Tính 1 auth failure! Sau 5 lần → IP bị block 30 phút."
+					}
+				},
+				{
+					"name": "2.4 Missing Checksum Header (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('responseCode is 40100003 (missing checksum)', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40100003');",
+									"    pm.expect(json.message).to.include('checksum');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"masterMeta\":{\"clientId\":\"test\",\"clientRequestId\":\"test-123\",\"checksum\":\"test\"},\"requests\":[]}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu header `signature` (không gửi checksum).\n\n**Expected:** HTTP 401, responseCode \"40100003\"\n\n⚠️ Tính 1 auth failure!"
+					}
+				},
+				{
+					"name": "2.5 Wrong Checksum (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('responseCode is 40100002 (invalid checksum)', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40100002');",
+									"    pm.expect(json.message).to.include('checksum');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "0000000000000000000000000000000000000000000000000000000000000000" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"masterMeta\":{\"clientId\":\"test\",\"clientRequestId\":\"test-wrong-checksum\",\"checksum\":\"test\"},\"requests\":[]}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test checksum sai (signature header = chuỗi hex giả 64 ký tự).\n\n**Expected:** HTTP 401, responseCode \"40100002\"\n\n⚠️ Tính 1 auth failure!"
+					}
+				}
+			]
+		},
+		{
+			"name": "3. ❌ Validation Error Cases",
+			"item": [
+				{
+					"name": "3.1 Missing masterMeta (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"// Body thiếu masterMeta",
+									"const rawBody = JSON.stringify({ requests: [] });",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const secretKey = pm.variables.get('acbSecretKey');",
+									"const bankKey = pm.variables.get('acbBankKey');",
+									"const checksum = CryptoJS.SHA256(rawBody + secretKey + bankKey).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('responseCode is 40000001', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000001');",
+									"    pm.expect(json.message).to.include('masterMeta');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu trường masterMeta bắt buộc.\n\n**Expected:** HTTP 400, responseCode \"40000001\""
+					}
+				},
+				{
+					"name": "3.2 Missing clientRequestId (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const rawBody = JSON.stringify({",
+									"    masterMeta: { clientId: 'test', checksum: 'test' },",
+									"    requests: [{ requestMeta: { requestType: 'NOTIFICATION', requestCode: 'TRANSACTION_UPDATE' }, requestParams: { transactions: [{ transactionStatus: 'COMPLETED', transactionChannel: 'MAPP', transactionCode: 1, accountNumber: 123, transactionDate: new Date().toISOString(), debitOrCredit: 'credit', amount: 100 }] } }]",
+									"});",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions clientRequestId', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000001');",
+									"    pm.expect(json.message).to.include('clientRequestId');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test thiếu masterMeta.clientRequestId.\n\n**Expected:** HTTP 400, responseCode \"40000001\", message chứa \"clientRequestId\""
+					}
+				},
+				{
+					"name": "3.3 Empty Transactions Array (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const rawBody = JSON.stringify({",
+									"    masterMeta: { clientId: 'test', clientRequestId: pm.variables.replaceIn('{{$guid}}'), checksum: 'test' },",
+									"    requests: [{ requestMeta: { requestType: 'NOTIFICATION', requestCode: 'TRANSACTION_UPDATE' }, requestParams: { transactions: [] } }]",
+									"});",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions transactions', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000001');",
+									"    pm.expect(json.message).to.include('transactions');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test mảng transactions rỗng (ít nhất phải có 1 giao dịch).\n\n**Expected:** HTTP 400, responseCode \"40000001\""
+					}
+				},
+				{
+					"name": "3.4 Invalid transactionStatus (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const rawBody = JSON.stringify({",
+									"    masterMeta: { clientId: 'test', clientRequestId: pm.variables.replaceIn('{{$guid}}'), checksum: 'test' },",
+									"    requests: [{ requestMeta: { requestType: 'NOTIFICATION', requestCode: 'TRANSACTION_UPDATE' }, requestParams: { transactions: [{ transactionStatus: 'INVALID_STATUS', transactionChannel: 'MAPP', transactionCode: 1, accountNumber: 123, transactionDate: new Date().toISOString(), debitOrCredit: 'credit', amount: 100 }] } }]",
+									"});",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions transactionStatus', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000001');",
+									"    pm.expect(json.message).to.include('transactionStatus');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test transactionStatus không hợp lệ (phải là COMPLETED hoặc ERRORCORRECTED).\n\n**Expected:** HTTP 400, responseCode \"40000001\""
+					}
+				},
+				{
+					"name": "3.5 Invalid debitOrCredit (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const rawBody = JSON.stringify({",
+									"    masterMeta: { clientId: 'test', clientRequestId: pm.variables.replaceIn('{{$guid}}'), checksum: 'test' },",
+									"    requests: [{ requestMeta: { requestType: 'NOTIFICATION', requestCode: 'TRANSACTION_UPDATE' }, requestParams: { transactions: [{ transactionStatus: 'COMPLETED', transactionChannel: 'MAPP', transactionCode: 1, accountNumber: 123, transactionDate: new Date().toISOString(), debitOrCredit: 'INVALID', amount: 100 }] } }]",
+									"});",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions debitOrCredit', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000001');",
+									"    pm.expect(json.message).to.include('debitOrCredit');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test debitOrCredit không hợp lệ (phải là 'credit' hoặc 'debit').\n\n**Expected:** HTTP 400, responseCode \"40000001\""
+					}
+				},
+				{
+					"name": "3.6 Negative Amount (400)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// using built-in CryptoJS and {{$guid}}",
+									"",
+									"const rawBody = JSON.stringify({",
+									"    masterMeta: { clientId: 'test', clientRequestId: pm.variables.replaceIn('{{$guid}}'), checksum: 'test' },",
+									"    requests: [{ requestMeta: { requestType: 'NOTIFICATION', requestCode: 'TRANSACTION_UPDATE' }, requestParams: { transactions: [{ transactionStatus: 'COMPLETED', transactionChannel: 'MAPP', transactionCode: 1, accountNumber: 123, transactionDate: new Date().toISOString(), debitOrCredit: 'credit', amount: -50000 }] } }]",
+									"});",
+									"pm.request.body.update({ mode: 'raw', raw: rawBody });",
+									"",
+									"const checksum = CryptoJS.SHA256(rawBody + pm.variables.get('acbSecretKey') + pm.variables.get('acbBankKey')).toString(CryptoJS.enc.Hex);",
+									"pm.request.headers.upsert({ key: 'signature', value: checksum });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions amount', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.responseCode).to.eql('40000001');",
+									"    pm.expect(json.message).to.include('amount');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-API-Key", "value": "{{acbApiKey}}" },
+							{ "key": "signature", "value": "auto-generated-by-script" }
+						],
+						"body": { "mode": "raw", "raw": "{}" },
+						"url": {
+							"raw": "{{baseUrl}}/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["transaction"]
+						},
+						"description": "❌ Test số tiền âm (amount phải ≥ 0).\n\n**Expected:** HTTP 400, responseCode \"40000001\""
+					}
+				}
+			]
+		}
+	]
+}
