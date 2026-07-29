@@ -4,8 +4,14 @@ const {
 } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
 const { generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
-const { ZCODE_STATUSES, ZCODE_ERROR_REASONS } = require('../../core/constants/zcode');
-const { getValidSkus } = require('../../core/constants/zcode');
+const {
+  ZCODE_STATUSES,
+  ZCODE_ERROR_REASONS,
+  ZCODE_SKU_LIST_PRICES,
+  ZCODE_PRICE_ADJUSTMENT_TYPES,
+  getValidSkus,
+  getSkuListPrice,
+} = require('../../core/constants/zcode');
 const { escapeRegex } = require('../../core/utils/query');
 const { encryptZCodeField, decryptZCodeField } = require('../../core/utils/crypto');
 
@@ -45,6 +51,9 @@ class ZCodeService {
     if (query.sku && query.sku !== 'all') {
       filter.sku = query.sku;
     }
+    if (query.importedAt) {
+      filter.importedAt = query.importedAt;
+    }
 
     const [items, total] = await Promise.all([
       ZCode.find(filter)
@@ -71,6 +80,88 @@ class ZCodeService {
     return buildPaginatedResponse(decryptedItems, total, page, limit);
   }
 
+  async getZCodeBatches(query) {
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const pipeline = [];
+
+    // Grouping by importedAt, batchDate, sku
+    pipeline.push({
+      $group: {
+        _id: {
+          importedAt: '$importedAt',
+          batchDate: '$batchDate',
+          sku: '$sku',
+          listPrice: '$listPrice',
+          finalPrice: '$finalPrice',
+          priceAdjustmentType: '$priceAdjustmentType',
+          priceAdjustmentValue: '$priceAdjustmentValue',
+        },
+        totalCodes: { $sum: 1 },
+        availableCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] },
+        },
+        errorCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'error'] }, 1, 0] },
+        },
+        usedCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] },
+        },
+        unavailableCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'unavailable'] }, 1, 0] },
+        },
+      },
+    });
+
+    // Flatten output
+    pipeline.push({
+      $project: {
+        _id: 0,
+        id: { 
+          $concat: [
+            'batch_', 
+            { $toString: '$_id.importedAt' }, 
+            '_', 
+            '$_id.sku'
+          ] 
+        },
+        importedAt: '$_id.importedAt',
+        batchDate: '$_id.batchDate',
+        sku: '$_id.sku',
+        listPrice: '$_id.listPrice',
+        finalPrice: '$_id.finalPrice',
+        priceAdjustmentType: '$_id.priceAdjustmentType',
+        priceAdjustmentValue: '$_id.priceAdjustmentValue',
+        totalCodes: 1,
+        availableCodes: 1,
+        errorCodes: 1,
+        usedCodes: 1,
+        unavailableCodes: 1,
+      },
+    });
+
+    // Sorting
+    pipeline.push({
+      $sort: { importedAt: -1 },
+    });
+
+    // Pagination
+    const facet = {
+      metadata: [{ $count: 'total' }],
+      data: [{ $skip: skip }, { $limit: limit }],
+    };
+    pipeline.push({ $facet: facet });
+
+    const results = await ZCode.aggregate(pipeline);
+    
+    const data = results[0].data || [];
+    const total = results[0].metadata[0] ? results[0].metadata[0].total : 0;
+
+    return buildPaginatedResponse(data, total, page, limit);
+  }
+
   async getZCodeById(id) {
     const zcode = await ZCode.findOne({ id }).lean();
     if (!zcode) throw createHttpError(404, 'Không tìm thấy mã ZCode');
@@ -82,6 +173,57 @@ class ZCodeService {
     if (partC) zcode.partC = partC;
     zcode.partialCode = (partB && partC) ? `${partB}-${partC}` : '';
     return zcode;
+  }
+
+  // ─── Pricing ──────────────────────────────────────────────────────────────
+
+  /**
+   * Returns all SKU list prices.
+   * @returns {Object} Map of SKU → list price
+   */
+  getSkuPrices() {
+    return { ...ZCODE_SKU_LIST_PRICES };
+  }
+
+  /**
+   * Calculate final price based on list price and adjustment.
+   * @param {number} listPrice
+   * @param {{ priceAdjustmentType: string, priceAdjustmentValue: number }} data
+   * @returns {{ listPrice: number, priceAdjustmentType: string, priceAdjustmentValue: number|null, finalPrice: number }}
+   */
+  _calculateFinalPrice(listPrice, data) {
+    const type = data.priceAdjustmentType || ZCODE_PRICE_ADJUSTMENT_TYPES.NONE;
+    const value = data.priceAdjustmentValue;
+    let finalPrice;
+
+    switch (type) {
+      case ZCODE_PRICE_ADJUSTMENT_TYPES.DISCOUNT_PERCENT:
+        if (value < 0 || value > 100) {
+          throw createHttpError(400, 'Phần trăm giảm giá phải từ 0 đến 100');
+        }
+        finalPrice = Math.round(listPrice - (listPrice * value / 100));
+        break;
+      case ZCODE_PRICE_ADJUSTMENT_TYPES.DISCOUNT_AMOUNT:
+        finalPrice = listPrice - value;
+        break;
+      case ZCODE_PRICE_ADJUSTMENT_TYPES.CUSTOM:
+        finalPrice = value;
+        break;
+      default:
+        finalPrice = listPrice;
+        break;
+    }
+
+    if (finalPrice < 0) {
+      throw createHttpError(400, 'Giá bán cuối cùng không được âm');
+    }
+
+    return {
+      listPrice,
+      priceAdjustmentType: type,
+      priceAdjustmentValue: type === ZCODE_PRICE_ADJUSTMENT_TYPES.NONE ? null : value,
+      finalPrice,
+    };
   }
 
   // ─── Batch Create ──────────────────────────────────────────────────────────
@@ -98,7 +240,7 @@ class ZCodeService {
       .map((k) => k.trim())
       .filter(Boolean);
 
-    const invalidFormat = keys.find(k => !/^[A-Za-z0-9]+-[A-Za-z0-9]+-[A-Za-z0-9]+$/.test(k));
+    const invalidFormat = keys.find(k => !/^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/.test(k));
     if (invalidFormat) {
       throw createHttpError(
         400,
@@ -170,6 +312,13 @@ class ZCodeService {
       });
     }
 
+    // Calculate pricing
+    const listPrice = getSkuListPrice(data.sku);
+    if (listPrice == null) {
+      throw createHttpError(400, `Không tìm thấy giá niêm yết cho SKU "${data.sku}"`);
+    }
+    const pricing = this._calculateFinalPrice(listPrice, data);
+
     // Generate IDs
     const ids = await generateMonotonicIdsBatch(
       ID_PREFIXES.ZCODE,
@@ -189,12 +338,20 @@ class ZCodeService {
         partB: encryptZCodeField(partB),
         partC: encryptZCodeField(partC),
         status: ZCODE_STATUSES.AVAILABLE,
+        listPrice: pricing.listPrice,
+        priceAdjustmentType: pricing.priceAdjustmentType,
+        priceAdjustmentValue: pricing.priceAdjustmentValue,
+        finalPrice: pricing.finalPrice,
         createdBy: userId || null,
       };
     });
 
     const result = await ZCode.insertMany(docs);
-    return { count: result.length, items: result };
+    return {
+      count: result.length,
+      items: result,
+      pricing,
+    };
   }
 
   // ─── Check Duplicates ──────────────────────────────────────────────────────
@@ -278,7 +435,7 @@ class ZCodeService {
   // ─── Stats ─────────────────────────────────────────────────────────────────
 
   async getStats() {
-    const [totalCount, statusCounts, skuAvailableCounts] = await Promise.all([
+    const [totalCount, statusCounts, skuAvailableCounts, revenueSummary] = await Promise.all([
       ZCode.countDocuments(),
       ZCode.aggregate([
         { $group: { _id: '$status', count: { $sum: 1 } } },
@@ -286,6 +443,17 @@ class ZCodeService {
       ZCode.aggregate([
         { $match: { status: ZCODE_STATUSES.AVAILABLE } },
         { $group: { _id: '$sku', count: { $sum: 1 } } },
+      ]),
+      ZCode.aggregate([
+        { $match: { finalPrice: { $ne: null } } },
+        {
+          $group: {
+            _id: '$status',
+            totalListPrice: { $sum: '$listPrice' },
+            totalFinalPrice: { $sum: '$finalPrice' },
+            count: { $sum: 1 },
+          },
+        },
       ]),
     ]);
 
@@ -308,6 +476,13 @@ class ZCodeService {
         ? parseFloat(((totalSuccess / totalProcessed) * 100).toFixed(1))
         : 0;
 
+    // Revenue stats
+    const revenueMap = {};
+    for (const r of revenueSummary) {
+      revenueMap[r._id] = r;
+    }
+    const successRevenue = revenueMap[ZCODE_STATUSES.SUCCESS] || {};
+
     return {
       total: totalCount,
       available: totalAvailable,
@@ -315,6 +490,12 @@ class ZCodeService {
       success: totalSuccess,
       successRate,
       skuAvailable: skuAvailableMap,
+      revenue: {
+        totalListPrice: successRevenue.totalListPrice || 0,
+        totalFinalPrice: successRevenue.totalFinalPrice || 0,
+        totalDiscount: (successRevenue.totalListPrice || 0) - (successRevenue.totalFinalPrice || 0),
+        redeemedCount: successRevenue.count || 0,
+      },
     };
   }
 

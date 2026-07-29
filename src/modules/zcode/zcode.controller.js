@@ -19,6 +19,11 @@ class ZCodeController {
     return sendSuccess(res, 200, 'Lấy danh sách mã ZCode thành công', result);
   }
 
+  async getZCodeBatches(req, res) {
+    const result = await zcodeService.getZCodeBatches(req.query);
+    return sendSuccess(res, 200, 'Lấy danh sách lô mã ZCode thành công', result);
+  }
+
   async getZCodeById(req, res) {
     const zcode = await zcodeService.getZCodeById(req.params.id);
     return sendSuccess(res, 200, 'Lấy chi tiết mã ZCode thành công', zcode);
@@ -39,8 +44,15 @@ class ZCodeController {
       resource: RESOURCES.ZCODES,
       resourceId: null,
       resourceName: `Batch ${result.count} mã (SKU: ${value.sku})`,
-      description: `Nhập lô ${result.count} mã ZCode (SKU: ${value.sku})`,
-      metadata: { count: result.count, sku: value.sku },
+      description: `Nhập lô ${result.count} mã ZCode (SKU: ${value.sku}, Giá: ${result.pricing.finalPrice?.toLocaleString()}đ)`,
+      metadata: {
+        count: result.count,
+        sku: value.sku,
+        listPrice: result.pricing.listPrice,
+        priceAdjustmentType: result.pricing.priceAdjustmentType,
+        priceAdjustmentValue: result.pricing.priceAdjustmentValue,
+        finalPrice: result.pricing.finalPrice,
+      },
       req,
     });
 
@@ -113,6 +125,13 @@ class ZCodeController {
     return sendSuccess(res, 200, 'Lấy thống kê ZCode thành công', stats);
   }
 
+  // ─── SKU Prices ─────────────────────────────────────────────────────────────
+
+  async getSkuPrices(req, res) {
+    const prices = zcodeService.getSkuPrices();
+    return sendSuccess(res, 200, 'Lấy giá niêm yết SKU thành công', prices);
+  }
+
   // ─── Export ────────────────────────────────────────────────────────────────
 
   async exportZCodes(req, res) {
@@ -128,6 +147,10 @@ class ZCodeController {
       { header: 'Key Code', key: 'keyCode', width: 25 },
       { header: 'SKU', key: 'sku', width: 12 },
       { header: 'Trạng thái', key: 'status', width: 15 },
+      { header: 'Giá niêm yết', key: 'listPrice', width: 16 },
+      { header: 'Loại điều chỉnh', key: 'priceAdjustmentType', width: 18 },
+      { header: 'Giá trị điều chỉnh', key: 'priceAdjustmentValue', width: 18 },
+      { header: 'Giá bán', key: 'finalPrice', width: 16 },
       { header: 'Lô ngày', key: 'batchDate', width: 15 },
       { header: 'Ngày nhập', key: 'importedAt', width: 20 },
       { header: 'Thời gian gọi', key: 'calledAt', width: 20 },
@@ -151,6 +174,10 @@ class ZCodeController {
         keyCode: item.keyCode,
         sku: item.sku,
         status: item.status,
+        listPrice: item.listPrice,
+        priceAdjustmentType: item.priceAdjustmentType,
+        priceAdjustmentValue: item.priceAdjustmentValue,
+        finalPrice: item.finalPrice,
         batchDate: item.batchDate,
         importedAt: item.importedAt,
         calledAt: item.calledAt,

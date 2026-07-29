@@ -19,6 +19,21 @@ const createZCodesSchema = Joi.object({
     'string.empty': 'Danh sách mã Key không được để trống',
     'any.required': 'Danh sách mã Key là bắt buộc',
   }),
+  priceAdjustmentType: Joi.string()
+    .valid('none', 'discount_percent', 'discount_amount', 'custom')
+    .default('none')
+    .messages({
+      'any.only': 'Loại điều chỉnh giá không hợp lệ',
+    }),
+  priceAdjustmentValue: Joi.when('priceAdjustmentType', {
+    is: 'none',
+    then: Joi.number().allow(null).default(null),
+    otherwise: Joi.number().min(0).required().messages({
+      'number.base': 'Giá trị điều chỉnh phải là số',
+      'number.min': 'Giá trị điều chỉnh không được âm',
+      'any.required': 'Giá trị điều chỉnh là bắt buộc khi chọn loại điều chỉnh',
+    }),
+  }),
 });
 
 const updateStatusSchema = Joi.object({
