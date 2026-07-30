@@ -47,6 +47,13 @@ router.get(
   ZCodeController.getZCodeBatches,
 );
 
+// Batch Stats
+router.get(
+  '/batch-stats',
+  requirePermission(PERMISSIONS.ZCODES_READ),
+  ZCodeController.getBatchStats,
+);
+
 // List
 router.get(
   '/',
