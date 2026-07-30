@@ -24,6 +24,11 @@ class ZCodeController {
     return sendSuccess(res, 200, 'Lấy danh sách lô mã ZCode thành công', result);
   }
 
+  async getBatchStats(req, res) {
+    const result = await zcodeService.getZCodeBatchStats(req.query);
+    return sendSuccess(res, 200, 'Lấy thống kê lô ZCode thành công', result);
+  }
+
   async getZCodeById(req, res) {
     const zcode = await zcodeService.getZCodeById(req.params.id);
     return sendSuccess(res, 200, 'Lấy chi tiết mã ZCode thành công', zcode);
