@@ -119,13 +119,13 @@ class ZCodeService {
     pipeline.push({
       $project: {
         _id: 0,
-        id: { 
+        id: {
           $concat: [
-            'batch_', 
-            { $toString: '$_id.importedAt' }, 
-            '_', 
+            'batch_',
+            { $toString: '$_id.importedAt' },
+            '_',
             '$_id.sku'
-          ] 
+          ]
         },
         importedAt: '$_id.importedAt',
         batchDate: '$_id.batchDate',
@@ -155,7 +155,125 @@ class ZCodeService {
     pipeline.push({ $facet: facet });
 
     const results = await ZCode.aggregate(pipeline);
-    
+
+    const data = results[0].data || [];
+    const total = results[0].metadata[0] ? results[0].metadata[0].total : 0;
+
+    return buildPaginatedResponse(data, total, page, limit);
+  }
+
+  async getZCodeBatchStats(query = {}) {
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (query.sku) {
+      filter.sku = { $regex: new RegExp(query.sku, 'i') };
+    }
+    if (query.startDate || query.endDate) {
+      filter.importedAt = {};
+      if (query.startDate) filter.importedAt.$gte = new Date(query.startDate);
+      if (query.endDate) filter.importedAt.$lte = new Date(query.endDate);
+    }
+
+    const pipeline = [];
+
+    if (Object.keys(filter).length > 0) {
+      pipeline.push({ $match: filter });
+    }
+
+    // Step 1: Group by batchDate, importedAt, sku to get SKU-level aggregates (treating same SKU imported at different times as different items)
+    pipeline.push({
+      $group: {
+        _id: {
+          batchDate: '$batchDate',
+          importedAt: '$importedAt',
+          sku: '$sku',
+          finalPrice: '$finalPrice',
+        },
+        quantity: { $sum: 1 },
+        availableCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] }
+        },
+        usedCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] }
+        },
+        errorCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'error'] }, 1, 0] }
+        },
+        unavailableCodes: {
+          $sum: { $cond: [{ $eq: ['$status', 'unavailable'] }, 1, 0] }
+        }
+      }
+    });
+
+    // Step 2: Calculate financial values for each SKU group
+    pipeline.push({
+      $addFields: {
+        totalValue: { $multiply: ['$quantity', '$_id.finalPrice'] },
+        soldValue: { $multiply: ['$usedCodes', '$_id.finalPrice'] }
+      }
+    });
+
+    // Step 3: Sort SKUs before pushing (optional, but helps keep output consistent, e.g., sort by importedAt ascending)
+    pipeline.push({
+      $sort: { '_id.importedAt': 1, '_id.sku': 1 }
+    });
+
+    // Step 4: Group by batchDate to get the batch-level aggregates
+    pipeline.push({
+      $group: {
+        _id: {
+          batchDate: '$_id.batchDate'
+        },
+        totalCodes: { $sum: '$quantity' },
+        grandTotalValue: { $sum: '$totalValue' },
+        grandTotalSoldValue: { $sum: '$soldValue' },
+        skus: {
+          $push: {
+            sku: '$_id.sku',
+            importedAt: '$_id.importedAt',
+            quantity: '$quantity',
+            unitPrice: '$_id.finalPrice',
+            totalValue: '$totalValue',
+            soldValue: '$soldValue',
+            availableCodes: '$availableCodes',
+            usedCodes: '$usedCodes',
+            errorCodes: '$errorCodes',
+            unavailableCodes: '$unavailableCodes'
+          }
+        }
+      }
+    });
+
+    // Step 5: Flatten output
+    pipeline.push({
+      $project: {
+        _id: 0,
+        id: { $toString: '$_id.batchDate' },
+        batchDate: '$_id.batchDate',
+        totalCodes: 1,
+        grandTotalValue: 1,
+        grandTotalSoldValue: 1,
+        skus: 1
+      }
+    });
+
+    // Step 6: Sorting by batchDate descending
+    pipeline.push({
+      $sort: { batchDate: -1 },
+    });
+
+    // Step 6: Pagination
+    const facet = {
+      metadata: [{ $count: 'total' }],
+      data: [{ $skip: skip }, { $limit: limit }],
+    };
+    pipeline.push({ $facet: facet });
+
+    const results = await ZCode.aggregate(pipeline);
+
     const data = results[0].data || [];
     const total = results[0].metadata[0] ? results[0].metadata[0].total : 0;
 
@@ -268,7 +386,7 @@ class ZCodeService {
     const partB = parts[1];
     const partC = parts.slice(2).join('-');
     const partialCode = keyCode.substring(partA.length + 1);
-    
+
     if (!partA || !partialCode) {
       throw createHttpError(400, `Mã Key "${keyCode}" không đúng định dạng chuẩn`);
     }
@@ -570,7 +688,7 @@ class ZCodeService {
     }
 
     const calledAt = new Date();
-    
+
     const parts = partialCode.split('-');
     if (parts.length !== 2) throw createHttpError(400, 'Mã không hợp lệ');
     const [partB, partC] = parts;
@@ -646,8 +764,8 @@ class ZCodeService {
     }
 
     // No available codes found — check if code exists in other states
-    const exists = await ZCode.findOne({ 
-      sku, 
+    const exists = await ZCode.findOne({
+      sku,
       partB: encPartB,
       partC: encPartC,
     }).lean();
