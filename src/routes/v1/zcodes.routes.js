@@ -82,6 +82,20 @@ router.post(
   ZCodeController.createZCodes,
 );
 
+// Bulk check status
+router.post(
+  '/bulk-status/check',
+  requirePermission(PERMISSIONS.ZCODES_UPDATE),
+  ZCodeController.checkBulkStatus,
+);
+
+// Bulk update status
+router.post(
+  '/bulk-status/update',
+  requirePermission(PERMISSIONS.ZCODES_UPDATE),
+  ZCodeController.updateBulkStatus,
+);
+
 // Update status
 router.patch(
   '/:id/status',

@@ -22,6 +22,7 @@ const zcodeSchema = new mongoose.Schema(
       enum: [...Object.values(ZCODE_ERROR_REASONS), null],
       default: null,
     },
+    note: { type: String, default: null },
     // Pricing fields
     listPrice: { type: Number, default: null },
     priceAdjustmentType: {
