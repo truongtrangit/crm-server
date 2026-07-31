@@ -46,6 +46,35 @@ const updateStatusSchema = Joi.object({
     }),
 });
 
+const bulkStatusCheckSchema = Joi.object({
+  listCode: Joi.string().trim().required().messages({
+    'string.empty': 'Danh sách mã Key không được để trống',
+    'any.required': 'Danh sách mã Key là bắt buộc',
+  }),
+  targetStatus: Joi.string()
+    .valid(ZCODE_STATUSES.AVAILABLE, ZCODE_STATUSES.UNAVAILABLE)
+    .required()
+    .messages({
+      'any.only': 'Trạng thái mục tiêu không hợp lệ',
+      'any.required': 'Trạng thái mục tiêu là bắt buộc',
+    }),
+});
+
+const bulkStatusUpdateSchema = Joi.object({
+  listCode: Joi.string().trim().required().messages({
+    'string.empty': 'Danh sách mã Key không được để trống',
+    'any.required': 'Danh sách mã Key là bắt buộc',
+  }),
+  targetStatus: Joi.string()
+    .valid(ZCODE_STATUSES.AVAILABLE, ZCODE_STATUSES.UNAVAILABLE)
+    .required()
+    .messages({
+      'any.only': 'Trạng thái mục tiêu không hợp lệ',
+      'any.required': 'Trạng thái mục tiêu là bắt buộc',
+    }),
+  note: Joi.string().trim().allow(null, '').optional(),
+});
+
 const checkDuplicatesSchema = Joi.object({
   keys: Joi.array()
     .items(
@@ -89,6 +118,8 @@ const markDuplicatesSchema = Joi.object({
 module.exports = {
   createZCodesSchema,
   updateStatusSchema,
+  bulkStatusCheckSchema,
+  bulkStatusUpdateSchema,
   checkDuplicatesSchema,
   redeemCodeSchema,
   markDuplicatesSchema,

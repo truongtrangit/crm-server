@@ -6,6 +6,8 @@ const { saveIdempotencyResult } = require('../../core/middleware/zcodeSecurityAu
 const {
   createZCodesSchema,
   updateStatusSchema,
+  bulkStatusCheckSchema,
+  bulkStatusUpdateSchema,
   checkDuplicatesSchema,
   redeemCodeSchema,
   markDuplicatesSchema,
@@ -105,6 +107,37 @@ class ZCodeController {
     });
 
     return sendSuccess(res, 200, 'Cập nhật trạng thái thành công', zcode);
+  }
+
+  async checkBulkStatus(req, res) {
+    const { error, value } = bulkStatusCheckSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.checkBulkStatus(value);
+    return sendSuccess(res, 200, 'Kiểm tra cập nhật hàng loạt thành công', result);
+  }
+
+  async updateBulkStatus(req, res) {
+    const { error, value } = bulkStatusUpdateSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.updateBulkStatus(value, req.user?.id, req);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.ZCODES,
+      resourceId: null,
+      resourceName: `Cập nhật trạng thái ${result.updatedCount} mã`,
+      description: `Cập nhật trạng thái hàng loạt ${result.updatedCount} mã ZCode thành "${value.targetStatus}" (Ghi chú: ${value.note || 'Không có'})`,
+      metadata: { targetStatus: value.targetStatus, note: value.note, updatedCount: result.updatedCount },
+      req,
+    });
+
+    return sendSuccess(res, 200, `Cập nhật thành công ${result.updatedCount} mã`, result);
   }
 
   async retryZCode(req, res) {

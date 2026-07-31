@@ -529,6 +529,91 @@ class ZCodeService {
     return { zcode: zcode.toObject(), oldStatus };
   }
 
+  async checkBulkStatus({ listCode, targetStatus }) {
+    const keyCodes = this._parseKeyCodes(listCode);
+    if (keyCodes.length === 0) {
+      throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
+    }
+
+    const uniqueKeys = [...new Set(keyCodes)];
+    const duplicatesInInput = keyCodes.filter((k, i) => keyCodes.indexOf(k) !== i);
+    const uniqueDuplicates = [...new Set(duplicatesInInput)];
+
+    const existingCodes = await ZCode.find({
+      keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
+    }).lean();
+
+    const existingKeyCodes = existingCodes.map((c) => decryptZCodeField(c.keyCode));
+    const notFound = uniqueKeys.filter((k) => !existingKeyCodes.includes(k));
+
+    const validCodes = [];
+    const invalidCodes = [];
+
+    existingCodes.forEach((code) => {
+      const keyCodeStr = decryptZCodeField(code.keyCode);
+      if (code.status === ZCODE_STATUSES.SUCCESS) {
+        invalidCodes.push({ keyCode: keyCodeStr, reason: 'Mã đã được sử dụng thành công (SUCCESS)', currentStatus: code.status });
+      } else if (code.status === targetStatus) {
+        invalidCodes.push({ keyCode: keyCodeStr, reason: `Mã hiện đã ở trạng thái "${targetStatus}"`, currentStatus: code.status });
+      } else {
+        validCodes.push({ id: code.id, keyCode: keyCodeStr, sku: code.sku, currentStatus: code.status });
+      }
+    });
+
+    // Group valid codes by sku
+    const groupedBySkuMap = {};
+    validCodes.forEach((c) => {
+      if (!groupedBySkuMap[c.sku]) groupedBySkuMap[c.sku] = { sku: c.sku, count: 0, codes: [] };
+      groupedBySkuMap[c.sku].count += 1;
+      groupedBySkuMap[c.sku].codes.push(c);
+    });
+    const validGroupedBySku = Object.values(groupedBySkuMap);
+
+    return {
+      totalInput: keyCodes.length,
+      uniqueInput: uniqueKeys.length,
+      duplicatesInInput: uniqueDuplicates,
+      notFound,
+      validCodes,
+      validGroupedBySku,
+      invalidCodes,
+    };
+  }
+
+  async updateBulkStatus({ listCode, targetStatus, note }) {
+    const checkResult = await this.checkBulkStatus({ listCode, targetStatus });
+    
+    if (checkResult.validCodes.length === 0) {
+      throw createHttpError(400, 'Không có mã hợp lệ nào để cập nhật trạng thái');
+    }
+
+    const validIds = checkResult.validCodes.map(c => c.id);
+
+    const updateQuery = { status: targetStatus };
+    if (note !== undefined) {
+      updateQuery.note = note || null;
+    }
+    
+    // Clear error fields if changing to AVAILABLE
+    if (targetStatus === ZCODE_STATUSES.AVAILABLE) {
+      updateQuery.errorReason = null;
+      updateQuery.calledAt = null;
+      updateQuery.respondedAt = null;
+      updateQuery.responseTime = null;
+      updateQuery.callerIp = null;
+    }
+
+    const result = await ZCode.updateMany(
+      { id: { $in: validIds } },
+      { $set: updateQuery }
+    );
+
+    return {
+      updatedCount: result.modifiedCount,
+      checkSummary: checkResult,
+    };
+  }
+
   async retryZCode(id) {
     const zcode = await ZCode.findOne({ id });
     if (!zcode) throw createHttpError(404, 'Không tìm thấy mã ZCode');
