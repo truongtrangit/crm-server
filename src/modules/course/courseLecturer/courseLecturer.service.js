@@ -2,6 +2,7 @@ const CourseLecturer = require('./courseLecturer.model');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const createHttpError = require("http-errors");
 const { computeChanges } = require('../../../core/utils/diff');
+const { getStartOfDayVN, getEndOfDayVN } = require('../../../core/utils/date');
 
 class CourseLecturerService {
   async getLecturers(queryParams = {}) {
@@ -26,8 +27,8 @@ class CourseLecturerService {
       } else {
         const date = new Date(createdAt);
         if (!isNaN(date)) {
-          const start = new Date(date.setHours(0, 0, 0, 0));
-          const end = new Date(date.setHours(23, 59, 59, 999));
+          const start = getStartOfDayVN(date);
+          const end = getEndOfDayVN(date);
           query.createdAt = { $gte: start, $lte: end };
         }
       }

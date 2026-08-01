@@ -9,10 +9,12 @@ const {
   ZCODE_ERROR_REASONS,
   ZCODE_SKU_LIST_PRICES,
   ZCODE_PRICE_ADJUSTMENT_TYPES,
+  ZCODE_MAX_CODES_PER_REQUEST,
   getValidSkus,
   getSkuListPrice,
 } = require('../../core/constants/zcode');
 const { escapeRegex } = require('../../core/utils/query');
+const { getStartOfDayVN, getEndOfDayVN } = require('../../core/utils/date');
 const { encryptZCodeField, decryptZCodeField } = require('../../core/utils/crypto');
 
 class ZCodeService {
@@ -86,6 +88,18 @@ class ZCodeService {
     const skip = (page - 1) * limit;
 
     const pipeline = [];
+
+    // Date & SKU filters (applied before grouping)
+    const matchFilter = {};
+    if (query.sku) matchFilter.sku = query.sku;
+    if (query.startDate || query.endDate) {
+      matchFilter.importedAt = {};
+      if (query.startDate) matchFilter.importedAt.$gte = getStartOfDayVN(query.startDate);
+      if (query.endDate) matchFilter.importedAt.$lte = getEndOfDayVN(query.endDate);
+    }
+    if (Object.keys(matchFilter).length > 0) {
+      pipeline.push({ $match: matchFilter });
+    }
 
     // Grouping by importedAt, batchDate, sku
     pipeline.push({
@@ -173,8 +187,8 @@ class ZCodeService {
     }
     if (query.startDate || query.endDate) {
       filter.importedAt = {};
-      if (query.startDate) filter.importedAt.$gte = new Date(query.startDate);
-      if (query.endDate) filter.importedAt.$lte = new Date(query.endDate);
+      if (query.startDate) filter.importedAt.$gte = getStartOfDayVN(query.startDate);
+      if (query.endDate) filter.importedAt.$lte = getEndOfDayVN(query.endDate);
     }
 
     const pipeline = [];
@@ -322,6 +336,9 @@ class ZCodeService {
         finalPrice = Math.round(listPrice - (listPrice * value / 100));
         break;
       case ZCODE_PRICE_ADJUSTMENT_TYPES.DISCOUNT_AMOUNT:
+        if (value > listPrice) {
+          throw createHttpError(400, 'Số tiền giảm không được vượt quá giá niêm yết');
+        }
         finalPrice = listPrice - value;
         break;
       case ZCODE_PRICE_ADJUSTMENT_TYPES.CUSTOM:
@@ -395,20 +412,45 @@ class ZCodeService {
 
   async createZCodes(data, userId) {
     const validSkus = getValidSkus();
-    if (!validSkus.includes(data.sku)) {
-      throw createHttpError(400, `SKU "${data.sku}" không hợp lệ`);
+    
+    const allKeyCodes = [];
+    const itemDataList = [];
+
+    for (const item of data.items) {
+      if (!validSkus.includes(item.sku)) {
+        throw createHttpError(400, `SKU "${item.sku}" không hợp lệ`);
+      }
+      
+      const keyCodes = this._parseKeyCodes(item.listCode);
+      if (keyCodes.length === 0) {
+        throw createHttpError(400, `Danh sách mã Key rỗng cho SKU ${item.sku}`);
+      }
+      
+      const listPrice = getSkuListPrice(item.sku);
+      if (listPrice == null) {
+        throw createHttpError(400, `Không tìm thấy giá niêm yết cho SKU "${item.sku}"`);
+      }
+      const pricing = this._calculateFinalPrice(listPrice, item);
+
+      itemDataList.push({
+        sku: item.sku,
+        keyCodes,
+        pricing,
+      });
+
+      allKeyCodes.push(...keyCodes);
     }
 
-    const keyCodes = this._parseKeyCodes(data.listCode);
-    if (keyCodes.length === 0) {
-      throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
+    // Check total code count limit
+    if (allKeyCodes.length > ZCODE_MAX_CODES_PER_REQUEST) {
+      throw createHttpError(400, `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần nhập (bạn đã nhập ${allKeyCodes.length} mã)`);
     }
 
     // Check for duplicates within the input itself
-    const uniqueKeys = [...new Set(keyCodes)];
-    if (uniqueKeys.length !== keyCodes.length) {
-      const dupsInInput = keyCodes.filter(
-        (k, i) => keyCodes.indexOf(k) !== i,
+    const uniqueKeys = [...new Set(allKeyCodes)];
+    if (uniqueKeys.length !== allKeyCodes.length) {
+      const dupsInInput = allKeyCodes.filter(
+        (k, i) => allKeyCodes.indexOf(k) !== i,
       );
       throw createHttpError(400, 'Danh sách mã Key chứa mã trùng lặp', {
         code: 'DUPLICATE_IN_INPUT',
@@ -430,13 +472,6 @@ class ZCodeService {
       });
     }
 
-    // Calculate pricing
-    const listPrice = getSkuListPrice(data.sku);
-    if (listPrice == null) {
-      throw createHttpError(400, `Không tìm thấy giá niêm yết cho SKU "${data.sku}"`);
-    }
-    const pricing = this._calculateFinalPrice(listPrice, data);
-
     // Generate IDs
     const ids = await generateMonotonicIdsBatch(
       ID_PREFIXES.ZCODE,
@@ -444,31 +479,36 @@ class ZCodeService {
     );
 
     // Build documents
-    const docs = uniqueKeys.map((keyCode, i) => {
-      const { partA, partB, partC, partialCode } = this._splitKeyCode(keyCode);
-      return {
-        id: ids[i],
-        batchDate: data.batchDate,
-        importedAt: data.importedAt,
-        sku: data.sku,
-        keyCode: encryptZCodeField(keyCode),
-        partA: encryptZCodeField(partA),
-        partB: encryptZCodeField(partB),
-        partC: encryptZCodeField(partC),
-        status: ZCODE_STATUSES.AVAILABLE,
-        listPrice: pricing.listPrice,
-        priceAdjustmentType: pricing.priceAdjustmentType,
-        priceAdjustmentValue: pricing.priceAdjustmentValue,
-        finalPrice: pricing.finalPrice,
-        createdBy: userId || null,
-      };
-    });
+    const docs = [];
+    let idIndex = 0;
+
+    for (const itemData of itemDataList) {
+      for (const keyCode of itemData.keyCodes) {
+        const { partA, partB, partC, partialCode } = this._splitKeyCode(keyCode);
+        docs.push({
+          id: ids[idIndex++],
+          batchDate: data.batchDate,
+          importedAt: data.importedAt,
+          sku: itemData.sku,
+          keyCode: encryptZCodeField(keyCode),
+          partA: encryptZCodeField(partA),
+          partB: encryptZCodeField(partB),
+          partC: encryptZCodeField(partC),
+          status: ZCODE_STATUSES.AVAILABLE,
+          listPrice: itemData.pricing.listPrice,
+          priceAdjustmentType: itemData.pricing.priceAdjustmentType,
+          priceAdjustmentValue: itemData.pricing.priceAdjustmentValue,
+          finalPrice: itemData.pricing.finalPrice,
+          createdBy: userId || null,
+        });
+      }
+    }
 
     const result = await ZCode.insertMany(docs);
     return {
       count: result.length,
       items: result,
-      pricing,
+      skus: [...new Set(data.items.map(i => i.sku))],
     };
   }
 
@@ -533,6 +573,9 @@ class ZCodeService {
     const keyCodes = this._parseKeyCodes(listCode);
     if (keyCodes.length === 0) {
       throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
+    }
+    if (keyCodes.length > ZCODE_MAX_CODES_PER_REQUEST) {
+      throw createHttpError(400, `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần cập nhật (bạn đã nhập ${keyCodes.length} mã)`);
     }
 
     const uniqueKeys = [...new Set(keyCodes)];
@@ -960,6 +1003,134 @@ class ZCodeService {
       markedCount: result.modifiedCount,
       skippedCount: ids.length - result.modifiedCount,
     };
+  }
+
+  // ─── Delete Operations ─────────────────────────────────────────────────────
+
+  /**
+   * Delete a batch of ZCodes. Skips codes in SUCCESS status.
+   * @param {string} batchDate
+   * @param {string} importedAt
+   * @param {string} [sku]
+   * @returns {Promise<{ deletedCount: number }>}
+   */
+  async deleteBatch(batchDate, importedAt, sku) {
+    const query = {
+      batchDate: new Date(batchDate),
+      importedAt: new Date(importedAt),
+      status: { $ne: ZCODE_STATUSES.SUCCESS },
+    };
+    if (sku) {
+      query.sku = sku;
+    }
+
+    const result = await ZCode.deleteMany(query);
+    return { deletedCount: result.deletedCount };
+  }
+
+  /**
+   * Check list of ZCodes before deleting.
+   * @param {string} listCode
+   * @returns {Promise<any>}
+   */
+  async checkDeleteList(listCode) {
+    const keyCodes = this._parseKeyCodes(listCode);
+    if (keyCodes.length === 0) {
+      throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
+    }
+    if (keyCodes.length > ZCODE_MAX_CODES_PER_REQUEST) {
+      throw createHttpError(400, `Chỉ được phép xoá tối đa ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần (bạn đã nhập ${keyCodes.length} mã)`);
+    }
+
+    const uniqueKeys = [...new Set(keyCodes)];
+    const duplicatesInInput = keyCodes.filter((k, i) => keyCodes.indexOf(k) !== i);
+    const uniqueDuplicates = [...new Set(duplicatesInInput)];
+
+    const existingCodes = await ZCode.find({
+      keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
+    }).lean();
+
+    const existingKeyCodes = existingCodes.map((c) => decryptZCodeField(c.keyCode));
+    const notFound = uniqueKeys.filter((k) => !existingKeyCodes.includes(k));
+
+    const validCodes = [];
+    const invalidCodes = [];
+
+    existingCodes.forEach((code) => {
+      const keyCodeStr = decryptZCodeField(code.keyCode);
+      if (code.status === ZCODE_STATUSES.SUCCESS) {
+        invalidCodes.push({ keyCode: keyCodeStr, reason: 'Mã đã được sử dụng thành công - Không thể xoá', currentStatus: code.status });
+      } else {
+        validCodes.push({ id: code.id, keyCode: keyCodeStr, sku: code.sku, currentStatus: code.status });
+      }
+    });
+
+    // Group valid codes by sku
+    const groupedBySkuMap = {};
+    validCodes.forEach((c) => {
+      if (!groupedBySkuMap[c.sku]) groupedBySkuMap[c.sku] = { sku: c.sku, count: 0, codes: [] };
+      groupedBySkuMap[c.sku].count += 1;
+      groupedBySkuMap[c.sku].codes.push(c);
+    });
+    const validGroupedBySku = Object.values(groupedBySkuMap);
+
+    return {
+      totalInput: keyCodes.length,
+      uniqueInput: uniqueKeys.length,
+      duplicatesInInput: uniqueDuplicates,
+      notFound,
+      validCodes,
+      validGroupedBySku,
+      invalidCodes,
+    };
+  }
+
+  /**
+   * Delete a list of ZCodes by key codes. Skips codes in SUCCESS status.
+   * Max 1000 codes allowed.
+   * @param {string} listCode
+   * @returns {Promise<{ deletedCount: number, notFoundOrSuccessCount: number }>}
+   */
+  async deleteList(listCode) {
+    const keyCodes = this._parseKeyCodes(listCode);
+    if (keyCodes.length === 0) {
+      throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
+    }
+    if (keyCodes.length > 1000) {
+      throw createHttpError(400, `Chỉ được phép xoá tối đa 1000 mã mỗi lần (bạn đã nhập ${keyCodes.length} mã)`);
+    }
+
+    const uniqueKeys = [...new Set(keyCodes)];
+    const encryptedKeys = uniqueKeys.map(encryptZCodeField);
+
+    const result = await ZCode.deleteMany({
+      keyCode: { $in: encryptedKeys },
+      status: { $ne: ZCODE_STATUSES.SUCCESS },
+    });
+
+    return {
+      deletedCount: result.deletedCount,
+      notFoundOrSuccessCount: uniqueKeys.length - result.deletedCount,
+    };
+  }
+
+  /**
+   * Delete a single ZCode by ID.
+   * @param {string} id
+   * @returns {Promise<{ deleted: boolean }>}
+   */
+  async deleteById(id) {
+    const zcode = await ZCode.findOne({ id });
+    if (!zcode) {
+      throw createHttpError(404, 'Không tìm thấy mã ZCode');
+    }
+
+    if (zcode.status === ZCODE_STATUSES.SUCCESS) {
+      throw createHttpError(400, 'Không thể xoá mã ZCode đã được sử dụng thành công (SUCCESS)');
+    }
+
+    await ZCode.deleteOne({ id });
+    return { deleted: true };
   }
 }
 

@@ -160,7 +160,7 @@ class EventService {
         {
           type: "event",
           title: "Sự kiện được tạo",
-          time: new Date().toLocaleString("vi-VN"),
+          time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
           content: null,
           duration: null,
           createdBy: currentUser?.name || "System",
@@ -259,7 +259,7 @@ class EventService {
     const entry = {
       type: entryData.type || "note",
       title: entryData.title,
-      time: entryData.time || new Date().toLocaleString("vi-VN"),
+      time: entryData.time || new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
       content: entryData.content || null,
       duration: entryData.duration || null,
       createdBy: currentUser?.name || "",
@@ -327,7 +327,7 @@ class EventService {
     event.timeline.unshift({
       type: "note",
       title: "Lưu trữ sự kiện",
-      time: new Date().toLocaleString("vi-VN"),
+      time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
       content: null,
       createdBy: currentUser?.name || "System",
     });
@@ -342,7 +342,7 @@ class EventService {
     event.timeline.unshift({
       type: "note",
       title: "Khôi phục sự kiện từ lưu trữ",
-      time: new Date().toLocaleString("vi-VN"),
+      time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
       content: null,
       createdBy: currentUser?.name || "System",
     });
