@@ -2,11 +2,7 @@ const Joi = require('joi');
 
 const { ZCODE_STATUSES } = require('../../core/constants/zcode');
 
-const createZCodesSchema = Joi.object({
-  sku: Joi.string().trim().required().messages({
-    'string.empty': 'Gói mã (SKU) không được để trống',
-    'any.required': 'Gói mã (SKU) là bắt buộc',
-  }),
+const deleteBatchSchema = Joi.object({
   batchDate: Joi.date().required().messages({
     'date.base': 'Lô ngày không hợp lệ',
     'any.required': 'Lô ngày là bắt buộc',
@@ -15,25 +11,59 @@ const createZCodesSchema = Joi.object({
     'date.base': 'Ngày nhập hệ thống không hợp lệ',
     'any.required': 'Ngày nhập hệ thống là bắt buộc',
   }),
+  sku: Joi.string().trim().optional(),
+});
+
+const deleteListSchema = Joi.object({
   listCode: Joi.string().trim().required().messages({
     'string.empty': 'Danh sách mã Key không được để trống',
     'any.required': 'Danh sách mã Key là bắt buộc',
   }),
-  priceAdjustmentType: Joi.string()
-    .valid('none', 'discount_percent', 'discount_amount', 'custom')
-    .default('none')
-    .messages({
-      'any.only': 'Loại điều chỉnh giá không hợp lệ',
-    }),
-  priceAdjustmentValue: Joi.when('priceAdjustmentType', {
-    is: 'none',
-    then: Joi.number().allow(null).default(null),
-    otherwise: Joi.number().min(0).required().messages({
-      'number.base': 'Giá trị điều chỉnh phải là số',
-      'number.min': 'Giá trị điều chỉnh không được âm',
-      'any.required': 'Giá trị điều chỉnh là bắt buộc khi chọn loại điều chỉnh',
-    }),
+});
+
+const createZCodesSchema = Joi.object({
+  batchDate: Joi.date().required().messages({
+    'date.base': 'Lô ngày không hợp lệ',
+    'any.required': 'Lô ngày là bắt buộc',
   }),
+  importedAt: Joi.date().required().messages({
+    'date.base': 'Ngày nhập hệ thống không hợp lệ',
+    'any.required': 'Ngày nhập hệ thống là bắt buộc',
+  }),
+  items: Joi.array()
+    .items(
+      Joi.object({
+        sku: Joi.string().trim().required().messages({
+          'string.empty': 'Gói mã (SKU) không được để trống',
+          'any.required': 'Gói mã (SKU) là bắt buộc',
+        }),
+        listCode: Joi.string().trim().required().messages({
+          'string.empty': 'Danh sách mã Key không được để trống',
+          'any.required': 'Danh sách mã Key là bắt buộc',
+        }),
+        priceAdjustmentType: Joi.string()
+          .valid('none', 'discount_percent', 'discount_amount', 'custom')
+          .default('none')
+          .messages({
+            'any.only': 'Loại điều chỉnh giá không hợp lệ',
+          }),
+        priceAdjustmentValue: Joi.when('priceAdjustmentType', {
+          is: 'none',
+          then: Joi.number().allow(null).default(null),
+          otherwise: Joi.number().min(0).required().messages({
+            'number.base': 'Giá trị điều chỉnh phải là số',
+            'number.min': 'Giá trị điều chỉnh không được âm',
+            'any.required': 'Giá trị điều chỉnh là bắt buộc khi chọn loại điều chỉnh',
+          }),
+        }),
+      })
+    )
+    .min(1)
+    .required()
+    .messages({
+      'array.min': 'Phải có ít nhất 1 SKU',
+      'any.required': 'Danh sách SKU là bắt buộc',
+    }),
 });
 
 const updateStatusSchema = Joi.object({
@@ -123,4 +153,6 @@ module.exports = {
   checkDuplicatesSchema,
   redeemCodeSchema,
   markDuplicatesSchema,
+  deleteBatchSchema,
+  deleteListSchema,
 };

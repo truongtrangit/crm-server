@@ -110,4 +110,32 @@ router.post(
   ZCodeController.retryZCode,
 );
 
+// Delete batch
+router.delete(
+  '/batch',
+  requirePermission(PERMISSIONS.ZCODES_DELETE),
+  ZCodeController.deleteBatch,
+);
+
+// Check delete list
+router.post(
+  '/batch/delete-list/check',
+  requirePermission(PERMISSIONS.ZCODES_DELETE),
+  ZCodeController.checkDeleteList,
+);
+
+// Delete list
+router.delete(
+  '/list',
+  requirePermission(PERMISSIONS.ZCODES_DELETE),
+  ZCodeController.deleteList,
+);
+
+// Delete by ID
+router.delete(
+  '/:id',
+  requirePermission(PERMISSIONS.ZCODES_DELETE),
+  ZCodeController.deleteZCode,
+);
+
 module.exports = router;

@@ -3,6 +3,7 @@ const JobConfigRepeatRule = require('../jobConfig/jobConfigRepeatRule.model');
 const JobConfigStatus = require('../jobConfig/jobConfigStatus.model');
 const TaskService = require('../task/task.service');
 const { ID_PREFIXES, generateMonotonicId, generateMonotonicIdsBatch } = require('../../../core/utils/id');
+const { getStartOfDayVN, getEndOfDayVN, addHoursVN } = require('../../../core/utils/date');
 
 class JobRecurringTaskService {
   /**
@@ -10,11 +11,9 @@ class JobRecurringTaskService {
    */
   _calculateSyncDates(rule, startDate, endDate) {
     const dates = [];
-    let current = new Date(startDate);
-    current.setHours(0, 0, 0, 0);
+    let current = getStartOfDayVN(startDate);
 
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const end = getEndOfDayVN(endDate);
 
     while (current <= end) {
       switch (rule.cycleType) {
@@ -70,11 +69,8 @@ class JobRecurringTaskService {
     const minTime = Math.min(...dates.map(d => d.getTime()));
     const maxTime = Math.max(...dates.map(d => d.getTime()));
     
-    const minDate = new Date(minTime);
-    minDate.setHours(0, 0, 0, 0);
-    
-    const maxDate = new Date(maxTime);
-    maxDate.setHours(23, 59, 59, 999);
+    const minDate = getStartOfDayVN(new Date(minTime));
+    const maxDate = getEndOfDayVN(new Date(maxTime));
 
     const existingTasks = await JobTask.find({
       sourceRuleId: rule.id,
@@ -104,9 +100,7 @@ class JobRecurringTaskService {
       const checklists = (rule.checklists || []).map(cl => {
         let dueDate = null;
         if (cl.dueOffsetHours) {
-          dueDate = new Date(date);
-          dueDate.setHours(7, 0, 0, 0); // 7h sáng ngày sinh task
-          dueDate.setHours(dueDate.getHours() + cl.dueOffsetHours);
+          dueDate = addHoursVN(getStartOfDayVN(date), 7 + cl.dueOffsetHours); // 7h sáng VN + offset
         }
         return {
           title: cl.title,
@@ -118,7 +112,7 @@ class JobRecurringTaskService {
 
       const newTask = {
         id,
-        name: `${rule.name} - ${date.toLocaleDateString("vi-VN")}`,
+        name: `${rule.name} - ${date.toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })}`,
         folderId: rule.folderId || null,
         statusId: defaultStatusId,
         jobTaskTypeId: rule.taskTypeId || null,
@@ -154,8 +148,7 @@ class JobRecurringTaskService {
    * Đồng bộ khi rule được TẠO hoặc UPDATE.
    */
   async syncTasksForUpdatedRule(rule, currentUser) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getStartOfDayVN();
 
     const targetEnd = new Date();
     targetEnd.setDate(today.getDate() + 30); // 30 days
@@ -181,8 +174,7 @@ class JobRecurringTaskService {
    * Xử lý khi rule bị Xoá
    */
   async syncTasksForDeletedRule(ruleId, currentUser) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getStartOfDayVN();
 
     const defaultStatusId = await this._getDefaultStatusId();
 
@@ -202,9 +194,9 @@ class JobRecurringTaskService {
     console.log("[JobRecurringTask] Running daily generation cron...");
     const rules = await JobConfigRepeatRule.find({ isActive: true });
 
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 30);
-    targetDate.setHours(0, 0, 0, 0);
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+    const targetDate = getStartOfDayVN(futureDate);
 
     for (const rule of rules) {
       try {

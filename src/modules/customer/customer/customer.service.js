@@ -213,9 +213,9 @@ class CustomerService {
         : [],
       group: payload.group || "",
       registeredAt:
-        payload.registeredAt || new Date().toLocaleDateString("vi-VN"),
+        payload.registeredAt || new Date().toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
       lastLoginAt:
-        payload.lastLoginAt || new Date().toLocaleDateString("vi-VN"),
+        payload.lastLoginAt || new Date().toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
       tags: Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
       extraInfo: payload.extraInfo || null,
       createdBy: currentUser ? currentUser.id : null,

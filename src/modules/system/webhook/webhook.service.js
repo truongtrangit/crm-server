@@ -227,11 +227,11 @@ class WebhookService {
 
     // Format dates — third-party sends ISO strings
     const registeredAt = payload.created_at
-      ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+      ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
       : "";
     const lastLoginAt = payload.updated_at
-      ? new Date(payload.updated_at).toLocaleDateString("vi-VN")
-      : new Date().toLocaleDateString("vi-VN");
+      ? new Date(payload.updated_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
+      : new Date().toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' });
 
     // Find existing customer by email or phone
     const orConditions = [];
@@ -321,7 +321,7 @@ class WebhookService {
     };
 
     const registeredAt = payload.created_at
-      ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+      ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
       : "";
 
     // ─── 2. Upsert Customer ───────────────────────────────────────────────
@@ -424,7 +424,7 @@ class WebhookService {
         {
           type: "event",
           title: "Sự kiện tạo tự động từ Webhook",
-          time: new Date().toLocaleString("vi-VN"),
+          time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
           content: `Khách hàng đăng ký mới: ${name || email || "N/A"}`,
           createdBy: "Webhook System",
         },
@@ -516,7 +516,7 @@ class WebhookService {
         type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
         platforms: ["SmaxAi"],
         registeredAt: payload.created_at
-          ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+          ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
           : "",
         tags: ["#Webhook", `#${order.type || "FREE"}`],
         extraInfo: {
@@ -611,7 +611,7 @@ class WebhookService {
             biz: bizName ? [bizName] : [],
             platforms: ["SmaxAi"],
             registeredAt: payload.created_at
-              ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+              ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
               : "",
             tags: ["#Webhook"],
             extraInfo: {
@@ -697,7 +697,7 @@ class WebhookService {
       cycle: `${order.months || 0} tháng`,
       price: order.type === "FREE" ? "0 đ" : "",
       daysLeft,
-      expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+      expiryDate: endDate ? endDate.toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }) : "",
       timeStart: order.time_start || "",
       timeEnd: order.time_end || "",
     };
@@ -748,7 +748,7 @@ class WebhookService {
         {
           type: "event",
           title: "Biz mới tạo từ Webhook",
-          time: new Date().toLocaleString("vi-VN"),
+          time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
           content: `Biz "${bizName || bizAlias || "N/A"}" được tạo bởi ${primaryUser.name || "N/A"} — Gói: ${order.type || "FREE"} (${order.code || "N/A"}) — Loại: ${subType}`,
           createdBy: "Webhook System",
         },
@@ -837,7 +837,7 @@ class WebhookService {
           type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
           platforms: ["SmaxAi"],
           registeredAt: payload.created_at
-            ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+            ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
             : "",
           tags: ["#Webhook", `#${order.type || "FREE"}`],
           extraInfo: {
@@ -931,7 +931,7 @@ class WebhookService {
               biz: bizName ? [bizName] : [],
               platforms: ["SmaxAi"],
               registeredAt: payload.created_at
-                ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+                ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
                 : "",
               tags: ["#Webhook"],
               extraInfo: {
@@ -1031,7 +1031,7 @@ class WebhookService {
         cycle: `${order.months || 0} tháng`,
         price: order.type === "FREE" ? "0 đ" : "",
         daysLeft,
-        expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+        expiryDate: endDate ? endDate.toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }) : "",
         timeStart: order.time_start || "",
         timeEnd: order.time_end || "",
       };
@@ -1090,7 +1090,7 @@ class WebhookService {
           {
             type: "event",
             title: "Sự kiện tạo tự động từ Webhook",
-            time: new Date().toLocaleString("vi-VN"),
+            time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
             content: `Biz "${bizName || bizAlias || "N/A"}" sắp hết hạn gói ${order.type || "FREE"} (${order.code || "N/A"}). Còn lại ${daysLeft} ngày.`,
             createdBy: "Webhook System",
           },
@@ -1141,7 +1141,7 @@ class WebhookService {
           {
             type: "event",
             title: "Sự kiện tạo tự động từ Webhook",
-            time: new Date().toLocaleString("vi-VN"),
+            time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
             content: `Biz cần gia hạn: ${payload.biz?.id || "N/A"}`,
             createdBy: "Webhook System",
           },
@@ -1231,7 +1231,7 @@ class WebhookService {
           type: CUSTOMER_TYPES_MAPPING.NEW_CUSTOMER,
           platforms: ["SmaxAi"],
           registeredAt: payload.created_at
-            ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+            ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
             : "",
           tags: ["#Webhook", `#${order.type || "FREE"}`],
           extraInfo: {
@@ -1325,7 +1325,7 @@ class WebhookService {
               biz: bizName ? [bizName] : [],
               platforms: ["SmaxAi"],
               registeredAt: payload.created_at
-                ? new Date(payload.created_at).toLocaleDateString("vi-VN")
+                ? new Date(payload.created_at).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' })
                 : "",
               tags: ["#Webhook"],
               extraInfo: {
@@ -1425,7 +1425,7 @@ class WebhookService {
         cycle: `${order.months || 0} tháng`,
         price: order.type === "FREE" ? "0 đ" : "",
         daysLeft,
-        expiryDate: endDate ? endDate.toLocaleDateString("vi-VN") : "",
+        expiryDate: endDate ? endDate.toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }) : "",
         timeStart: order.time_start || "",
         timeEnd: order.time_end || "",
       };
@@ -1484,7 +1484,7 @@ class WebhookService {
           {
             type: "event",
             title: "Sự kiện tạo tự động từ Webhook",
-            time: new Date().toLocaleString("vi-VN"),
+            time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
             content: `Biz "${bizName || bizAlias || "N/A"}" cần nâng cấp gói ${order.type || "FREE"} (${order.code || "N/A"}).`,
             createdBy: "Webhook System",
           },
@@ -1535,7 +1535,7 @@ class WebhookService {
           {
             type: "event",
             title: "Sự kiện tạo tự động từ Webhook",
-            time: new Date().toLocaleString("vi-VN"),
+            time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
             content: `Biz cần nâng cấp: ${payload.biz?.id || "N/A"}`,
             createdBy: "Webhook System",
           },
@@ -2066,7 +2066,7 @@ class WebhookService {
       phone: customerData.phone,
       name: customerData.name,
       avatar: customerData.avatar,
-      registeredAt: new Date().toLocaleDateString("vi-VN"),
+      registeredAt: new Date().toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
     });
 
     return customer;

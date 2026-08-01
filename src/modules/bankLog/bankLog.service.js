@@ -9,6 +9,7 @@ const { escapeRegex } = require('../../core/utils/query');
 const CacheService = require('../../core/services/CacheService');
 const httpClient = require('../../core/utils/httpClient');
 const logger = require('../../core/utils/logger');
+const { getStartOfDayVN } = require('../../core/utils/date');
 
 const RULES_CACHE_KEY = 'banklog:rules';
 const RULES_CACHE_TTL = 300; // 5 minutes
@@ -70,8 +71,8 @@ class BankLogService {
   }
 
   async getStats() {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    let todayStart = new Date();
+    todayStart = getStartOfDayVN(todayStart);
 
     const [todayAmount, validCount, noRouteCount, totalCount, successCount] =
       await Promise.all([
