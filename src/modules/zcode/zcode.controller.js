@@ -3,6 +3,7 @@ const { sendSuccess, createHttpError } = require('../../core/utils/http');
 const SystemLogService = require('../system/log/systemLog.service');
 const { RESOURCES } = require('../../core/constants/rbac');
 const { saveIdempotencyResult } = require('../../core/middleware/zcodeSecurityAuth');
+const { getVietnamTime } = require('../../core/utils/date');
 const {
   createZCodesSchema,
   updateStatusSchema,
@@ -341,12 +342,15 @@ class ZCodeController {
       value.sku
     );
 
+    const batchDateStr = getVietnamTime(value.batchDate).format('DD/MM/YYYY');
+    const importedAtStr = getVietnamTime(value.importedAt).format('DD/MM/YYYY HH:mm:ss');
+
     SystemLogService.log({
       action: 'delete',
       resource: RESOURCES.ZCODES,
       resourceId: null,
-      resourceName: `Lô ngày ${value.batchDate}`,
-      description: `Xoá lô ZCode ngày ${value.batchDate} (Nhập lúc: ${value.importedAt}). Đã xoá: ${result.deletedCount} mã.`,
+      resourceName: `Lô ngày ${batchDateStr}`,
+      description: `Xoá lô ZCode ngày ${batchDateStr} (Nhập lúc: ${importedAtStr}). Đã xoá: ${result.deletedCount} mã.`,
       metadata: { ...value, result },
       req,
     });
