@@ -11,6 +11,11 @@ const ZCODE_STATUSES = Object.freeze({
 });
 
 /**
+ * ─── ZCode Limits ────────────────────────────────────────────────────────────
+ */
+const ZCODE_MAX_CODES_PER_REQUEST = 500;
+
+/**
  * ─── ZCode Error Reason Definitions ──────────────────────────────────────────
  */
 const ZCODE_ERROR_REASONS = Object.freeze({
@@ -68,6 +73,7 @@ module.exports = {
   ZCODE_ERROR_REASONS,
   ZCODE_SKU_LIST_PRICES,
   ZCODE_PRICE_ADJUSTMENT_TYPES,
+  ZCODE_MAX_CODES_PER_REQUEST,
   getValidSkus,
   getSkuListPrice,
 };

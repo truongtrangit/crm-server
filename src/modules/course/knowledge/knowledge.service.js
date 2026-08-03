@@ -12,6 +12,7 @@ const {
   resolvePagination,
 } = require('../../../core/utils/pagination');
 const { buildSearchRegex } = require('../../../core/utils/query');
+const { getStartOfDayVN } = require('../../../core/utils/date');
 
 class KnowledgeService {
   // ==========================================
@@ -116,8 +117,7 @@ class KnowledgeService {
       const viewerKey = customer
         ? `user:${customer.id}`
         : `ip:${clientIp || 'unknown'}`;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = getStartOfDayVN();
 
       try {
         const result = await KnowledgeRead.updateOne(

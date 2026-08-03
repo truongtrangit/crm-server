@@ -3,12 +3,17 @@ const { sendSuccess, createHttpError } = require('../../core/utils/http');
 const SystemLogService = require('../system/log/systemLog.service');
 const { RESOURCES } = require('../../core/constants/rbac');
 const { saveIdempotencyResult } = require('../../core/middleware/zcodeSecurityAuth');
+const { getVietnamTime } = require('../../core/utils/date');
 const {
   createZCodesSchema,
   updateStatusSchema,
+  bulkStatusCheckSchema,
+  bulkStatusUpdateSchema,
   checkDuplicatesSchema,
   redeemCodeSchema,
   markDuplicatesSchema,
+  deleteBatchSchema,
+  deleteListSchema,
 } = require('./zcode.validation');
 
 class ZCodeController {
@@ -44,19 +49,17 @@ class ZCodeController {
 
     const result = await zcodeService.createZCodes(value, req.user?.id);
 
+    const skusString = result.skus.join(', ');
+
     SystemLogService.log({
       action: 'create',
       resource: RESOURCES.ZCODES,
       resourceId: null,
-      resourceName: `Batch ${result.count} mã (SKU: ${value.sku})`,
-      description: `Nhập lô ${result.count} mã ZCode (SKU: ${value.sku}, Giá: ${result.pricing.finalPrice?.toLocaleString()}đ)`,
+      resourceName: `Batch ${result.count} mã (SKU: ${skusString})`,
+      description: `Nhập lô ${result.count} mã ZCode (Gồm các SKU: ${skusString})`,
       metadata: {
         count: result.count,
-        sku: value.sku,
-        listPrice: result.pricing.listPrice,
-        priceAdjustmentType: result.pricing.priceAdjustmentType,
-        priceAdjustmentValue: result.pricing.priceAdjustmentValue,
-        finalPrice: result.pricing.finalPrice,
+        skus: result.skus,
       },
       req,
     });
@@ -105,6 +108,37 @@ class ZCodeController {
     });
 
     return sendSuccess(res, 200, 'Cập nhật trạng thái thành công', zcode);
+  }
+
+  async checkBulkStatus(req, res) {
+    const { error, value } = bulkStatusCheckSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.checkBulkStatus(value);
+    return sendSuccess(res, 200, 'Kiểm tra cập nhật hàng loạt thành công', result);
+  }
+
+  async updateBulkStatus(req, res) {
+    const { error, value } = bulkStatusUpdateSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.updateBulkStatus(value, req.user?.id, req);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.ZCODES,
+      resourceId: null,
+      resourceName: `Cập nhật trạng thái ${result.updatedCount} mã`,
+      description: `Cập nhật trạng thái hàng loạt ${result.updatedCount} mã ZCode thành "${value.targetStatus}" (Ghi chú: ${value.note || 'Không có'})`,
+      metadata: { targetStatus: value.targetStatus, note: value.note, updatedCount: result.updatedCount },
+      req,
+    });
+
+    return sendSuccess(res, 200, `Cập nhật thành công ${result.updatedCount} mã`, result);
   }
 
   async retryZCode(req, res) {
@@ -292,6 +326,88 @@ class ZCodeController {
     });
 
     return sendSuccess(res, 200, `Đã đánh dấu ${result.markedCount} mã trùng lặp`, result);
+  }
+
+  // ─── Delete Operations ─────────────────────────────────────────────────────
+
+  async deleteBatch(req, res) {
+    const { error, value } = deleteBatchSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.deleteBatch(
+      value.batchDate,
+      value.importedAt,
+      value.sku
+    );
+
+    const batchDateStr = getVietnamTime(value.batchDate).format('DD/MM/YYYY');
+    const importedAtStr = getVietnamTime(value.importedAt).format('DD/MM/YYYY HH:mm:ss');
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.ZCODES,
+      resourceId: null,
+      resourceName: `Lô ngày ${batchDateStr}`,
+      description: `Xoá lô ZCode ngày ${batchDateStr} (Nhập lúc: ${importedAtStr}). Đã xoá: ${result.deletedCount} mã.`,
+      metadata: { ...value, result },
+      req,
+    });
+
+    return sendSuccess(res, 200, `Đã xoá ${result.deletedCount} mã ZCode trong lô`, result);
+  }
+
+  async checkDeleteList(req, res) {
+    const { error, value } = deleteListSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.checkDeleteList(value.listCode);
+    return sendSuccess(res, 200, 'Kiểm tra danh sách xoá thành công', result);
+  }
+
+  async deleteList(req, res) {
+    const { error, value } = deleteListSchema.validate(req.body);
+    if (error) {
+      throw createHttpError(400, error.details[0].message);
+    }
+
+    const result = await zcodeService.deleteList(value.listCode);
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.ZCODES,
+      resourceId: null,
+      resourceName: 'Danh sách mã ZCode',
+      description: `Xoá danh sách mã ZCode. Đã xoá: ${result.deletedCount} mã (Bỏ qua ${result.notFoundOrSuccessCount} mã không tìm thấy hoặc đã sử dụng).`,
+      metadata: { result },
+      req,
+    });
+
+    return sendSuccess(
+      res,
+      200,
+      `Đã xoá ${result.deletedCount} mã ZCode (Bỏ qua ${result.notFoundOrSuccessCount} mã)`,
+      result
+    );
+  }
+
+  async deleteZCode(req, res) {
+    await zcodeService.deleteById(req.params.id);
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.ZCODES,
+      resourceId: req.params.id,
+      resourceName: req.params.id,
+      description: `Xoá mã ZCode ID: ${req.params.id}`,
+      metadata: {},
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Xoá mã ZCode thành công', { id: req.params.id });
   }
 }
 
