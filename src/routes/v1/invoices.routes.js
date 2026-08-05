@@ -86,7 +86,6 @@ router.post(
 // ─── Batch Operations (MUST be before /:id to avoid route conflict) ─────────
 
 // TODO: Implement later
-/*
 router.post(
   '/batch-issue',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
@@ -98,8 +97,6 @@ router.post(
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.batchSignWithHSM,
 );
-*/
-
 // ─── Single Invoice Operations ──────────────────────────────────────────────
 
 router.get(
@@ -121,7 +118,6 @@ router.delete(
 );
 
 // TODO: Implement later
-/*
 router.post(
   '/:id/sync-tax-status',
   requirePermission(PERMISSIONS.INVOICES_READ),
@@ -133,22 +129,11 @@ router.post(
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.resendEmail,
 );
-*/
-
 router.post(
   '/:id/issue',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.issueInvoice,
 );
-
-// TODO: Implement later
-/*
-router.post(
-  '/:id/cancel',
-  requirePermission(PERMISSIONS.INVOICES_UPDATE),
-  InvoiceController.cancelInvoice,
-);
-*/
 
 router.post(
   '/:id/retry',
@@ -157,7 +142,6 @@ router.post(
 );
 
 // TODO: Implement later
-/*
 router.post(
   '/:id/replace',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
@@ -176,7 +160,6 @@ router.post(
   InvoiceController.signInvoiceWithHSM,
 );
 
-
 router.post(
   '/:id/explain-cqt',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
@@ -188,18 +171,6 @@ router.post(
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.explainReplacedToCQT,
 );
-*/
 
-router.get(
-  '/:id/download/pdf',
-  requirePermission(PERMISSIONS.INVOICES_READ),
-  InvoiceController.downloadPdf,
-);
-
-router.get(
-  '/:id/download/xml',
-  requirePermission(PERMISSIONS.INVOICES_READ),
-  InvoiceController.downloadXml,
-);
 
 module.exports = router;

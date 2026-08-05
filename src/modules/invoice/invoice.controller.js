@@ -228,32 +228,6 @@ class InvoiceController {
     return sendSuccess(res, 200, 'Hoàn tất phát hành hàng loạt', result);
   }
 
-  async downloadPdf(req, res) {
-    const result = await invoiceService.downloadInvoice(req.params.id, 'pdf');
-    return sendSuccess(res, 200, 'Lấy link tải PDF thành công', result);
-  }
-
-  async downloadXml(req, res) {
-    const result = await invoiceService.downloadInvoice(req.params.id, 'xml');
-    return sendSuccess(res, 200, 'Lấy link tải XML thành công', result);
-  }
-
-  async cancelInvoice(req, res) {
-    const { reason } = req.body || {};
-    const invoice = await invoiceService.cancelInvoice(req.params.id, reason);
-
-    SystemLogService.log({
-      action: 'update',
-      resource: RESOURCES.INVOICES,
-      resourceId: req.params.id,
-      resourceName: `Huỷ hoá đơn ${req.params.id}`,
-      description: `Huỷ hoá đơn ${req.params.id}${reason ? ': ' + reason : ''}`,
-      metadata: { invoiceId: req.params.id, reason },
-      req,
-    });
-
-    return sendSuccess(res, 200, 'Huỷ hoá đơn thành công', invoice);
-  }
 
   async retryInvoice(req, res) {
     const invoice = await invoiceService.retryInvoice(req.params.id);

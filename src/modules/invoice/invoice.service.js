@@ -274,35 +274,6 @@ class InvoiceService {
     }
   }
 
-  async downloadInvoice(id, format = 'pdf') {
-    const invoice = await Invoice.findOne({ id });
-    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
-
-    if (!invoice.lookupCode && !invoice.providerInvoiceGUID) {
-      throw createHttpError(
-        400,
-        'Hoá đơn chưa được phát hành hoặc chưa có mã tra cứu',
-      );
-    }
-
-    const provider = await InvoiceProvider.findOne({
-      id: invoice.providerId,
-    }).lean();
-    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
-
-    const adapter = AdapterFactory.create(provider);
-    const result = await adapter.download(invoice, format);
-
-    if (!result.success) {
-      throw createHttpError(
-        400,
-        result.error || 'Lỗi khi tải hoá đơn từ provider',
-      );
-    }
-
-    return result;
-  }
-
   async issueInvoice(id) {
     const invoice = await Invoice.findOne({ id });
     if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
@@ -361,56 +332,6 @@ class InvoiceService {
       failCount,
       results,
     };
-  }
-
-  async cancelInvoice(id, reason) {
-    const invoice = await Invoice.findOne({ id });
-    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
-
-    if (invoice.status === INVOICE_STATUSES.CANCELLED) {
-      throw createHttpError(400, 'Hoá đơn đã được huỷ');
-    }
-
-    // Gọi adapter huỷ trên provider (BKAV CmdType 200)
-    if (invoice.providerInvoiceGUID) {
-      const provider = await InvoiceProvider.findOne({
-        id: invoice.providerId,
-      }).lean();
-      if (provider) {
-        try {
-          const adapter = AdapterFactory.create(provider);
-          const result = await adapter.cancel(invoice, reason);
-          invoice.providerResponse = result.rawResponse;
-          if (!result.success) {
-            logger.warn(
-              `[Invoice] Provider cancel failed for ${id}: ${result.error}`,
-            );
-            // Nếu adapter cancel thất bại → không set CANCELLED trong DB
-            invoice.providerErrorMessage = result.error;
-            await invoice.save();
-            throw createHttpError(
-              400,
-              `Huỷ hoá đơn trên nhà cung cấp thất bại: ${result.error}`,
-            );
-          }
-        } catch (err) {
-          if (err.status) throw err; // Re-throw HTTP errors
-          logger.error(
-            `[Invoice] Adapter cancel error for ${id}:`,
-            err.message,
-          );
-          throw createHttpError(500, `Lỗi khi huỷ hoá đơn: ${err.message}`);
-        }
-      }
-    }
-
-    invoice.status = INVOICE_STATUSES.CANCELLED;
-    invoice.note = reason
-      ? `${invoice.note}\n[Lý do huỷ] ${reason}`.trim()
-      : invoice.note;
-    await invoice.save();
-
-    return invoice.toObject();
   }
 
   async retryInvoice(id) {
