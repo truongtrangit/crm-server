@@ -85,6 +85,8 @@ router.post(
 
 // ─── Batch Operations (MUST be before /:id to avoid route conflict) ─────────
 
+// TODO: Implement later
+/*
 router.post(
   '/batch-issue',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
@@ -96,6 +98,7 @@ router.post(
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.batchSignWithHSM,
 );
+*/
 
 // ─── Single Invoice Operations ──────────────────────────────────────────────
 
@@ -117,6 +120,8 @@ router.delete(
   InvoiceController.deleteInvoice,
 );
 
+// TODO: Implement later
+/*
 router.post(
   '/:id/sync-tax-status',
   requirePermission(PERMISSIONS.INVOICES_READ),
@@ -128,6 +133,7 @@ router.post(
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.resendEmail,
 );
+*/
 
 router.post(
   '/:id/issue',
@@ -135,11 +141,14 @@ router.post(
   InvoiceController.issueInvoice,
 );
 
+// TODO: Implement later
+/*
 router.post(
   '/:id/cancel',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.cancelInvoice,
 );
+*/
 
 router.post(
   '/:id/retry',
@@ -147,6 +156,8 @@ router.post(
   InvoiceController.retryInvoice,
 );
 
+// TODO: Implement later
+/*
 router.post(
   '/:id/replace',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
@@ -177,6 +188,7 @@ router.post(
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.explainReplacedToCQT,
 );
+*/
 
 router.get(
   '/:id/download/pdf',
