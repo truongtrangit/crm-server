@@ -826,15 +826,31 @@ class BkavAdapter extends BaseInvoiceAdapter {
         }
       }
 
+      let finalTaxRateId = item.taxRateId || BKAV_TAX_RATE_IDS.TAX_10;
+      let finalTaxRate = item.taxRate !== undefined ? item.taxRate : 10;
+      let finalTaxAmount = item.taxAmount || 0;
+
+      // Handle specific tax rates
+      const SPECIAL_TAX_RATES = {
+        [BKAV_TAX_RATE_IDS.TAX_0]: 0,
+        [BKAV_TAX_RATE_IDS.TAX_KCT]: -1,
+        [BKAV_TAX_RATE_IDS.TAX_KKK]: -2,
+      };
+
+      if (finalTaxRateId in SPECIAL_TAX_RATES) {
+        finalTaxAmount = 0;
+        finalTaxRate = SPECIAL_TAX_RATES[finalTaxRateId];
+      }
+
       return {
         ItemName: item.itemName || '',
         UnitName: item.unitName || '',
         Qty: item.quantity || 0,
         Price: item.unitPrice || 0,
         Amount: item.amount || 0,
-        TaxRateID: item.taxRateId || BKAV_TAX_RATE_IDS.TAX_10,
-        TaxRate: item.taxRate !== undefined ? item.taxRate : 10,
-        TaxAmount: item.taxAmount || 0,
+        TaxRateID: finalTaxRateId,
+        TaxRate: finalTaxRate,
+        TaxAmount: finalTaxAmount,
         DiscountRate: item.discountRate || 0,
         DiscountAmount: item.discountAmount || 0,
         IsDiscount: item.isDiscount || false,

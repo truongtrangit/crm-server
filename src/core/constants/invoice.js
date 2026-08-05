@@ -97,9 +97,9 @@ const BKAV_TAX_RATE_IDS = Object.freeze({
   TAX_0: 1, // Thuế suất 0%
   TAX_5: 2, // Thuế suất 5%
   TAX_10: 3, // Thuế suất 10% (VAT chuẩn)
-  TAX_8: 4, // Thuế suất 8%
-  TAX_KCT: 5, // Không chịu thuế
-  TAX_KKK: 6, // Không kê khai
+  TAX_8: 9, // Thuế suất 8%
+  TAX_KCT: -1, // Không chịu thuế
+  TAX_KKK: -2, // Không kê khai
 });
 
 // BKAV PayMethodID mapping
