@@ -165,9 +165,47 @@ class InvoiceService {
     const updated = await Invoice.findOneAndUpdate(
       { id },
       { $set: data },
-      { new: true, lean: true },
+      { new: true },
     );
-    return updated;
+
+    // Nếu hoá đơn đã được đẩy lên BKAV (có InvoiceGUID), cần update nội dung sang BKAV
+    if (updated.providerInvoiceGUID) {
+      const provider = await InvoiceProvider.findOne({
+        id: updated.providerId,
+      }).lean();
+      if (provider) {
+        try {
+          const adapter = AdapterFactory.create(provider);
+          if (typeof adapter.updateDraft === 'function') {
+            const updateResult = await adapter.updateDraft(updated);
+            if (!updateResult.success) {
+              logger.error(
+                `[Invoice] Failed to sync draft update to provider for ${id}:`,
+                updateResult.error,
+              );
+              // Lưu lỗi vào providerErrorMessage để hiển thị trên giao diện
+              await Invoice.updateOne(
+                { id },
+                { $set: { providerErrorMessage: `Lỗi đồng bộ cập nhật BKAV: ${updateResult.error}` } }
+              );
+            } else {
+              // Cập nhật thành công, xoá lỗi (nếu có)
+              await Invoice.updateOne(
+                { id },
+                { $set: { providerErrorMessage: null } }
+              );
+            }
+          }
+        } catch (err) {
+          logger.error(
+            `[Invoice] Exception syncing draft update to provider for ${id}:`,
+            err.message,
+          );
+        }
+      }
+    }
+
+    return await Invoice.findOne({ id }).lean();
   }
 
   async deleteInvoice(id) {
@@ -774,6 +812,8 @@ class InvoiceService {
         if (signResult.success) {
           invoice.status = INVOICE_STATUSES.ISSUED;
           invoice.issuedAt = new Date();
+          invoice.invoiceNo = signResult.invoiceNo || invoice.invoiceNo;
+          invoice.lookupCode = signResult.lookupCode || invoice.lookupCode;
           invoice.providerResponse = signResult.rawResponse;
           invoice.providerErrorCode = null;
           invoice.providerErrorMessage = null;
@@ -799,16 +839,23 @@ class InvoiceService {
       logger.info(`[Invoice] Issue invoice ${invoice.id}:`, result);
 
       if (result.success) {
-        invoice.status = INVOICE_STATUSES.ISSUED;
+        // Nếu BKAV trả về InvoiceNo = 0, nghĩa là lệnh vừa gửi chỉ tạo nháp (CmdType 100/110)
+        // Chúng ta giữ nguyên trạng thái DRAFT ở CRM để có thể tiếp tục cập nhật hoặc phát hành chính thức sau
+        if (result.invoiceNo === 0 || result.invoiceNo === '0') {
+          invoice.status = INVOICE_STATUSES.DRAFT;
+        } else {
+          invoice.status = INVOICE_STATUSES.ISSUED;
+          invoice.issuedAt = new Date();
+        }
+        
         invoice.providerInvoiceGUID = result.invoiceGUID || null;
         invoice.invoiceNo = result.invoiceNo || invoice.invoiceNo;
         invoice.lookupCode = result.lookupCode || null;
-        invoice.issuedAt = new Date();
         invoice.providerResponse = result.rawResponse;
         invoice.providerErrorCode = null;
         invoice.providerErrorMessage = null;
         logger.info(
-          `[Invoice] ✅ Invoice ${invoice.id} issued successfully (GUID: ${JSON.stringify(result)})`,
+          `[Invoice] ✅ Invoice ${invoice.id} processed successfully (GUID: ${invoice.providerInvoiceGUID}, No: ${invoice.invoiceNo})`,
         );
       } else {
         invoice.status = INVOICE_STATUSES.ERROR;
@@ -852,6 +899,22 @@ class InvoiceService {
     }
 
     const result = await adapter.signWithHSM(invoice);
+    if (result.success) {
+      invoice.status = INVOICE_STATUSES.ISSUED;
+      invoice.issuedAt = new Date();
+      invoice.invoiceNo = result.invoiceNo || invoice.invoiceNo;
+      invoice.lookupCode = result.lookupCode || invoice.lookupCode;
+      invoice.providerResponse = result.rawResponse;
+      invoice.providerErrorCode = null;
+      invoice.providerErrorMessage = null;
+      await invoice.save();
+    } else {
+      invoice.providerErrorMessage = result.error || 'Lỗi ký HSM';
+      invoice.providerResponse = result.rawResponse;
+      await invoice.save();
+      throw createHttpError(400, invoice.providerErrorMessage);
+    }
+    
     return {
       invoiceId: id,
       ...result,

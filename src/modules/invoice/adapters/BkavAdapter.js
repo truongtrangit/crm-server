@@ -152,6 +152,80 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
+   * Cập nhật hoá đơn nháp trên BKAV (CmdType 204).
+   * Dùng khi hoá đơn đã được đẩy lên BKAV (có InvoiceGUID) nhưng vẫn ở trạng thái nháp (mới tạo)
+   * và người dùng muốn cập nhật nội dung.
+   */
+  async updateDraft(invoice) {
+    try {
+      if (!invoice.providerInvoiceGUID) {
+        return {
+          success: false,
+          error: 'Hoá đơn chưa có InvoiceGUID để cập nhật trên BKAV',
+          rawResponse: null,
+        };
+      }
+
+      const commandObject = this._buildCommandObject(invoice);
+      // Bắt buộc phải có InvoiceGUID để cập nhật
+      if (commandObject.Invoice) {
+        commandObject.Invoice.InvoiceGUID = invoice.providerInvoiceGUID;
+      }
+
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.UPDATE_204,
+        CommandObject: JSON.stringify([commandObject]),
+      };
+
+      logger.info(
+        `[BkavAdapter] Updating draft invoice ${invoice.id} with CmdType ${BKAV_CMD_TYPES.UPDATE_204} (GUID: ${invoice.providerInvoiceGUID})`,
+      );
+
+      const result = await this._execCommand(commandData);
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error,
+          errorCode: result.errorCode,
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      const data = result.data;
+      const invoiceResult = Array.isArray(data) ? data[0] : data;
+
+      if (
+        invoiceResult &&
+        invoiceResult.Status !== undefined &&
+        invoiceResult.Status !== 0
+      ) {
+        return {
+          success: false,
+          error:
+            invoiceResult.MessLog ||
+            invoiceResult.messLog ||
+            'Lỗi từ BKAV khi cập nhật nháp',
+          errorCode: invoiceResult.Status,
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      return {
+        success: true,
+        rawResponse: result.rawResponse,
+      };
+    } catch (err) {
+      logger.error(`[BkavAdapter] Update draft error for ${invoice.id}:`, err.message);
+      return {
+        success: false,
+        error: err.message,
+        rawResponse: null,
+      };
+    }
+  }
+
+  /**
    * Huỷ bỏ hoá đơn đã phát hành trên BKAV (CmdType 201 — bằng InvoiceGUID).
    * Ref: FAQ mục C.5 — Mã lệnh 201/202
    */
@@ -325,6 +399,8 @@ class BkavAdapter extends BaseInvoiceAdapter {
         success: result.success,
         rawResponse: result.rawResponse,
         error: result.error || null,
+        invoiceNo: item?.InvoiceNo || null,
+        lookupCode: item?.PartnerInvoiceID || null,
       };
     } catch (err) {
       logger.error(
