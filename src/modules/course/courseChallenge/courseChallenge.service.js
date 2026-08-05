@@ -116,6 +116,21 @@ const createTemplate = async (data, user) => {
     data.curriculum = await assignIdsToCurriculum(data.curriculum);
   }
 
+  if (data.lecturers && data.lecturers.length > 0) {
+    const lecturerIds = data.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   computePriceRange(data);
 
   const template = new CourseChallenge({
@@ -151,6 +166,21 @@ const updateTemplate = async (id, data, user) => {
 
   if (data.curriculum) {
     data.curriculum = await assignIdsToCurriculum(data.curriculum);
+  }
+
+  if (data.lecturers && data.lecturers.length > 0) {
+    const lecturerIds = data.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
   }
 
   computePriceRange(data);
@@ -326,6 +356,21 @@ const cloneTemplateToCourse = async (templateId, configData, user) => {
 
   computePriceRange(configData);
 
+  if (configData.lecturers && configData.lecturers.length > 0) {
+    const lecturerIds = configData.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   const deployedCourse = new CourseChallenge({
     ...template,
     ...configData, // Override with specific config (type, autoUnlockNext, etc.)
@@ -406,6 +451,21 @@ const updateCourse = async (id, data, user) => {
   }
 
   computePriceRange(data);
+
+  if (data.lecturers && data.lecturers.length > 0) {
+    const lecturerIds = data.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
 
   Object.assign(course, data);
   await course.save();
