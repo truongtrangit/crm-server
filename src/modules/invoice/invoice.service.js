@@ -418,6 +418,17 @@ class InvoiceService {
         { $set: { status: INVOICE_STATUSES.REPLACED } },
       );
       logger.info(`[Invoice] Original invoice ${id} marked as REPLACED`);
+    } else {
+      // Xoá hoá đơn lỗi vừa tạo để không rác DB
+      await Invoice.deleteOne({ id: newId });
+      
+      // Update original invoice with the error message
+      await Invoice.findOneAndUpdate(
+        { id },
+        { $set: { providerErrorMessage: `Lỗi thay thế: ${result.providerErrorMessage || result.error || 'Lỗi nhà cung cấp'}` } }
+      );
+      
+      logger.info(`[Invoice] Deleted failed replacement invoice ${newId} and updated original invoice with error`);
     }
 
     return result;
@@ -487,6 +498,17 @@ class InvoiceService {
         { $set: { status: INVOICE_STATUSES.ADJUSTED } },
       );
       logger.info(`[Invoice] Original invoice ${id} marked as ADJUSTED`);
+    } else {
+      // Xoá hoá đơn lỗi vừa tạo để không rác DB
+      await Invoice.deleteOne({ id: newId });
+      
+      // Update original invoice with the error message
+      await Invoice.findOneAndUpdate(
+        { id },
+        { $set: { providerErrorMessage: `Lỗi điều chỉnh: ${result.providerErrorMessage || result.error || 'Lỗi nhà cung cấp'}` } }
+      );
+      
+      logger.info(`[Invoice] Deleted failed adjustment invoice ${newId} and updated original invoice with error`);
     }
 
     return result;
@@ -572,6 +594,12 @@ class InvoiceService {
   async createProvider(data, userId) {
     const id = await generateMonotonicId(ID_PREFIXES.INVOICE_PROVIDER);
 
+    // Nếu đây là provider đầu tiên, ép buộc nó làm mặc định
+    const totalProviders = await InvoiceProvider.countDocuments();
+    if (totalProviders === 0) {
+      data.isDefault = true;
+    }
+
     // Nếu set isDefault → unset các provider default cũ
     if (data.isDefault) {
       await InvoiceProvider.updateMany(
@@ -592,6 +620,20 @@ class InvoiceService {
   async updateProvider(id, data, userId) {
     const provider = await InvoiceProvider.findOne({ id });
     if (!provider) throw createHttpError(404, 'Không tìm thấy nhà cung cấp');
+
+    // Nếu đang tắt mặc định (data.isDefault === false)
+    if (data.isDefault === false && provider.isDefault) {
+      const otherDefaultCount = await InvoiceProvider.countDocuments({
+        isDefault: true,
+        id: { $ne: id },
+      });
+      if (otherDefaultCount === 0) {
+        throw createHttpError(
+          400,
+          'Phải có ít nhất 1 nhà cung cấp được đặt làm mặc định',
+        );
+      }
+    }
 
     // Nếu set isDefault → unset các provider default cũ
     if (data.isDefault) {
@@ -654,6 +696,20 @@ class InvoiceService {
     }
 
     await InvoiceProvider.deleteOne({ id });
+
+    // Nếu xoá provider mặc định, tìm provider khác (nếu có) để làm mặc định thay thế
+    if (provider.isDefault) {
+      const otherProvider = await InvoiceProvider.findOne().sort({
+        createdAt: -1,
+      });
+      if (otherProvider) {
+        await InvoiceProvider.updateOne(
+          { id: otherProvider.id },
+          { $set: { isDefault: true } },
+        );
+      }
+    }
+
     return { id };
   }
 

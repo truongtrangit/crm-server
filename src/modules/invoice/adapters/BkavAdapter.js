@@ -735,6 +735,11 @@ class BkavAdapter extends BaseInvoiceAdapter {
       return `[${parts[0]}]_[${parts[1]}]_[${parts[2]}]`;
     }
 
+    // If it is a GUID (contains hyphens and length > 30), BKAV requires [InvoiceGUID]
+    if (identify.includes('-') && identify.length >= 32) {
+      return `[${identify}]`;
+    }
+
     // Otherwise fallback to what user entered
     return identify;
   }
