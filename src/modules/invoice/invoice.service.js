@@ -421,14 +421,20 @@ class InvoiceService {
     } else {
       // Xoá hoá đơn lỗi vừa tạo để không rác DB
       await Invoice.deleteOne({ id: newId });
-      
+
       // Update original invoice with the error message
       await Invoice.findOneAndUpdate(
         { id },
-        { $set: { providerErrorMessage: `Lỗi thay thế: ${result.providerErrorMessage || result.error || 'Lỗi nhà cung cấp'}` } }
+        {
+          $set: {
+            providerErrorMessage: `Lỗi thay thế: ${result.providerErrorMessage || result.error || 'Lỗi nhà cung cấp'}`,
+          },
+        },
       );
-      
-      logger.info(`[Invoice] Deleted failed replacement invoice ${newId} and updated original invoice with error`);
+
+      logger.info(
+        `[Invoice] Deleted failed replacement invoice ${newId} and updated original invoice with error`,
+      );
     }
 
     return result;
@@ -501,14 +507,20 @@ class InvoiceService {
     } else {
       // Xoá hoá đơn lỗi vừa tạo để không rác DB
       await Invoice.deleteOne({ id: newId });
-      
+
       // Update original invoice with the error message
       await Invoice.findOneAndUpdate(
         { id },
-        { $set: { providerErrorMessage: `Lỗi điều chỉnh: ${result.providerErrorMessage || result.error || 'Lỗi nhà cung cấp'}` } }
+        {
+          $set: {
+            providerErrorMessage: `Lỗi điều chỉnh: ${result.providerErrorMessage || result.error || 'Lỗi nhà cung cấp'}`,
+          },
+        },
       );
-      
-      logger.info(`[Invoice] Deleted failed adjustment invoice ${newId} and updated original invoice with error`);
+
+      logger.info(
+        `[Invoice] Deleted failed adjustment invoice ${newId} and updated original invoice with error`,
+      );
     }
 
     return result;
