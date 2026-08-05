@@ -21,7 +21,7 @@ class InvoiceService {
     const limit = parseInt(query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
 
     if (query.search) {
       const escaped = escapeRegex(query.search);
@@ -67,7 +67,7 @@ class InvoiceService {
   }
 
   async exportInvoices(query) {
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
     if (query.search) {
       const escaped = escapeRegex(query.search);
       filter.$or = [
@@ -223,18 +223,27 @@ class InvoiceService {
         try {
           const adapter = AdapterFactory.create(provider);
           if (typeof adapter.deleteDraft === 'function') {
-            await adapter.deleteDraft(invoice);
+            const result = await adapter.deleteDraft(invoice);
+            if (result && !result.success) {
+              throw createHttpError(
+                400,
+                `Lỗi khi xoá hoá đơn nháp trên BKAV: ${result.error}`,
+              );
+            }
           }
         } catch (err) {
           logger.error(
             `[Invoice] Error deleting draft on provider for ${id}:`,
             err.message,
           );
+          if (err.status) throw err; // Re-throw if it's an HTTP error we just created
+          throw createHttpError(500, `Lỗi khi giao tiếp với BKAV: ${err.message}`);
         }
       }
     }
 
-    await Invoice.deleteOne({ id });
+    invoice.isDeleted = true;
+    await invoice.save();
     return { id };
   }
 
@@ -565,14 +574,15 @@ class InvoiceService {
   }
 
   async getStats() {
+    const baseFilter = { isDeleted: { $ne: true } };
     const [total, draft, pending, issued, error, cancelled] = await Promise.all(
       [
-        Invoice.countDocuments(),
-        Invoice.countDocuments({ status: INVOICE_STATUSES.DRAFT }),
-        Invoice.countDocuments({ status: INVOICE_STATUSES.PENDING }),
-        Invoice.countDocuments({ status: INVOICE_STATUSES.ISSUED }),
-        Invoice.countDocuments({ status: INVOICE_STATUSES.ERROR }),
-        Invoice.countDocuments({ status: INVOICE_STATUSES.CANCELLED }),
+        Invoice.countDocuments(baseFilter),
+        Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.DRAFT }),
+        Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.PENDING }),
+        Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.ISSUED }),
+        Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.ERROR }),
+        Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.CANCELLED }),
       ],
     );
     return { total, draft, pending, issued, error, cancelled };

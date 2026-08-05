@@ -110,6 +110,7 @@ const invoiceSchema = new mongoose.Schema(
 
     createdBy: { type: String, default: null },
     updatedBy: { type: String, default: null },
+    isDeleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,

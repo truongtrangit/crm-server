@@ -272,6 +272,63 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
+   * Xoá bỏ hoá đơn nháp trên BKAV (CmdType 303).
+   */
+  async deleteDraft(invoice) {
+    if (!invoice.providerInvoiceGUID) {
+      return { success: true };
+    }
+
+    try {
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.DELETE_DRAFT_303,
+        CommandObject: JSON.stringify([
+          {
+            Invoice: {
+              InvoiceGUID: invoice.providerInvoiceGUID,
+            },
+          },
+        ]),
+      };
+
+      logger.info(
+        `[BkavAdapter] Deleting draft invoice ${invoice.id} with CmdType ${BKAV_CMD_TYPES.DELETE_DRAFT_303} (GUID: ${invoice.providerInvoiceGUID})`,
+      );
+
+      const result = await this._execCommand(commandData);
+
+      // result.data from BKAV could be an array of status objects for each invoice
+      const item = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (item && item.Status !== undefined && item.Status !== 0) {
+        return {
+          success: false,
+          error: item.MessLog || item.messLog || 'Lỗi xoá hoá đơn nháp trên BKAV',
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      if (!result.success && !item) {
+        return {
+          success: false,
+          error: result.error || 'Lỗi xoá hoá đơn nháp trên BKAV',
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      return {
+        success: true,
+        rawResponse: result.rawResponse,
+      };
+    } catch (err) {
+      logger.error(
+        `[BkavAdapter] Delete draft error for ${invoice.id}:`,
+        err.message,
+      );
+      return { success: false, error: err.message, rawResponse: null };
+    }
+  }
+
+  /**
    * Tra cứu thông tin Doanh nghiệp theo MST (CmdType 114).
    */
   async lookupTaxCode(code) {
