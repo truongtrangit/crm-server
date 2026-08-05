@@ -761,6 +761,40 @@ class InvoiceService {
 
     try {
       const adapter = AdapterFactory.create(provider);
+
+      // Nếu hoá đơn đã tồn tại trên BKAV (đã có GUID từ lần đẩy nháp trước)
+      // → Ký HSM để phát hành chính thức thay vì tạo mới
+      if (invoice.providerInvoiceGUID) {
+        logger.info(
+          `[Invoice] Invoice ${invoice.id} already has GUID ${invoice.providerInvoiceGUID}, signing with HSM to publish`,
+        );
+        const signResult = await adapter.signWithHSM(invoice);
+        logger.info(`[Invoice] HSM sign result for ${invoice.id}:`, signResult);
+
+        if (signResult.success) {
+          invoice.status = INVOICE_STATUSES.ISSUED;
+          invoice.issuedAt = new Date();
+          invoice.providerResponse = signResult.rawResponse;
+          invoice.providerErrorCode = null;
+          invoice.providerErrorMessage = null;
+          logger.info(
+            `[Invoice] ✅ Invoice ${invoice.id} signed and published via HSM`,
+          );
+        } else {
+          invoice.status = INVOICE_STATUSES.ERROR;
+          invoice.providerErrorMessage =
+            signResult.error || 'Lỗi ký HSM';
+          invoice.providerResponse = signResult.rawResponse;
+          logger.error(
+            `[Invoice] ❌ Invoice ${invoice.id} HSM sign failed: ${signResult.error}`,
+          );
+        }
+
+        await invoice.save();
+        return invoice.toObject();
+      }
+
+      // Flow bình thường: tạo mới hoá đơn trên BKAV
       const result = await adapter.issue(invoice);
       logger.info(`[Invoice] Issue invoice ${invoice.id}:`, result);
 
