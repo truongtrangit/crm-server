@@ -279,7 +279,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
     if (lookupCode) {
       return {
         success: true,
-        url: `https://tracuu.ehoadon.vn/TraCuuHoaDon?mtc=${lookupCode}`,
+        url: `https://tracuu.ehoadon.vn/?mtc=${lookupCode}`,
         format,
       };
     }
