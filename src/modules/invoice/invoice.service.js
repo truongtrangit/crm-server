@@ -4,7 +4,10 @@ const AdapterFactory = require('./adapters/AdapterFactory');
 const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
 const { generateMonotonicId, ID_PREFIXES } = require('../../core/utils/id');
-const { INVOICE_STATUSES } = require('../../core/constants/invoice');
+const {
+  INVOICE_STATUSES,
+  INVOICE_RELATION_TYPES,
+} = require('../../core/constants/invoice');
 const { escapeRegex } = require('../../core/utils/query');
 const logger = require('../../core/utils/logger');
 
@@ -39,6 +42,17 @@ class InvoiceService {
     if (query.providerType && query.providerType !== 'all') {
       filter.providerType = query.providerType;
     }
+    if (query.startDate || query.endDate) {
+      filter.invoiceDate = {};
+      if (query.startDate) {
+        filter.invoiceDate.$gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.invoiceDate.$lte = end;
+      }
+    }
 
     const [items, total] = await Promise.all([
       Invoice.find(filter)
@@ -50,6 +64,34 @@ class InvoiceService {
     ]);
 
     return buildPaginatedResponse(items, total, page, limit);
+  }
+
+  async exportInvoices(query) {
+    const filter = {};
+    if (query.search) {
+      const escaped = escapeRegex(query.search);
+      filter.$or = [
+        { id: { $regex: escaped, $options: 'i' } },
+        { 'buyer.name': { $regex: escaped, $options: 'i' } },
+        { 'buyer.taxCode': { $regex: escaped, $options: 'i' } },
+        { billCode: { $regex: escaped, $options: 'i' } },
+        { invoiceSerial: { $regex: escaped, $options: 'i' } },
+      ];
+    }
+    if (query.status && query.status !== 'all') {
+      filter.status = query.status;
+    }
+    if (query.startDate || query.endDate) {
+      filter.invoiceDate = {};
+      if (query.startDate) filter.invoiceDate.$gte = new Date(query.startDate);
+      if (query.endDate) {
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.invoiceDate.$lte = end;
+      }
+    }
+
+    return Invoice.find(filter).sort({ createdAt: -1 }).limit(5000).lean();
   }
 
   async getInvoiceById(id) {
@@ -134,8 +176,131 @@ class InvoiceService {
     if (invoice.status !== INVOICE_STATUSES.DRAFT) {
       throw createHttpError(400, 'Chỉ có thể xoá hoá đơn nháp');
     }
+
+    if (invoice.providerInvoiceGUID) {
+      const provider = await InvoiceProvider.findOne({
+        id: invoice.providerId,
+      }).lean();
+      if (provider) {
+        try {
+          const adapter = AdapterFactory.create(provider);
+          if (typeof adapter.deleteDraft === 'function') {
+            await adapter.deleteDraft(invoice);
+          }
+        } catch (err) {
+          logger.error(
+            `[Invoice] Error deleting draft on provider for ${id}:`,
+            err.message,
+          );
+        }
+      }
+    }
+
     await Invoice.deleteOne({ id });
     return { id };
+  }
+
+  async syncTaxStatus(id) {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider)
+      throw createHttpError(404, 'Không tìm thấy cấu hình nhà cung cấp');
+
+    try {
+      const adapter = AdapterFactory.create(provider);
+      if (typeof adapter.syncTaxStatus !== 'function') {
+        throw createHttpError(
+          400,
+          'Nhà cung cấp này không hỗ trợ đồng bộ trạng thái thuế',
+        );
+      }
+
+      const result = await adapter.syncTaxStatus(invoice);
+      if (!result.success) {
+        throw createHttpError(
+          400,
+          result.error || 'Lỗi đồng bộ trạng thái thuế',
+        );
+      }
+
+      // Update invoice status from provider
+      if (result.data && result.data.TaxStatus) {
+        invoice.taxStatus = result.data.TaxStatus;
+        if (result.data.BkavStatus) {
+          invoice.bkavStatus = result.data.BkavStatus;
+        }
+        await invoice.save();
+      }
+
+      return { success: true, data: result.data };
+    } catch (err) {
+      logger.error(`[Invoice] Error sync tax status for ${id}:`, err.message);
+      throw createHttpError(500, err.message);
+    }
+  }
+
+  async resendEmail(id) {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider)
+      throw createHttpError(404, 'Không tìm thấy cấu hình nhà cung cấp');
+
+    try {
+      const adapter = AdapterFactory.create(provider);
+      if (typeof adapter.resendEmail !== 'function') {
+        throw createHttpError(
+          400,
+          'Nhà cung cấp này không hỗ trợ gửi lại email',
+        );
+      }
+
+      const result = await adapter.resendEmail(invoice);
+      if (!result.success) {
+        throw createHttpError(400, result.error || 'Lỗi gửi email');
+      }
+
+      return { success: true };
+    } catch (err) {
+      logger.error(`[Invoice] Error resend email for ${id}:`, err.message);
+      throw createHttpError(500, err.message);
+    }
+  }
+
+  async downloadInvoice(id, format = 'pdf') {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+
+    if (!invoice.lookupCode && !invoice.providerInvoiceGUID) {
+      throw createHttpError(
+        400,
+        'Hoá đơn chưa được phát hành hoặc chưa có mã tra cứu',
+      );
+    }
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+
+    const adapter = AdapterFactory.create(provider);
+    const result = await adapter.download(invoice, format);
+
+    if (!result.success) {
+      throw createHttpError(
+        400,
+        result.error || 'Lỗi khi tải hoá đơn từ provider',
+      );
+    }
+
+    return result;
   }
 
   async issueInvoice(id) {
@@ -161,6 +326,43 @@ class InvoiceService {
     return this._issueViaProvider(invoice, provider);
   }
 
+  async batchIssueInvoices(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw createHttpError(400, 'Danh sách mã hoá đơn là bắt buộc');
+    }
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const res = await this.issueInvoice(id);
+        const isSuccess = res.status === INVOICE_STATUSES.ISSUED;
+        results.push({
+          id,
+          success: isSuccess,
+          status: res.status,
+          error: res.providerErrorMessage || null,
+        });
+      } catch (err) {
+        results.push({
+          id,
+          success: false,
+          status: INVOICE_STATUSES.ERROR,
+          error: err.message,
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
+
+    return {
+      total: ids.length,
+      successCount,
+      failCount,
+      results,
+    };
+  }
+
   async cancelInvoice(id, reason) {
     const invoice = await Invoice.findOne({ id });
     if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
@@ -183,12 +385,21 @@ class InvoiceService {
             logger.warn(
               `[Invoice] Provider cancel failed for ${id}: ${result.error}`,
             );
+            // Nếu adapter cancel thất bại → không set CANCELLED trong DB
+            invoice.providerErrorMessage = result.error;
+            await invoice.save();
+            throw createHttpError(
+              400,
+              `Huỷ hoá đơn trên nhà cung cấp thất bại: ${result.error}`,
+            );
           }
         } catch (err) {
+          if (err.status) throw err; // Re-throw HTTP errors
           logger.error(
             `[Invoice] Adapter cancel error for ${id}:`,
             err.message,
           );
+          throw createHttpError(500, `Lỗi khi huỷ hoá đơn: ${err.message}`);
         }
       }
     }
@@ -222,6 +433,144 @@ class InvoiceService {
     return this._issueViaProvider(invoice, provider);
   }
 
+  async replaceInvoice(id, payload, userId) {
+    const originalInvoice = await Invoice.findOne({ id });
+    if (!originalInvoice)
+      throw createHttpError(404, 'Không tìm thấy hoá đơn gốc');
+    if (originalInvoice.status !== INVOICE_STATUSES.ISSUED) {
+      throw createHttpError(
+        400,
+        'Chỉ có thể thay thế hoá đơn đã phát hành (ISSUED)',
+      );
+    }
+
+    const provider = await InvoiceProvider.findOne({
+      id: originalInvoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+    if (!provider.isActive)
+      throw createHttpError(400, 'Nhà cung cấp đã bị vô hiệu hoá');
+
+    const newId = await this._generateInvoiceId();
+    const totals = this._calculateTotals(payload.items);
+
+    const identify =
+      originalInvoice.invoiceForm &&
+      originalInvoice.invoiceSerial &&
+      originalInvoice.invoiceNo
+        ? `${originalInvoice.invoiceForm}_${originalInvoice.invoiceSerial}_${String(originalInvoice.invoiceNo).padStart(7, '0')}`
+        : originalInvoice.providerInvoiceGUID || originalInvoice.id;
+
+    const replacementInvoice = new Invoice({
+      ...payload,
+      id: newId,
+      providerId: originalInvoice.providerId,
+      providerType: originalInvoice.providerType,
+      invoiceForm: payload.invoiceForm || originalInvoice.invoiceForm,
+      invoiceSerial: payload.invoiceSerial || originalInvoice.invoiceSerial,
+      status: INVOICE_STATUSES.DRAFT,
+      relatedInvoiceId: originalInvoice.id,
+      relationType: INVOICE_RELATION_TYPES.REPLACEMENT,
+      relatedInvoiceIdentify: identify,
+      providerInvoiceGUID: originalInvoice.providerInvoiceGUID,
+      reason: payload.reason,
+      totalAmountBeforeTax: totals.totalAmountBeforeTax,
+      totalTaxAmount: totals.totalTaxAmount,
+      totalDiscountAmount: totals.totalDiscountAmount,
+      totalAmount: totals.totalAmount,
+      createdBy: userId,
+      updatedBy: userId,
+    });
+
+    await replacementInvoice.save();
+
+    logger.info(
+      `[Invoice] Created replacement draft ${newId} for original ${id}`,
+    );
+
+    const result = await this._issueViaProvider(replacementInvoice, provider);
+
+    // Cập nhật status HĐ gốc → REPLACED nếu phát hành thay thế thành công
+    if (result.status === INVOICE_STATUSES.ISSUED) {
+      await Invoice.findOneAndUpdate(
+        { id },
+        { $set: { status: INVOICE_STATUSES.REPLACED } },
+      );
+      logger.info(`[Invoice] Original invoice ${id} marked as REPLACED`);
+    }
+
+    return result;
+  }
+
+  async adjustInvoice(id, payload, userId) {
+    const originalInvoice = await Invoice.findOne({ id });
+    if (!originalInvoice)
+      throw createHttpError(404, 'Không tìm thấy hoá đơn gốc');
+    if (originalInvoice.status !== INVOICE_STATUSES.ISSUED) {
+      throw createHttpError(
+        400,
+        'Chỉ có thể điều chỉnh hoá đơn đã phát hành (ISSUED)',
+      );
+    }
+
+    const provider = await InvoiceProvider.findOne({
+      id: originalInvoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+    if (!provider.isActive)
+      throw createHttpError(400, 'Nhà cung cấp đã bị vô hiệu hoá');
+
+    const newId = await this._generateInvoiceId();
+    const totals = this._calculateTotals(payload.items);
+
+    const identify =
+      originalInvoice.invoiceForm &&
+      originalInvoice.invoiceSerial &&
+      originalInvoice.invoiceNo
+        ? `${originalInvoice.invoiceForm}_${originalInvoice.invoiceSerial}_${String(originalInvoice.invoiceNo).padStart(7, '0')}`
+        : originalInvoice.providerInvoiceGUID || originalInvoice.id;
+
+    const adjustmentInvoice = new Invoice({
+      ...payload,
+      id: newId,
+      providerId: originalInvoice.providerId,
+      providerType: originalInvoice.providerType,
+      invoiceForm: payload.invoiceForm || originalInvoice.invoiceForm,
+      invoiceSerial: payload.invoiceSerial || originalInvoice.invoiceSerial,
+      status: INVOICE_STATUSES.DRAFT,
+      relatedInvoiceId: originalInvoice.id,
+      relationType: INVOICE_RELATION_TYPES.ADJUSTMENT,
+      relatedInvoiceIdentify: identify,
+      providerInvoiceGUID: originalInvoice.providerInvoiceGUID,
+      reason: payload.reason,
+      totalAmountBeforeTax: totals.totalAmountBeforeTax,
+      totalTaxAmount: totals.totalTaxAmount,
+      totalDiscountAmount: totals.totalDiscountAmount,
+      totalAmount: totals.totalAmount,
+      createdBy: userId,
+      updatedBy: userId,
+    });
+
+    await adjustmentInvoice.save();
+
+    logger.info(
+      `[Invoice] Created adjustment draft ${newId} for original ${id}`,
+    );
+
+    const result = await this._issueViaProvider(adjustmentInvoice, provider);
+
+    // Cập nhật status HĐ gốc → ADJUSTED nếu phát hành điều chỉnh thành công
+    if (result.status === INVOICE_STATUSES.ISSUED) {
+      await Invoice.findOneAndUpdate(
+        { id },
+        { $set: { status: INVOICE_STATUSES.ADJUSTED } },
+      );
+      logger.info(`[Invoice] Original invoice ${id} marked as ADJUSTED`);
+    }
+
+    return result;
+  }
+
   async getStats() {
     const [total, draft, pending, issued, error, cancelled] = await Promise.all(
       [
@@ -236,11 +585,48 @@ class InvoiceService {
     return { total, draft, pending, issued, error, cancelled };
   }
 
+  /**
+   * Lấy thông tin hạn mức hoá đơn cho từng provider.
+   * - BKAV: count từ DB (BKAV không có API quota)
+   * - SePay: sẽ gọi SePay API khi tích hợp
+   */
+  async getQuota() {
+    const providers = await InvoiceProvider.find({ isActive: true }).lean();
+    const quotas = [];
+
+    for (const provider of providers) {
+      const issued = await Invoice.countDocuments({
+        providerId: provider.id,
+        status: {
+          $in: [
+            INVOICE_STATUSES.ISSUED,
+            INVOICE_STATUSES.REPLACED,
+            INVOICE_STATUSES.ADJUSTED,
+          ],
+        },
+      });
+      const total = await Invoice.countDocuments({ providerId: provider.id });
+
+      quotas.push({
+        providerId: provider.id,
+        providerName: provider.name,
+        providerType: provider.providerType,
+        issued,
+        total,
+        // BKAV không có API quota → hiển thị count từ DB
+        // SePay có thể gọi API GET /v1/usage để lấy quota_remaining
+        quotaRemaining: null, // null = không xác định
+      });
+    }
+
+    return quotas;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Provider CRUD
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getProviders(query) {
+  async getProviders(query = {}, mask = true) {
     const filter = {};
     if (query.providerType) filter.providerType = query.providerType;
     if (query.isActive !== undefined)
@@ -250,8 +636,10 @@ class InvoiceService {
       .sort({ isDefault: -1, createdAt: -1 })
       .lean();
 
-    // Mask sensitive tokens in response
-    return providers.map((p) => this._maskProviderSecrets(p));
+    if (mask) {
+      return providers.map((p) => this._maskProviderSecrets(p));
+    }
+    return providers;
   }
 
   async getProviderById(id) {
@@ -292,11 +680,40 @@ class InvoiceService {
       );
     }
 
-    data.updatedBy = userId;
+    // Strip masked values — don't overwrite real secrets with masked placeholders
+    const isMasked = (val) =>
+      !val || val === '***' || /^[a-f0-9]{4}\.\.\.[a-f0-9]{4}$/i.test(val);
+    if (data.bkav) {
+      if (isMasked(data.bkav.partnerToken)) delete data.bkav.partnerToken;
+      if (isMasked(data.bkav.partnerGUID)) delete data.bkav.partnerGUID;
+    }
+    if (data.sepay) {
+      if (isMasked(data.sepay.bearerToken)) delete data.sepay.bearerToken;
+    }
+
+    // Flatten nested objects to dot notation for $set
+    // This prevents MongoDB from replacing entire subdocuments (e.g. bkav, sepay)
+    const setPayload = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (
+        value &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        !(value instanceof Date)
+      ) {
+        // Flatten: { bkav: { endpoint: 'x' } } → { 'bkav.endpoint': 'x' }
+        for (const [subKey, subVal] of Object.entries(value)) {
+          setPayload[`${key}.${subKey}`] = subVal;
+        }
+      } else {
+        setPayload[key] = value;
+      }
+    }
+    setPayload.updatedBy = userId;
 
     const updated = await InvoiceProvider.findOneAndUpdate(
       { id },
-      { $set: data },
+      { $set: setPayload },
       { new: true, lean: true },
     );
     return this._maskProviderSecrets(updated);
@@ -368,7 +785,7 @@ class InvoiceService {
         invoice.providerErrorCode = null;
         invoice.providerErrorMessage = null;
         logger.info(
-          `[Invoice] ✅ Invoice ${invoice.id} issued successfully (GUID: ${result})`,
+          `[Invoice] ✅ Invoice ${invoice.id} issued successfully (GUID: ${JSON.stringify(result)})`,
         );
       } else {
         invoice.status = INVOICE_STATUSES.ERROR;
@@ -376,7 +793,7 @@ class InvoiceService {
         invoice.providerErrorMessage = result.error || 'Unknown error';
         invoice.providerResponse = result.rawResponse;
         logger.error(
-          `[Invoice] ❌ Invoice ${invoice.id} issue failed: ${result}`,
+          `[Invoice] ❌ Invoice ${invoice.id} issue failed: ${JSON.stringify(result)}`,
         );
       }
 
@@ -389,6 +806,139 @@ class InvoiceService {
       logger.error(`[Invoice] ❌ Adapter exception for ${invoice.id}:`, err);
       return invoice.toObject();
     }
+  }
+
+  /**
+   * Ký hoá đơn bằng HSM qua BKAV.
+   */
+  async signInvoiceWithHSM(id) {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+    if (!invoice.providerInvoiceGUID) {
+      throw createHttpError(400, 'Hoá đơn chưa có InvoiceGUID từ BKAV');
+    }
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+
+    const adapter = AdapterFactory.create(provider);
+    if (typeof adapter.signWithHSM !== 'function') {
+      throw createHttpError(400, 'Nhà cung cấp không hỗ trợ ký HSM');
+    }
+
+    const result = await adapter.signWithHSM(invoice);
+    return {
+      invoiceId: id,
+      ...result,
+    };
+  }
+
+  /**
+   * Ký nhiều hoá đơn bằng HSM.
+   */
+  async batchSignWithHSM(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw createHttpError(400, 'Danh sách mã hoá đơn là bắt buộc');
+    }
+
+    // Group invoices by provider
+    const invoices = await Invoice.find({ id: { $in: ids } }).lean();
+    if (invoices.length === 0)
+      throw createHttpError(404, 'Không tìm thấy hoá đơn');
+
+    const guids = invoices
+      .filter((inv) => inv.providerInvoiceGUID)
+      .map((inv) => inv.providerInvoiceGUID);
+
+    if (guids.length === 0) {
+      throw createHttpError(400, 'Không có hoá đơn nào có InvoiceGUID từ BKAV');
+    }
+
+    // Giả sử tất cả cùng 1 provider
+    const firstInvoice = invoices[0];
+    const provider = await InvoiceProvider.findOne({
+      id: firstInvoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+
+    const adapter = AdapterFactory.create(provider);
+    if (typeof adapter.signBatchWithHSM !== 'function') {
+      throw createHttpError(400, 'Nhà cung cấp không hỗ trợ ký HSM');
+    }
+
+    const result = await adapter.signBatchWithHSM(guids);
+    return {
+      total: ids.length,
+      signed: guids.length,
+      ...result,
+    };
+  }
+
+  /**
+   * Giải trình với CQT — HĐ sai sót.
+   */
+  async explainToCQT(id, payload) {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+    if (!invoice.providerInvoiceGUID) {
+      throw createHttpError(400, 'Hoá đơn chưa có InvoiceGUID từ BKAV');
+    }
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+
+    const adapter = AdapterFactory.create(provider);
+    if (typeof adapter.explainToCQT !== 'function') {
+      throw createHttpError(400, 'Nhà cung cấp không hỗ trợ giải trình CQT');
+    }
+
+    const result = await adapter.explainToCQT({
+      invoiceGUID: invoice.providerInvoiceGUID,
+      reason: payload.reason,
+      notify: payload.notify || false,
+      dateNotify: payload.dateNotify,
+      numberNotify: payload.numberNotify,
+    });
+
+    return {
+      invoiceId: id,
+      ...result,
+    };
+  }
+
+  /**
+   * Giải trình với CQT — HĐ bị thay thế / bị điều chỉnh.
+   */
+  async explainReplacedToCQT(id, payload) {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+    if (!invoice.providerInvoiceGUID) {
+      throw createHttpError(400, 'Hoá đơn chưa có InvoiceGUID từ BKAV');
+    }
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+
+    const adapter = AdapterFactory.create(provider);
+    if (typeof adapter.explainReplacedToCQT !== 'function') {
+      throw createHttpError(400, 'Nhà cung cấp không hỗ trợ giải trình CQT');
+    }
+
+    const result = await adapter.explainReplacedToCQT({
+      invoiceGUID: invoice.providerInvoiceGUID,
+      reason: payload.reason,
+    });
+
+    return {
+      invoiceId: id,
+      ...result,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -412,26 +962,27 @@ class InvoiceService {
     }
 
     return {
-      totalAmountBeforeTax,
-      totalTaxAmount,
-      totalDiscountAmount,
-      totalAmount: totalAmountBeforeTax + totalTaxAmount - totalDiscountAmount,
+      totalAmountBeforeTax: Math.round(totalAmountBeforeTax * 100) / 100,
+      totalTaxAmount: Math.round(totalTaxAmount * 100) / 100,
+      totalDiscountAmount: Math.round(totalDiscountAmount * 100) / 100,
+      totalAmount:
+        Math.round(
+          (totalAmountBeforeTax + totalTaxAmount - totalDiscountAmount) * 100,
+        ) / 100,
     };
+  }
+
+  async _generateInvoiceId() {
+    return generateMonotonicId(ID_PREFIXES.INVOICE);
   }
 
   _maskProviderSecrets(provider) {
     const masked = { ...provider };
-    if (masked.bkav?.partnerToken) {
-      masked.bkav = { ...masked.bkav, partnerToken: '***' };
-    }
-    if (masked.bkav?.partnerGUID) {
-      const guid = masked.bkav.partnerGUID;
+    if (masked.bkav) {
       masked.bkav = {
         ...masked.bkav,
-        partnerGUID:
-          guid.length > 8
-            ? `${guid.substring(0, 4)}...${guid.substring(guid.length - 4)}`
-            : '***',
+        ...(masked.bkav.partnerToken ? { partnerToken: '***' } : {}),
+        ...(masked.bkav.partnerGUID ? { partnerGUID: '***' } : {}),
       };
     }
     if (masked.sepay?.bearerToken) {

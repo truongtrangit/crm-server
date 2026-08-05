@@ -1,0 +1,164 @@
+{
+	"info": {
+		"_postman_id": "3ac2de64-dbcf-4031-8ccf-e452c8af1434",
+		"name": "eHoadon Template",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "16291656"
+	},
+	"item": [
+		{
+			"name": "XML",
+			"item": [
+				{
+					"name": "100 Tạo HĐ XML",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "text/xml",
+								"type": "text"
+							},
+							{
+								"key": "Content-Length",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<?xml version = \"1.0\" encoding=\"utf-8\"?>\r\n<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n\t<soap:Body>\r\n\t\t<ExecCommand xmlns = \"http://tempuri.org/\">\r\n\t\t\t<partnerGUID></partnerGUID>\r\n\t\t\t<CommandData>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjxDb21tYW5kRGF0YSB4bWxuczp4c2Q9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hIiB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIj4NCgk8Q21kVHlwZT4xMTE8L0NtZFR5cGU+DQoJPENvbW1hbmRPYmplY3QgeG1sbnM6cTE9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hIiBwMzp0eXBlPSJxMTpzdHJpbmciIHhtbG5zOnAzPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1pbnN0YW5jZSI+DQombHQ7QXJyYXlPZkludm9pY2VEYXRhV1MmZ3Q7DQoJJmx0O0ludm9pY2VEYXRhV1MmZ3Q7DQoJCSZsdDtJbnZvaWNlJmd0Ow0KCQkJJmx0O0ludm9pY2VUeXBlSUQmZ3Q7MSZsdDsvSW52b2ljZVR5cGVJRCZndDsNCgkJCSZsdDtJbnZvaWNlRGF0ZSZndDsyMDI0LTEwLTAyVDEzOjI5OjM5Ljg1MCswNzowMCZsdDsvSW52b2ljZURhdGUmZ3Q7DQoJCQkmbHQ7U2VsbGVyVGF4Q29kZSZndDswMzAzMTk1MzU4Jmx0Oy9TZWxsZXJUYXhDb2RlJmd0Ow0KCQkJJmx0O0J1eWVyTmFtZS8mZ3Q7DQoJCQkmbHQ7UmVhc29uJmd0O1ByaW50aW5nIEZhaWx1cmUmbHQ7L1JlYXNvbiZndDsNCgkJCSZsdDtCdXllclRheENvZGUmZ3Q7MDEwNDE2MDA1NCZsdDsvQnV5ZXJUYXhDb2RlJmd0Ow0KCQkJJmx0O0J1eWVyVW5pdE5hbWUmZ3Q7Q8OUTkcgVFkgQ+G7lCBQSOG6pk4gU1RBVklBTiBIw5NBIENI4bqkVCZsdDsvQnV5ZXJVbml0TmFtZSZndDsNCgkJCSZsdDtCdXllckFkZHJlc3MmZ3Q7TMO0IDE2LCDEkcaw4budbmcgMjA2IEtodSBBLCBLQ04gUGjhu5EgTuG7kWkgQSwgeMOjIMSQw6xuaCBEw7ksIGh1eeG7h24gVsSDbiBMw6JtLCB04buJbmggSMawbmcgWcOqbiwgVmnhu4d0IE5hbSZsdDsvQnV5ZXJBZGRyZXNzJmd0Ow0KCQkJJmx0O0J1eWVyQmFua0FjY291bnQvJmd0Ow0KCQkJJmx0O1BheU1ldGhvZElEJmd0OzMmbHQ7L1BheU1ldGhvZElEJmd0Ow0KCQkJJmx0O1JlY2VpdmVUeXBlSUQmZ3Q7MSZsdDsvUmVjZWl2ZVR5cGVJRCZndDsNCgkJCSZsdDtSZWNlaXZlckVtYWlsJmd0O29wZWMub3BsLmFuQHN0YXZpYW5jaGVtLmNvbTsgYWNjaHBAb3BsLnZuOyBodW9uZy50cmFuQG9wbC52bjtzY21zaGlwQHN0YXZpYW5jaGVtLmNvbSZsdDsvUmVjZWl2ZXJFbWFpbCZndDsNCgkJCSZsdDtSZWNlaXZlck1vYmlsZS8mZ3Q7DQoJCQkmbHQ7UmVjZWl2ZXJBZGRyZXNzLyZndDsNCgkJCSZsdDtSZWNlaXZlck5hbWUvJmd0Ow0KCQkJJmx0O05vdGUmZ3Q7MjAzNjk0NzQ2MCZsdDsvTm90ZSZndDsNCgkJCSZsdDtCaWxsQ29kZS8mZ3Q7DQoJCQkmbHQ7Q3VycmVuY3lJRCZndDtWTkQmbHQ7L0N1cnJlbmN5SUQmZ3Q7DQoJCQkmbHQ7RXhjaGFuZ2VSYXRlJmd0OzEmbHQ7L0V4Y2hhbmdlUmF0ZSZndDsNCgkJCSZsdDtJbnZvaWNlU3RhdHVzSUQmZ3Q7MSZsdDsvSW52b2ljZVN0YXR1c0lEJmd0Ow0KCQkJJmx0O0ludm9pY2VGb3JtJmd0OzEmbHQ7L0ludm9pY2VGb3JtJmd0Ow0KCQkJJmx0O0ludm9pY2VTZXJpYWwmZ3Q7QzI0VEFSJmx0Oy9JbnZvaWNlU2VyaWFsJmd0Ow0KCQkJJmx0O0ludm9pY2VObyZndDswMTM3NjU0Jmx0Oy9JbnZvaWNlTm8mZ3Q7DQoJCQkmbHQ7VXNlckRlZmluZSZndDt7JnF1b3Q7RGF0ZU9mQXJyaXZhbERlcGFydHVyZSZxdW90OzomcXVvdDsyNi8wOS8yMDI0JnF1b3Q7LCZxdW90O1BvcnRPZkxvYWRpbmcmcXVvdDs6JnF1b3Q7UG9ydCBLbGFuZyZxdW90OywmcXVvdDtWZXNzZWxWb3lhZ2UmcXVvdDs6JnF1b3Q7TUFORVQgMDMzTiZxdW90OywmcXVvdDtCZW5lZmljaWFyeU5hbWUmcXVvdDs6JnF1b3Q7JnF1b3Q7LCZxdW90O1BvcnRPZkRpc2NoYXJnZSZxdW90OzomcXVvdDtIbyBDaGkgTWluaCAoQ2F0IExhaSkmcXVvdDssJnF1b3Q7RmluYWxEZXN0aW5hdGlvbiZxdW90OzomcXVvdDtIbyBDaGkgTWluaCZxdW90O30mbHQ7L1VzZXJEZWZpbmUmZ3Q7DQoJCQkmbHQ7T3JpZ2luYWxJbnZvaWNlSWRlbnRpZnkvJmd0Ow0KCQkmbHQ7L0ludm9pY2UmZ3Q7DQoJCSZsdDtMaXN0SW52b2ljZURldGFpbHNXUyZndDsNCgkJCSZsdDtJbnZvaWNlRGV0YWlsc1dTJmd0Ow0KCQkJCSZsdDtJdGVtTmFtZSZndDtQaMOtIGzGsHUgYmHMg2kgKFNURykmbHQ7L0l0ZW1OYW1lJmd0Ow0KCQkJCSZsdDtVbml0TmFtZSZndDs0MEhRJmx0Oy9Vbml0TmFtZSZndDsNCgkJCQkmbHQ7UXR5Jmd0OzEmbHQ7L1F0eSZndDsNCgkJCQkmbHQ7UHJpY2UmZ3Q7MTA1NzIxJmx0Oy9QcmljZSZndDsNCgkJCQkmbHQ7QW1vdW50Jmd0OzEwNTcyMSZsdDsvQW1vdW50Jmd0Ow0KCQkJCSZsdDtUYXhSYXRlSUQmZ3Q7NiZsdDsvVGF4UmF0ZUlEJmd0Ow0KCQkJCSZsdDtUYXhSYXRlJmd0Oy00Jmx0Oy9UYXhSYXRlJmd0Ow0KCQkJCSZsdDtUYXhBbW91bnQmZ3Q7NTU2NCZsdDsvVGF4QW1vdW50Jmd0Ow0KCQkJCSZsdDtJc0Rpc2NvdW50Jmd0O2ZhbHNlJmx0Oy9Jc0Rpc2NvdW50Jmd0Ow0KCQkJCSZsdDtJc0luY3JlYXNlJmd0O2ZhbHNlJmx0Oy9Jc0luY3JlYXNlJmd0Ow0KCQkJCSZsdDtVc2VyRGVmaW5lRGV0YWlscyZndDt7JnF1b3Q7QmlsbE9mTGFkaW5nTnVtYmVyJnF1b3Q7OiZxdW90OzIwMzY5NDc0NjAmcXVvdDt9Jmx0Oy9Vc2VyRGVmaW5lRGV0YWlscyZndDsNCgkJCSZsdDsvSW52b2ljZURldGFpbHNXUyZndDsNCgkJJmx0Oy9MaXN0SW52b2ljZURldGFpbHNXUyZndDsNCgkJJmx0O0xpc3RJbnZvaWNlQXR0YWNoRmlsZVdTJmd0Ow0KCQkJJmx0O0ludm9pY2VBdHRhY2hGaWxlV1MmZ3Q7DQoJCQkJJmx0O0ZpbGVOYW1lJmd0OzYyMzMwNjM3Jmx0Oy9GaWxlTmFtZSZndDsNCgkJCQkmbHQ7RmlsZUV4dGVuc2lvbiZndDtwZGYmbHQ7L0ZpbGVFeHRlbnNpb24mZ3Q7DQoJCQkmbHQ7L0ludm9pY2VBdHRhY2hGaWxlV1MmZ3Q7DQoJCSZsdDsvTGlzdEludm9pY2VBdHRhY2hGaWxlV1MmZ3Q7DQoJCSZsdDtQYXJ0bmVySW52b2ljZUlEJmd0OzYyMzMwNjM3Jmx0Oy9QYXJ0bmVySW52b2ljZUlEJmd0Ow0KCQkmbHQ7SXNTZXRJbnZvaWNlTm8mZ3Q7dHJ1ZSZsdDsvSXNTZXRJbnZvaWNlTm8mZ3Q7DQoJJmx0Oy9JbnZvaWNlRGF0YVdTJmd0Ow0KJmx0Oy9BcnJheU9mSW52b2ljZURhdGFXUyZndDsNCjwvQ29tbWFuZE9iamVjdD4NCjwvQ29tbWFuZERhdGE+DQo=</CommandData>\r\n\t\t</ExecCommand>\r\n\t</soap:Body>\r\n</soap:Envelope>",
+							"options": {
+								"raw": {
+									"language": "xml"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://ws.ehoadon.vn/WSPublicEhoadon.asmx",
+							"protocol": "https",
+							"host": [
+								"ws",
+								"ehoadon",
+								"vn"
+							],
+							"path": [
+								"WSPublicEhoadon.asmx"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "110 Tạo HĐ XML Test",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "text/xml",
+								"type": "text"
+							},
+							{
+								"key": "Content-Length",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<?xml version = \"1.0\" encoding=\"utf-8\"?>\r\n<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n\t<soap:Body>\r\n\t\t<ExecCommand xmlns = \"http://tempuri.org/\">\r\n\t\t\t<partnerGUID></partnerGUID>\r\n\t\t\t<CommandData>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjxDb21tYW5kRGF0YSB4bWxuczp4c2Q9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hIiB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIj4NCgk8Q21kVHlwZT4xMTA8L0NtZFR5cGU+DQoJPENvbW1hbmRPYmplY3QgeG1sbnM6cTE9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hIiBwMzp0eXBlPSJxMTpzdHJpbmciIHhtbG5zOnAzPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1pbnN0YW5jZSI+DQombHQ7QXJyYXlPZkludm9pY2VEYXRhV1MmZ3Q7DQoJJmx0O0ludm9pY2VEYXRhV1MmZ3Q7DQoJCSZsdDtJbnZvaWNlJmd0Ow0KCQkJJmx0O0ludm9pY2VUeXBlSUQmZ3Q7MSZsdDsvSW52b2ljZVR5cGVJRCZndDsNCgkJCSZsdDtJbnZvaWNlRGF0ZSZndDsyMDI0LTA0LTI5Jmx0Oy9JbnZvaWNlRGF0ZSZndDsNCgkJCSZsdDtCdXllck5hbWUmZ3Q7OTAwMDAwNjcgIC0gUElMTUlDTyBBTklNQUwgTlVUUklUSU9OIENPUlBPUkFUSU9OJmx0Oy9CdXllck5hbWUmZ3Q7DQoJCQkmbHQ7QnV5ZXJUYXhDb2RlJmd0OyZsdDsvQnV5ZXJUYXhDb2RlJmd0Ow0KCQkJJmx0O0J1eWVyVW5pdE5hbWUmZ3Q7OTAwMDAwNjcgIC0gUElMTUlDTyBBTklNQUwgTlVUUklUSU9OIENPUlBPUkFUSU9OJmx0Oy9CdXllclVuaXROYW1lJmd0Ow0KCQkJJmx0O0J1eWVyQWRkcmVzcyZndDtBQk9JVElaIENPUlBPUkFURSBDRU5URVIgICAgICAgICAgICBHT1YuIE1BTlVFTCBBLiBDVUVOQ08gQVZFLiAgICAgICAgICBLQVNBTUJBR0FOICAgICAgICAgICAgICAgICAgICAgICAgICBDRUJVIENJVFkgUEhJTElQUElORVMmbHQ7L0J1eWVyQWRkcmVzcyZndDsNCgkJCSZsdDtQYXlNZXRob2RJRCZndDszJmx0Oy9QYXlNZXRob2RJRCZndDsNCgkJCSZsdDtSZWNlaXZlVHlwZUlEJmd0OzMmbHQ7L1JlY2VpdmVUeXBlSUQmZ3Q7DQoJCQkmbHQ7UmVjZWl2ZXJFbWFpbCZndDtlaW52b2ljZS5oYW5hbUBhYm9pdGl6LmNvbSZsdDsvUmVjZWl2ZXJFbWFpbCZndDsNCgkJCSZsdDtCdXllckJhbmtBY2NvdW50Jmd0OyZsdDsvQnV5ZXJCYW5rQWNjb3VudCZndDsNCgkJCSZsdDtSZWNlaXZlckFkZHJlc3MmZ3Q7Jmx0Oy9SZWNlaXZlckFkZHJlc3MmZ3Q7DQoJCQkmbHQ7UmVjZWl2ZXJOYW1lJmd0OyZsdDsvUmVjZWl2ZXJOYW1lJmd0Ow0KCQkJJmx0O0JpbGxDb2RlJmd0OyZsdDsvQmlsbENvZGUmZ3Q7DQoJCQkmbHQ7Q3VycmVuY3lJRCZndDtVU0QmbHQ7L0N1cnJlbmN5SUQmZ3Q7DQoJCQkmbHQ7RXhjaGFuZ2VSYXRlJmd0OzI0MjUwLjAwMDAwMCZsdDsvRXhjaGFuZ2VSYXRlJmd0Ow0KCQkJJmx0O0ludm9pY2VTdGF0dXNJRCZndDszJmx0Oy9JbnZvaWNlU3RhdHVzSUQmZ3Q7DQoJCQkmbHQ7SW52b2ljZUZvcm0mZ3Q7MSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICZsdDsvSW52b2ljZUZvcm0mZ3Q7DQoJCQkmbHQ7SW52b2ljZVNlcmlhbCZndDtLMjRUTVYgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgJmx0Oy9JbnZvaWNlU2VyaWFsJmd0Ow0KCQkJJmx0O0ludm9pY2VObyZndDswJmx0Oy9JbnZvaWNlTm8mZ3Q7DQoJCQkmbHQ7VXNlckRlZmluZSZndDt7JnF1b3Q7T3JkZXJObyZxdW90OzomcXVvdDswMDQ3MDAwNDAzJnF1b3Q7LCZxdW90O1ZlaGljbGUmcXVvdDs6JnF1b3Q7ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgJnF1b3Q7LCZxdW90O1N1bVdlaWdodCZxdW90OzoyNDAwLjAwMH0mbHQ7L1VzZXJEZWZpbmUmZ3Q7DQoJCQkmbHQ7T3JpZ2luYWxJbnZvaWNlSWRlbnRpZnkmZ3Q7MV9LMjRUTVZfMDAwMDAwMyZsdDsvT3JpZ2luYWxJbnZvaWNlSWRlbnRpZnkmZ3Q7DQoJCSZsdDsvSW52b2ljZSZndDsNCgkJJmx0O0xpc3RJbnZvaWNlRGV0YWlsc1dTJmd0Ow0KCQkJJmx0O0ludm9pY2VEZXRhaWxzV1MmZ3Q7DQoJCQkJJmx0O0l0ZW1Db2RlJmd0O0YwMDAzMDU0Jmx0Oy9JdGVtQ29kZSZndDsNCgkJCQkmbHQ7SXRlbU5hbWUmZ3Q7VEjDmU5HIFTEgk3DiE8gTUFYSU1FIFRVTkEgS0lUIDEuMktHWDjCoCZsdDsvSXRlbU5hbWUmZ3Q7DQoJCQkJJmx0O1VuaXROYW1lJmd0O0tnJmx0Oy9Vbml0TmFtZSZndDsNCgkJCQkmbHQ7UXR5Jmd0OzI1MC4wMDAmbHQ7L1F0eSZndDsNCgkJCQkmbHQ7UHJpY2UmZ3Q7MS4zMCZsdDsvUHJpY2UmZ3Q7DQoJCQkJJmx0O0Ftb3VudCZndDszMTIwLjAwMCZsdDsvQW1vdW50Jmd0Ow0KCQkJCSZsdDtUYXhSYXRlSUQmZ3Q7MSZsdDsvVGF4UmF0ZUlEJmd0Ow0KCQkJCSZsdDtUYXhSYXRlJmd0OzAmbHQ7L1RheFJhdGUmZ3Q7DQoJCQkJJmx0O1RheEFtb3VudCZndDswLjAwMCZsdDsvVGF4QW1vdW50Jmd0Ow0KCQkJCSZsdDtJc0Rpc2NvdW50Jmd0O2ZhbHNlJmx0Oy9Jc0Rpc2NvdW50Jmd0Ow0KCQkJCSZsdDtJc0luY3JlYXNlJmd0O2ZhbHNlJmx0Oy9Jc0luY3JlYXNlJmd0Ow0KCQkJCSZsdDtVc2VyRGVmaW5lRGV0YWlscyZndDt7JnF1b3Q7V2VpZ2h0JnF1b3Q7OjI0MDAuMDAwfSZsdDsvVXNlckRlZmluZURldGFpbHMmZ3Q7DQoJCQkJJmx0O0l0ZW1UeXBlSUQmZ3Q7MCZsdDsvSXRlbVR5cGVJRCZndDsNCgkJCSZsdDsvSW52b2ljZURldGFpbHNXUyZndDsNCgkJCSZsdDtJbnZvaWNlRGV0YWlsc1dTJmd0Ow0KCQkJCSZsdDtJdGVtQ29kZSZndDtFWF9GUkUmbHQ7L0l0ZW1Db2RlJmd0Ow0KCQkJCSZsdDtJdGVtTmFtZSZndDtQaMOtIFbhuq1uIHThuqNpIHF14buRYyB04bq/Jmx0Oy9JdGVtTmFtZSZndDsNCgkJCQkmbHQ7VW5pdE5hbWUmZ3Q7bOG6p24mbHQ7L1VuaXROYW1lJmd0Ow0KCQkJCSZsdDtRdHkmZ3Q7MSZsdDsvUXR5Jmd0Ow0KCQkJCSZsdDtQcmljZSZndDstMjAwLjAwJmx0Oy9QcmljZSZndDsNCgkJCQkmbHQ7QW1vdW50Jmd0Oy0yMDAuMDAmbHQ7L0Ftb3VudCZndDsNCgkJCQkmbHQ7VGF4UmF0ZUlEJmd0OzEmbHQ7L1RheFJhdGVJRCZndDsNCgkJCQkmbHQ7VGF4UmF0ZSZndDswJmx0Oy9UYXhSYXRlJmd0Ow0KCQkJCSZsdDtUYXhBbW91bnQmZ3Q7MC4wMDAmbHQ7L1RheEFtb3VudCZndDsNCgkJCQkmbHQ7SXNEaXNjb3VudCZndDtmYWxzZSZsdDsvSXNEaXNjb3VudCZndDsNCgkJCQkmbHQ7SXNJbmNyZWFzZSZndDtmYWxzZSZsdDsvSXNJbmNyZWFzZSZndDsNCgkJCQkmbHQ7SXRlbVR5cGVJRCZndDswJmx0Oy9JdGVtVHlwZUlEJmd0Ow0KCQkJJmx0Oy9JbnZvaWNlRGV0YWlsc1dTJmd0Ow0KCQkJJmx0O0ludm9pY2VEZXRhaWxzV1MmZ3Q7DQoJCQkJJmx0O0l0ZW1Db2RlJmd0O0RJU19BQyZsdDsvSXRlbUNvZGUmZ3Q7DQoJCQkJJmx0O0l0ZW1OYW1lJmd0O0NoaeG6v3Qga2jhuqV1IHRoxrDGoW5nIG3huqFpJmx0Oy9JdGVtTmFtZSZndDsNCgkJCQkmbHQ7UXR5Jmd0OzAmbHQ7L1F0eSZndDsNCgkJCQkmbHQ7UHJpY2UmZ3Q7MCZsdDsvUHJpY2UmZ3Q7DQoJCQkJJmx0O0Ftb3VudCZndDswLjAwJmx0Oy9BbW91bnQmZ3Q7DQoJCQkJJmx0O1RheFJhdGVJRCZndDsxJmx0Oy9UYXhSYXRlSUQmZ3Q7DQoJCQkJJmx0O1RheFJhdGUmZ3Q7MCZsdDsvVGF4UmF0ZSZndDsNCgkJCQkmbHQ7VGF4QW1vdW50Jmd0OzAuMDAmbHQ7L1RheEFtb3VudCZndDsNCgkJCQkmbHQ7SXNEaXNjb3VudCZndDt0cnVlJmx0Oy9Jc0Rpc2NvdW50Jmd0Ow0KCQkJCSZsdDtJdGVtVHlwZUlEJmd0OzAmbHQ7L0l0ZW1UeXBlSUQmZ3Q7DQoJCQkmbHQ7L0ludm9pY2VEZXRhaWxzV1MmZ3Q7DQoJCSZsdDsvTGlzdEludm9pY2VEZXRhaWxzV1MmZ3Q7DQoJCSZsdDtQYXJ0bmVySW52b2ljZUlEJmd0OzE1MDEzMTAyNjUwMDAwMDA3ODEmbHQ7L1BhcnRuZXJJbnZvaWNlSUQmZ3Q7DQoJJmx0Oy9JbnZvaWNlRGF0YVdTJmd0Ow0KJmx0Oy9BcnJheU9mSW52b2ljZURhdGFXUyZndDsNCgkJPC9Db21tYW5kT2JqZWN0Pg0KPC9Db21tYW5kRGF0YT4NCg==</CommandData>\r\n\t\t</ExecCommand>\r\n\t</soap:Body>\r\n</soap:Envelope>",
+							"options": {
+								"raw": {
+									"language": "xml"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://wsdemo.ehoadon.vn/WSPublicEhoadon.asmx",
+							"protocol": "https",
+							"host": [
+								"wsdemo",
+								"ehoadon",
+								"vn"
+							],
+							"path": [
+								"WSPublicEhoadon.asmx"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Json",
+			"item": [
+				{
+					"name": "100 Tạo HĐ HT Thật",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"partnerGUID\":\"\",\n\t\"CommandData\":\"ew0KICAgICJDbWRUeXBlIjogOTA0LA0KICAgICJDb21tYW5kT2JqZWN0IjogIjAzMTI3MjQ0NDkiDQp9\"\n}"
+						},
+						"url": {
+							"raw": "https://ws.ehoadon.vn/WSPublicEhoadon.asmx/ExecCommand",
+							"protocol": "https",
+							"host": [
+								"ws",
+								"ehoadon",
+								"vn"
+							],
+							"path": [
+								"WSPublicEhoadon.asmx",
+								"ExecCommand"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "100 Tạo hóa đơn DEMO",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"partnerGUID\": \"\",\n    \"CommandData\": \"MjIxLDE4NiwyMjIsMjQxLDEyNywxMTYsMjI3LDIzLDE3OCw4MCwyNDMsMTg5LDc1LDQ4LDYxLDQzLDEyNywxOTMsMjE5LDM5LDE4NiwxNzcsMTg3LDE0NywxMDUsMTM1LDE0MCw3NCwyMDcsMzMsMTA0LDEyOCwxMCw2Miw5MywxMTQsMjAwLDEwMiw1MCwxOTcsNDQsNjgsMjU0LDIwOCwxMjAsMjA1LDE1NywxMywzOSwyMDQsMTUsOTUsMjUxLDIsMTQsMTM3LDY2LDMzLDEyNiwyMTYsMjEyLDY4LDIwMyw1MywxNDgsMTIzLDIxOSwzNSwzNywyMTQsMTk2LDIwOCw1Miw5NiwxMTMsOTQsMTAxLDQxLDM2LDE2OCw2NSw1Niw0NCwyMzksMjQ0LDU5LDM3LDIzLDM3LDMxLDEyLDgyLDI0Miw4NywxNDYsNjAsMTEsMTg5LDEzNSw3LDEyNSwyMzUsNTEsMTU0LDMwLDI5LDEzNSw0MSwyMjksMTczLDE3NiwyMzEsNiwyNiwwLDIxMyw3Niw5MywxMDUsMTkzLDEyNCwxMTMsMTczLDE4MywxNTMsMTI2LDEyNCw2LDE2MCwxMzQsNjMsNzEsNTgsMjEyLDcyLDE2NSwxMCw1NCwxMjAsNTIsMTUsNDYsMzksMzcsMTg1LDExMywyMjgsMTg4LDE2NCwxNDEsMTM0LDExNiwyMDMsMjUyLDIxMSwyNCw3MywxMzMsNDIsMjMwLDI1NSw5OCwxODAsNzYsMCwzMiw0NCwxNjQsMTcsNzIsNDUsMTYzLDE3LDIxOCwxMzMsMTU5LDE3OSwxNDMsMjQsMjQsNDYsMjM1LDg3LDE5NSwyMjIsMTUwLDg1LDc2LDE1LDMwLDIxLDExMywyMTQsODgsMjEyLDM4LDE2OSwxMTIsODQsNTEsODMsNjcsMTk2LDE3MSw1NCwyMTQsMTQxLDk3LDE2MiwxNjEsNTMsMjQ0LDE4Myw2NCwyMDgsMTA1LDc1LDEsMjUwLDIzLDE1NCwxNjYsMjMwLDAsNjgsNjgsMTUxLDE1NiwyMTgsMTMxLDM2LDgwLDEyOSwxMjUsMzksMTgyLDI2LDY0LDIwMCwxMjcsOTcsMjQzLDU5LDc4LDAsMjAsMTkxLDE3NSwxMDMsMTYwLDMsMTAsODIsMTQ0LDIzMSwxNzksMjYsMTIzLDUyLDMxLDQsMTU0LDQ1LDEzOSwyMDAsNzIsMTU0LDkxLDE1NSwyMjUsNDQsMjQsMTA4LDU4LDIyNCwxNDYsMTEzLDE0NCw2NCw4NiwxNjUsMTkwLDIwLDE3NiwzOSwyMTMsNDIsMjA4LDIzMiwxOTYsMjM3LDI2LDE0OSwxMTMsMjAxLDEzOSwxODksMTk4LDIxOSw5Miw5LDM3LDc5LDYsOTUsNDIsMTY5LDE4NSw4NywyNTUsNDQsMTMsNzIsMTMzLDYxLDE5NCw0NSwxMjQsMTQzLDQ4LDExMiw4OSwyMTUsNjgsMjUyLDIwMiwyMzQsMTI0LDI1MSwyMzcsMjMsNDQsNTMsNzEsMTQyLDI3LDI1MiwxODAsODMsNjIsMjQ1LDE4OSwxOSw4OSwxMzAsMjA1LDIyOSwyMzksMjEzLDI0MCwzNiwxNDcsMjA4LDIzNywyMzksMTc3LDE2Niw2OSwxMDgsMTQyLDIwOCw1Niw2NCw2MCwyMTgsMTk0LDE0MywyNTMsMTc5LDEzMywxMDMsMTA0LDU5LDYyLDIyMSw5NiwxOTQsMjIsNTYsMjA5LDEwOCwxMjAsMTE5LDE5MSwyMzgsMTkzLDEwMCwyMDcsMTAsMjU1LDE4MCw2OSwyMzAsMjM5LDE1MCwyNTAsODQsMjA5LDE3NSwxODEsMjA1LDE0NCwyNTQsMTkwLDEwNSw2OCwyMzcsMTE2LDIzLDExOCw5OCw0LDE5OSwxNzUsMTkzLDE3MSwxMjksMTkzLDY3LDIyNCw1OCwxMDMsNTEsMTM4LDE1NCwzNSw1OCwxOTEsMTExLDEwMywyMzcsMTU5LDIwMiwzMSwyMTEsMTE2LDk2LDE3NCwxODEsMTIyLDE3MywxMDMsMTA3LDEyMSwyNDMsMTkxLDI0MywyMTksMjksODMsMjU0LDIxMiwxOCw3NSwyNyw1Miw4MiwxNzEsMjM2LDE1MSw1Niw4NiwxNjIsMjA0LDIwLDE2NSwxMzgsMTI5LDE3MCwxMjAsMjQ3LDIzMiw2OSwyNDMsMjUzLDEyMCw4MCwxODQsMjIyLDEyLDIzOCwyMiwxODQsMTY1LDIsMjA3LDIyMiwyMDEsMTU3LDE0NiwxMzIsMTg5LDExNiwxNTEsOTMsMzMsMTI0LDc4LDIxOSw5MCw3MSwxNTIsNTUsMjgsNjcsMzIsMTc5LDI1NSwxODIsNTgsMTQxLDU2LDIsMjYsMjEwLDIyNCwyMzMsMTk0LDQ0LDExOSwxNSw1MywxNzMsMjA4LDEyNiwxMjUsMSwyNTEsNzAsNzYsNTUsMTkwLDE3MSwwLDEwOSwxOSwxOTcsMTk5LDgzLDEzMSw1OCwyMzMsMjM5LDIxLDExNSw3NywxNDUsMjUsMTI2LDQyLDEwMyw0MiwxNzEsMTAyLDEyOSwyMzYsMjAwLDEzMiw3MCw3MCwxMDAsNjEsMTc1LDYsMTkwLDMsMTg0LDI1Myw3MiwxNDMsMTI3LDE0MSwxNDEsOTMsMTYwLDMsNTUsMTk2LDI1MCwzMCwyNTAsNzMsMzAsMTA5LDE1NywxMTYsMywxMzAsMywyMjAsNTQsODMsMTM0LDE2NiwxMjQsMjI2LDYxLDU2LDIwNCwxNjksMzEsMjQ4LDAsMTIyLDM3LDcyLDEyOSwxNTIsMjA0LDI0LDg2LDIyMywxNzcsMjQ3LDc4LDE2MywxNzcsMTkxLDEwNCwxODcsMTkxLDIwOCwyMTgsNjMsMjIyLDI1NCwxNjEsMTE3LDExMCwxMTYsNTEsMjIwLDEyMiw1NSw4NSwxNTYsNTAsMTU3LDM4LDE4NywxODIsNTEsNjEsODksMjA0LDg5LDEyNCw5MSwyNTEsMjI4LDEyNywzMSw1MSwyOCwxMDMsMTMwLDQ3LDM3LDE1NCwxMTIsOTIsNTQsODMsMjU0LDE2Myw5NCwxNjksMTYzLDE3MiwxNjYsMTY1LDExMywyMjEsMTksMTIyLDE1MywxMTEsMTMyLDE2NSwxNzgsMTk1LDE5LDE2OSw5NywxNTcsMTY3LDEzOSw1NCwyMzEsMjI1LDE0LDE1MywyMzUsMTE3LDE1Myw2OCw5OSwyMDYsMTY5LDI1MCw1MSwyMTksMTkzLDE3OCwyMzAsMTA4LDE3MSwwLDI0MSw5NCwxODAsMTQwLDQ0LDI0MSwxNzYsMTUsMTI1LDE5Miw3MSwxMjEsNjQsNDAsOCwxOTIsMTc5LDEzMSw0Myw2NCwxNTMsMTQzLDEzMCwzMywxOTQsMjgsMTEzLDE5MCwyNDYsOTUsODIsMjA5LDI0LDExLDE1NiwxNjksMTc0LDQ0LDIwMCwzMCw2NywyMzksMjQ5LDEwMywyMDEsMTY1LDI1NCwxOTYsMTQyLDIyMSw4OSwyMTgsMjQzLDE3MCwxMjgsNSwyNCwxODgsMjA4LDAsMTE2LDgyLDEyMSwzMiwzNSwyNDgsMjQwLDE2Miw1OCwzOCwxMTgsMTg3LDEyMCwxOSwxMiwxNjksMTQ2LDE1LDc2LDE5NCwxOCw2MiwyNiwxMDYsMTQyLDI2LDg4LDEwNCwzMSwyNiwxNzIsMTMxLDIzMywzNCwyNDMsMTgsNDMsNTYsMTcwLDE5NSwxMjEsMTgxLDE1OCwyNTIsMTA0LDk4LDUyLDEwOSwxODgsMTMyLDEyNSw0MywxNzQsODMsMTQxLDIxOCw4LDEzMCwyNCw3OSw5NywxMzgsMjIxLDkzLDE5NCw0MiwxNSwxOTIsMjA5LDE4LDE0Nyw0MywxNDMsMTQ4LDE4Nyw0MywxMDIsNTQsMjA3LDIwMiw2MiwxMzAsNDAsMTMwLDIzMCwyMDgsMTg4LDEzNywyMjAsMTcsMzMsMjQ2LDEzMCwyMjAsMTA3LDU0LDEyNywxNjYsMjAzLDUsODEsMTQsMTkwLDE5NywxNzEsMTY1LDM5LDE3NiwxNjksMTg2LDE1NiwyMjU=\"\n}"
+						},
+						"url": {
+							"raw": "https://wsdemo.ehoadon.vn/WSPublicEhoadon.asmx/ExecCommand",
+							"protocol": "https",
+							"host": [
+								"wsdemo",
+								"ehoadon",
+								"vn"
+							],
+							"path": [
+								"WSPublicEhoadon.asmx",
+								"ExecCommand"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

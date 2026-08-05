@@ -91,11 +91,13 @@ const invoiceSchema = new mongoose.Schema(
 
     // ─── Liên kết (thay thế / điều chỉnh) ───────────────────────────────
     relatedInvoiceId: { type: String, default: null },            // HĐ gốc
+    relatedInvoiceIdentify: { type: String, default: null, trim: true }, // Mẫu_KýHiệu_SốHĐ hoặc GUID
     relationType: {
       type: String,
       enum: [...Object.values(INVOICE_RELATION_TYPES), null],
       default: null,
     },
+    reason: { type: String, default: '', trim: true },            // Lý do huỷ / thay thế / điều chỉnh
 
     // ─── Retry & Tracking ───────────────────────────────────────────────
     retryCount: { type: Number, default: 0 },

@@ -53,6 +53,12 @@ Base: `GET /api/v1/invoices`
 | POST | `/:id/issue` | `invoices_update` | Phát hành HĐ lên CQT |
 | POST | `/:id/cancel` | `invoices_update` | Huỷ bỏ HĐ |
 | POST | `/:id/retry` | `invoices_update` | Retry HĐ bị lỗi |
+| POST | `/:id/replace` | `invoices_update` | Thay thế HĐ |
+| POST | `/:id/adjust` | `invoices_update` | Điều chỉnh HĐ |
+| POST | `/:id/sign-hsm` | `invoices_update` | Ký HSM 1 HĐ |
+| POST | `/batch-sign-hsm` | `invoices_update` | Ký HSM nhiều HĐ |
+| POST | `/:id/explain-cqt` | `invoices_update` | Giải trình CQT (HĐ sai sót) |
+| POST | `/:id/explain-replaced-cqt` | `invoices_update` | Giải trình CQT (HĐ bị TT/ĐC) |
 
 ### Nhà cung cấp (Provider)
 
@@ -103,16 +109,30 @@ Khách hàng đã đăng ký ký hiệu: **MAA** và **MVK**
 Sử dụng **CmdType 111**: PMKT quản lý Mẫu số + Ký hiệu + Số HĐ.
 Hoá đơn tạo ra có trạng thái "Hoá đơn chờ" (đã được cấp số).
 
+| CmdType | Mục đích |
+|---------|----------|
+| 111 | Tạo HĐ mới (PMKT quản lý mẫu/ký hiệu) |
+| 123 | Thay thế HĐ (PMKT quản lý) |
+| 121 | Điều chỉnh HĐ (PMKT quản lý) |
+| 201 | Huỷ HĐ đã phát hành (bằng InvoiceGUID) |
+| 205 | Ký 1 HĐ bằng HSM |
+| 206 | Ký nhiều HĐ bằng HSM |
+| 300 | Giải trình CQT (HĐ sai sót) |
+| 304 | Giải trình CQT (HĐ bị TT/ĐC) |
+| 800 | Lấy thông tin HĐ |
+
 ### HSM (Chữ ký số)
 
-> ⚠️ **TODO**: Chưa xác nhận KH có HSM. Cần liên hệ BKAV để cấu hình ký tự động nếu có.
+- CmdType **205**: Ký 1 hoá đơn bằng HSM
+- CmdType **206**: Ký nhiều hoá đơn bằng HSM
+- API: `POST /:id/sign-hsm` và `POST /batch-sign-hsm`
+- Yêu cầu BKAV cấu hình chữ ký số HSM cho tài khoản
 
-### Tài liệu tham khảo
+### Giải trình CQT
 
-- FAQ WebServices BKAV: `./FAQ_WebServices_Bkav.docx.pdf`
-- Demo endpoint: https://wsdemo.ehoadon.vn/WSPublicEHoaDon.asmx
-- Prod endpoint: https://ws.ehoadon.vn/WSPublicEHoaDon.asmx
-- Tra cứu HĐ: https://tracuu.ehoadon.vn
+- CmdType **300**: Giải trình HĐ sai sót (không cần thay thế/điều chỉnh)
+- CmdType **304**: Giải trình HĐ bị thay thế / bị điều chỉnh
+- API: `POST /:id/explain-cqt` và `POST /:id/explain-replaced-cqt`
 
 ---
 
@@ -151,6 +171,7 @@ Modified:
 
 - [ ] Liên kết Revenue / BankLog
 - [ ] SePay eInvoice adapter
-- [ ] HĐ thay thế / HĐ điều chỉnh (BKAV CmdType 121/124)
 - [ ] Email template cho thông báo tra cứu HĐ
 - [ ] Quota / hạn mức kiểm tra
+- [ ] CmdType 502/503 — Đính kèm file sau khi tạo HĐ
+- [ ] CmdType 810 — Lấy danh sách HĐ theo khoảng số

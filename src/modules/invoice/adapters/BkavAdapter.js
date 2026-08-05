@@ -25,7 +25,9 @@ class BkavAdapter extends BaseInvoiceAdapter {
     super(providerConfig);
     const { bkav } = providerConfig;
     if (!bkav || !bkav.partnerGUID || !bkav.partnerToken || !bkav.endpoint) {
-      throw new Error('Cấu hình BKAV không đầy đủ (partnerGUID, partnerToken, endpoint)');
+      throw new Error(
+        'Cấu hình BKAV không đầy đủ (partnerGUID, partnerToken, endpoint)',
+      );
     }
     this.partnerGUID = bkav.partnerGUID;
     this.endpoint = bkav.endpoint;
@@ -34,19 +36,34 @@ class BkavAdapter extends BaseInvoiceAdapter {
     this.receiveTypeId = bkav.receiveTypeId || BKAV_RECEIVE_TYPES.EMAIL_SMS;
 
     // Parse PartnerToken → Key + IV (Base64 format, separated by ':')
+    if (
+      bkav.partnerToken === '***' ||
+      bkav.partnerGUID === '***' ||
+      /^[a-f0-9]{4}\.\.\.[a-f0-9]{4}$/i.test(bkav.partnerGUID)
+    ) {
+      throw new Error(
+        'PartnerGUID hoặc PartnerToken bị lỗi (dữ liệu đã bị che). Vui lòng mở Cấu hình NCC và nhập lại giá trị thật.',
+      );
+    }
     const tokenParts = bkav.partnerToken.split(':');
     if (tokenParts.length !== 2) {
-      throw new Error('PartnerToken không đúng định dạng Key:IV (Base64)');
+      throw new Error(
+        'PartnerToken không đúng định dạng Key:IV (Base64). Vui lòng kiểm tra lại cấu hình NCC.',
+      );
     }
     this.aesKey = Buffer.from(tokenParts[0], 'base64');
     this.aesIV = Buffer.from(tokenParts[1], 'base64');
 
     // Validate key/IV size
     if (this.aesKey.length !== 32) {
-      throw new Error(`AES Key phải 32 bytes (256-bit), nhận được ${this.aesKey.length} bytes`);
+      throw new Error(
+        `AES Key phải 32 bytes (256-bit), nhận được ${this.aesKey.length} bytes`,
+      );
     }
     if (this.aesIV.length !== 16) {
-      throw new Error(`AES IV phải 16 bytes, nhận được ${this.aesIV.length} bytes`);
+      throw new Error(
+        `AES IV phải 16 bytes, nhận được ${this.aesIV.length} bytes`,
+      );
     }
   }
 
@@ -59,13 +76,16 @@ class BkavAdapter extends BaseInvoiceAdapter {
    */
   async issue(invoice) {
     try {
+      const effectiveCmdType = this._determineCmdType(invoice);
       const commandObject = this._buildCommandObject(invoice);
       const commandData = {
-        CmdType: this.cmdType,
+        CmdType: effectiveCmdType,
         CommandObject: JSON.stringify([commandObject]),
       };
 
-      logger.info(`[BkavAdapter] Issuing invoice ${invoice.id} with CmdType ${this.cmdType}`);
+      logger.info(
+        `[BkavAdapter] Issuing invoice ${invoice.id} with CmdType ${effectiveCmdType} (relationType: ${invoice.relationType || 'none'})`,
+      );
 
       const result = await this._execCommand(commandData);
 
@@ -83,9 +103,40 @@ class BkavAdapter extends BaseInvoiceAdapter {
       // Trường hợp data là array
       const invoiceResult = Array.isArray(data) ? data[0] : data;
 
+      // Check inner Status from BKAV item result (Status 0 = success, 1 = error)
+      if (
+        invoiceResult &&
+        invoiceResult.Status !== undefined &&
+        invoiceResult.Status !== 0
+      ) {
+        return {
+          success: false,
+          error:
+            invoiceResult.MessLog ||
+            invoiceResult.messLog ||
+            'Lỗi từ BKAV (không có thông báo chi tiết)',
+          errorCode: invoiceResult.Status,
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      // Check for 00000000-0000-0000-0000-000000000000 GUID which means failure even if Status is missing/0
+      const guid =
+        invoiceResult?.InvoiceGUID || invoiceResult?.invoiceGUID || null;
+      if (guid === '00000000-0000-0000-0000-000000000000') {
+        return {
+          success: false,
+          error:
+            invoiceResult?.MessLog ||
+            invoiceResult?.messLog ||
+            'BKAV trả về InvoiceGUID rỗng',
+          rawResponse: result.rawResponse,
+        };
+      }
+
       return {
         success: true,
-        invoiceGUID: invoiceResult?.InvoiceGUID || invoiceResult?.invoiceGUID || null,
+        invoiceGUID: guid,
         invoiceNo: invoiceResult?.InvoiceNo || invoiceResult?.invoiceNo || 0,
         lookupCode: invoiceResult?.MTC || invoiceResult?.mtc || null,
         rawResponse: result.rawResponse,
@@ -101,54 +152,118 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
-   * Huỷ bỏ hoá đơn trên BKAV (CmdType 200).
+   * Huỷ bỏ hoá đơn đã phát hành trên BKAV (CmdType 201 — bằng InvoiceGUID).
+   * Ref: FAQ mục C.5 — Mã lệnh 201/202
    */
-  async cancel(invoice, reason = '') {
+  async cancel(invoice, reason = 'Hủy do sai sót') {
     try {
       const commandData = {
-        CmdType: BKAV_CMD_TYPES.CANCEL_200,
-        CommandObject: JSON.stringify([{
-          InvoiceGUID: invoice.providerInvoiceGUID,
-          // PartnerInvoiceID (nếu dùng): invoice.id
-        }]),
+        CmdType: BKAV_CMD_TYPES.CANCEL_201,
+        CommandObject: JSON.stringify([
+          {
+            Invoice: {
+              InvoiceGUID: invoice.providerInvoiceGUID,
+              Reason: reason || '',
+            },
+          },
+        ]),
       };
 
-      logger.info(`[BkavAdapter] Cancelling invoice ${invoice.id} (GUID: ${invoice.providerInvoiceGUID})`);
+      logger.info(
+        `[BkavAdapter] Cancelling invoice ${invoice.id} (GUID: ${invoice.providerInvoiceGUID})`,
+      );
 
       const result = await this._execCommand(commandData);
+      const item = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (item && item.Status !== undefined && item.Status !== 0) {
+        return {
+          success: false,
+          error: item.MessLog || item.messLog || 'Lỗi huỷ HĐ từ BKAV',
+          rawResponse: result.rawResponse,
+        };
+      }
+
       return {
         success: result.success,
         rawResponse: result.rawResponse,
         error: result.error || null,
       };
     } catch (err) {
-      logger.error(`[BkavAdapter] Cancel error for ${invoice.id}:`, err.message);
+      logger.error(
+        `[BkavAdapter] Cancel error for ${invoice.id}:`,
+        err.message,
+      );
       return { success: false, error: err.message, rawResponse: null };
     }
   }
 
   /**
-   * Lấy thông tin hoá đơn từ BKAV (CmdType 800).
+   * Tra cứu thông tin Doanh nghiệp theo MST (CmdType 114).
    */
-  async getInfo(invoice) {
+  async lookupTaxCode(code) {
     try {
       const commandData = {
-        CmdType: BKAV_CMD_TYPES.GET_INFO_800,
-        CommandObject: JSON.stringify([{
-          InvoiceGUID: invoice.providerInvoiceGUID,
-        }]),
+        CmdType: 904,
+        CommandObject: code,
       };
 
       const result = await this._execCommand(commandData);
       if (!result.success) {
-        return { success: false, data: null, rawResponse: result.rawResponse, error: result.error };
+        return { success: false, data: null };
       }
 
       const data = Array.isArray(result.data) ? result.data[0] : result.data;
-      return { success: true, data, rawResponse: result.rawResponse, error: null };
+      return { success: true, data };
     } catch (err) {
-      logger.error(`[BkavAdapter] GetInfo error for ${invoice.id}:`, err.message);
-      return { success: false, data: null, rawResponse: null, error: err.message };
+      logger.error(
+        `[BkavAdapter] lookupTaxCode error for ${code}:`,
+        err.message,
+      );
+      return { success: false, data: null };
+    }
+  }
+
+  /**
+   * Lấy thông tin hoá đơn từ BKAV (CmdType 800).
+   * Ref: FAQ mục C.12 — CommandObject là string (GUID hoặc PartnerID), không phải array.
+   */
+  async getInfo(invoice) {
+    try {
+      // CmdType 800: CommandObject là string — InvoiceGUID hoặc PartnerInvoiceID
+      const lookupId = invoice.providerInvoiceGUID || invoice.id;
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.GET_INFO_800,
+        CommandObject: lookupId,
+      };
+
+      const result = await this._execCommand(commandData);
+      if (!result.success) {
+        return {
+          success: false,
+          data: null,
+          rawResponse: result.rawResponse,
+          error: result.error,
+        };
+      }
+
+      const data = Array.isArray(result.data) ? result.data[0] : result.data;
+      return {
+        success: true,
+        data,
+        rawResponse: result.rawResponse,
+        error: null,
+      };
+    } catch (err) {
+      logger.error(
+        `[BkavAdapter] GetInfo error for ${invoice.id}:`,
+        err.message,
+      );
+      return {
+        success: false,
+        data: null,
+        rawResponse: null,
+        error: err.message,
+      };
     }
   }
 
@@ -172,16 +287,239 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
+   * Ký hoá đơn bằng HSM (CmdType 205).
+   * Ref: FAQ mục C.6
+   * @param {Object} invoice - Invoice document từ DB (cần providerInvoiceGUID)
+   * @returns {Promise<Object>} { success, rawResponse, error }
+   */
+  async signWithHSM(invoice) {
+    try {
+      if (!invoice.providerInvoiceGUID) {
+        return {
+          success: false,
+          error: 'Hoá đơn chưa có InvoiceGUID từ BKAV',
+          rawResponse: null,
+        };
+      }
+
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.SIGN_HSM_205,
+        CommandObject: invoice.providerInvoiceGUID,
+      };
+
+      logger.info(
+        `[BkavAdapter] Signing invoice ${invoice.id} with HSM (GUID: ${invoice.providerInvoiceGUID})`,
+      );
+
+      const result = await this._execCommand(commandData);
+      const item = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (item && item.Status !== undefined && item.Status !== 0) {
+        return {
+          success: false,
+          error: item.MessLog || item.messLog || 'Lỗi ký HSM từ BKAV',
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      return {
+        success: result.success,
+        rawResponse: result.rawResponse,
+        error: result.error || null,
+      };
+    } catch (err) {
+      logger.error(
+        `[BkavAdapter] HSM sign error for ${invoice.id}:`,
+        err.message,
+      );
+      return { success: false, error: err.message, rawResponse: null };
+    }
+  }
+
+  /**
+   * Ký nhiều hoá đơn bằng HSM (CmdType 206).
+   * Ref: FAQ mục C.7
+   * @param {Array<string>} invoiceGUIDs - Danh sách InvoiceGUID cần ký
+   * @returns {Promise<Object>} { success, rawResponse, error }
+   */
+  async signBatchWithHSM(invoiceGUIDs) {
+    try {
+      if (!invoiceGUIDs || invoiceGUIDs.length === 0) {
+        return {
+          success: false,
+          error: 'Danh sách InvoiceGUID trống',
+          rawResponse: null,
+        };
+      }
+
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.SIGN_HSM_206,
+        CommandObject: JSON.stringify(
+          invoiceGUIDs.map((guid) => ({ InvoiceGUID: guid })),
+        ),
+      };
+
+      logger.info(
+        `[BkavAdapter] Batch signing ${invoiceGUIDs.length} invoices with HSM`,
+      );
+
+      const result = await this._execCommand(commandData);
+      // For batch, check if all failed or calculate partial success
+      let hasError = false;
+      let errorMsg = '';
+      if (Array.isArray(result.data)) {
+        const failedItems = result.data.filter(
+          (i) => i.Status !== undefined && i.Status !== 0,
+        );
+        if (failedItems.length > 0) {
+          hasError = true;
+          errorMsg =
+            failedItems[0].MessLog ||
+            failedItems[0].messLog ||
+            'Lỗi ký HSM hàng loạt từ BKAV';
+        }
+      }
+
+      return {
+        success: hasError ? false : result.success,
+        rawResponse: result.rawResponse,
+        error: hasError ? errorMsg : result.error || null,
+      };
+    } catch (err) {
+      logger.error(`[BkavAdapter] HSM batch sign error:`, err.message);
+      return { success: false, error: err.message, rawResponse: null };
+    }
+  }
+
+  /**
+   * Giải trình với CQT — HĐ sai sót (CmdType 300).
+   * Ref: FAQ mục C.8
+   * @param {Object} params - { invoiceGUID, reason, notify, dateNotify, numberNotify }
+   * @returns {Promise<Object>} { success, rawResponse, error }
+   */
+  async explainToCQT(params) {
+    try {
+      const {
+        invoiceGUID,
+        reason,
+        notify = false,
+        dateNotify,
+        numberNotify,
+      } = params;
+
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.EXPLAIN_300,
+        CommandObject: JSON.stringify([
+          {
+            Invoice: {
+              Notify: notify,
+              DateNotify: dateNotify || '1900-01-01',
+              NumberNotify: numberNotify || '',
+              Reason: reason || '',
+              InvoiceGUID: invoiceGUID,
+            },
+          },
+        ]),
+      };
+
+      logger.info(`[BkavAdapter] Explaining to CQT for GUID: ${invoiceGUID}`);
+
+      const result = await this._execCommand(commandData);
+      const item = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (item && item.Status !== undefined && item.Status !== 0) {
+        return {
+          success: false,
+          error: item.MessLog || item.messLog || 'Lỗi giải trình từ BKAV',
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      return {
+        success: result.success,
+        data: result.data,
+        rawResponse: result.rawResponse,
+        error: result.error || null,
+      };
+    } catch (err) {
+      logger.error(`[BkavAdapter] CQT explain error:`, err.message);
+      return { success: false, error: err.message, rawResponse: null };
+    }
+  }
+
+  /**
+   * Giải trình với CQT — HĐ bị thay thế / bị điều chỉnh (CmdType 304).
+   * Ref: FAQ mục C.9
+   * @param {Object} params - { invoiceGUID, reason }
+   * @returns {Promise<Object>} { success, rawResponse, error }
+   */
+  async explainReplacedToCQT(params) {
+    try {
+      const { invoiceGUID, reason } = params;
+
+      const commandData = {
+        CmdType: BKAV_CMD_TYPES.EXPLAIN_304,
+        CommandObject: JSON.stringify([
+          {
+            Invoice: {
+              Reason: reason || '',
+              InvoiceGUID: invoiceGUID,
+            },
+          },
+        ]),
+      };
+
+      logger.info(
+        `[BkavAdapter] Explaining replaced/adjusted to CQT for GUID: ${invoiceGUID}`,
+      );
+
+      const result = await this._execCommand(commandData);
+      const item = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (item && item.Status !== undefined && item.Status !== 0) {
+        return {
+          success: false,
+          error:
+            item.MessLog ||
+            item.messLog ||
+            'Lỗi giải trình HĐ bị thay thế từ BKAV',
+          rawResponse: result.rawResponse,
+        };
+      }
+
+      return {
+        success: result.success,
+        data: result.data,
+        rawResponse: result.rawResponse,
+        error: result.error || null,
+      };
+    } catch (err) {
+      logger.error(`[BkavAdapter] CQT explain replaced error:`, err.message);
+      return { success: false, error: err.message, rawResponse: null };
+    }
+  }
+
+  /**
    * Test kết nối tới BKAV — thử gọi CmdType 800 với GUID rỗng.
    */
   async testConnection() {
     try {
       const commandData = {
         CmdType: BKAV_CMD_TYPES.GET_INFO_800,
-        CommandObject: JSON.stringify([{ InvoiceGUID: '00000000-0000-0000-0000-000000000000' }]),
+        CommandObject: '00000000-0000-0000-0000-000000000000',
       };
 
       const result = await this._execCommand(commandData);
+
+      // Nếu decrypt thất bại → lỗi credentials
+      if (
+        !result.success &&
+        result.error &&
+        result.error.includes('Không giải mã')
+      ) {
+        return {
+          success: false,
+          message: result.error,
+          endpoint: this.endpoint,
+        };
+      }
 
       // Nếu nhận được response (kể cả lỗi "không tìm thấy HĐ") → kết nối OK
       return {
@@ -205,8 +543,8 @@ class BkavAdapter extends BaseInvoiceAdapter {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Gọi BKAV ExecCommand WebService.
-   * Luồng: JSON → compress → encrypt → base64 → SOAP → gửi → nhận → base64 → decrypt → decompress → JSON
+   * Gọi BKAV ExecCommand WebService (JSON mode).
+   * Luồng: JSON → GZip compress → AES-256-CBC encrypt → Base64 → HTTP POST JSON → response → decrypt → decompress → JSON
    */
   async _execCommand(commandData) {
     // 1. Serialize CommandData → JSON string
@@ -222,35 +560,67 @@ class BkavAdapter extends BaseInvoiceAdapter {
     // 4. Base64 encode
     const base64Data = encrypted.toString('base64');
 
-    // 5. Build SOAP envelope
-    const soapBody = this._buildSoapEnvelope(base64Data);
-
-    // 6. Send HTTP POST
-    const response = await axios.post(this.endpoint, soapBody, {
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        SOAPAction: 'http://tempuri.org/ExecCommand',
+    // 5. Send HTTP POST (JSON mode — endpoint + /ExecCommand)
+    const jsonEndpoint = this.endpoint.replace(/\/?$/, '/ExecCommand');
+    const response = await axios.post(
+      jsonEndpoint,
+      {
+        partnerGUID: this.partnerGUID,
+        CommandData: base64Data,
       },
-      timeout: 30000,
-      maxBodyLength: 10 * 1024 * 1024, // 10MB
-    });
+      {
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        timeout: 30000,
+        maxBodyLength: 10 * 1024 * 1024, // 10MB
+      },
+    );
 
-    // 7. Parse SOAP response
-    const rawXml = response.data;
-    const resultBase64 = this._extractSoapResult(rawXml);
+    // 6. Extract result from JSON response
+    // JSON mode trả về: { d: "base64-encrypted-result" } hoặc plain string
+    const rawResponse = response.data;
+    const resultBase64 =
+      typeof rawResponse === 'object' ? rawResponse.d : rawResponse;
+    logger.debug(
+      `[BkavAdapter] Response type: ${typeof rawResponse}, result length: ${resultBase64?.length || 0}`,
+    );
 
-    if (!resultBase64) {
-      logger.error('[BkavAdapter] Empty SOAP response');
-      return { success: false, error: 'BKAV trả về response rỗng', rawResponse: rawXml };
+    if (!resultBase64 || typeof resultBase64 !== 'string') {
+      logger.error('[BkavAdapter] Empty or invalid response from BKAV');
+      return {
+        success: false,
+        error: 'BKAV trả về response rỗng',
+        rawResponse,
+      };
+    }
+
+    // 7. Nếu response là plain text error (không phải base64) → trả lỗi
+    if (
+      resultBase64.startsWith('Partner') ||
+      resultBase64.startsWith('Error')
+    ) {
+      return { success: false, error: resultBase64 };
     }
 
     // 8. Base64 decode → Decrypt → Decompress
     const resultBuffer = Buffer.from(resultBase64, 'base64');
-    const decrypted = this._decrypt(resultBuffer);
-    const decompressed = zlib.gunzipSync(decrypted);
-    const resultJson = JSON.parse(decompressed.toString('utf-8'));
+    let resultJson;
+    try {
+      const decrypted = this._decrypt(resultBuffer);
+      const decompressed = zlib.gunzipSync(decrypted);
+      resultJson = JSON.parse(decompressed.toString('utf-8'));
+    } catch (decryptErr) {
+      logger.error(`[BkavAdapter] Decrypt failed: ${decryptErr.message}`);
+      return {
+        success: false,
+        error: `Không giải mã được response từ BKAV. Kiểm tra PartnerGUID và PartnerToken có đúng với môi trường (Demo/Production) không. Chi tiết: ${decryptErr.message}`,
+        rawResponse:
+          typeof rawResponse === 'string'
+            ? rawResponse.substring(0, 500)
+            : JSON.stringify(rawResponse).substring(0, 500),
+      };
+    }
 
-    logger.info(`[BkavAdapter] Response: ${JSON.stringify(resultJson).substring(0, 300)}`);
+    logger.info(`[BkavAdapter] Response: ${JSON.stringify(resultJson)}`);
 
     // 9. Check BKAV status
     // BKAV trả về: { Status: 0 = success, Object: [...] } hoặc { Status: non-0, Object: "error message" }
@@ -268,7 +638,9 @@ class BkavAdapter extends BaseInvoiceAdapter {
     if (typeof data === 'string') {
       try {
         data = JSON.parse(data);
-      } catch { /* keep as string */ }
+      } catch {
+        /* keep as string */
+      }
     }
 
     return {
@@ -288,7 +660,11 @@ class BkavAdapter extends BaseInvoiceAdapter {
    * @returns {Buffer} encrypted data
    */
   _encrypt(data) {
-    const cipher = crypto.createCipheriv('aes-256-cbc', this.aesKey, this.aesIV);
+    const cipher = crypto.createCipheriv(
+      'aes-256-cbc',
+      this.aesKey,
+      this.aesIV,
+    );
     return Buffer.concat([cipher.update(data), cipher.final()]);
   }
 
@@ -298,50 +674,12 @@ class BkavAdapter extends BaseInvoiceAdapter {
    * @returns {Buffer} decrypted data
    */
   _decrypt(data) {
-    const decipher = crypto.createDecipheriv('aes-256-cbc', this.aesKey, this.aesIV);
+    const decipher = crypto.createDecipheriv(
+      'aes-256-cbc',
+      this.aesKey,
+      this.aesIV,
+    );
     return Buffer.concat([decipher.update(data), decipher.final()]);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Private: SOAP XML
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /**
-   * Build SOAP XML envelope cho ExecCommand.
-   */
-  _buildSoapEnvelope(base64CommandData) {
-    return `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <ExecCommand xmlns="http://tempuri.org/">
-      <partnerGUID>${this._escapeXml(this.partnerGUID)}</partnerGUID>
-      <commandData>${base64CommandData}</commandData>
-    </ExecCommand>
-  </soap:Body>
-</soap:Envelope>`;
-  }
-
-  /**
-   * Extract ExecCommandResult from SOAP response XML.
-   */
-  _extractSoapResult(xml) {
-    // Tìm nội dung trong <ExecCommandResult>...</ExecCommandResult>
-    const match = xml.match(/<ExecCommandResult>([\s\S]*?)<\/ExecCommandResult>/);
-    return match ? match[1].trim() : null;
-  }
-
-  /**
-   * Escape XML special chars.
-   */
-  _escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -349,8 +687,61 @@ class BkavAdapter extends BaseInvoiceAdapter {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Build CommandObject cho tạo hoá đơn (CmdType 100-112).
-   * Mapping từ CRM Invoice model → BKAV InvoiceWS format.
+   * Tự động xác định CmdType dựa trên relationType (tạo mới vs thay thế vs điều chỉnh).
+   *
+   * Theo BKAV FAQ:
+   * - Thay thế (replacement): CmdType 120 (Bkav quản lý) / 123 (PMKT quản lý)
+   * - Điều chỉnh (adjustment): CmdType 124 (Bkav quản lý) / 121 (PMKT quản lý)
+   */
+  _determineCmdType(invoice) {
+    const pmktManaged = [
+      BKAV_CMD_TYPES.CREATE_110,
+      BKAV_CMD_TYPES.CREATE_111,
+      BKAV_CMD_TYPES.CREATE_112,
+    ].includes(this.cmdType);
+
+    if (invoice.relationType === 'replacement') {
+      return pmktManaged
+        ? BKAV_CMD_TYPES.REPLACE_123
+        : BKAV_CMD_TYPES.REPLACE_120;
+    }
+    if (invoice.relationType === 'adjustment') {
+      return pmktManaged
+        ? BKAV_CMD_TYPES.ADJUST_121
+        : BKAV_CMD_TYPES.ADJUST_124;
+    }
+
+    // Normal creation
+    if (invoice.status === 'draft') {
+      return BKAV_CMD_TYPES.CREATE_100;
+    }
+
+    if (!pmktManaged) {
+      return BKAV_CMD_TYPES.CREATE_101;
+    }
+
+    return this.cmdType;
+  }
+
+  _formatOriginalIdentify(identify) {
+    if (!identify) return '';
+    // Format expected: [Mẫu số]_[Ký hiệu]_[Số HĐ]
+    // If it already has brackets, return as is
+    if (identify.includes('[') && identify.includes(']')) return identify;
+
+    // If it is delimited by underscore, e.g. 1_C22TAA_0000001
+    const parts = identify.split('_');
+    if (parts.length === 3) {
+      return `[${parts[0]}]_[${parts[1]}]_[${parts[2]}]`;
+    }
+
+    // Otherwise fallback to what user entered
+    return identify;
+  }
+
+  /**
+   * Build CommandObject từ Invoice model.
+   * Ref: FAQ mục B.2a — Cấu trúc các trường thông tin chuẩn
    */
   _buildCommandObject(invoice) {
     const cmd = {
@@ -358,6 +749,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
       Invoice: {
         InvoiceTypeID: this.invoiceTypeId,
         InvoiceDate: this._formatDate(invoice.invoiceDate),
+        BuyerCode: invoice.buyer?.code || '',
         BuyerName: invoice.buyer?.name || '',
         BuyerTaxCode: invoice.buyer?.taxCode || '',
         BuyerUnitName: invoice.buyer?.unitName || '',
@@ -381,20 +773,28 @@ class BkavAdapter extends BaseInvoiceAdapter {
         InvoiceForm: invoice.invoiceForm || this.config.invoiceForm || '',
         InvoiceSerial: invoice.invoiceSerial || this.config.invoiceSerial || '',
         InvoiceNo: invoice.invoiceNo || 0,
+
+        // ─── Fields đặc biệt ────────────────────────────────────────────
+        MaCuaCQT: invoice.maCuaCQT || '',
+        CCCD: invoice.buyer?.cccd || '',
+
+        // ─── Thông tin liên kết khi HĐ thay thế / điều chỉnh ─────────
+        OriginalInvoiceIdentify: this._formatOriginalIdentify(
+          invoice.relatedInvoiceIdentify,
+        ),
+        Reason: invoice.reason || '',
       },
 
       // ─── Chi tiết hàng hoá / dịch vụ ─────────────────────────────────
-      ListInvoiceDetailsWS: this._buildDetailsList(invoice.items),
+      ListInvoiceDetailsWS: this._buildDetailsList(invoice),
+
+      // ─── File đính kèm ────────────────────────────────────────────────
+      ListInvoiceAttachFileWS: this._buildAttachFileList(invoice.attachFiles),
 
       // ─── PartnerInvoiceID — ID nội bộ CRM để BKAV tham chiếu ─────────
-      PartnerInvoiceID: invoice.id,
+      PartnerInvoiceID: 0,
       PartnerInvoiceStringID: invoice.id,
     };
-
-    // Nếu HĐ thay thế / điều chỉnh → thêm field liên kết
-    if (invoice.relatedInvoiceId && invoice.relationType) {
-      cmd.OriginalInvoiceGUID = invoice.providerInvoiceGUID || '';
-    }
 
     return cmd;
   }
@@ -402,25 +802,85 @@ class BkavAdapter extends BaseInvoiceAdapter {
   /**
    * Map invoice items → BKAV ListInvoiceDetailsWS.
    */
-  _buildDetailsList(items) {
+  _buildDetailsList(invoice) {
+    const items = invoice.items;
     if (!items || items.length === 0) return [];
 
-    return items.map((item, idx) => ({
-      ItemName: item.itemName || '',
-      UnitName: item.unitName || '',
-      Qty: item.quantity || 0,
-      Price: item.unitPrice || 0,
-      Amount: item.amount || 0,
-      TaxRateID: item.taxRateId || BKAV_TAX_RATE_IDS.TAX_10,
-      TaxRate: item.taxRate !== undefined ? item.taxRate : 10,
-      TaxAmount: item.taxAmount || 0,
-      DiscountRate: item.discountRate || 0,
-      DiscountAmount: item.discountAmount || 0,
-      IsDiscount: item.isDiscount || false,
-      ItemTypeID: item.itemTypeId || 0,
-      UserDefineDetails: item.userDefineDetails || '',
-      IsIncrease: item.isIncrease,
-      OrderNumber: idx + 1,
+    const bkavItems = items.map((item, idx) => {
+      let userDefineDetails = item.userDefineDetails || '';
+
+      // Handle Vehicle (ItemTypeID: 21)
+      if (item.itemTypeId === 21) {
+        try {
+          // If userDefineDetails is already JSON string from FE, leave it.
+          // Otherwise, we expect FE to send something like: 'SKhung:123|SMay:456' or similar, but ideally FE will send the JSON string.
+          // If it's an object, stringify it.
+          if (typeof userDefineDetails === 'object') {
+            userDefineDetails = JSON.stringify(userDefineDetails);
+          }
+        } catch (e) {
+          logger.warn(
+            `Failed to parse vehicle details for item ${item.itemName}`,
+            e,
+          );
+        }
+      }
+
+      return {
+        ItemName: item.itemName || '',
+        UnitName: item.unitName || '',
+        Qty: item.quantity || 0,
+        Price: item.unitPrice || 0,
+        Amount: item.amount || 0,
+        TaxRateID: item.taxRateId || BKAV_TAX_RATE_IDS.TAX_10,
+        TaxRate: item.taxRate !== undefined ? item.taxRate : 10,
+        TaxAmount: item.taxAmount || 0,
+        DiscountRate: item.discountRate || 0,
+        DiscountAmount: item.discountAmount || 0,
+        IsDiscount: item.isDiscount || false,
+        ItemTypeID: item.itemTypeId || 0,
+        ItemCode: item.itemCode || '',
+        UserDefineDetails: userDefineDetails,
+        IsIncrease: item.isIncrease,
+        OrderNumber: idx + 1,
+      };
+    });
+
+    // Handle Total Discount (Chiết khấu tổng)
+    if (invoice.totalDiscount > 0) {
+      bkavItems.push({
+        ItemName: 'Chiết khấu thương mại',
+        UnitName: '',
+        Qty: 0,
+        Price: 0,
+        Amount: invoice.totalDiscount,
+        TaxRateID: BKAV_TAX_RATE_IDS.TAX_10,
+        TaxRate: 10,
+        TaxAmount: 0,
+        DiscountRate: 0,
+        DiscountAmount: 0,
+        IsDiscount: true,
+        ItemTypeID: 0,
+        ItemCode: '',
+        UserDefineDetails: '',
+        OrderNumber: bkavItems.length + 1,
+      });
+    }
+
+    return bkavItems;
+  }
+
+  /**
+   * Map attach files → BKAV ListInvoiceAttachFileWS.
+   * Ref: FAQ mục B.22 — Đính kèm file
+   */
+  _buildAttachFileList(attachFiles) {
+    if (!attachFiles || attachFiles.length === 0) return [];
+
+    return attachFiles.map((file) => ({
+      FileName: file.fileName || '',
+      FileExtension: file.fileExtension || 'pdf',
+      FileContent: file.fileContent || '', // Base64 encoded
     }));
   }
 

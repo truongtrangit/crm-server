@@ -180,9 +180,30 @@ const updateProviderSchema = Joi.object({
   }).allow(null),
 }).min(1);
 
+const replaceAdjustInvoiceSchema = Joi.object({
+  reason: Joi.string().trim().required().messages({
+    'string.empty': 'Lý do thay thế / điều chỉnh không được để trống',
+    'any.required': 'Lý do thay thế / điều chỉnh là bắt buộc',
+  }),
+  invoiceForm: Joi.string().trim().allow('', null),
+  invoiceSerial: Joi.string().trim().allow('', null),
+  invoiceDate: Joi.date().allow(null),
+  buyer: buyerSchema,
+  paymentMethod: Joi.string().valid('TM', 'CK', 'TM/CK'),
+  currency: Joi.string().trim(),
+  exchangeRate: Joi.number().min(0),
+  note: Joi.string().trim().allow(''),
+  billCode: Joi.string().trim().allow(''),
+  items: Joi.array().items(invoiceItemSchema).min(1).required().messages({
+    'array.min': 'Phải có ít nhất 1 dòng hàng hoá / dịch vụ',
+    'any.required': 'Danh sách hàng hoá / dịch vụ là bắt buộc',
+  }),
+});
+
 module.exports = {
   createInvoiceSchema,
   updateInvoiceSchema,
+  replaceAdjustInvoiceSchema,
   createProviderSchema,
   updateProviderSchema,
 };
