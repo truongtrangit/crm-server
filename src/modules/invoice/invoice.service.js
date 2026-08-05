@@ -576,7 +576,7 @@ class InvoiceService {
       filter.isActive = query.isActive === 'true';
 
     const providers = await InvoiceProvider.find(filter)
-      .sort({ isDefault: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .lean();
 
     if (mask) {
