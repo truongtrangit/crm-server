@@ -1,0 +1,22 @@
+name: CI — Permission Audit
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main]
+
+jobs:
+  permission-audit:
+    name: Permission Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Permission Audit
+        run: node scripts/scan_permissions.js
