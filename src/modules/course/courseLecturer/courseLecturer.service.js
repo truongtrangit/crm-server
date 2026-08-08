@@ -1,4 +1,7 @@
 const CourseLecturer = require('./courseLecturer.model');
+const CourseOnline = require('../courseOnline/courseOnline.model');
+const CourseOffline = require('../courseOffline/courseOffline.model');
+const CourseChallenge = require('../courseChallenge/courseChallenge.model');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const createHttpError = require("http-errors");
 const { computeChanges } = require('../../../core/utils/diff');
@@ -58,7 +61,45 @@ class CourseLecturerService {
     return lecturer;
   }
 
-  async updateLecturer(id, data) {
+  async checkLecturerInUse(id, force) {
+    const onlineCourses = await CourseOnline.find({ "lecturers.lecturerId": id, isDeleted: { $ne: true } }, { id: 1, title: 1 }).lean();
+    const offlineCourses = await CourseOffline.find({ "lecturers.lecturerId": id, isDeleted: { $ne: true } }, { id: 1, title: 1 }).lean();
+    const challengeCourses = await CourseChallenge.find({ "lecturers.lecturerId": id, isDeleted: { $ne: true } }, { id: 1, title: 1 }).lean();
+
+    const references = [
+      ...onlineCourses.map((c) => ({ type: "Khóa học Online", id: c.id, name: c.title })),
+      ...offlineCourses.map((c) => ({ type: "Khóa học Offline", id: c.id, name: c.title })),
+      ...challengeCourses.map((c) => ({ type: "Khóa học Thử thách", id: c.id, name: c.title })),
+    ];
+
+    if (references.length > 0) {
+      if (!force) {
+        throw createHttpError(
+          409,
+          `Giảng viên này đang được gán vào ${references.length} khóa học.`,
+          {
+            code: "RESOURCE_IN_USE",
+            references,
+          }
+        );
+      } else {
+        await CourseOnline.updateMany(
+          { "lecturers.lecturerId": id },
+          { $pull: { lecturers: { lecturerId: id } } }
+        );
+        await CourseOffline.updateMany(
+          { "lecturers.lecturerId": id },
+          { $pull: { lecturers: { lecturerId: id } } }
+        );
+        await CourseChallenge.updateMany(
+          { "lecturers.lecturerId": id },
+          { $pull: { lecturers: { lecturerId: id } } }
+        );
+      }
+    }
+  }
+
+  async updateLecturer(id, data, force = false) {
     const lecturer = await CourseLecturer.findOne({ id, isDeleted: { $ne: true } });
     if (!lecturer) {
       throw createHttpError(404, "Không tìm thấy giảng viên");
@@ -90,6 +131,10 @@ class CourseLecturerService {
       }
     });
 
+    if (oldState.isActive !== false && lecturer.isActive === false) {
+      await this.checkLecturerInUse(id, force);
+    }
+
     await lecturer.save();
 
     const newState = lecturer.toObject();
@@ -104,15 +149,7 @@ class CourseLecturerService {
       throw createHttpError(404, "Không tìm thấy giảng viên");
     }
 
-    // TODO: Phase 2 - Add Course check here
-    // const hasCourses = await Course.exists({ lecturerId: id });
-    // if (hasCourses && !force) {
-    //   throw createHttpError(409, "RESOURCE_IN_USE");
-    // }
-
-    // if (force) {
-    //   await Course.updateMany({ lecturerId: id }, { $set: { lecturerId: null } });
-    // }
+    await this.checkLecturerInUse(id, force);
 
     lecturer.isDeleted = true;
     lecturer.deletedAt = new Date();

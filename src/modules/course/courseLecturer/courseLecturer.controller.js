@@ -33,9 +33,12 @@ class CourseLecturerController {
 
   async updateLecturer(req, res) {
     const { id } = req.params;
+    const force = req.query.force === "true";
+    console.log(`[updateLecturer] id=${id}, req.query.force=${req.query.force}, parsed_force=${force}`);
     const { lecturer, changes } = await CourseLecturerService.updateLecturer(
       id,
       req.body,
+      force
     );
 
     SystemLogService.log({
@@ -54,6 +57,7 @@ class CourseLecturerController {
   async deleteLecturer(req, res) {
     const { id } = req.params;
     const force = req.query.force === "true";
+    console.log(`[deleteLecturer] id=${id}, req.query.force=${req.query.force}, parsed_force=${force}`);
 
     const lecturer = await CourseLecturerService.deleteLecturer(id, force);
 

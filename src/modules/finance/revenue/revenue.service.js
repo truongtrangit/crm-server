@@ -12,6 +12,7 @@ const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { REVENUE_STATUSES } = require('../../../core/constants/finance');
 const { computeChanges } = require('../../../core/utils/diff');
 const { escapeRegex } = require('../../../core/utils/query');
+const { dayjs, VIETNAM_TZ } = require('../../../core/utils/date');
 
 const FinanceCategoryBaseService = require('../finance_category_base.service');
 const FinanceStatsService = require('../finance_stats.service');
@@ -103,7 +104,7 @@ class RevenueService {
         break;
       }
       case 'yearly': {
-        const currentYear = new Date().getFullYear();
+        const currentYear = dayjs().tz(VIETNAM_TZ).year();
         const months = expected.allocatedMonths || [];
         if (months.length === 0) return;
 
@@ -119,7 +120,7 @@ class RevenueService {
             monthAmount += remainder;
           }
 
-          const recordDate = new Date(currentYear, m - 1, 1);
+          const recordDate = dayjs.tz(`${currentYear}-${String(m).padStart(2, '0')}-01`, VIETNAM_TZ).toDate();
           const orderId = await this._generateOrderId(expected.category);
 
           const revenue = new Revenue({
@@ -266,16 +267,13 @@ class RevenueService {
       filter['companyProportions.company'] = query.company;
     }
     if (query.month && query.year) {
-      const startDate = new Date(
-        parseInt(query.year),
-        parseInt(query.month) - 1,
-        1,
-      );
-      const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
+      const m = String(query.month).padStart(2, '0');
+      const startDate = dayjs.tz(`${query.year}-${m}-01`, VIETNAM_TZ).startOf('day').toDate();
+      const endDate = dayjs.tz(`${query.year}-${m}-01`, VIETNAM_TZ).add(1, 'month').startOf('day').toDate();
       filter.recordDate = { $gte: startDate, $lt: endDate };
     } else if (query.year) {
-      const startDate = new Date(parseInt(query.year), 0, 1);
-      const endDate = new Date(parseInt(query.year) + 1, 0, 1);
+      const startDate = dayjs.tz(`${query.year}-01-01`, VIETNAM_TZ).startOf('day').toDate();
+      const endDate = dayjs.tz(`${parseInt(query.year) + 1}-01-01`, VIETNAM_TZ).startOf('day').toDate();
       filter.recordDate = { $gte: startDate, $lt: endDate };
     }
 
@@ -307,9 +305,9 @@ class RevenueService {
       if (cat) {
       }
     }
-    const date = new Date();
-    const yy = String(date.getFullYear()).slice(-2);
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const now = dayjs().tz(VIETNAM_TZ);
+    const yy = String(now.year()).slice(-2);
+    const mm = String(now.month() + 1).padStart(2, '0');
     const yymm = `${yy}${mm}`;
 
     const counterKey = `REV_${yymm}`;

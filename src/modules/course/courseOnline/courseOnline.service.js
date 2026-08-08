@@ -50,6 +50,21 @@ const createCourse = async (courseBody, user) => {
     courseBody.submissionSettings.courseDeadlineHours = 0;
   }
 
+  if (courseBody.lecturers && courseBody.lecturers.length > 0) {
+    const lecturerIds = courseBody.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   const course = new CourseOnline({
     ...courseBody,
     id,
@@ -213,6 +228,21 @@ const updateCourse = async (id, updateBody, user) => {
     updateBody.submissionSettings.lessonDeadlineHours = 0;
     updateBody.submissionSettings.chapterDeadlineHours = 0;
     updateBody.submissionSettings.courseDeadlineHours = 0;
+  }
+
+  if (updateBody.lecturers && updateBody.lecturers.length > 0) {
+    const lecturerIds = updateBody.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
   }
 
   Object.assign(course, updateBody);

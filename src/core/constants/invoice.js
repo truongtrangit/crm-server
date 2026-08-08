@@ -6,6 +6,7 @@
 
 const INVOICE_STATUSES = Object.freeze({
   DRAFT: 'draft', // Nháp — chưa gửi lên provider
+  PENDING_SIGN: 'pending_sign', // Chờ ký — đã tạo/cấp số trên BKAV, chờ ký HSM
   PENDING: 'pending', // Đang gửi lên provider / chờ xử lý
   ISSUED: 'issued', // Đã phát hành thành công trên CQT
   ERROR: 'error', // Lỗi phát hành

@@ -9,6 +9,7 @@ const {
   BKAV_TAX_RATE_IDS,
   BKAV_RECEIVE_TYPES,
   BKAV_INVOICE_TYPES,
+  INVOICE_STATUSES,
 } = require('../../../core/constants/invoice');
 
 /**
@@ -378,9 +379,14 @@ class BkavAdapter extends BaseInvoiceAdapter {
       }
 
       const data = Array.isArray(result.data) ? result.data[0] : result.data;
+      const bkavInvoice = data?.Invoice || data;
+      const invoiceStatusId = bkavInvoice?.InvoiceStatusID;
+      const crmStatus = this.mapBkavStatusToCrmStatus(invoiceStatusId);
+
       return {
         success: true,
         data,
+        crmStatus,
         rawResponse: result.rawResponse,
         error: null,
       };
@@ -395,6 +401,36 @@ class BkavAdapter extends BaseInvoiceAdapter {
         rawResponse: null,
         error: err.message,
       };
+    }
+  }
+
+  /**
+   * Map BKAV InvoiceStatusID sang CRM status
+   */
+  mapBkavStatusToCrmStatus(invoiceStatusId) {
+    switch (invoiceStatusId) {
+      case 1: // Mới tạo
+      case 11: // Trống (Đã cấp số, chờ ký)
+      case 5: // Chờ thay thế
+      case 7: // Chờ điều chỉnh
+      case 14: // Chờ điều chỉnh chiết khấu
+        return INVOICE_STATUSES.PENDING_SIGN;
+      case 2: // Đã phát hành
+      case 6: // Thay thế đã ký
+      case 8: // Điều chỉnh đã ký
+      case 15: // Điều chỉnh chiết khấu đã ký
+        return INVOICE_STATUSES.ISSUED;
+      case 3: // Đã hủy
+      case 4: // Đã xóa
+      case 12: // Không sử dụng
+      case 13: // Chờ hủy
+        return INVOICE_STATUSES.CANCELLED;
+      case 9: // Bị thay thế
+        return INVOICE_STATUSES.REPLACED;
+      case 10: // Bị điều chỉnh
+        return INVOICE_STATUSES.ADJUSTED;
+      default:
+        return null;
     }
   }
 
@@ -844,15 +880,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
         : BKAV_CMD_TYPES.ADJUST_124;
     }
 
-    // Normal creation
-    if (invoice.status === 'draft') {
-      return BKAV_CMD_TYPES.CREATE_100;
-    }
-
-    if (!pmktManaged) {
-      return BKAV_CMD_TYPES.CREATE_101;
-    }
-
+    // Normal creation — use provider configured CmdType (e.g. 112, 111, 110, 101, 100)
     return this.cmdType;
   }
 

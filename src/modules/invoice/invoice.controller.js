@@ -180,6 +180,21 @@ class InvoiceController {
     );
   }
 
+  async syncFromProvider(req, res) {
+    const invoice = await invoiceService.syncFromProvider(req.params.id);
+
+    SystemLogService.log({
+      action: 'sync',
+      resource: RESOURCES.INVOICES,
+      resourceId: req.params.id,
+      resourceName: `Hoá đơn ${req.params.id}`,
+      description: `Đồng bộ hoá đơn ${req.params.id} từ BKAV/NCC`,
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Đồng bộ dữ liệu từ nhà cung cấp thành công', invoice);
+  }
+
   async resendEmail(req, res) {
     await invoiceService.resendEmail(req.params.id);
 

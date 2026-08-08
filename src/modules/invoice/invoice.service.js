@@ -7,6 +7,7 @@ const { generateMonotonicId, ID_PREFIXES } = require('../../core/utils/id');
 const {
   INVOICE_STATUSES,
   INVOICE_RELATION_TYPES,
+  BKAV_CMD_TYPES,
 } = require('../../core/constants/invoice');
 const { escapeRegex } = require('../../core/utils/query');
 const logger = require('../../core/utils/logger');
@@ -150,8 +151,11 @@ class InvoiceService {
   async updateInvoice(id, data, userId) {
     const invoice = await Invoice.findOne({ id });
     if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
-    if (invoice.status !== INVOICE_STATUSES.DRAFT) {
-      throw createHttpError(400, 'Chỉ có thể sửa hoá đơn nháp');
+    if (
+      invoice.status !== INVOICE_STATUSES.DRAFT &&
+      invoice.status !== INVOICE_STATUSES.PENDING_SIGN
+    ) {
+      throw createHttpError(400, 'Chỉ có thể sửa hoá đơn nháp hoặc chờ ký');
     }
 
     // Nếu cập nhật items → tính lại tổng
@@ -211,8 +215,11 @@ class InvoiceService {
   async deleteInvoice(id) {
     const invoice = await Invoice.findOne({ id });
     if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
-    if (invoice.status !== INVOICE_STATUSES.DRAFT) {
-      throw createHttpError(400, 'Chỉ có thể xoá hoá đơn nháp');
+    if (
+      invoice.status !== INVOICE_STATUSES.DRAFT &&
+      invoice.status !== INVOICE_STATUSES.PENDING_SIGN
+    ) {
+      throw createHttpError(400, 'Chỉ có thể xoá hoá đơn nháp hoặc chờ ký');
     }
 
     if (invoice.providerInvoiceGUID) {
@@ -245,6 +252,106 @@ class InvoiceService {
     invoice.isDeleted = true;
     await invoice.save();
     return { id };
+  }
+
+  async syncFromProvider(id) {
+    const invoice = await Invoice.findOne({ id });
+    if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
+
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider)
+      throw createHttpError(404, 'Không tìm thấy cấu hình nhà cung cấp');
+
+    try {
+      const adapter = AdapterFactory.create(provider);
+      if (typeof adapter.getInfo !== 'function') {
+        throw createHttpError(
+          400,
+          'Nhà cung cấp này không hỗ trợ lấy thông tin từ xa',
+        );
+      }
+
+      const result = await adapter.getInfo(invoice);
+      if (!result.success || !result.data) {
+        throw createHttpError(
+          400,
+          result.error || 'Không thể lấy thông tin hoá đơn từ BKAV',
+        );
+      }
+
+      const data = result.data;
+      const bkavInvoice = data.Invoice || data;
+
+      // Cập nhật người mua
+      if (bkavInvoice.BuyerName !== undefined) {
+        invoice.buyer = invoice.buyer || {};
+        if (bkavInvoice.BuyerName) invoice.buyer.name = bkavInvoice.BuyerName;
+        if (bkavInvoice.BuyerTaxCode !== undefined) invoice.buyer.taxCode = bkavInvoice.BuyerTaxCode;
+        if (bkavInvoice.BuyerUnitName !== undefined) invoice.buyer.unitName = bkavInvoice.BuyerUnitName;
+        if (bkavInvoice.BuyerAddress !== undefined) invoice.buyer.address = bkavInvoice.BuyerAddress;
+        if (bkavInvoice.ReceiverEmail || bkavInvoice.BuyerEmail) {
+          invoice.buyer.email = bkavInvoice.ReceiverEmail || bkavInvoice.BuyerEmail;
+        }
+        if (bkavInvoice.ReceiverMobile || bkavInvoice.BuyerPhone) {
+          invoice.buyer.phone = bkavInvoice.ReceiverMobile || bkavInvoice.BuyerPhone;
+        }
+      }
+
+      // Cập nhật thông tin hoá đơn
+      if (bkavInvoice.InvoiceNo) {
+        invoice.invoiceNo = bkavInvoice.InvoiceNo;
+      }
+      if (bkavInvoice.MTC || bkavInvoice.InvoiceCode) {
+        invoice.lookupCode = bkavInvoice.MTC || bkavInvoice.InvoiceCode;
+      }
+      if (bkavInvoice.MaCuaCQT) {
+        invoice.maCuaCQT = bkavInvoice.MaCuaCQT;
+      }
+      if (bkavInvoice.Note !== undefined) {
+        invoice.note = bkavInvoice.Note;
+      }
+
+      // Cập nhật danh sách hàng hoá dịch vụ nếu có
+      if (Array.isArray(data.ListInvoiceDetailsWS) && data.ListInvoiceDetailsWS.length > 0) {
+        invoice.items = data.ListInvoiceDetailsWS.map((item) => ({
+          itemName: item.ItemName || '',
+          unitName: item.UnitName || '',
+          quantity: item.Qty || 0,
+          unitPrice: item.Price || 0,
+          amount: item.Amount || 0,
+          taxRateId: item.TaxRateID || 3,
+          taxRate: item.TaxRate || 10,
+          taxAmount: item.TaxAmount || 0,
+          discountRate: item.DiscountRate || 0,
+          discountAmount: item.DiscountAmount || 0,
+          isDiscount: item.IsDiscount || false,
+          itemTypeId: item.ItemTypeID || 0,
+          userDefineDetails: item.UserDefineDetails || '',
+          isIncrease: item.IsIncrease !== undefined ? item.IsIncrease : null,
+        }));
+        const totals = this._calculateTotals(invoice.items);
+        Object.assign(invoice, totals);
+      }
+
+      // Cập nhật trạng thái
+      if (result.crmStatus) {
+        invoice.status = result.crmStatus;
+        if (result.crmStatus === INVOICE_STATUSES.ISSUED && !invoice.issuedAt) {
+          invoice.issuedAt = bkavInvoice.SignedDate ? new Date(bkavInvoice.SignedDate) : new Date();
+        }
+      }
+
+      invoice.providerResponse = data;
+      invoice.providerErrorMessage = null;
+      await invoice.save();
+
+      return invoice.toObject();
+    } catch (err) {
+      logger.error(`[Invoice] Error sync from provider for ${id}:`, err.message);
+      throw createHttpError(500, err.message);
+    }
   }
 
   async syncTaxStatus(id) {
@@ -440,7 +547,6 @@ class InvoiceService {
       relatedInvoiceId: originalInvoice.id,
       relationType: INVOICE_RELATION_TYPES.REPLACEMENT,
       relatedInvoiceIdentify: identify,
-      providerInvoiceGUID: originalInvoice.providerInvoiceGUID,
       reason: payload.reason,
       totalAmountBeforeTax: totals.totalAmountBeforeTax,
       totalTaxAmount: totals.totalTaxAmount,
@@ -526,7 +632,6 @@ class InvoiceService {
       relatedInvoiceId: originalInvoice.id,
       relationType: INVOICE_RELATION_TYPES.ADJUSTMENT,
       relatedInvoiceIdentify: identify,
-      providerInvoiceGUID: originalInvoice.providerInvoiceGUID,
       reason: payload.reason,
       totalAmountBeforeTax: totals.totalAmountBeforeTax,
       totalTaxAmount: totals.totalTaxAmount,
@@ -575,17 +680,18 @@ class InvoiceService {
 
   async getStats() {
     const baseFilter = { isDeleted: { $ne: true } };
-    const [total, draft, pending, issued, error, cancelled] = await Promise.all(
+    const [total, draft, pendingSign, pending, issued, error, cancelled] = await Promise.all(
       [
         Invoice.countDocuments(baseFilter),
         Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.DRAFT }),
+        Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.PENDING_SIGN }),
         Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.PENDING }),
         Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.ISSUED }),
         Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.ERROR }),
         Invoice.countDocuments({ ...baseFilter, status: INVOICE_STATUSES.CANCELLED }),
       ],
     );
-    return { total, draft, pending, issued, error, cancelled };
+    return { total, draft, pendingSign, pending, issued, error, cancelled };
   }
 
   /**
@@ -849,13 +955,23 @@ class InvoiceService {
       logger.info(`[Invoice] Issue invoice ${invoice.id}:`, result);
 
       if (result.success) {
-        // Nếu BKAV trả về InvoiceNo = 0, nghĩa là lệnh vừa gửi chỉ tạo nháp (CmdType 100/110)
-        // Chúng ta giữ nguyên trạng thái DRAFT ở CRM để có thể tiếp tục cập nhật hoặc phát hành chính thức sau
-        if (result.invoiceNo === 0 || result.invoiceNo === '0') {
-          invoice.status = INVOICE_STATUSES.DRAFT;
-        } else {
+        if (provider.bkav?.autoSign) {
           invoice.status = INVOICE_STATUSES.ISSUED;
           invoice.issuedAt = new Date();
+        } else {
+          // Phân biệt trạng thái CRM dựa trên CmdType và kết quả tạo HĐ:
+          // - CmdType 100, 110: tạo "Hoá đơn mới tạo" (chưa được cấp số, InvoiceNo = 0) -> CRM status = DRAFT
+          // - CmdType 101, 111, 112, 120-127: tạo "Hoá đơn chờ / Chờ ký" (được cấp số HĐ) -> CRM status = PENDING_SIGN
+          const effectiveCmdType = adapter._determineCmdType ? adapter._determineCmdType(invoice) : adapter.cmdType;
+          const isUnnumberedDraft =
+            [BKAV_CMD_TYPES.CREATE_100, BKAV_CMD_TYPES.CREATE_110].includes(effectiveCmdType) &&
+            (!result.invoiceNo || result.invoiceNo === 0 || result.invoiceNo === '0');
+
+          if (isUnnumberedDraft) {
+            invoice.status = INVOICE_STATUSES.DRAFT;
+          } else {
+            invoice.status = INVOICE_STATUSES.PENDING_SIGN;
+          }
         }
         
         invoice.providerInvoiceGUID = result.invoiceGUID || null;
@@ -865,7 +981,7 @@ class InvoiceService {
         invoice.providerErrorCode = null;
         invoice.providerErrorMessage = null;
         logger.info(
-          `[Invoice] ✅ Invoice ${invoice.id} processed successfully (GUID: ${invoice.providerInvoiceGUID}, No: ${invoice.invoiceNo})`,
+          `[Invoice] ✅ Invoice ${invoice.id} processed successfully (GUID: ${invoice.providerInvoiceGUID}, No: ${invoice.invoiceNo}, status: ${invoice.status})`,
         );
       } else {
         invoice.status = INVOICE_STATUSES.ERROR;
