@@ -1,7 +1,7 @@
 const createHttpError = require('http-errors');
 const { generateMonotonicId } = require('../../../core/utils/id');
 const CourseOffline = require('./courseOffline.model');
-const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
+const { isOwnerOrAdmin, hasExplicitModuleAccess } = require('../../../core/utils/userRoles');
 const {
   buildPaginatedResponse,
   resolvePagination,
@@ -230,8 +230,11 @@ const updateCourse = async (id, updateBody, user) => {
     throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
-  // RLAC Check: Only Admin/Owner or Creator can update
-  if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
+  // RLAC Check: Allowed if Admin/Owner OR user has explicit module access for courses OR user is Creator
+  const canEdit = isOwnerOrAdmin(user) || 
+                  hasExplicitModuleAccess(user, 'courses.offline', 'edit') || 
+                  course.createdBy === user.id;
+  if (!canEdit) {
     throw createHttpError(403, 'Bạn không có quyền cập nhật khóa học này');
   }
 
@@ -279,8 +282,11 @@ const deleteCourse = async (id, user) => {
     throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
-  // RLAC Check: Only Admin/Owner or Creator can delete
-  if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
+  // RLAC Check: Allowed if Admin/Owner OR user has explicit module access for courses OR user is Creator
+  const canDelete = isOwnerOrAdmin(user) || 
+                    hasExplicitModuleAccess(user, 'courses.offline', 'delete') || 
+                    course.createdBy === user.id;
+  if (!canDelete) {
     throw createHttpError(403, 'Bạn không có quyền xóa khóa học này');
   }
 

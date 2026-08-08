@@ -1,0 +1,5195 @@
+{
+  "summary": {
+    "totalRouteFiles": 44,
+    "totalEndpoints": 345,
+    "totalPermissionsUsedInRoutes": 130,
+    "totalPermissionsDefined": 190,
+    "unprotectedEndpoints": 16,
+    "orphanPermissions": 6,
+    "unusedPermissions": 60,
+    "modulesMissingPermMap": 0
+  },
+  "unprotectedEndpoints": [
+    {
+      "method": "POST",
+      "path": "/transaction",
+      "file": "acbWebhook.routes.js",
+      "line": 31
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "file": "auth.routes.js",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "path": "/refresh",
+      "file": "auth.routes.js",
+      "line": 22
+    },
+    {
+      "method": "POST",
+      "path": "/forgot-password",
+      "file": "auth.routes.js",
+      "line": 24
+    },
+    {
+      "method": "POST",
+      "path": "/reset-password",
+      "file": "auth.routes.js",
+      "line": 26
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "file": "auth.routes.js",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "file": "auth.routes.js",
+      "line": 30
+    },
+    {
+      "method": "PUT",
+      "path": "/me",
+      "file": "auth.routes.js",
+      "line": 32
+    },
+    {
+      "method": "POST",
+      "path": "/change-password",
+      "file": "auth.routes.js",
+      "line": 34
+    },
+    {
+      "method": "POST",
+      "path": "/new-login",
+      "file": "webhooks.routes.js",
+      "line": 24
+    },
+    {
+      "method": "POST",
+      "path": "/new-registration",
+      "file": "webhooks.routes.js",
+      "line": 27
+    },
+    {
+      "method": "POST",
+      "path": "/new-business",
+      "file": "webhooks.routes.js",
+      "line": 30
+    },
+    {
+      "method": "POST",
+      "path": "/expiring-subscription",
+      "file": "webhooks.routes.js",
+      "line": 33
+    },
+    {
+      "method": "POST",
+      "path": "/order-create",
+      "file": "webhooks.routes.js",
+      "line": 36
+    },
+    {
+      "method": "POST",
+      "path": "/order-active",
+      "file": "webhooks.routes.js",
+      "line": 39
+    },
+    {
+      "method": "POST",
+      "path": "/upgrade-required",
+      "file": "webhooks.routes.js",
+      "line": 42
+    }
+  ],
+  "orphanPermissions": [
+    "customers_restore",
+    "customers_permanent_delete",
+    "metadata_read",
+    "roles_manage",
+    "users_restore",
+    "users_permanent_delete"
+  ],
+  "unusedPermissions": [
+    "users_manage",
+    "customers_manage",
+    "events_manage",
+    "event_chains_manage",
+    "organization_manage",
+    "roles_create",
+    "roles_update",
+    "roles_delete",
+    "permissions_manage",
+    "functions_manage",
+    "functional_groups_manage",
+    "leads_manage",
+    "tasks_manage",
+    "task_chains_manage",
+    "staffs_manage",
+    "salaries_delete",
+    "salaries_manage",
+    "revenues_manage",
+    "expenses_manage",
+    "salary_configs_create",
+    "salary_configs_read",
+    "salary_configs_update",
+    "salary_configs_delete",
+    "project_bonus_manage",
+    "companies_manage",
+    "jobhub_work_read",
+    "jobhub_work_manage",
+    "jobhub_folder_create",
+    "jobhub_folder_update",
+    "jobhub_folder_delete",
+    "jobhub_task_create",
+    "jobhub_task_update",
+    "jobhub_task_delete",
+    "jobhub_config_read",
+    "jobhub_channel_read",
+    "jobhub_channel_create",
+    "jobhub_channel_update",
+    "jobhub_channel_delete",
+    "jobhub_task_type_read",
+    "jobhub_task_type_create",
+    "jobhub_task_type_update",
+    "jobhub_task_type_delete",
+    "jobhub_task_type_group_read",
+    "jobhub_task_type_group_create",
+    "jobhub_task_type_group_update",
+    "jobhub_task_type_group_delete",
+    "jobhub_task_type_group_manage",
+    "jobhub_status_read",
+    "jobhub_status_create",
+    "jobhub_status_update",
+    "jobhub_status_delete",
+    "jobhub_repeat_rule_read",
+    "jobhub_repeat_rule_create",
+    "jobhub_repeat_rule_update",
+    "jobhub_repeat_rule_delete",
+    "zcodes_manage",
+    "bank_logs_create",
+    "bank_logs_delete",
+    "bank_logs_manage",
+    "invoices_manage"
+  ],
+  "modulesMissingPermMap": [],
+  "crossModuleDeps": {
+    "customers.biz": {
+      "view": [
+        {
+          "permission": "customers_read",
+          "neededFromModules": [
+            "customers.user",
+            "operations.events"
+          ]
+        }
+      ],
+      "create": [
+        {
+          "permission": "customers_create",
+          "neededFromModules": [
+            "customers.user"
+          ]
+        }
+      ],
+      "edit": [
+        {
+          "permission": "customers_update",
+          "neededFromModules": [
+            "customers.user"
+          ]
+        }
+      ],
+      "delete": [
+        {
+          "permission": "customers_delete",
+          "neededFromModules": [
+            "customers.user"
+          ]
+        }
+      ]
+    },
+    "customers.user": {
+      "view": [
+        {
+          "permission": "customers_read",
+          "neededFromModules": [
+            "customers.biz",
+            "operations.events"
+          ]
+        }
+      ],
+      "create": [
+        {
+          "permission": "customers_create",
+          "neededFromModules": [
+            "customers.biz"
+          ]
+        }
+      ],
+      "edit": [
+        {
+          "permission": "customers_update",
+          "neededFromModules": [
+            "customers.biz"
+          ]
+        }
+      ],
+      "delete": [
+        {
+          "permission": "customers_delete",
+          "neededFromModules": [
+            "customers.biz"
+          ]
+        }
+      ]
+    },
+    "operations.tasks": {
+      "view": [
+        {
+          "permission": "actions_cfg_read",
+          "neededFromModules": [
+            "operations.events",
+            "operations.leads"
+          ]
+        },
+        {
+          "permission": "users_read",
+          "neededFromModules": [
+            "operations.events",
+            "operations.leads",
+            "meta.program",
+            "staff.users",
+            "jobhub.tasks"
+          ]
+        }
+      ]
+    },
+    "operations.events": {
+      "view": [
+        {
+          "permission": "actions_cfg_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.leads"
+          ]
+        },
+        {
+          "permission": "users_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.leads",
+            "meta.program",
+            "staff.users",
+            "jobhub.tasks"
+          ]
+        },
+        {
+          "permission": "customers_read",
+          "neededFromModules": [
+            "customers.biz",
+            "customers.user"
+          ]
+        }
+      ],
+      "create": [
+        {
+          "permission": "customers_read",
+          "neededFromModules": [
+            "customers.biz",
+            "customers.user"
+          ]
+        }
+      ]
+    },
+    "operations.leads": {
+      "view": [
+        {
+          "permission": "actions_cfg_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.events"
+          ]
+        },
+        {
+          "permission": "users_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.events",
+            "meta.program",
+            "staff.users",
+            "jobhub.tasks"
+          ]
+        }
+      ]
+    },
+    "meta.program": {
+      "view": [
+        {
+          "permission": "meta_read",
+          "neededFromModules": [
+            "meta.config"
+          ]
+        },
+        {
+          "permission": "users_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.events",
+            "operations.leads",
+            "staff.users",
+            "jobhub.tasks"
+          ]
+        }
+      ]
+    },
+    "meta.config": {
+      "view": [
+        {
+          "permission": "meta_read",
+          "neededFromModules": [
+            "meta.program"
+          ]
+        }
+      ]
+    },
+    "staff.users": {
+      "view": [
+        {
+          "permission": "users_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.events",
+            "operations.leads",
+            "meta.program",
+            "jobhub.tasks"
+          ]
+        },
+        {
+          "permission": "companies_read",
+          "neededFromModules": [
+            "staff.companies",
+            "finance.salary_config"
+          ]
+        }
+      ]
+    },
+    "staff.functions": {
+      "view": [
+        {
+          "permission": "functions_read",
+          "neededFromModules": [
+            "finance.salary_config"
+          ]
+        }
+      ]
+    },
+    "staff.functional_groups": {
+      "view": [
+        {
+          "permission": "functional_groups_read",
+          "neededFromModules": [
+            "finance.salary_config"
+          ]
+        }
+      ]
+    },
+    "staff.companies": {
+      "view": [
+        {
+          "permission": "companies_read",
+          "neededFromModules": [
+            "staff.users",
+            "finance.salary_config"
+          ]
+        }
+      ]
+    },
+    "finance.salary_config": {
+      "view": [
+        {
+          "permission": "companies_read",
+          "neededFromModules": [
+            "staff.users",
+            "staff.companies"
+          ]
+        },
+        {
+          "permission": "functions_read",
+          "neededFromModules": [
+            "staff.functions"
+          ]
+        },
+        {
+          "permission": "functional_groups_read",
+          "neededFromModules": [
+            "staff.functional_groups"
+          ]
+        }
+      ]
+    },
+    "jobhub.tasks": {
+      "view": [
+        {
+          "permission": "jobhub_work_read",
+          "neededFromModules": [
+            "jobhub.config.repeatRule"
+          ]
+        },
+        {
+          "permission": "jobhub_status_read",
+          "neededFromModules": [
+            "jobhub.config.status"
+          ]
+        },
+        {
+          "permission": "jobhub_task_type_read",
+          "neededFromModules": [
+            "jobhub.config.repeatRule",
+            "jobhub.config.taskType"
+          ]
+        },
+        {
+          "permission": "jobhub_channel_read",
+          "neededFromModules": [
+            "jobhub.config.repeatRule",
+            "jobhub.config.channel"
+          ]
+        },
+        {
+          "permission": "jobhub_task_type_group_read",
+          "neededFromModules": [
+            "jobhub.config.repeatRule"
+          ]
+        },
+        {
+          "permission": "users_read",
+          "neededFromModules": [
+            "operations.tasks",
+            "operations.events",
+            "operations.leads",
+            "meta.program",
+            "staff.users"
+          ]
+        }
+      ]
+    },
+    "jobhub.config.repeatRule": {
+      "view": [
+        {
+          "permission": "jobhub_task_type_read",
+          "neededFromModules": [
+            "jobhub.tasks",
+            "jobhub.config.taskType"
+          ]
+        },
+        {
+          "permission": "jobhub_channel_read",
+          "neededFromModules": [
+            "jobhub.tasks",
+            "jobhub.config.channel"
+          ]
+        },
+        {
+          "permission": "jobhub_task_type_group_read",
+          "neededFromModules": [
+            "jobhub.tasks"
+          ]
+        },
+        {
+          "permission": "jobhub_work_read",
+          "neededFromModules": [
+            "jobhub.tasks"
+          ]
+        }
+      ]
+    },
+    "jobhub.config.channel": {
+      "view": [
+        {
+          "permission": "jobhub_channel_read",
+          "neededFromModules": [
+            "jobhub.tasks",
+            "jobhub.config.repeatRule"
+          ]
+        }
+      ]
+    },
+    "jobhub.config.taskType": {
+      "view": [
+        {
+          "permission": "jobhub_task_type_read",
+          "neededFromModules": [
+            "jobhub.tasks",
+            "jobhub.config.repeatRule"
+          ]
+        }
+      ]
+    },
+    "jobhub.config.status": {
+      "view": [
+        {
+          "permission": "jobhub_status_read",
+          "neededFromModules": [
+            "jobhub.tasks"
+          ]
+        }
+      ]
+    },
+    "courses.config": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        }
+      ]
+    },
+    "courses.instructors": {
+      "view": [
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges"
+          ]
+        }
+      ]
+    },
+    "courses.online": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges"
+          ]
+        }
+      ]
+    },
+    "courses.offline": {
+      "view": [
+        {
+          "permission": "courses_offline_read",
+          "neededFromModules": [
+            "courses.zoom"
+          ]
+        },
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.zoom",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.online",
+            "courses.zoom",
+            "courses.challenges"
+          ]
+        }
+      ],
+      "create": [
+        {
+          "permission": "courses_offline_create",
+          "neededFromModules": [
+            "courses.zoom"
+          ]
+        }
+      ],
+      "edit": [
+        {
+          "permission": "courses_offline_update",
+          "neededFromModules": [
+            "courses.zoom"
+          ]
+        }
+      ],
+      "delete": [
+        {
+          "permission": "courses_offline_delete",
+          "neededFromModules": [
+            "courses.zoom"
+          ]
+        }
+      ]
+    },
+    "courses.zoom": {
+      "view": [
+        {
+          "permission": "courses_offline_read",
+          "neededFromModules": [
+            "courses.offline"
+          ]
+        },
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.offline",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.online",
+            "courses.offline",
+            "courses.challenges"
+          ]
+        }
+      ],
+      "create": [
+        {
+          "permission": "courses_offline_create",
+          "neededFromModules": [
+            "courses.offline"
+          ]
+        }
+      ],
+      "edit": [
+        {
+          "permission": "courses_offline_update",
+          "neededFromModules": [
+            "courses.offline"
+          ]
+        }
+      ],
+      "delete": [
+        {
+          "permission": "courses_offline_delete",
+          "neededFromModules": [
+            "courses.offline"
+          ]
+        }
+      ]
+    },
+    "courses.challenges": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.online",
+            "courses.offline",
+            "courses.zoom"
+          ]
+        }
+      ]
+    },
+    "courses.knowledge": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges"
+          ]
+        }
+      ]
+    }
+  },
+  "roleModuleGaps": {
+    "ADMIN": {},
+    "MANAGER": {
+      "operations.events": {
+        "configure": [
+          "actions_cfg_manage"
+        ]
+      },
+      "meta.config": {
+        "create": [
+          "meta_manage"
+        ],
+        "edit": [
+          "meta_manage"
+        ],
+        "delete": [
+          "meta_manage"
+        ]
+      },
+      "logs.system": {
+        "view": [
+          "logs_system_read"
+        ]
+      },
+      "logs.webhook": {
+        "view": [
+          "logs_webhook_read"
+        ]
+      },
+      "logs.blockautomation": {
+        "view": [
+          "logs_automation_read"
+        ]
+      },
+      "finance.dashboard": {
+        "view": [
+          "finance_read"
+        ]
+      },
+      "finance.revenue": {
+        "view": [
+          "revenues_read"
+        ],
+        "create": [
+          "revenues_create"
+        ],
+        "edit": [
+          "revenues_update"
+        ],
+        "delete": [
+          "revenues_delete"
+        ],
+        "configure": [
+          "revenues_config",
+          "revenues_manage"
+        ]
+      },
+      "finance.expense": {
+        "view": [
+          "expenses_read"
+        ],
+        "create": [
+          "expenses_create"
+        ],
+        "edit": [
+          "expenses_update"
+        ],
+        "delete": [
+          "expenses_delete"
+        ],
+        "configure": [
+          "expenses_config",
+          "expenses_manage"
+        ]
+      },
+      "finance.salary": {
+        "view": [
+          "salaries_read"
+        ],
+        "create": [
+          "salaries_create"
+        ],
+        "edit": [
+          "salaries_update"
+        ],
+        "delete": [
+          "salaries_delete"
+        ],
+        "configure": [
+          "salaries_manage"
+        ]
+      },
+      "finance.salary_config": {
+        "view": [
+          "salary_configs_read"
+        ],
+        "create": [
+          "salary_configs_create"
+        ],
+        "edit": [
+          "salary_configs_update"
+        ],
+        "delete": [
+          "salary_configs_delete"
+        ],
+        "configure": [
+          "salary_configs_manage",
+          "staffs_manage"
+        ]
+      },
+      "finance.policy": {
+        "view": [
+          "project_bonus_read"
+        ],
+        "create": [
+          "project_bonus_create"
+        ],
+        "edit": [
+          "project_bonus_update"
+        ],
+        "delete": [
+          "project_bonus_delete"
+        ],
+        "configure": [
+          "project_bonus_manage"
+        ]
+      },
+      "zcode.manage": {
+        "view": [
+          "zcodes_read"
+        ],
+        "create": [
+          "zcodes_create"
+        ],
+        "edit": [
+          "zcodes_update"
+        ],
+        "delete": [
+          "zcodes_delete"
+        ],
+        "export": [
+          "zcodes_read"
+        ]
+      },
+      "bankLog.transactions": {
+        "view": [
+          "bank_logs_read"
+        ],
+        "create": [
+          "bank_logs_create"
+        ],
+        "edit": [
+          "bank_logs_update"
+        ],
+        "delete": [
+          "bank_logs_delete"
+        ]
+      },
+      "bankLog.rules": {
+        "view": [
+          "bank_log_rules_config"
+        ],
+        "create": [
+          "bank_log_rules_config"
+        ],
+        "edit": [
+          "bank_log_rules_config"
+        ],
+        "delete": [
+          "bank_log_rules_config"
+        ]
+      },
+      "invoice.manage": {
+        "view": [
+          "invoices_read"
+        ],
+        "create": [
+          "invoices_create"
+        ],
+        "edit": [
+          "invoices_update"
+        ],
+        "delete": [
+          "invoices_delete"
+        ]
+      },
+      "invoice.config": {
+        "view": [
+          "invoice_providers_config"
+        ],
+        "configure": [
+          "invoice_providers_config"
+        ]
+      }
+    },
+    "STAFF": {
+      "customers.biz": {
+        "delete": [
+          "customers_delete"
+        ]
+      },
+      "customers.user": {
+        "delete": [
+          "customers_delete"
+        ]
+      },
+      "operations.tasks": {
+        "delete": [
+          "tasks_delete",
+          "task_chains_delete"
+        ]
+      },
+      "operations.events": {
+        "delete": [
+          "events_delete",
+          "event_chains_delete"
+        ],
+        "configure": [
+          "actions_cfg_manage",
+          "actions_cfg_create",
+          "actions_cfg_update",
+          "actions_cfg_delete"
+        ]
+      },
+      "operations.leads": {
+        "delete": [
+          "leads_delete"
+        ],
+        "configure": [
+          "leads_cfg_manage"
+        ]
+      },
+      "meta.program": {
+        "delete": [
+          "meta_delete"
+        ]
+      },
+      "meta.config": {
+        "create": [
+          "meta_manage"
+        ],
+        "edit": [
+          "meta_manage"
+        ],
+        "delete": [
+          "meta_manage"
+        ]
+      },
+      "staff.users": {
+        "view": [
+          "companies_read",
+          "roles_read",
+          "permissions_read"
+        ],
+        "create": [
+          "users_create"
+        ],
+        "edit": [
+          "users_update"
+        ],
+        "delete": [
+          "users_delete"
+        ]
+      },
+      "staff.organization": {
+        "view": [
+          "organization_read"
+        ],
+        "create": [
+          "organization_manage",
+          "organization_update"
+        ],
+        "edit": [
+          "organization_update"
+        ]
+      },
+      "staff.functions": {
+        "create": [
+          "functions_create"
+        ],
+        "edit": [
+          "functions_update"
+        ],
+        "delete": [
+          "functions_delete"
+        ]
+      },
+      "staff.functional_groups": {
+        "create": [
+          "functional_groups_create"
+        ],
+        "edit": [
+          "functional_groups_update"
+        ],
+        "delete": [
+          "functional_groups_delete"
+        ]
+      },
+      "staff.companies": {
+        "view": [
+          "companies_read"
+        ],
+        "create": [
+          "companies_create"
+        ],
+        "edit": [
+          "companies_update"
+        ],
+        "delete": [
+          "companies_delete"
+        ]
+      },
+      "logs.system": {
+        "view": [
+          "logs_system_read"
+        ]
+      },
+      "logs.webhook": {
+        "view": [
+          "logs_webhook_read"
+        ]
+      },
+      "logs.blockautomation": {
+        "view": [
+          "logs_automation_read"
+        ]
+      },
+      "finance.dashboard": {
+        "view": [
+          "finance_read"
+        ]
+      },
+      "finance.revenue": {
+        "view": [
+          "revenues_read"
+        ],
+        "create": [
+          "revenues_create"
+        ],
+        "edit": [
+          "revenues_update"
+        ],
+        "delete": [
+          "revenues_delete"
+        ],
+        "configure": [
+          "revenues_config",
+          "revenues_manage"
+        ]
+      },
+      "finance.expense": {
+        "view": [
+          "expenses_read"
+        ],
+        "create": [
+          "expenses_create"
+        ],
+        "edit": [
+          "expenses_update"
+        ],
+        "delete": [
+          "expenses_delete"
+        ],
+        "configure": [
+          "expenses_config",
+          "expenses_manage"
+        ]
+      },
+      "finance.salary": {
+        "view": [
+          "salaries_read"
+        ],
+        "create": [
+          "salaries_create"
+        ],
+        "edit": [
+          "salaries_update"
+        ],
+        "delete": [
+          "salaries_delete"
+        ],
+        "configure": [
+          "salaries_manage"
+        ]
+      },
+      "finance.salary_config": {
+        "view": [
+          "salary_configs_read",
+          "staffs_read",
+          "companies_read"
+        ],
+        "create": [
+          "salary_configs_create",
+          "staffs_create"
+        ],
+        "edit": [
+          "salary_configs_update",
+          "staffs_update"
+        ],
+        "delete": [
+          "salary_configs_delete",
+          "staffs_delete"
+        ],
+        "configure": [
+          "salary_configs_manage",
+          "staffs_manage"
+        ]
+      },
+      "finance.policy": {
+        "view": [
+          "project_bonus_read"
+        ],
+        "create": [
+          "project_bonus_create"
+        ],
+        "edit": [
+          "project_bonus_update"
+        ],
+        "delete": [
+          "project_bonus_delete"
+        ],
+        "configure": [
+          "project_bonus_manage"
+        ]
+      },
+      "jobhub.config.repeatRule": {
+        "create": [
+          "jobhub_repeat_rule_create"
+        ],
+        "edit": [
+          "jobhub_repeat_rule_update"
+        ],
+        "delete": [
+          "jobhub_repeat_rule_delete"
+        ]
+      },
+      "jobhub.config.channel": {
+        "create": [
+          "jobhub_channel_create"
+        ],
+        "edit": [
+          "jobhub_channel_update"
+        ],
+        "delete": [
+          "jobhub_channel_delete"
+        ]
+      },
+      "jobhub.config.taskType": {
+        "create": [
+          "jobhub_task_type_create"
+        ],
+        "edit": [
+          "jobhub_task_type_update"
+        ],
+        "delete": [
+          "jobhub_task_type_delete"
+        ]
+      },
+      "jobhub.config.status": {
+        "create": [
+          "jobhub_status_create"
+        ],
+        "edit": [
+          "jobhub_status_update"
+        ],
+        "delete": [
+          "jobhub_status_delete"
+        ]
+      },
+      "courses.config": {
+        "view": [
+          "courses_config_read"
+        ],
+        "create": [
+          "courses_config_create"
+        ],
+        "edit": [
+          "courses_config_update"
+        ],
+        "delete": [
+          "courses_config_delete"
+        ]
+      },
+      "courses.instructors": {
+        "view": [
+          "courses_lecturer_read"
+        ],
+        "create": [
+          "courses_lecturer_create"
+        ],
+        "edit": [
+          "courses_lecturer_update"
+        ],
+        "delete": [
+          "courses_lecturer_delete"
+        ]
+      },
+      "courses.online": {
+        "view": [
+          "courses_online_read",
+          "courses_config_read",
+          "courses_lecturer_read"
+        ],
+        "create": [
+          "courses_online_create"
+        ],
+        "edit": [
+          "courses_online_update"
+        ],
+        "delete": [
+          "courses_online_delete"
+        ]
+      },
+      "courses.offline": {
+        "view": [
+          "courses_offline_read",
+          "courses_config_read",
+          "courses_lecturer_read"
+        ],
+        "create": [
+          "courses_offline_create"
+        ],
+        "edit": [
+          "courses_offline_update"
+        ],
+        "delete": [
+          "courses_offline_delete"
+        ]
+      },
+      "courses.zoom": {
+        "view": [
+          "courses_offline_read",
+          "courses_config_read",
+          "courses_lecturer_read"
+        ],
+        "create": [
+          "courses_offline_create"
+        ],
+        "edit": [
+          "courses_offline_update"
+        ],
+        "delete": [
+          "courses_offline_delete"
+        ]
+      },
+      "courses.challenges": {
+        "view": [
+          "courses_challenges_read",
+          "courses_enrollments_read",
+          "courses_submissions_read",
+          "courses_config_read",
+          "courses_lecturer_read"
+        ],
+        "create": [
+          "courses_challenges_create"
+        ],
+        "edit": [
+          "courses_challenges_update",
+          "courses_enrollments_update",
+          "courses_submissions_update"
+        ],
+        "delete": [
+          "courses_challenges_delete"
+        ],
+        "clone": [
+          "courses_challenges_clone"
+        ]
+      },
+      "courses.knowledge": {
+        "view": [
+          "courses_knowledge_read",
+          "courses_config_read"
+        ],
+        "create": [
+          "courses_knowledge_create"
+        ],
+        "edit": [
+          "courses_knowledge_update"
+        ],
+        "delete": [
+          "courses_knowledge_delete"
+        ]
+      },
+      "zcode.manage": {
+        "view": [
+          "zcodes_read"
+        ],
+        "create": [
+          "zcodes_create"
+        ],
+        "edit": [
+          "zcodes_update"
+        ],
+        "delete": [
+          "zcodes_delete"
+        ],
+        "export": [
+          "zcodes_read"
+        ]
+      },
+      "bankLog.transactions": {
+        "view": [
+          "bank_logs_read"
+        ],
+        "create": [
+          "bank_logs_create"
+        ],
+        "edit": [
+          "bank_logs_update"
+        ],
+        "delete": [
+          "bank_logs_delete"
+        ]
+      },
+      "bankLog.rules": {
+        "view": [
+          "bank_log_rules_config"
+        ],
+        "create": [
+          "bank_log_rules_config"
+        ],
+        "edit": [
+          "bank_log_rules_config"
+        ],
+        "delete": [
+          "bank_log_rules_config"
+        ]
+      },
+      "invoice.manage": {
+        "view": [
+          "invoices_read"
+        ],
+        "create": [
+          "invoices_create"
+        ],
+        "edit": [
+          "invoices_update"
+        ],
+        "delete": [
+          "invoices_delete"
+        ]
+      },
+      "invoice.config": {
+        "view": [
+          "invoice_providers_config"
+        ],
+        "configure": [
+          "invoice_providers_config"
+        ]
+      }
+    }
+  },
+  "allEndpoints": [
+    {
+      "method": "POST",
+      "path": "/transaction",
+      "file": "acbWebhook.routes.js",
+      "line": 31,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "GET",
+      "path": "/results",
+      "file": "actionConfig.routes.js",
+      "line": 24,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/results",
+      "file": "actionConfig.routes.js",
+      "line": 30,
+      "permissions": [
+        "actions_cfg_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/results/:id",
+      "file": "actionConfig.routes.js",
+      "line": 36,
+      "permissions": [
+        "actions_cfg_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/results/:id",
+      "file": "actionConfig.routes.js",
+      "line": 42,
+      "permissions": [
+        "actions_cfg_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/reasons",
+      "file": "actionConfig.routes.js",
+      "line": 49,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/reasons",
+      "file": "actionConfig.routes.js",
+      "line": 55,
+      "permissions": [
+        "actions_cfg_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/reasons/:id",
+      "file": "actionConfig.routes.js",
+      "line": 61,
+      "permissions": [
+        "actions_cfg_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/reasons/:id",
+      "file": "actionConfig.routes.js",
+      "line": 67,
+      "permissions": [
+        "actions_cfg_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/actions",
+      "file": "actionConfig.routes.js",
+      "line": 74,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/actions",
+      "file": "actionConfig.routes.js",
+      "line": 80,
+      "permissions": [
+        "actions_cfg_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/actions/:id",
+      "file": "actionConfig.routes.js",
+      "line": 86,
+      "permissions": [
+        "actions_cfg_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/actions/:id",
+      "file": "actionConfig.routes.js",
+      "line": 92,
+      "permissions": [
+        "actions_cfg_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/chains",
+      "file": "actionConfig.routes.js",
+      "line": 99,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/chains/:id",
+      "file": "actionConfig.routes.js",
+      "line": 105,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/chains",
+      "file": "actionConfig.routes.js",
+      "line": 110,
+      "permissions": [
+        "actions_cfg_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/chains/:id",
+      "file": "actionConfig.routes.js",
+      "line": 116,
+      "permissions": [
+        "actions_cfg_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/chains/:id",
+      "file": "actionConfig.routes.js",
+      "line": 122,
+      "permissions": [
+        "actions_cfg_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/chains/:id/rule",
+      "file": "actionConfig.routes.js",
+      "line": 129,
+      "permissions": [
+        "actions_cfg_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/block-automations",
+      "file": "actionConfig.routes.js",
+      "line": 138,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/block-automations/:id",
+      "file": "actionConfig.routes.js",
+      "line": 144,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/block-automations",
+      "file": "actionConfig.routes.js",
+      "line": 149,
+      "permissions": [
+        "actions_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/block-automations/:id",
+      "file": "actionConfig.routes.js",
+      "line": 155,
+      "permissions": [
+        "actions_cfg_manage",
+        "actions_cfg_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/block-automations/:id",
+      "file": "actionConfig.routes.js",
+      "line": 161,
+      "permissions": [
+        "actions_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/event-schema-fields",
+      "file": "actionConfig.routes.js",
+      "line": 168,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/lead-schema-fields",
+      "file": "actionConfig.routes.js",
+      "line": 175,
+      "permissions": [
+        "actions_cfg_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "file": "auth.routes.js",
+      "line": 20,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/refresh",
+      "file": "auth.routes.js",
+      "line": 22,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/forgot-password",
+      "file": "auth.routes.js",
+      "line": 24,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/reset-password",
+      "file": "auth.routes.js",
+      "line": 26,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "file": "auth.routes.js",
+      "line": 28,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "file": "auth.routes.js",
+      "line": 30,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "PUT",
+      "path": "/me",
+      "file": "auth.routes.js",
+      "line": 32,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/change-password",
+      "file": "auth.routes.js",
+      "line": 34,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/register",
+      "file": "auth.routes.js",
+      "line": 36,
+      "permissions": [
+        "users_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "bankLogs.routes.js",
+      "line": 10,
+      "permissions": [
+        "bank_logs_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/transactions",
+      "file": "bankLogs.routes.js",
+      "line": 18,
+      "permissions": [
+        "bank_logs_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/transactions/:id",
+      "file": "bankLogs.routes.js",
+      "line": 24,
+      "permissions": [
+        "bank_logs_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/transactions/:id/retry",
+      "file": "bankLogs.routes.js",
+      "line": 30,
+      "permissions": [
+        "bank_logs_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/transactions/:id/dispatch",
+      "file": "bankLogs.routes.js",
+      "line": 36,
+      "permissions": [
+        "bank_logs_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/rules",
+      "file": "bankLogs.routes.js",
+      "line": 44,
+      "permissions": [
+        "bank_log_rules_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/rules",
+      "file": "bankLogs.routes.js",
+      "line": 50,
+      "permissions": [
+        "bank_log_rules_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/rules/:id",
+      "file": "bankLogs.routes.js",
+      "line": 56,
+      "permissions": [
+        "bank_log_rules_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/rules/:id",
+      "file": "bankLogs.routes.js",
+      "line": 62,
+      "permissions": [
+        "bank_log_rules_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "companies.routes.js",
+      "line": 9,
+      "permissions": [
+        "companies_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "companies.routes.js",
+      "line": 15,
+      "permissions": [
+        "companies_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "companies.routes.js",
+      "line": 21,
+      "permissions": [
+        "companies_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "companies.routes.js",
+      "line": 27,
+      "permissions": [
+        "companies_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "companies.routes.js",
+      "line": 33,
+      "permissions": [
+        "companies_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/templates",
+      "file": "courseChallenges.routes.js",
+      "line": 14,
+      "permissions": [
+        "courses_challenges_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/templates/:id",
+      "file": "courseChallenges.routes.js",
+      "line": 20,
+      "permissions": [
+        "courses_challenges_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/templates",
+      "file": "courseChallenges.routes.js",
+      "line": 26,
+      "permissions": [
+        "courses_challenges_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/templates/:id",
+      "file": "courseChallenges.routes.js",
+      "line": 33,
+      "permissions": [
+        "courses_challenges_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/templates/:id",
+      "file": "courseChallenges.routes.js",
+      "line": 40,
+      "permissions": [
+        "courses_challenges_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/templates/:id/clone",
+      "file": "courseChallenges.routes.js",
+      "line": 46,
+      "permissions": [
+        "courses_challenges_clone"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/deployed",
+      "file": "courseChallenges.routes.js",
+      "line": 56,
+      "permissions": [
+        "courses_challenges_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/deployed/:id",
+      "file": "courseChallenges.routes.js",
+      "line": 62,
+      "permissions": [
+        "courses_challenges_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/deployed/:id",
+      "file": "courseChallenges.routes.js",
+      "line": 68,
+      "permissions": [
+        "courses_challenges_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/deployed/:id",
+      "file": "courseChallenges.routes.js",
+      "line": 75,
+      "permissions": [
+        "courses_challenges_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/youtube-duration",
+      "file": "courseConfigs.routes.js",
+      "line": 55,
+      "permissions": [
+        "courses_config_read",
+        "courses_online_create",
+        "courses_online_update",
+        "courses_challenges_create",
+        "courses_challenges_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/course/:courseId",
+      "file": "courseEnrollments.routes.js",
+      "line": 9,
+      "permissions": [
+        "courses_enrollments_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/status",
+      "file": "courseEnrollments.routes.js",
+      "line": 16,
+      "permissions": [
+        "courses_enrollments_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "courseLecturers.routes.js",
+      "line": 10,
+      "permissions": [
+        "courses_lecturer_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "courseLecturers.routes.js",
+      "line": 16,
+      "permissions": [
+        "courses_lecturer_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "courseLecturers.routes.js",
+      "line": 22,
+      "permissions": [
+        "courses_lecturer_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "courseLecturers.routes.js",
+      "line": 29,
+      "permissions": [
+        "courses_lecturer_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "courseLecturers.routes.js",
+      "line": 36,
+      "permissions": [
+        "courses_lecturer_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/course/:courseId",
+      "file": "courseSubmissions.routes.js",
+      "line": 11,
+      "permissions": [
+        "courses_submissions_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "courseSubmissions.routes.js",
+      "line": 18,
+      "permissions": [
+        "courses_submissions_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/:id/review",
+      "file": "courseSubmissions.routes.js",
+      "line": 25,
+      "permissions": [
+        "courses_submissions_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 11,
+      "permissions": [
+        "courses_config_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 17,
+      "permissions": [
+        "courses_config_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 22,
+      "permissions": [
+        "courses_config_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 28,
+      "permissions": [
+        "courses_config_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 34,
+      "permissions": [
+        "courses_config_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 40,
+      "permissions": [
+        "courses_config_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 45,
+      "permissions": [
+        "courses_config_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "???",
+      "file": "courseVouchers.routes.js",
+      "line": 51,
+      "permissions": [
+        "courses_config_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "coursesOffline.routes.js",
+      "line": 9,
+      "permissions": [
+        "courses_offline_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "coursesOffline.routes.js",
+      "line": 16,
+      "permissions": [
+        "courses_offline_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "coursesOffline.routes.js",
+      "line": 22,
+      "permissions": [
+        "courses_offline_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "coursesOffline.routes.js",
+      "line": 28,
+      "permissions": [
+        "courses_offline_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "coursesOffline.routes.js",
+      "line": 35,
+      "permissions": [
+        "courses_offline_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "coursesOnline.routes.js",
+      "line": 13,
+      "permissions": [
+        "courses_online_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "coursesOnline.routes.js",
+      "line": 20,
+      "permissions": [
+        "courses_online_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "coursesOnline.routes.js",
+      "line": 26,
+      "permissions": [
+        "courses_online_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "coursesOnline.routes.js",
+      "line": 32,
+      "permissions": [
+        "courses_online_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "coursesOnline.routes.js",
+      "line": 39,
+      "permissions": [
+        "courses_online_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "customers.routes.js",
+      "line": 27,
+      "permissions": [
+        "customers_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "customers.routes.js",
+      "line": 46,
+      "permissions": [
+        "customers_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "customers.routes.js",
+      "line": 64,
+      "permissions": [
+        "customers_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "customers.routes.js",
+      "line": 75,
+      "permissions": [
+        "customers_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/botvn-password",
+      "file": "customers.routes.js",
+      "line": 87,
+      "permissions": [
+        "customers_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "customers.routes.js",
+      "line": 99,
+      "permissions": [
+        "customers_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/restore",
+      "file": "customers.routes.js",
+      "line": 110,
+      "permissions": [
+        "customers_restore"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id/permanent",
+      "file": "customers.routes.js",
+      "line": 121,
+      "permissions": [
+        "customers_permanent_delete"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "eventChains.routes.js",
+      "line": 22,
+      "permissions": [
+        "event_chains_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "eventChains.routes.js",
+      "line": 29,
+      "permissions": [
+        "event_chains_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:chainId/steps",
+      "file": "eventChains.routes.js",
+      "line": 39,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:chainId/steps/current",
+      "file": "eventChains.routes.js",
+      "line": 49,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/:chainId/steps/current/delay",
+      "file": "eventChains.routes.js",
+      "line": 59,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/:chainId/steps/:stepOrder/note",
+      "file": "eventChains.routes.js",
+      "line": 69,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:chainId/steps/:stepOrder/branches",
+      "file": "eventChains.routes.js",
+      "line": 79,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:chainId/steps/:stepOrder/branches/:resultId",
+      "file": "eventChains.routes.js",
+      "line": 89,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:chainId/steps/current/execute-block-automation",
+      "file": "eventChains.routes.js",
+      "line": 98,
+      "permissions": [
+        "event_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:chainId/close",
+      "file": "eventChains.routes.js",
+      "line": 106,
+      "permissions": [
+        "event_chains_close"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:chainId",
+      "file": "eventChains.routes.js",
+      "line": 114,
+      "permissions": [
+        "event_chains_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "events.routes.js",
+      "line": 19,
+      "permissions": [
+        "events_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "events.routes.js",
+      "line": 27,
+      "permissions": [
+        "events_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "events.routes.js",
+      "line": 34,
+      "permissions": [
+        "events_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "events.routes.js",
+      "line": 41,
+      "permissions": [
+        "events_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "events.routes.js",
+      "line": 49,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/timeline",
+      "file": "events.routes.js",
+      "line": 61,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id/timeline/:timelineId",
+      "file": "events.routes.js",
+      "line": 69,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "events.routes.js",
+      "line": 76,
+      "permissions": [
+        "events_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/archive",
+      "file": "events.routes.js",
+      "line": 83,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/unarchive",
+      "file": "events.routes.js",
+      "line": 91,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/sync-customer",
+      "file": "events.routes.js",
+      "line": 99,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/self-assign",
+      "file": "events.routes.js",
+      "line": 107,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id/assignee",
+      "file": "events.routes.js",
+      "line": 115,
+      "permissions": [
+        "events_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/categories",
+      "file": "expenses.routes.js",
+      "line": 9,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/categories",
+      "file": "expenses.routes.js",
+      "line": 10,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/categories/:id",
+      "file": "expenses.routes.js",
+      "line": 11,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/categories/:id",
+      "file": "expenses.routes.js",
+      "line": 12,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/expected",
+      "file": "expenses.routes.js",
+      "line": 15,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/expected",
+      "file": "expenses.routes.js",
+      "line": 16,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/expected/:id",
+      "file": "expenses.routes.js",
+      "line": 17,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/expected/:id",
+      "file": "expenses.routes.js",
+      "line": 18,
+      "permissions": [
+        "expenses_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "expenses.routes.js",
+      "line": 21,
+      "permissions": [
+        "expenses_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "expenses.routes.js",
+      "line": 24,
+      "permissions": [
+        "expenses_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "expenses.routes.js",
+      "line": 25,
+      "permissions": [
+        "expenses_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "expenses.routes.js",
+      "line": 26,
+      "permissions": [
+        "expenses_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "expenses.routes.js",
+      "line": 27,
+      "permissions": [
+        "expenses_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "expenses.routes.js",
+      "line": 28,
+      "permissions": [
+        "expenses_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "file": "finance.routes.js",
+      "line": 7,
+      "permissions": [
+        "finance_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "functionalGroups.routes.js",
+      "line": 9,
+      "permissions": [
+        "functional_groups_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "functionalGroups.routes.js",
+      "line": 10,
+      "permissions": [
+        "functional_groups_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "functionalGroups.routes.js",
+      "line": 11,
+      "permissions": [
+        "functional_groups_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "functionalGroups.routes.js",
+      "line": 12,
+      "permissions": [
+        "functional_groups_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "functions.routes.js",
+      "line": 10,
+      "permissions": [
+        "functions_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "functions.routes.js",
+      "line": 16,
+      "permissions": [
+        "functions_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "functions.routes.js",
+      "line": 23,
+      "permissions": [
+        "functions_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "functions.routes.js",
+      "line": 30,
+      "permissions": [
+        "functions_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/folders",
+      "file": "funnels.routes.js",
+      "line": 9,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/folders",
+      "file": "funnels.routes.js",
+      "line": 10,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/folders/:id",
+      "file": "funnels.routes.js",
+      "line": 11,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/folders/:id",
+      "file": "funnels.routes.js",
+      "line": 12,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/groups",
+      "file": "funnels.routes.js",
+      "line": 15,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/groups",
+      "file": "funnels.routes.js",
+      "line": 16,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/groups/:id",
+      "file": "funnels.routes.js",
+      "line": 17,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/groups/:id",
+      "file": "funnels.routes.js",
+      "line": 18,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "funnels.routes.js",
+      "line": 21,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "funnels.routes.js",
+      "line": 22,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "funnels.routes.js",
+      "line": 23,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "funnels.routes.js",
+      "line": 24,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/queue",
+      "file": "globalEventChains.routes.js",
+      "line": 10,
+      "permissions": [
+        "event_chains_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "invoices.routes.js",
+      "line": 10,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/quota",
+      "file": "invoices.routes.js",
+      "line": 16,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/lookup-tax",
+      "file": "invoices.routes.js",
+      "line": 22,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/export",
+      "file": "invoices.routes.js",
+      "line": 28,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/providers",
+      "file": "invoices.routes.js",
+      "line": 36,
+      "permissions": [
+        "invoice_providers_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/providers/:id",
+      "file": "invoices.routes.js",
+      "line": 42,
+      "permissions": [
+        "invoice_providers_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/providers",
+      "file": "invoices.routes.js",
+      "line": 48,
+      "permissions": [
+        "invoice_providers_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/providers/:id",
+      "file": "invoices.routes.js",
+      "line": 54,
+      "permissions": [
+        "invoice_providers_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/providers/:id",
+      "file": "invoices.routes.js",
+      "line": 60,
+      "permissions": [
+        "invoice_providers_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/providers/:id/test",
+      "file": "invoices.routes.js",
+      "line": 66,
+      "permissions": [
+        "invoice_providers_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "invoices.routes.js",
+      "line": 74,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "invoices.routes.js",
+      "line": 80,
+      "permissions": [
+        "invoices_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/batch-issue",
+      "file": "invoices.routes.js",
+      "line": 89,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/batch-sign-hsm",
+      "file": "invoices.routes.js",
+      "line": 95,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "invoices.routes.js",
+      "line": 102,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "invoices.routes.js",
+      "line": 108,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "invoices.routes.js",
+      "line": 114,
+      "permissions": [
+        "invoices_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/sync-tax-status",
+      "file": "invoices.routes.js",
+      "line": 121,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/sync-from-provider",
+      "file": "invoices.routes.js",
+      "line": 127,
+      "permissions": [
+        "invoices_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/resend-email",
+      "file": "invoices.routes.js",
+      "line": 133,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/issue",
+      "file": "invoices.routes.js",
+      "line": 138,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/retry",
+      "file": "invoices.routes.js",
+      "line": 144,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/replace",
+      "file": "invoices.routes.js",
+      "line": 151,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/adjust",
+      "file": "invoices.routes.js",
+      "line": 157,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/sign-hsm",
+      "file": "invoices.routes.js",
+      "line": 163,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/explain-cqt",
+      "file": "invoices.routes.js",
+      "line": 169,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/explain-replaced-cqt",
+      "file": "invoices.routes.js",
+      "line": 175,
+      "permissions": [
+        "invoices_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/categories",
+      "file": "knowledge.routes.js",
+      "line": 19,
+      "permissions": [
+        "courses_knowledge_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/categories",
+      "file": "knowledge.routes.js",
+      "line": 24,
+      "permissions": [
+        "courses_knowledge_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/categories/:id",
+      "file": "knowledge.routes.js",
+      "line": 30,
+      "permissions": [
+        "courses_knowledge_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/categories/:id",
+      "file": "knowledge.routes.js",
+      "line": 36,
+      "permissions": [
+        "courses_knowledge_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "knowledge.routes.js",
+      "line": 43,
+      "permissions": [
+        "courses_knowledge_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "knowledge.routes.js",
+      "line": 48,
+      "permissions": [
+        "courses_knowledge_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "knowledge.routes.js",
+      "line": 54,
+      "permissions": [
+        "courses_knowledge_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id/readers",
+      "file": "knowledge.routes.js",
+      "line": 59,
+      "permissions": [
+        "courses_knowledge_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "knowledge.routes.js",
+      "line": 64,
+      "permissions": [
+        "courses_knowledge_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "knowledge.routes.js",
+      "line": 70,
+      "permissions": [
+        "courses_knowledge_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/statuses",
+      "file": "leadConfig.routes.js",
+      "line": 8,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/groups",
+      "file": "leadConfig.routes.js",
+      "line": 9,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/statuses",
+      "file": "leadConfig.routes.js",
+      "line": 12,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/statuses/:id",
+      "file": "leadConfig.routes.js",
+      "line": 13,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/statuses/:id",
+      "file": "leadConfig.routes.js",
+      "line": 14,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/groups",
+      "file": "leadConfig.routes.js",
+      "line": 16,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/groups/:id",
+      "file": "leadConfig.routes.js",
+      "line": 17,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/groups/:id",
+      "file": "leadConfig.routes.js",
+      "line": 18,
+      "permissions": [
+        "leads_cfg_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "leads.routes.js",
+      "line": 20,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stage-counts",
+      "file": "leads.routes.js",
+      "line": 29,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "leads.routes.js",
+      "line": 37,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "leads.routes.js",
+      "line": 45,
+      "permissions": [
+        "leads_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "leads.routes.js",
+      "line": 54,
+      "permissions": [
+        "leads_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/self-assign",
+      "file": "leads.routes.js",
+      "line": 65,
+      "permissions": [
+        "leads_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/confirm-stage",
+      "file": "leads.routes.js",
+      "line": 74,
+      "permissions": [
+        "leads_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "leads.routes.js",
+      "line": 82,
+      "permissions": [
+        "leads_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/archive",
+      "file": "leads.routes.js",
+      "line": 90,
+      "permissions": [
+        "leads_update"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/unarchive",
+      "file": "leads.routes.js",
+      "line": 97,
+      "permissions": [
+        "leads_update"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/timeline",
+      "file": "leads.routes.js",
+      "line": 105,
+      "permissions": [
+        "leads_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/discussions",
+      "file": "leads.routes.js",
+      "line": 114,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id/activity-logs",
+      "file": "leads.routes.js",
+      "line": 122,
+      "permissions": [
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/webhook",
+      "file": "logs.routes.js",
+      "line": 9,
+      "permissions": [
+        "logs_webhook_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/webhook/:id/retry",
+      "file": "logs.routes.js",
+      "line": 15,
+      "permissions": [],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/system",
+      "file": "logs.routes.js",
+      "line": 21,
+      "permissions": [
+        "logs_system_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/automation",
+      "file": "logs.routes.js",
+      "line": 27,
+      "permissions": [
+        "logs_automation_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/config",
+      "file": "meta.routes.js",
+      "line": 26,
+      "permissions": [
+        "meta_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/config",
+      "file": "meta.routes.js",
+      "line": 32,
+      "permissions": [
+        "meta_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/config/:id",
+      "file": "meta.routes.js",
+      "line": 39,
+      "permissions": [
+        "meta_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/config/:id",
+      "file": "meta.routes.js",
+      "line": 46,
+      "permissions": [
+        "meta_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/programs",
+      "file": "meta.routes.js",
+      "line": 61,
+      "permissions": [
+        "meta_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/programs/:id",
+      "file": "meta.routes.js",
+      "line": 69,
+      "permissions": [
+        "meta_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs",
+      "file": "meta.routes.js",
+      "line": 76,
+      "permissions": [
+        "meta_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/programs/:id",
+      "file": "meta.routes.js",
+      "line": 84,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs/:id/self-assign",
+      "file": "meta.routes.js",
+      "line": 96,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/programs/:id",
+      "file": "meta.routes.js",
+      "line": 103,
+      "permissions": [
+        "meta_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs/:id/milestones",
+      "file": "meta.routes.js",
+      "line": 112,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs/:id/milestones/batch",
+      "file": "meta.routes.js",
+      "line": 120,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/programs/:id/milestones/:milestoneId",
+      "file": "meta.routes.js",
+      "line": 128,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/programs/:id/milestones/:milestoneId",
+      "file": "meta.routes.js",
+      "line": 136,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs/:id/tasks",
+      "file": "meta.routes.js",
+      "line": 145,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/programs/:id/tasks/:taskId",
+      "file": "meta.routes.js",
+      "line": 153,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/programs/:id/tasks/:taskId",
+      "file": "meta.routes.js",
+      "line": 161,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs/:id/attachments",
+      "file": "meta.routes.js",
+      "line": 170,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/programs/:id/attachments/:attachmentId",
+      "file": "meta.routes.js",
+      "line": 178,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/programs/:id/comments",
+      "file": "meta.routes.js",
+      "line": 187,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/programs/:id/comments/:commentId",
+      "file": "meta.routes.js",
+      "line": 195,
+      "permissions": [
+        "meta_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "metadata.routes.js",
+      "line": 10,
+      "permissions": [
+        "metadata_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/roles",
+      "file": "metadata.routes.js",
+      "line": 11,
+      "permissions": [
+        "metadata_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/departments",
+      "file": "metadata.routes.js",
+      "line": 12,
+      "permissions": [
+        "metadata_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/department-groups",
+      "file": "metadata.routes.js",
+      "line": 13,
+      "permissions": [
+        "metadata_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/activity-groups",
+      "file": "metadata.routes.js",
+      "line": 14,
+      "permissions": [
+        "metadata_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/customer-groups",
+      "file": "metadata.routes.js",
+      "line": 15,
+      "permissions": [
+        "metadata_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "organization.routes.js",
+      "line": 13,
+      "permissions": [
+        "organization_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/departments",
+      "file": "organization.routes.js",
+      "line": 19,
+      "permissions": [
+        "organization_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/groups",
+      "file": "organization.routes.js",
+      "line": 26,
+      "permissions": [
+        "organization_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "projectBonus.routes.js",
+      "line": 9,
+      "permissions": [
+        "project_bonus_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "???",
+      "file": "projectBonus.routes.js",
+      "line": 15,
+      "permissions": [
+        "project_bonus_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "projectBonus.routes.js",
+      "line": 21,
+      "permissions": [
+        "project_bonus_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "???",
+      "file": "projectBonus.routes.js",
+      "line": 27,
+      "permissions": [
+        "project_bonus_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "???",
+      "file": "projectBonus.routes.js",
+      "line": 33,
+      "permissions": [
+        "project_bonus_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/roles",
+      "file": "rbac.routes.js",
+      "line": 18,
+      "permissions": [
+        "roles_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/roles/:id",
+      "file": "rbac.routes.js",
+      "line": 24,
+      "permissions": [
+        "roles_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "rbac.routes.js",
+      "line": 30,
+      "permissions": [
+        "permissions_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "rbac.routes.js",
+      "line": 36,
+      "permissions": [
+        "permissions_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/roles",
+      "file": "rbac.routes.js",
+      "line": 42,
+      "permissions": [
+        "roles_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/roles/:id",
+      "file": "rbac.routes.js",
+      "line": 49,
+      "permissions": [
+        "roles_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/roles/:id",
+      "file": "rbac.routes.js",
+      "line": 56,
+      "permissions": [
+        "roles_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/categories",
+      "file": "revenues.routes.js",
+      "line": 9,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/categories",
+      "file": "revenues.routes.js",
+      "line": 10,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/categories/:id",
+      "file": "revenues.routes.js",
+      "line": 11,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/categories/:id",
+      "file": "revenues.routes.js",
+      "line": 12,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/expected",
+      "file": "revenues.routes.js",
+      "line": 15,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/expected",
+      "file": "revenues.routes.js",
+      "line": 16,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/expected/:id",
+      "file": "revenues.routes.js",
+      "line": 17,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/expected/:id",
+      "file": "revenues.routes.js",
+      "line": 18,
+      "permissions": [
+        "revenues_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "revenues.routes.js",
+      "line": 21,
+      "permissions": [
+        "revenues_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "revenues.routes.js",
+      "line": 24,
+      "permissions": [
+        "revenues_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "revenues.routes.js",
+      "line": 25,
+      "permissions": [
+        "revenues_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "revenues.routes.js",
+      "line": 26,
+      "permissions": [
+        "revenues_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "revenues.routes.js",
+      "line": 27,
+      "permissions": [
+        "revenues_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "revenues.routes.js",
+      "line": 28,
+      "permissions": [
+        "revenues_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "salaries.routes.js",
+      "line": 8,
+      "permissions": [
+        "salaries_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/generate",
+      "file": "salaries.routes.js",
+      "line": 9,
+      "permissions": [
+        "salaries_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/batch-update",
+      "file": "salaries.routes.js",
+      "line": 10,
+      "permissions": [
+        "salaries_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/pay",
+      "file": "salaries.routes.js",
+      "line": 11,
+      "permissions": [
+        "salaries_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/staff/:staffId",
+      "file": "salaries.routes.js",
+      "line": 12,
+      "permissions": [
+        "salaries_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "salaryConfigs.routes.js",
+      "line": 10,
+      "permissions": [
+        "salary_configs_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "staffs.routes.js",
+      "line": 14,
+      "permissions": [
+        "staffs_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "staffs.routes.js",
+      "line": 21,
+      "permissions": [
+        "staffs_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:staffId",
+      "file": "staffs.routes.js",
+      "line": 28,
+      "permissions": [
+        "staffs_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:staffId",
+      "file": "staffs.routes.js",
+      "line": 34,
+      "permissions": [
+        "staffs_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:staffId",
+      "file": "staffs.routes.js",
+      "line": 41,
+      "permissions": [
+        "staffs_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "taskChains.routes.js",
+      "line": 28,
+      "permissions": [
+        "task_chains_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "taskChains.routes.js",
+      "line": 35,
+      "permissions": [
+        "task_chains_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:chainId/steps",
+      "file": "taskChains.routes.js",
+      "line": 44,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:chainId/steps/current",
+      "file": "taskChains.routes.js",
+      "line": 53,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/:chainId/steps/current/delay",
+      "file": "taskChains.routes.js",
+      "line": 62,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/:chainId/steps/:stepOrder/note",
+      "file": "taskChains.routes.js",
+      "line": 71,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:chainId/steps/:stepOrder/branches",
+      "file": "taskChains.routes.js",
+      "line": 80,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:chainId/steps/:stepOrder/branches/:resultId",
+      "file": "taskChains.routes.js",
+      "line": 89,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:chainId/close",
+      "file": "taskChains.routes.js",
+      "line": 97,
+      "permissions": [
+        "task_chains_close"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:chainId/execute-block-automation",
+      "file": "taskChains.routes.js",
+      "line": 105,
+      "permissions": [
+        "task_chains_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:chainId",
+      "file": "taskChains.routes.js",
+      "line": 113,
+      "permissions": [
+        "task_chains_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "tasks.routes.js",
+      "line": 22,
+      "permissions": [
+        "tasks_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "tasks.routes.js",
+      "line": 30,
+      "permissions": [
+        "tasks_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/search-events",
+      "file": "tasks.routes.js",
+      "line": 39,
+      "permissions": [
+        "tasks_read",
+        "events_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/search-leads",
+      "file": "tasks.routes.js",
+      "line": 45,
+      "permissions": [
+        "tasks_read",
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/by-event/:eventId",
+      "file": "tasks.routes.js",
+      "line": 52,
+      "permissions": [
+        "tasks_read",
+        "events_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/by-lead/:leadId",
+      "file": "tasks.routes.js",
+      "line": 58,
+      "permissions": [
+        "tasks_read",
+        "leads_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "tasks.routes.js",
+      "line": 65,
+      "permissions": [
+        "tasks_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "tasks.routes.js",
+      "line": 73,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/close",
+      "file": "tasks.routes.js",
+      "line": 86,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/archive",
+      "file": "tasks.routes.js",
+      "line": 94,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/unarchive",
+      "file": "tasks.routes.js",
+      "line": 102,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "tasks.routes.js",
+      "line": 110,
+      "permissions": [
+        "tasks_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/link-event",
+      "file": "tasks.routes.js",
+      "line": 118,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id/unlink-event/:eventId",
+      "file": "tasks.routes.js",
+      "line": 126,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/link-lead",
+      "file": "tasks.routes.js",
+      "line": 134,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id/unlink-lead/:leadId",
+      "file": "tasks.routes.js",
+      "line": 142,
+      "permissions": [
+        "tasks_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/org-options",
+      "file": "users.routes.js",
+      "line": 19,
+      "permissions": [
+        "users_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "users.routes.js",
+      "line": 21,
+      "permissions": [
+        "users_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "users.routes.js",
+      "line": 41,
+      "permissions": [
+        "users_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "users.routes.js",
+      "line": 48,
+      "permissions": [
+        "users_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "users.routes.js",
+      "line": 56,
+      "permissions": [
+        "users_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id/restore",
+      "file": "users.routes.js",
+      "line": 63,
+      "permissions": [
+        "users_restore"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id/permanent",
+      "file": "users.routes.js",
+      "line": 70,
+      "permissions": [
+        "users_permanent_delete"
+      ],
+      "roles": [
+        "OWNER",
+        "ADMIN"
+      ],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/new-login",
+      "file": "webhooks.routes.js",
+      "line": 24,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/new-registration",
+      "file": "webhooks.routes.js",
+      "line": 27,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/new-business",
+      "file": "webhooks.routes.js",
+      "line": 30,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/expiring-subscription",
+      "file": "webhooks.routes.js",
+      "line": 33,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/order-create",
+      "file": "webhooks.routes.js",
+      "line": 36,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/order-active",
+      "file": "webhooks.routes.js",
+      "line": 39,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "POST",
+      "path": "/upgrade-required",
+      "file": "webhooks.routes.js",
+      "line": 42,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "GET",
+      "path": "/sku-prices",
+      "file": "zcodes.routes.js",
+      "line": 9,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "zcodes.routes.js",
+      "line": 16,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/duplicates",
+      "file": "zcodes.routes.js",
+      "line": 23,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/mark-duplicates",
+      "file": "zcodes.routes.js",
+      "line": 30,
+      "permissions": [
+        "zcodes_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/export",
+      "file": "zcodes.routes.js",
+      "line": 37,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/batches",
+      "file": "zcodes.routes.js",
+      "line": 44,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/batch-stats",
+      "file": "zcodes.routes.js",
+      "line": 51,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "zcodes.routes.js",
+      "line": 58,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "zcodes.routes.js",
+      "line": 65,
+      "permissions": [
+        "zcodes_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/check-duplicates",
+      "file": "zcodes.routes.js",
+      "line": 72,
+      "permissions": [
+        "zcodes_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "zcodes.routes.js",
+      "line": 79,
+      "permissions": [
+        "zcodes_create"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/bulk-status/check",
+      "file": "zcodes.routes.js",
+      "line": 86,
+      "permissions": [
+        "zcodes_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/bulk-status/update",
+      "file": "zcodes.routes.js",
+      "line": 93,
+      "permissions": [
+        "zcodes_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/:id/status",
+      "file": "zcodes.routes.js",
+      "line": 100,
+      "permissions": [
+        "zcodes_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:id/retry",
+      "file": "zcodes.routes.js",
+      "line": 107,
+      "permissions": [
+        "zcodes_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/batch",
+      "file": "zcodes.routes.js",
+      "line": 114,
+      "permissions": [
+        "zcodes_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/batch/delete-list/check",
+      "file": "zcodes.routes.js",
+      "line": 121,
+      "permissions": [
+        "zcodes_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/list",
+      "file": "zcodes.routes.js",
+      "line": 128,
+      "permissions": [
+        "zcodes_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "zcodes.routes.js",
+      "line": 135,
+      "permissions": [
+        "zcodes_delete"
+      ],
+      "roles": [],
+      "protected": true
+    }
+  ]
+}
