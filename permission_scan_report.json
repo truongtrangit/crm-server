@@ -541,12 +541,81 @@
         }
       ]
     },
+    "courses.config": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        }
+      ]
+    },
+    "courses.instructors": {
+      "view": [
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges"
+          ]
+        }
+      ]
+    },
+    "courses.online": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges"
+          ]
+        }
+      ]
+    },
     "courses.offline": {
       "view": [
         {
           "permission": "courses_offline_read",
           "neededFromModules": [
             "courses.zoom"
+          ]
+        },
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.zoom",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.online",
+            "courses.zoom",
+            "courses.challenges"
           ]
         }
       ],
@@ -582,6 +651,25 @@
           "neededFromModules": [
             "courses.offline"
           ]
+        },
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.offline",
+            "courses.challenges",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.online",
+            "courses.offline",
+            "courses.challenges"
+          ]
         }
       ],
       "create": [
@@ -605,6 +693,43 @@
           "permission": "courses_offline_delete",
           "neededFromModules": [
             "courses.offline"
+          ]
+        }
+      ]
+    },
+    "courses.challenges": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.knowledge"
+          ]
+        },
+        {
+          "permission": "courses_lecturer_read",
+          "neededFromModules": [
+            "courses.instructors",
+            "courses.online",
+            "courses.offline",
+            "courses.zoom"
+          ]
+        }
+      ]
+    },
+    "courses.knowledge": {
+      "view": [
+        {
+          "permission": "courses_config_read",
+          "neededFromModules": [
+            "courses.config",
+            "courses.online",
+            "courses.offline",
+            "courses.zoom",
+            "courses.challenges"
           ]
         }
       ]
@@ -835,9 +960,6 @@
         ]
       },
       "operations.leads": {
-        "view": [
-          "leads_cfg_manage"
-        ],
         "delete": [
           "leads_delete"
         ],
@@ -1038,29 +1160,7 @@
           "project_bonus_manage"
         ]
       },
-      "jobhub.tasks": {
-        "view": [
-          "jobhub_task_type_group_read"
-        ],
-        "delete_task": [
-          "jobhub_task_delete"
-        ],
-        "manage_folders": [
-          "jobhub_folder_create",
-          "jobhub_folder_update",
-          "jobhub_folder_delete"
-        ]
-      },
-      "jobhub.config": {
-        "view": [
-          "jobhub_config_read"
-        ]
-      },
       "jobhub.config.repeatRule": {
-        "view": [
-          "jobhub_repeat_rule_read",
-          "jobhub_task_type_group_read"
-        ],
         "create": [
           "jobhub_repeat_rule_create"
         ],
@@ -1134,7 +1234,9 @@
       },
       "courses.online": {
         "view": [
-          "courses_online_read"
+          "courses_online_read",
+          "courses_config_read",
+          "courses_lecturer_read"
         ],
         "create": [
           "courses_online_create"
@@ -1148,7 +1250,9 @@
       },
       "courses.offline": {
         "view": [
-          "courses_offline_read"
+          "courses_offline_read",
+          "courses_config_read",
+          "courses_lecturer_read"
         ],
         "create": [
           "courses_offline_create"
@@ -1162,7 +1266,9 @@
       },
       "courses.zoom": {
         "view": [
-          "courses_offline_read"
+          "courses_offline_read",
+          "courses_config_read",
+          "courses_lecturer_read"
         ],
         "create": [
           "courses_offline_create"
@@ -1178,7 +1284,9 @@
         "view": [
           "courses_challenges_read",
           "courses_enrollments_read",
-          "courses_submissions_read"
+          "courses_submissions_read",
+          "courses_config_read",
+          "courses_lecturer_read"
         ],
         "create": [
           "courses_challenges_create"
@@ -1197,7 +1305,8 @@
       },
       "courses.knowledge": {
         "view": [
-          "courses_knowledge_read"
+          "courses_knowledge_read",
+          "courses_config_read"
         ],
         "create": [
           "courses_knowledge_create"

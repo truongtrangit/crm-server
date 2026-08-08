@@ -322,16 +322,52 @@ console.log('\n\n' + '='.repeat(80));
 console.log(`Full report saved to: ${outputPath}`);
 
 // ─── CI/CD Gate ──────────────────────────────────────────────────────────────
-// Exit with code 1 if critical permission issues are detected.
-// This can be used in GitHub Actions / CI pipelines to block deploys.
 const KNOWN_ADMIN_ONLY_ORPHANS = 6; // restore/permanent_delete/metadata_read/roles_manage
+
+// Modules that STAFF/MANAGER can never be assigned to (admin-only features).
+// Gaps in these modules are expected — don't block CI for them.
+const ADMIN_ONLY_MODULES = new Set([
+  'finance.dashboard', 'finance.revenue', 'finance.expense',
+  'finance.salary', 'finance.salary_config', 'finance.policy',
+  'zcode.manage',
+  'bankLog.transactions', 'bankLog.rules',
+  'invoice.manage', 'invoice.config',
+  'logs.system', 'logs.webhook', 'logs.blockautomation',
+]);
+
 const errors = [];
 
+// 1. Missing MODULE_TO_PERMISSIONS_MAP entries (always a bug)
 if (modulesMissingPermMap.length > 0) {
   errors.push(`${modulesMissingPermMap.length} module(s) have MODULE_DEFINITIONS but no MODULE_TO_PERMISSIONS_MAP entry`);
 }
+
+// 2. Too many orphan permissions (admin-only ones are expected)
 if (orphanPermissions.length > KNOWN_ADMIN_ONLY_ORPHANS) {
-  errors.push(`${orphanPermissions.length} orphan permissions detected (expected max ${KNOWN_ADMIN_ONLY_ORPHANS})`);
+  errors.push(`${orphanPermissions.length} orphan permissions (expected max ${KNOWN_ADMIN_ONLY_ORPHANS})`);
+}
+
+// 3. STAFF/MANAGER gaps on modules they receive by DEFAULT (no moduleAccess fallback).
+// When a user HAS moduleAccess, computePermissionsFromModuleAccess() handles it.
+// When a user has NO moduleAccess, STAFF_PERMISSIONS is the fallback — only these
+// core modules matter for STAFF fallback behavior.
+const STAFF_CORE_MODULES = new Set([
+  'customers.biz', 'customers.user',
+  'operations.events', 'operations.tasks', 'operations.leads',
+  'meta.program',
+  'jobhub.tasks',
+]);
+
+for (const [roleKey, actionGaps] of Object.entries(roleModuleGaps.STAFF || {})) {
+  if (!STAFF_CORE_MODULES.has(roleKey)) continue;
+  const missingPerms = Object.values(actionGaps).flat();
+  if (missingPerms.length > 0) {
+    // Only fail on view gaps (403 on page load) — not on delete/configure (admin actions)
+    const viewGaps = actionGaps['view'] || [];
+    if (viewGaps.length > 0) {
+      errors.push(`[STAFF fallback] ${roleKey}.view: missing ${viewGaps.join(', ')}`);
+    }
+  }
 }
 
 if (errors.length > 0) {
