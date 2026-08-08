@@ -532,12 +532,15 @@ const getMyProgress = async (courseId, studentId) => {
 
     const formatUnlockTime = (date) => {
       const d = new Date(date);
-      // Ensure we get local time string in a predictable format, e.g., '14:30 22/06/2026'
+      // Ensure we get Vietnam time string
       const timeStr = d.toLocaleTimeString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
         hour: '2-digit',
         minute: '2-digit',
       });
-      const dateStr = d.toLocaleDateString('vi-VN');
+      const dateStr = d.toLocaleDateString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+      });
       return `Mở vào ${timeStr} ${dateStr}`;
     };
 

@@ -125,6 +125,12 @@ router.post(
 );
 
 router.post(
+  '/:id/sync-from-provider',
+  requirePermission(PERMISSIONS.INVOICES_READ),
+  InvoiceController.syncFromProvider,
+);
+
+router.post(
   '/:id/resend-email',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.resendEmail,
