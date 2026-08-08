@@ -82,6 +82,10 @@ const ID_PREFIXES = Object.freeze({
   // Bank Log
   BANK_LOG_TX: "BLT",
   BANK_LOG_RULE: "BLR",
+
+  // Invoice
+  INVOICE: "INV",
+  INVOICE_PROVIDER: "INVP",
 });
 
 /**

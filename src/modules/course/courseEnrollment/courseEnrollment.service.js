@@ -92,7 +92,7 @@ class CourseEnrollmentService {
 
   async getMyEnrollments(studentId, query) {
     const { page, limit, skip } = resolvePagination(query);
-    const filter = { studentId, status: 'ACTIVE' };
+    const filter = { studentId };
 
     const enrollments = await CourseEnrollment.aggregate([
       { $match: filter },

@@ -1,4 +1,5 @@
 const { escapeRegex } = require('../../core/utils/query');
+const { dayjs, VIETNAM_TZ } = require('../../core/utils/date');
 
 class FinanceStatsService {
   constructor(Model, CategoryModel, searchFields, cancelledStatus, emptyCategoryName = 'Khác') {
@@ -38,16 +39,13 @@ class FinanceStatsService {
     }
 
     if (query.month && query.year) {
-      const startDate = new Date(
-        parseInt(query.year),
-        parseInt(query.month) - 1,
-        1,
-      );
-      const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
+      const m = String(query.month).padStart(2, '0');
+      const startDate = dayjs.tz(`${query.year}-${m}-01`, VIETNAM_TZ).startOf('day').toDate();
+      const endDate = dayjs.tz(`${query.year}-${m}-01`, VIETNAM_TZ).add(1, 'month').startOf('day').toDate();
       filter.recordDate = { $gte: startDate, $lt: endDate };
     } else if (query.year) {
-      const startDate = new Date(parseInt(query.year), 0, 1);
-      const endDate = new Date(parseInt(query.year) + 1, 0, 1);
+      const startDate = dayjs.tz(`${query.year}-01-01`, VIETNAM_TZ).startOf('day').toDate();
+      const endDate = dayjs.tz(`${parseInt(query.year) + 1}-01-01`, VIETNAM_TZ).startOf('day').toDate();
       filter.recordDate = { $gte: startDate, $lt: endDate };
     }
 

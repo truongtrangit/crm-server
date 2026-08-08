@@ -1,7 +1,7 @@
 const createHttpError = require('http-errors');
 const { generateMonotonicId } = require('../../../core/utils/id');
 const CourseOffline = require('./courseOffline.model');
-const { isOwnerOrAdmin } = require('../../../core/utils/userRoles');
+const { isOwnerOrAdmin, hasExplicitModuleAccess } = require('../../../core/utils/userRoles');
 const {
   buildPaginatedResponse,
   resolvePagination,
@@ -29,6 +29,21 @@ const createCourse = async (courseBody, user) => {
     courseBody.submissionSettings.lessonDeadlineHours = 0;
     courseBody.submissionSettings.chapterDeadlineHours = 0;
     courseBody.submissionSettings.courseDeadlineHours = 0;
+  }
+
+  if (courseBody.lecturers && courseBody.lecturers.length > 0) {
+    const lecturerIds = courseBody.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
   }
 
   const course = new CourseOffline({
@@ -102,21 +117,19 @@ const getCourses = async (queryParams, studentId = null) => {
       courseId: { $in: courseIds },
     }).lean();
 
+    const allEnrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
     const activeCourseIds = new Set(
       enrollments
         .filter((e) => e.status === COURSE_ENROLLMENT_STATUS.ACTIVE)
         .map((e) => e.courseId),
     );
-    const lockedCourseIds = new Set(
-      enrollments
-        .filter((e) => e.status !== COURSE_ENROLLMENT_STATUS.ACTIVE)
-        .map((e) => e.courseId),
-    );
 
     courses.forEach((course) => {
-      course.isEnrolled = activeCourseIds.has(course.id);
-      if (lockedCourseIds.has(course.id)) {
-        course.isLocked = true;
+      if (allEnrolledCourseIds.has(course.id)) {
+        course.isEnrolled = true;
+        if (!activeCourseIds.has(course.id)) {
+          course.isLocked = true;
+        }
       }
     });
   }
@@ -193,10 +206,10 @@ const getCourseByIdentifier = async (
     }).lean();
 
     if (enrollment) {
-      if (enrollment.status === 'ACTIVE') {
-        course.isEnrolled = true;
-        course.enrollmentId = enrollment.id;
-      } else {
+      course.isEnrolled = true;
+      course.enrollmentId = enrollment.id;
+      course.enrollmentStatus = enrollment.status;
+      if (enrollment.status !== COURSE_ENROLLMENT_STATUS.ACTIVE) {
         course.isLocked = true;
       }
     }
@@ -204,7 +217,7 @@ const getCourseByIdentifier = async (
 
   const registeredStudents = await CourseEnrollment.countDocuments({
     courseId: course.id,
-    status: 'ACTIVE',
+    status: COURSE_ENROLLMENT_STATUS.ACTIVE,
   });
   course.registeredStudents = registeredStudents;
 
@@ -217,8 +230,11 @@ const updateCourse = async (id, updateBody, user) => {
     throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
-  // RLAC Check: Only Admin/Owner or Creator can update
-  if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
+  // RLAC Check: Allowed if Admin/Owner OR user has explicit module access for courses OR user is Creator
+  const canEdit = isOwnerOrAdmin(user) || 
+                  hasExplicitModuleAccess(user, 'courses.offline', 'edit') || 
+                  course.createdBy === user.id;
+  if (!canEdit) {
     throw createHttpError(403, 'Bạn không có quyền cập nhật khóa học này');
   }
 
@@ -240,6 +256,21 @@ const updateCourse = async (id, updateBody, user) => {
     updateBody.submissionSettings.courseDeadlineHours = 0;
   }
 
+  if (updateBody.lecturers && updateBody.lecturers.length > 0) {
+    const lecturerIds = updateBody.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   Object.assign(course, updateBody);
   await course.save();
   return course;
@@ -251,9 +282,22 @@ const deleteCourse = async (id, user) => {
     throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
-  // RLAC Check: Only Admin/Owner or Creator can delete
-  if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
+  // RLAC Check: Allowed if Admin/Owner OR user has explicit module access for courses OR user is Creator
+  const canDelete = isOwnerOrAdmin(user) || 
+                    hasExplicitModuleAccess(user, 'courses.offline', 'delete') || 
+                    course.createdBy === user.id;
+  if (!canDelete) {
     throw createHttpError(403, 'Bạn không có quyền xóa khóa học này');
+  }
+
+  const enrollmentCount = await CourseEnrollment.countDocuments({
+    courseId: course.id,
+  });
+  if (enrollmentCount > 0) {
+    throw createHttpError(
+      400,
+      `Không thể xóa khóa học đã có ${enrollmentCount} học viên tham gia`,
+    );
   }
 
   course.isDeleted = true;

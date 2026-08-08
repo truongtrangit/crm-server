@@ -82,11 +82,19 @@ async function hasPermission(user, permission) {
     return false;
   }
 
-  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
-    return permissionListIncludes(user.permissions, permission);
+  // OWNER luôn có tất cả quyền mà không phụ thuộc DB/Cache
+  if (user.roleId && String(user.roleId).toUpperCase() === 'OWNER') {
+    return true;
   }
 
-  // Check if user's role has the permission
+  // 1. Kiểm tra custom permissions gán riêng cho user (nếu có)
+  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+    if (permissionListIncludes(user.permissions, permission)) {
+      return true;
+    }
+  }
+
+  // 2. Check permissions thuộc Role của user
   const role = await resolveUserRole(user);
 
   if (role && permissionListIncludes(role.permissions || [], permission)) {

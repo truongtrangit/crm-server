@@ -2,6 +2,7 @@ const SalaryRecord = require('./salaryRecord.model');
 const Staff = require('../../hr/staff/staff.model');
 const { computeChanges } = require('../../../core/utils/diff');
 const { STAFF_STATUS } = require('../../../core/constants/finance');
+const { dayjs, VIETNAM_TZ } = require('../../../core/utils/date');
 
 class SalaryService {
   /**
@@ -16,12 +17,8 @@ class SalaryService {
     // Parse month to get the end of the month date for probation/resigned checks
     const [m, y] = month.split('/');
     const monthYearStr = `${y}-${m}-01`;
-    const startOfMonth = new Date(monthYearStr);
-    const endOfMonth = new Date(
-      startOfMonth.getFullYear(),
-      startOfMonth.getMonth() + 1,
-      0,
-    );
+    const startOfMonth = dayjs.tz(monthYearStr, VIETNAM_TZ).startOf('day').toDate();
+    const endOfMonth = dayjs.tz(monthYearStr, VIETNAM_TZ).endOf('month').toDate();
 
     // Lấy tất cả staff và các bảng lương đã có trong tháng
     const [staffs, existingRecords] = await Promise.all([

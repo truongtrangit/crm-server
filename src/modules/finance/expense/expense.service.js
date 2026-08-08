@@ -13,6 +13,7 @@ const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { EXPENSE_STATUSES } = require('../../../core/constants/finance');
 const { computeChanges } = require('../../../core/utils/diff');
 const { escapeRegex } = require('../../../core/utils/query');
+const { dayjs, VIETNAM_TZ } = require('../../../core/utils/date');
 
 const FinanceCategoryBaseService = require('../finance_category_base.service');
 const FinanceStatsService = require('../finance_stats.service');
@@ -67,7 +68,7 @@ class ExpenseService {
   }
 
   async _generateExpectedExpenses(expected) {
-    const currentYear = new Date().getFullYear();
+    const currentYear = dayjs().tz(VIETNAM_TZ).year();
     const months = expected.allocatedMonths || [];
     if (months.length === 0) return;
 
@@ -104,7 +105,7 @@ class ExpenseService {
         monthAmount += remainder;
       }
 
-      const recordDate = new Date(y, m - 1, 1);
+      const recordDate = dayjs.tz(`${y}-${String(m).padStart(2, '0')}-01`, VIETNAM_TZ).toDate();
       const transactionId = await this._generateTransactionId(recordDate);
 
       const expense = new Expense({
@@ -262,16 +263,13 @@ class ExpenseService {
     }
     // Time filter (year/month)
     if (query.month && query.year) {
-      const startDate = new Date(
-        parseInt(query.year),
-        parseInt(query.month) - 1,
-        1,
-      );
-      const endDate = new Date(parseInt(query.year), parseInt(query.month), 1);
+      const m = String(query.month).padStart(2, '0');
+      const startDate = dayjs.tz(`${query.year}-${m}-01`, VIETNAM_TZ).startOf('day').toDate();
+      const endDate = dayjs.tz(`${query.year}-${m}-01`, VIETNAM_TZ).add(1, 'month').startOf('day').toDate();
       filter.recordDate = { $gte: startDate, $lt: endDate };
     } else if (query.year) {
-      const startDate = new Date(parseInt(query.year), 0, 1);
-      const endDate = new Date(parseInt(query.year) + 1, 0, 1);
+      const startDate = dayjs.tz(`${query.year}-01-01`, VIETNAM_TZ).startOf('day').toDate();
+      const endDate = dayjs.tz(`${parseInt(query.year) + 1}-01-01`, VIETNAM_TZ).startOf('day').toDate();
       filter.recordDate = { $gte: startDate, $lt: endDate };
     }
 
@@ -329,9 +327,9 @@ class ExpenseService {
   }
 
   async _generateTransactionId(inputDate = null) {
-    const date = inputDate ? new Date(inputDate) : new Date();
-    const yy = String(date.getFullYear()).slice(-2);
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const d = inputDate ? dayjs(inputDate).tz(VIETNAM_TZ) : dayjs().tz(VIETNAM_TZ);
+    const yy = String(d.year()).slice(-2);
+    const mm = String(d.month() + 1).padStart(2, '0');
     const yymm = `${yy}${mm}`;
 
     const prefix = 'EXP';

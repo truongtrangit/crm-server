@@ -8,12 +8,13 @@ const {
   REVENUE_STATUSES,
   EXPENSE_STATUSES,
 } = require("../../../core/constants/finance");
+const { dayjs, VIETNAM_TZ } = require('../../../core/utils/date');
 
 class FinanceService {
   async getDashboard(year, departmentId, companyId) {
     // Determine date range for the requested year
-    const startDate = new Date(`${year}-01-01T00:00:00Z`);
-    const endDate = new Date(`${parseInt(year) + 1}-01-01T00:00:00Z`);
+    const startDate = dayjs.tz(`${year}-01-01`, VIETNAM_TZ).startOf('day').toDate();
+    const endDate = dayjs.tz(`${parseInt(year) + 1}-01-01`, VIETNAM_TZ).startOf('day').toDate();
 
     // Fetch all categories first
     const revenueCats = await RevenueCategory.find().lean();
@@ -76,7 +77,7 @@ class FinanceService {
           catName = revCatMap[rev.category.toString()].name;
         }
         ensureCategory(catId, catName, true);
-        const month = new Date(rev.recordDate).getMonth();
+        const month = dayjs(rev.recordDate).tz(VIETNAM_TZ).month();
         yearlyData[catName][month] += amount;
       }
     });
@@ -112,7 +113,7 @@ class FinanceService {
           catName = expCatMap[exp.category.toString()].name;
         }
         ensureCategory(catId, catName, false);
-        const month = new Date(exp.recordDate).getMonth();
+        const month = dayjs(exp.recordDate).tz(VIETNAM_TZ).month();
         yearlyData[catName][month] += amount;
       }
     });
