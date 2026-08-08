@@ -117,21 +117,19 @@ const getCourses = async (queryParams, studentId = null) => {
       courseId: { $in: courseIds },
     }).lean();
 
+    const allEnrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
     const activeCourseIds = new Set(
       enrollments
         .filter((e) => e.status === COURSE_ENROLLMENT_STATUS.ACTIVE)
         .map((e) => e.courseId),
     );
-    const lockedCourseIds = new Set(
-      enrollments
-        .filter((e) => e.status !== COURSE_ENROLLMENT_STATUS.ACTIVE)
-        .map((e) => e.courseId),
-    );
 
     courses.forEach((course) => {
-      course.isEnrolled = activeCourseIds.has(course.id);
-      if (lockedCourseIds.has(course.id)) {
-        course.isLocked = true;
+      if (allEnrolledCourseIds.has(course.id)) {
+        course.isEnrolled = true;
+        if (!activeCourseIds.has(course.id)) {
+          course.isLocked = true;
+        }
       }
     });
   }
@@ -208,10 +206,10 @@ const getCourseByIdentifier = async (
     }).lean();
 
     if (enrollment) {
-      if (enrollment.status === 'ACTIVE') {
-        course.isEnrolled = true;
-        course.enrollmentId = enrollment.id;
-      } else {
+      course.isEnrolled = true;
+      course.enrollmentId = enrollment.id;
+      course.enrollmentStatus = enrollment.status;
+      if (enrollment.status !== COURSE_ENROLLMENT_STATUS.ACTIVE) {
         course.isLocked = true;
       }
     }
@@ -219,7 +217,7 @@ const getCourseByIdentifier = async (
 
   const registeredStudents = await CourseEnrollment.countDocuments({
     courseId: course.id,
-    status: 'ACTIVE',
+    status: COURSE_ENROLLMENT_STATUS.ACTIVE,
   });
   course.registeredStudents = registeredStudents;
 
@@ -284,6 +282,16 @@ const deleteCourse = async (id, user) => {
   // RLAC Check: Only Admin/Owner or Creator can delete
   if (!isOwnerOrAdmin(user) && course.createdBy !== user.id) {
     throw createHttpError(403, 'Bạn không có quyền xóa khóa học này');
+  }
+
+  const enrollmentCount = await CourseEnrollment.countDocuments({
+    courseId: course.id,
+  });
+  if (enrollmentCount > 0) {
+    throw createHttpError(
+      400,
+      `Không thể xóa khóa học đã có ${enrollmentCount} học viên tham gia`,
+    );
   }
 
   course.isDeleted = true;

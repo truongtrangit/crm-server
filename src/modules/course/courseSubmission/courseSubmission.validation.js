@@ -50,7 +50,18 @@ const submissionSettingsSchema = Joi.object({
   courseDeadlineDate: Joi.date().iso().allow(null).optional(),
   allowAdvanceSubmit: Joi.boolean().optional(),
   autoUnlockNext: Joi.boolean().optional(),
-}).optional();
+})
+  .custom((value, helpers) => {
+    if (value && value.requireToProgress === true && value.allowLateSubmission === true) {
+      return helpers.error("custom.requireToProgressLateSubmissionConflict");
+    }
+    return value;
+  })
+  .messages({
+    "custom.requireToProgressLateSubmissionConflict":
+      "Cho phép nộp bài trễ không thể bật khi Bắt buộc nộp bài mới cho sang bài/chương tiếp theo đang bật",
+  })
+  .optional();
 
 module.exports = {
   submitAssignment,
