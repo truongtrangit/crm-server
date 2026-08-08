@@ -196,10 +196,22 @@ class CheckoutService {
         }
 
         // Ensure user is not already enrolled
-        if (enrolledSet.has(courseId)) {
-          throw createHttpError(400, `Bạn đã đăng ký khóa học ${courseId} rồi`);
+        const existingEnr = existingEnrollments.find(
+          (e) => e.courseId === courseId || e.courseId === item.courseId,
+        );
+        if (existingEnr || enrolledSet.has(courseId)) {
+          if (existingEnr && existingEnr.status !== COURSE_ENROLLMENT_STATUS.ACTIVE) {
+            throw createHttpError(
+              400,
+              `Khóa học "${course.title || course.name || courseId}" của bạn hiện đang bị KHOÁ. Vui lòng liên hệ Admin để được hỗ trợ.`,
+            );
+          }
+          throw createHttpError(
+            400,
+            `Bạn đã đăng ký khóa học "${course.title || course.name || courseId}" rồi`,
+          );
         }
-        enrolledSet.add(courseId); // Mark enrolled locally to prevent duplicates in same cart
+        enrolledSet.add(courseId);
 
         // Find package
         const pkg =
