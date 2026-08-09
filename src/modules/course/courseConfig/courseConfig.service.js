@@ -229,6 +229,13 @@ class CourseConfigService {
       };
     }
 
+    if (data.bankTransfer !== undefined) {
+      config.bankTransfer = {
+        ...config.bankTransfer,
+        ...data.bankTransfer,
+      };
+    }
+
     await config.save();
     
     const newState = config.toObject ? config.toObject() : config;

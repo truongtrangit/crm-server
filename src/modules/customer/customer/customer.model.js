@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const { softDeletePlugin } = require('../../../core/utils/softDelete');
-const { CUSTOMER_MAIN_TYPES, BOTVN_ROLES } = require('../../../core/constants/appData');
+const { CUSTOMER_MAIN_TYPES, BOTVN_ROLES, BUSINESS_TYPES } = require('../../../core/constants/appData');
 
 
 const customerSchema = new mongoose.Schema(
@@ -71,6 +71,19 @@ const customerSchema = new mongoose.Schema(
     
     // Zalo
     zaloId: { type: String, trim: true },
+
+    // VAT Billing Info (saved for reuse across topup requests)
+    billingInfo: {
+      businessType: {
+        type: String,
+        enum: Object.values(BUSINESS_TYPES),
+      },
+      taxCode: { type: String, trim: true },
+      companyName: { type: String, trim: true },
+      address: { type: String, trim: true },
+      email: { type: String, trim: true },
+      phone: { type: String, trim: true },
+    },
   },
   {
     timestamps: true,

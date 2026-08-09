@@ -64,6 +64,9 @@ const createInvoiceSchema = Joi.object({
   // Cho HĐ thay thế / điều chỉnh
   relatedInvoiceId: Joi.string().trim().allow(null, '').default(null),
   relationType: Joi.string().valid('replacement', 'adjustment', null).default(null),
+  // Nguồn gốc dữ liệu
+  sourceModule: Joi.string().trim().allow(null, '').default(null),
+  sourceId: Joi.string().trim().allow(null, '').default(null),
 });
 
 // ─── Update Invoice (draft only) ────────────────────────────────────────────
@@ -80,6 +83,8 @@ const updateInvoiceSchema = Joi.object({
   note: Joi.string().trim().allow(''),
   billCode: Joi.string().trim().allow(''),
   userDefine: Joi.string().allow(''),
+  sourceModule: Joi.string().trim().allow(null, ''),
+  sourceId: Joi.string().trim().allow(null, ''),
   items: Joi.array().items(invoiceItemSchema).min(1).messages({
     'array.min': 'Phải có ít nhất 1 hàng hoá / dịch vụ',
   }),

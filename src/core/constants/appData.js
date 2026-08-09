@@ -199,6 +199,20 @@ const AUTH_ERROR_CODES = Object.freeze({
   QR_CONTEXT_NOT_CONFIRMED: 'QR_CONTEXT_NOT_CONFIRMED',
 });
 
+const TOPUP_REQUEST_STATUS = Object.freeze({
+  PENDING: 'pending',
+  USER_CONFIRMED: 'user_confirmed',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  CANCELED: 'canceled',
+});
+
+const BUSINESS_TYPES = Object.freeze({
+  COMPANY: 'company',
+  HOUSEHOLD: 'household',
+  INDIVIDUAL: 'individual',
+});
+
 module.exports = {
   PLATFORMS,
   COMPANIES,
@@ -232,4 +246,6 @@ module.exports = {
   SUBMISSION_STATUS,
   QR_SESSION_STATUS,
   AUTH_ERROR_CODES,
+  TOPUP_REQUEST_STATUS,
+  BUSINESS_TYPES,
 };

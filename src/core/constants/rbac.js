@@ -313,6 +313,7 @@ const PERMISSIONS = {
 
   // Course Credits
   COURSES_CREDITS_READ: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.READ}`,
+  COURSES_CREDITS_MANAGE: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.MANAGE}`,
 
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
@@ -483,6 +484,7 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.COURSES_KNOWLEDGE_DELETE,
 
     PERMISSIONS.COURSES_CREDITS_READ,
+    PERMISSIONS.COURSES_CREDITS_MANAGE,
   ]),
 );
 
@@ -852,7 +854,7 @@ const MODULE_DEFINITIONS = {
     label: "Lịch sử nạp Credit",
     type: "sub",
     parentKey: "courses",
-    actions: ["view"],
+    actions: ["view", "edit"],
   },
   "courses.instructors": {
     key: "courses.instructors",
@@ -1195,6 +1197,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [
       PERMISSIONS.COURSES_CREDITS_READ,
     ],
+    edit: [PERMISSIONS.COURSES_CREDITS_MANAGE],
   },
   "zcode.manage": {
     view: [PERMISSIONS.ZCODES_READ],
