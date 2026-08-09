@@ -38,6 +38,20 @@ const botvnConfigSchema = new mongoose.Schema(
         enum: Object.values(BOTVN_ROLES)
       }]
     },
+    bankTransfer: {
+      isEnabled: { type: Boolean, default: false },
+      bankName: { type: String, default: '' },
+      bankCode: { type: String, default: '' },
+      accountNumber: { type: String, default: '' },
+      accountHolder: { type: String, default: '' },
+      transferContentTemplate: { type: String, default: 'BOTVN {requestId}' },
+      creditRatio: { type: Number, default: 1 },
+      quickAmounts: {
+        type: [Number],
+        default: [100000, 500000, 1000000, 2000000, 5000000, 10000000],
+      },
+      notes: [{ type: String }],
+    },
   },
   {
     timestamps: true,

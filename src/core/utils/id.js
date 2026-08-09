@@ -86,6 +86,9 @@ const ID_PREFIXES = Object.freeze({
   // Invoice
   INVOICE: "INV",
   INVOICE_PROVIDER: "INVP",
+
+  // Topup Request
+  TOPUP_REQUEST: "TPR",
 });
 
 /**

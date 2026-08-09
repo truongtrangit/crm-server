@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const { INVOICE_STATUSES, INVOICE_PROVIDER_TYPES, INVOICE_RELATION_TYPES } = require('../../core/constants/invoice');
+const { INVOICE_STATUSES, INVOICE_PROVIDER_TYPES, INVOICE_RELATION_TYPES, INVOICE_SOURCE_MODULES } = require('../../core/constants/invoice');
 
 const invoiceItemSchema = new mongoose.Schema(
   {
@@ -104,9 +104,9 @@ const invoiceSchema = new mongoose.Schema(
     lastRetryAt: { type: Date, default: null },
     issuedAt: { type: Date, default: null },
 
-    // ─── Liên kết module khác (future) ──────────────────────────────────
-    // revenueId: { type: String, default: null },
-    // bankLogTxId: { type: String, default: null },
+    // ─── Nguồn gốc dữ liệu (Source Module) ──────────────────────────────────
+    sourceModule: { type: String, default: INVOICE_SOURCE_MODULES.DIRECT_SALE, trim: true }, // e.g. 'course_credit', 'direct_sale'
+    sourceId: { type: String, default: null, trim: true },     // e.g. 'TPR11'
 
     createdBy: { type: String, default: null },
     updatedBy: { type: String, default: null },

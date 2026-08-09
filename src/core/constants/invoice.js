@@ -124,6 +124,12 @@ const INVOICE_RELATION_TYPES = Object.freeze({
   ADJUSTMENT: 'adjustment', // Điều chỉnh
 });
 
+// Các nguồn phát sinh hóa đơn (Source Modules)
+const INVOICE_SOURCE_MODULES = Object.freeze({
+  COURSE_CREDIT: 'course_credit', // Nạp credit khóa học
+  DIRECT_SALE: 'direct_sale', // Bán hàng trực tiếp / Tạo thủ công
+});
+
 // Default max invoices per BKAV request
 const BKAV_MAX_INVOICES_PER_REQUEST = 30;
 
@@ -137,5 +143,6 @@ module.exports = {
   BKAV_PAY_METHOD_IDS,
   BKAV_RECEIVE_TYPES,
   INVOICE_RELATION_TYPES,
+  INVOICE_SOURCE_MODULES,
   BKAV_MAX_INVOICES_PER_REQUEST,
 };
