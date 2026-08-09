@@ -38,6 +38,7 @@ const RESOURCES = {
   COURSES_ENROLLMENTS: "courses_enrollments", // Đăng ký khóa học
   COURSES_SUBMISSIONS: "courses_submissions", // Nộp bài
   COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
+  COURSES_CREDITS: "courses_credits", // Lịch sử nạp credit
   ZCODES: "zcodes", // Quản lý ZCode
   BANK_LOGS: "bank_logs", // Bank Log transactions
   BANK_LOG_RULES: "bank_log_rules", // Bank Log routing rules
@@ -305,11 +306,13 @@ const PERMISSIONS = {
   COURSES_SUBMISSIONS_READ: `${RESOURCES.COURSES_SUBMISSIONS}_${ACTIONS.READ}`,
   COURSES_SUBMISSIONS_UPDATE: `${RESOURCES.COURSES_SUBMISSIONS}_${ACTIONS.UPDATE}`,
 
-  // Course Knowledge
   COURSES_KNOWLEDGE_READ: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.READ}`,
   COURSES_KNOWLEDGE_CREATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.CREATE}`,
   COURSES_KNOWLEDGE_UPDATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.UPDATE}`,
   COURSES_KNOWLEDGE_DELETE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.DELETE}`,
+
+  // Course Credits
+  COURSES_CREDITS_READ: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.READ}`,
 
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
@@ -478,6 +481,8 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.COURSES_KNOWLEDGE_CREATE,
     PERMISSIONS.COURSES_KNOWLEDGE_UPDATE,
     PERMISSIONS.COURSES_KNOWLEDGE_DELETE,
+
+    PERMISSIONS.COURSES_CREDITS_READ,
   ]),
 );
 
@@ -842,6 +847,13 @@ const MODULE_DEFINITIONS = {
     parentKey: "courses",
     actions: ["view", "create", "edit", "delete"],
   },
+  "courses.credits": {
+    key: "courses.credits",
+    label: "Lịch sử nạp Credit",
+    type: "sub",
+    parentKey: "courses",
+    actions: ["view"],
+  },
   "courses.instructors": {
     key: "courses.instructors",
     label: "Giảng viên",
@@ -1178,6 +1190,11 @@ const MODULE_TO_PERMISSIONS_MAP = {
     create: [PERMISSIONS.COURSES_KNOWLEDGE_CREATE],
     edit: [PERMISSIONS.COURSES_KNOWLEDGE_UPDATE],
     delete: [PERMISSIONS.COURSES_KNOWLEDGE_DELETE],
+  },
+  "courses.credits": {
+    view: [
+      PERMISSIONS.COURSES_CREDITS_READ,
+    ],
   },
   "zcode.manage": {
     view: [PERMISSIONS.ZCODES_READ],
