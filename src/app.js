@@ -76,6 +76,7 @@ app.use(
       if (
         !origin ||
         allowedOrigins.length === 0 ||
+        allowedOrigins.includes("*") ||
         allowedOrigins.includes(origin)
       ) {
         return callback(null, true);
