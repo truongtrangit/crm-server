@@ -580,14 +580,22 @@ class BankLogService {
       // Numeric operators
       case 'greater_than':
         return Number(txValue) > Number(value);
+      case 'greater_than_or_equal':
+        return Number(txValue) >= Number(value);
       case 'less_than':
         return Number(txValue) < Number(value);
+      case 'less_than_or_equal':
+        return Number(txValue) <= Number(value);
       case 'equal':
         return String(txValue).toLowerCase() === value.toLowerCase();
+      case 'not_equal':
+        return String(txValue).toLowerCase() !== value.toLowerCase();
 
       // String operators
       case 'contains':
         return String(txValue).toLowerCase().includes(value.toLowerCase());
+      case 'not_contains':
+        return !String(txValue).toLowerCase().includes(value.toLowerCase());
       case 'starts_with':
         return String(txValue).toLowerCase().startsWith(value.toLowerCase());
       case 'ends_with':
