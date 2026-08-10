@@ -120,13 +120,13 @@ router.delete(
 // TODO: Implement later
 router.post(
   '/:id/sync-tax-status',
-  requirePermission(PERMISSIONS.INVOICES_READ),
+  requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.syncTaxStatus,
 );
 
 router.post(
   '/:id/sync-from-provider',
-  requirePermission(PERMISSIONS.INVOICES_READ),
+  requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.syncFromProvider,
 );
 

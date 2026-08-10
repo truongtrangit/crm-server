@@ -40,7 +40,11 @@ class CourseCreditService {
     }
 
     if (source) {
-      matchQuery.source = source;
+      if (source === 'other') {
+        matchQuery.source = { $nin: ['bank_transfer', 'voucher', 'smaxai'] };
+      } else {
+        matchQuery.source = source;
+      }
     }
 
     if (status) {
