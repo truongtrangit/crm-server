@@ -39,6 +39,7 @@ const RESOURCES = {
   COURSES_SUBMISSIONS: "courses_submissions", // Nộp bài
   COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
   COURSES_CREDITS: "courses_credits", // Lịch sử nạp credit
+  COURSES_FAVORITES: "courses_favorites", // Khoá học yêu thích
   ZCODES: "zcodes", // Quản lý ZCode
   BANK_LOGS: "bank_logs", // Bank Log transactions
   BANK_LOG_RULES: "bank_log_rules", // Bank Log routing rules
@@ -315,6 +316,9 @@ const PERMISSIONS = {
   COURSES_CREDITS_READ: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.READ}`,
   COURSES_CREDITS_MANAGE: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.MANAGE}`,
 
+  // Course Favorites
+  COURSES_FAVORITES_READ: `${RESOURCES.COURSES_FAVORITES}_${ACTIONS.READ}`,
+
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
   ZCODES_READ: `${RESOURCES.ZCODES}_${ACTIONS.READ}`,
@@ -485,6 +489,8 @@ const MANAGER_PERMISSIONS = Array.from(
 
     PERMISSIONS.COURSES_CREDITS_READ,
     PERMISSIONS.COURSES_CREDITS_MANAGE,
+
+    PERMISSIONS.COURSES_FAVORITES_READ,
   ]),
 );
 
@@ -856,6 +862,13 @@ const MODULE_DEFINITIONS = {
     parentKey: "courses",
     actions: ["view", "edit"],
   },
+  "courses.favorites": {
+    key: "courses.favorites",
+    label: "Khoá học yêu thích",
+    type: "sub",
+    parentKey: "courses",
+    actions: ["view"],
+  },
   "courses.instructors": {
     key: "courses.instructors",
     label: "Giảng viên",
@@ -879,7 +892,7 @@ const MODULE_DEFINITIONS = {
     label: "Lịch sử giao dịch",
     type: "sub",
     parentKey: "bankLog",
-    actions: ["view", "export"],
+    actions: ["view", "edit", "export"],
   },
   "bankLog.rules": {
     key: "bankLog.rules",
@@ -1199,6 +1212,11 @@ const MODULE_TO_PERMISSIONS_MAP = {
     ],
     edit: [PERMISSIONS.COURSES_CREDITS_MANAGE],
   },
+  "courses.favorites": {
+    view: [
+      PERMISSIONS.COURSES_FAVORITES_READ,
+    ],
+  },
   "zcode.manage": {
     view: [PERMISSIONS.ZCODES_READ],
     create: [PERMISSIONS.ZCODES_CREATE],
@@ -1208,6 +1226,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   "bankLog.transactions": {
     view: [PERMISSIONS.BANK_LOGS_READ],
+    edit: [PERMISSIONS.BANK_LOGS_UPDATE],
     export: [PERMISSIONS.BANK_LOGS_READ],
   },
   "bankLog.rules": {
