@@ -15,15 +15,23 @@ const BANK_LOG_CONDITION_PARAMS = Object.freeze({
   AMOUNT: 'amount',
   CONTENT: 'content',
   SENDER: 'sender',
+  BANK: 'bank',
+  ACCOUNT_NUMBER: 'accountNumber',
+  DEBIT_OR_CREDIT: 'debitOrCredit',
+  TRANSACTION_CHANNEL: 'transactionChannel',
 });
 
 const BANK_LOG_OPERATORS = Object.freeze({
   // Numeric operators (for amount)
   GREATER_THAN: 'greater_than',
+  GREATER_THAN_OR_EQUAL: 'greater_than_or_equal',
   LESS_THAN: 'less_than',
+  LESS_THAN_OR_EQUAL: 'less_than_or_equal',
   EQUAL: 'equal',
-  // String operators (for content, sender)
+  NOT_EQUAL: 'not_equal',
+  // String operators (for content, sender, bank, accountNumber, channel)
   CONTAINS: 'contains',
+  NOT_CONTAINS: 'not_contains',
   STARTS_WITH: 'starts_with',
   ENDS_WITH: 'ends_with',
   REGEX: 'regex',

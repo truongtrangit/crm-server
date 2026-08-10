@@ -879,7 +879,7 @@ const MODULE_DEFINITIONS = {
     label: "Lịch sử giao dịch",
     type: "sub",
     parentKey: "bankLog",
-    actions: ["view", "create", "edit", "delete"],
+    actions: ["view", "export"],
   },
   "bankLog.rules": {
     key: "bankLog.rules",
@@ -1208,9 +1208,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   "bankLog.transactions": {
     view: [PERMISSIONS.BANK_LOGS_READ],
-    create: [PERMISSIONS.BANK_LOGS_CREATE],
-    edit: [PERMISSIONS.BANK_LOGS_UPDATE],
-    delete: [PERMISSIONS.BANK_LOGS_DELETE],
+    export: [PERMISSIONS.BANK_LOGS_READ],
   },
   "bankLog.rules": {
     view: [PERMISSIONS.BANK_LOG_RULES_CONFIG],

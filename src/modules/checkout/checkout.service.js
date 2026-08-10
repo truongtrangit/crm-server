@@ -152,6 +152,7 @@ class CheckoutService {
       let totalEduCreditRequired = 0;
       const enrollmentsToCreate = [];
       const courseTitles = [];
+      const transactionGroupId = await generateMonotonicId('TXG');
 
       // Validate each item (In-memory loop)
       for (let i = 0; i < items.length; i++) {
@@ -269,6 +270,7 @@ class CheckoutService {
           status: COURSE_ENROLLMENT_STATUS.ACTIVE,
           enrolledAt: new Date(),
           progress: [],
+          transactionGroupId,
         });
       }
 
@@ -298,7 +300,6 @@ class CheckoutService {
 
       // Deduct balances and log transactions
       const transactionsToCreate = [];
-      const transactionGroupId = await generateMonotonicId('TXG');
       const coursesStr = courseTitles.join(', ');
 
       if (totalMainCreditRequired > 0) {
