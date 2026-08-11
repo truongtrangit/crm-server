@@ -151,7 +151,6 @@ function _matchesCidr(clientIp, entry) {
 function enforceJsonContentType(req, res, next) {
   // Log all headers in request
   logger.info('ACB Webhook: Request headers', { headers: req.headers });
-  logger.info('ACB Webhook: Request', req);
   const contentType = req.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     logger.warn('ACB Webhook: Invalid Content-Type', {
