@@ -24,7 +24,7 @@ const SUPPORTED_ALGORITHMS = new Set(['SHA1', 'SHA256', 'SHA512', 'MD5']);
 
 // ─── Brute-force Protection ─────────────────────────────────────────────────
 // Track auth failures per IP. After threshold → auto-block.
-const AUTH_FAIL_THRESHOLD = 5;         // 5 failures
+const AUTH_FAIL_THRESHOLD = 5; // 5 failures
 const AUTH_FAIL_WINDOW_MS = 10 * 60 * 1000; // within 10 minutes
 const AUTH_BLOCK_DURATION_MS = 30 * 60 * 1000; // block for 30 minutes
 const AUTH_TRACKER_MAX_SIZE = 10_000; // Hard cap — evict oldest when exceeded
@@ -113,7 +113,7 @@ function _ipToLong(ip) {
   for (let i = 0; i < 4; i++) {
     const octet = parseInt(parts[i], 10);
     if (isNaN(octet) || octet < 0 || octet > 255) return null;
-    result = (result * 256) + octet;
+    result = result * 256 + octet;
   }
   return result >>> 0; // Ensure unsigned 32-bit
 }
@@ -149,13 +149,21 @@ function _matchesCidr(clientIp, entry) {
  * Prevents XML injection, form-data attacks, etc.
  */
 function enforceJsonContentType(req, res, next) {
+  // Log all headers in request
+  logger.info('ACB Webhook: Request headers', { headers: req.headers });
+  logger.info('ACB Webhook: Request', req);
   const contentType = req.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     logger.warn('ACB Webhook: Invalid Content-Type', {
       ip: _getClientIp(req),
       contentType,
     });
-    return sendAcbError(res, 415, ACB_RESPONSE_CODES.INVALID_CONTENT, 'Content-Type must be application/json');
+    return sendAcbError(
+      res,
+      415,
+      ACB_RESPONSE_CODES.INVALID_CONTENT,
+      'Content-Type must be application/json',
+    );
   }
   return next();
 }
@@ -172,7 +180,10 @@ function _getAllowlistEntries() {
   if (raw === _cachedAllowlistRaw) return _cachedAllowlistEntries;
 
   _cachedAllowlistRaw = raw;
-  const entries = raw.split(',').map((ip) => ip.trim()).filter(Boolean);
+  const entries = raw
+    .split(',')
+    .map((ip) => ip.trim())
+    .filter(Boolean);
   _cachedAllowAll = entries.includes('0.0.0.0');
   _cachedAllowlistEntries = entries;
   return _cachedAllowlistEntries;
@@ -201,7 +212,12 @@ function checkAcbIpAllowlist(req, res, next) {
     logger.warn('ACB Webhook: IP blocked (allowlist is empty)', {
       ip: clientIp,
     });
-    return sendAcbError(res, 403, ACB_RESPONSE_CODES.IP_FORBIDDEN, 'IP address not allowed');
+    return sendAcbError(
+      res,
+      403,
+      ACB_RESPONSE_CODES.IP_FORBIDDEN,
+      'IP address not allowed',
+    );
   }
 
   // Check client IP against each entry (exact or CIDR)
@@ -211,7 +227,12 @@ function checkAcbIpAllowlist(req, res, next) {
     logger.warn('ACB Webhook: IP not in allowlist', {
       ip: clientIp,
     });
-    return sendAcbError(res, 403, ACB_RESPONSE_CODES.IP_FORBIDDEN, 'IP address not allowed');
+    return sendAcbError(
+      res,
+      403,
+      ACB_RESPONSE_CODES.IP_FORBIDDEN,
+      'IP address not allowed',
+    );
   }
 
   return next();
@@ -230,7 +251,12 @@ function checkAcbBruteForce(req, res, next) {
 
   if (_isIpBlocked(clientIp)) {
     logger.warn('ACB Webhook: Request from blocked IP', { ip: clientIp });
-    return sendAcbError(res, 403, ACB_RESPONSE_CODES.IP_BLOCKED, 'Too many failed attempts. Try again later.');
+    return sendAcbError(
+      res,
+      403,
+      ACB_RESPONSE_CODES.IP_BLOCKED,
+      'Too many failed attempts. Try again later.',
+    );
   }
 
   // Attach helper so downstream middleware can record failures
@@ -258,7 +284,12 @@ function verifyAcbApiKey(req, res, next) {
   ) {
     logger.warn('ACB Webhook: Invalid or missing API key', { ip: clientIp });
     if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendAcbError(res, 401, ACB_RESPONSE_CODES.UNAUTHORIZED, 'Invalid or missing X-API-Key');
+    return sendAcbError(
+      res,
+      401,
+      ACB_RESPONSE_CODES.UNAUTHORIZED,
+      'Invalid or missing X-API-Key',
+    );
   }
 
   return next();
@@ -291,22 +322,39 @@ function verifyAcbChecksum(req, res, next) {
       header: checksumHeader,
     });
     if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendAcbError(res, 401, ACB_RESPONSE_CODES.MISSING_CHECKSUM, 'Missing checksum signature');
+    return sendAcbError(
+      res,
+      401,
+      ACB_RESPONSE_CODES.MISSING_CHECKSUM,
+      'Missing checksum signature',
+    );
   }
 
   const rawBody = req.rawBody;
   if (!rawBody) {
-    logger.error('ACB Webhook: rawBody not available — verify express.json({ verify }) is configured');
-    return sendAcbError(res, 500, ACB_RESPONSE_CODES.INTERNAL_ERROR, 'Internal server error');
+    logger.error(
+      'ACB Webhook: rawBody not available — verify express.json({ verify }) is configured',
+    );
+    return sendAcbError(
+      res,
+      500,
+      ACB_RESPONSE_CODES.INTERNAL_ERROR,
+      'Internal server error',
+    );
   }
 
   // Determine algorithm
-  let nodeAlgorithm = (env.acbWebhookChecksumAlgorithm || 'SHA256').toLowerCase();
+  let nodeAlgorithm = (
+    env.acbWebhookChecksumAlgorithm || 'SHA256'
+  ).toLowerCase();
   if (!SUPPORTED_ALGORITHMS.has(nodeAlgorithm.toUpperCase())) {
-    logger.warn('ACB Webhook: Unsupported checksum algorithm, falling back to sha256', {
-      configured: env.acbWebhookChecksumAlgorithm,
-      supported: Array.from(SUPPORTED_ALGORITHMS),
-    });
+    logger.warn(
+      'ACB Webhook: Unsupported checksum algorithm, falling back to sha256',
+      {
+        configured: env.acbWebhookChecksumAlgorithm,
+        supported: Array.from(SUPPORTED_ALGORITHMS),
+      },
+    );
     nodeAlgorithm = 'sha256';
   }
 
@@ -334,7 +382,12 @@ function verifyAcbChecksum(req, res, next) {
       algorithm: nodeAlgorithm,
     });
     if (req._acbRecordAuthFailure) req._acbRecordAuthFailure();
-    return sendAcbError(res, 401, ACB_RESPONSE_CODES.INVALID_CHECKSUM, 'Invalid checksum signature');
+    return sendAcbError(
+      res,
+      401,
+      ACB_RESPONSE_CODES.INVALID_CHECKSUM,
+      'Invalid checksum signature',
+    );
   }
 
   return next();
