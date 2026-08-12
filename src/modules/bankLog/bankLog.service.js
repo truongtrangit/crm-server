@@ -196,6 +196,7 @@ class BankLogService {
         id: ids[i],
         txId,
         bank: acbTx.transactionEntityAttribute?.issuerBankName || 'ACB',
+        bankTxCode: acbTx.transactionCode ? String(acbTx.transactionCode) : null,
         sender: acbTx.transactionEntityAttribute?.remitterName || null,
         senderAccountNumber: acbTx.transactionEntityAttribute?.remitterAccountNumber || null,
         amount: acbTx.amount,
@@ -684,6 +685,7 @@ class BankLogService {
 
     const payload = {
       txId: tx.txId,
+      bankTxCode: tx.bankTxCode,
       bank: tx.bank,
       sender: tx.sender,
       senderAccountNumber: tx.senderAccountNumber,
