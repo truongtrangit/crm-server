@@ -30,6 +30,8 @@ const {
   PERMISSIONS,
   MODULE_TO_PERMISSIONS_MAP,
   ROLE_DEFINITIONS,
+  ACTION_IMPLICATIONS,
+  IMPLICIT_SHARED_PERMISSIONS,
 } = require('../../../core/constants/rbac');
 const {
   DEFAULT_PASSWORD_STRENGTH,
@@ -124,6 +126,14 @@ function ensurePasswordStrength(password) {
   }
 }
 
+/**
+ * Compute flat permission array from moduleAccess entries.
+ *
+ * Implements 3 strategies:
+ * 1. MODULE_TO_PERMISSIONS_MAP → resolve actions to flat permissions
+ * 2. ACTION_IMPLICATIONS → create auto-adds view, edit auto-adds view, etc.
+ * 3. IMPLICIT_SHARED_PERMISSIONS → metadata_read, functions_read auto-granted
+ */
 function computePermissionsFromModuleAccess(moduleAccess, roleName) {
   if (!Array.isArray(moduleAccess) || moduleAccess.length === 0) {
     return [];
@@ -139,16 +149,14 @@ function computePermissionsFromModuleAccess(moduleAccess, roleName) {
     const actionMap = MODULE_TO_PERMISSIONS_MAP[moduleKey];
 
     if (actionMap) {
+      // Step 1: Collect actions to grant (either explicit or role-based fallback)
+      let actionsToGrant = [];
+
       if (
         entry.customPermissions !== null &&
         Array.isArray(entry.customPermissions)
       ) {
-        // Explicitly granted custom actions
-        for (const action of entry.customPermissions) {
-          if (actionMap[action]) {
-            actionMap[action].forEach((p) => permissions.add(p));
-          }
-        }
+        actionsToGrant = [...entry.customPermissions];
       } else {
         // Fallback to role permissions for this module
         if (role && Array.isArray(role.permissions)) {
@@ -158,12 +166,36 @@ function computePermissionsFromModuleAccess(moduleAccess, roleName) {
               role.permissions.includes(p),
             );
             if (hasAllPerms) {
-              requiredPerms.forEach((p) => permissions.add(p));
+              actionsToGrant.push(action);
             }
           }
         }
       }
+
+      // Step 2: Apply ACTION_IMPLICATIONS (e.g., create → view)
+      const expandedActions = new Set(actionsToGrant);
+      for (const action of actionsToGrant) {
+        const implied = ACTION_IMPLICATIONS[action];
+        if (implied) {
+          implied.forEach((a) => expandedActions.add(a));
+        }
+      }
+
+      // Step 3: Grant permissions for all expanded actions
+      for (const action of expandedActions) {
+        if (actionMap[action]) {
+          actionMap[action].forEach((p) => {
+            if (p) permissions.add(p);
+          });
+        }
+      }
     }
+  }
+
+  // Step 4: Apply IMPLICIT_SHARED_PERMISSIONS
+  // Khi user có BẤT KỲ moduleAccess nào → tự động grant shared permissions
+  if (permissions.size > 0) {
+    IMPLICIT_SHARED_PERMISSIONS.forEach((p) => permissions.add(p));
   }
 
   return Array.from(permissions);

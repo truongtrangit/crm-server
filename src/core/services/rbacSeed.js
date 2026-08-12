@@ -1,3 +1,4 @@
+const CacheService = require('./CacheService');
 const Permission = require('../../modules/system/rbac/permission.model');
 const Role = require('../../modules/system/rbac/role.model');
 const User = require('../../modules/system/user/user.model');
@@ -8,25 +9,26 @@ const {
   ACTIONS,
 } = require('../constants/rbac');
 
-
 /**
  * Seed permissions and roles into database
  */
 async function seedRbac() {
   try {
-    console.log("Starting RBAC seed...");
+    console.log('Starting RBAC seed...');
 
     const permissionDocs = Object.entries(PERMISSIONS).map(([key, value]) => {
-      const lastUnderscore = value.lastIndexOf("_");
-      const resource = lastUnderscore !== -1 ? value.slice(0, lastUnderscore) : value;
-      const action = lastUnderscore !== -1 ? value.slice(lastUnderscore + 1) : "read";
+      const lastUnderscore = value.lastIndexOf('_');
+      const resource =
+        lastUnderscore !== -1 ? value.slice(0, lastUnderscore) : value;
+      const action =
+        lastUnderscore !== -1 ? value.slice(lastUnderscore + 1) : 'read';
       return {
         id: value,
         name: key,
         description: `${action} permission for ${resource} resource`,
         resource,
         action,
-        createdBy: "SYSTEM",
+        createdBy: 'SYSTEM',
       };
     });
 
@@ -51,7 +53,7 @@ async function seedRbac() {
       level: roleConfig.level,
       permissions: roleConfig.permissions,
       isSystem: true,
-      createdBy: "SYSTEM",
+      createdBy: 'SYSTEM',
     }));
 
     if (roleDocs.length > 0) {
@@ -68,10 +70,16 @@ async function seedRbac() {
 
     console.log(`✓ Synced ${roleDocs.length} system roles`);
 
-    console.log("✓ RBAC seed completed successfully");
+    // Invalidate role cache so server immediately picks up updated permissions
+    for (const role of roleDocs) {
+      await CacheService.del(`rbac:role:${role.id}`);
+      await CacheService.del(`rbac:role:${role.name.toUpperCase()}`);
+    }
+
+    console.log('✓ RBAC seed completed successfully');
     return true;
   } catch (error) {
-    console.error("Error seeding RBAC:", error);
+    console.error('Error seeding RBAC:', error);
     throw error;
   }
 }
@@ -82,14 +90,16 @@ async function seedRbac() {
  */
 async function migrateUsersToRbac() {
   try {
-    console.log("Starting user migration to RBAC...");
+    console.log('Starting user migration to RBAC...');
 
     const roles = await Role.find({}, { id: 1, name: 1 }).lean();
     const rolesById = new Map(roles.map((role) => [role.id, role]));
-    const staffRole = roles.find((r) => r.name === "STAFF") || null;
+    const staffRole = roles.find((r) => r.name === 'STAFF') || null;
 
     // Only migrate users that don't have a valid roleId yet
-    const users = await User.find({ $or: [{ roleId: null }, { roleId: { $exists: false } }] });
+    const users = await User.find({
+      $or: [{ roleId: null }, { roleId: { $exists: false } }],
+    });
     let migrated = 0;
 
     for (const user of users) {
@@ -104,7 +114,7 @@ async function migrateUsersToRbac() {
     console.log(`✓ Migrated ${migrated} users to RBAC`);
     return migrated;
   } catch (error) {
-    console.error("Error migrating users to RBAC:", error);
+    console.error('Error migrating users to RBAC:', error);
     throw error;
   }
 }

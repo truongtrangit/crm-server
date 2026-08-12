@@ -116,6 +116,21 @@ const createTemplate = async (data, user) => {
     data.curriculum = await assignIdsToCurriculum(data.curriculum);
   }
 
+  if (data.lecturers && data.lecturers.length > 0) {
+    const lecturerIds = data.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   computePriceRange(data);
 
   const template = new CourseChallenge({
@@ -153,6 +168,21 @@ const updateTemplate = async (id, data, user) => {
     data.curriculum = await assignIdsToCurriculum(data.curriculum);
   }
 
+  if (data.lecturers && data.lecturers.length > 0) {
+    const lecturerIds = data.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   computePriceRange(data);
 
   Object.assign(template, data);
@@ -169,6 +199,23 @@ const deleteTemplate = async (id) => {
   if (!template) {
     throw createHttpError(404, 'Không tìm thấy Khóa mẫu');
   }
+
+  const deployedCourses = await CourseChallenge.find(
+    { templateId: id, isDeleted: { $ne: true } },
+    'id',
+  ).lean();
+  const allRelatedIds = [id, ...deployedCourses.map((c) => c.id)];
+
+  const enrollmentCount = await CourseEnrollment.countDocuments({
+    courseId: { $in: allRelatedIds },
+  });
+  if (enrollmentCount > 0) {
+    throw createHttpError(
+      400,
+      `Không thể xóa Khóa mẫu đã có ${enrollmentCount} học viên tham gia`,
+    );
+  }
+
   template.isDeleted = true;
   template.deletedAt = new Date();
   await template.save();
@@ -241,17 +288,19 @@ const getCourseById = async (id) => {
     throw createHttpError(404, 'Không tìm thấy Khóa triển khai');
   }
 
-  const courseIds = [course.id];
-  const templateIds = course.templateId ? [course.templateId] : [];
-  const siblingCourses = course.templateId
+  const templateId = course.templateId;
+  const relatedCourses = templateId
     ? await CourseChallenge.find(
-        { templateId: course.templateId },
+        {
+          $or: [{ id: templateId }, { templateId: templateId }],
+          isDeleted: { $ne: true },
+        },
         { id: 1, templateId: 1 },
       ).lean()
     : [];
 
-  const allCourseIdsToCount = new Set(courseIds);
-  siblingCourses.forEach((c) => allCourseIdsToCount.add(c.id));
+  const allCourseIdsToCount = new Set([course.id]);
+  relatedCourses.forEach((c) => allCourseIdsToCount.add(c.id));
 
   const stats = await CourseEnrollment.aggregate([
     { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
@@ -279,9 +328,9 @@ const getCourseById = async (id) => {
 
   course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
 
-  if (course.templateId) {
+  if (templateId) {
     let totalStudied = 0;
-    siblingCourses.forEach((c) => {
+    relatedCourses.forEach((c) => {
       totalStudied += statsByCourse[c.id]?.totalStudents || 0;
     });
     course.completedStudents = totalStudied;
@@ -325,6 +374,21 @@ const cloneTemplateToCourse = async (templateId, configData, user) => {
   delete template.updatedAt;
 
   computePriceRange(configData);
+
+  if (configData.lecturers && configData.lecturers.length > 0) {
+    const lecturerIds = configData.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
 
   const deployedCourse = new CourseChallenge({
     ...template,
@@ -407,6 +471,21 @@ const updateCourse = async (id, data, user) => {
 
   computePriceRange(data);
 
+  if (data.lecturers && data.lecturers.length > 0) {
+    const lecturerIds = data.lecturers.map((l) => l.lecturerId);
+    const activeLecturersCount = await CourseLecturer.countDocuments({
+      id: { $in: lecturerIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+    if (activeLecturersCount !== lecturerIds.length) {
+      throw createHttpError(
+        400,
+        'Một hoặc nhiều giảng viên trong danh sách không tồn tại hoặc đã bị vô hiệu hóa',
+      );
+    }
+  }
+
   Object.assign(course, data);
   await course.save();
   return course;
@@ -421,6 +500,17 @@ const deleteCourse = async (id) => {
   if (!course) {
     throw createHttpError(404, 'Không tìm thấy Khóa triển khai');
   }
+
+  const enrollmentCount = await CourseEnrollment.countDocuments({
+    courseId: course.id,
+  });
+  if (enrollmentCount > 0) {
+    throw createHttpError(
+      400,
+      `Không thể xóa khóa học đã có ${enrollmentCount} học viên tham gia`,
+    );
+  }
+
   course.isDeleted = true;
   course.deletedAt = new Date();
   await course.save();
@@ -472,12 +562,15 @@ const getMyProgress = async (courseId, studentId) => {
 
     const formatUnlockTime = (date) => {
       const d = new Date(date);
-      // Ensure we get local time string in a predictable format, e.g., '14:30 22/06/2026'
+      // Ensure we get Vietnam time string
       const timeStr = d.toLocaleTimeString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
         hour: '2-digit',
         minute: '2-digit',
       });
-      const dateStr = d.toLocaleDateString('vi-VN');
+      const dateStr = d.toLocaleDateString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+      });
       return `Mở vào ${timeStr} ${dateStr}`;
     };
 
@@ -643,22 +736,19 @@ const getPublicCourses = async (queryParams, studentId = null) => {
       courseId: { $in: courseIds },
     }).lean();
 
+    const allEnrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
     const activeCourseIds = new Set(
       enrollments
         .filter((e) => e.status === COURSE_ENROLLMENT_STATUS.ACTIVE)
         .map((e) => e.courseId),
     );
-    const lockedCourseIds = new Set(
-      enrollments
-        .filter((e) => e.status !== COURSE_ENROLLMENT_STATUS.ACTIVE)
-        .map((e) => e.courseId),
-    );
 
     courses.forEach((course) => {
-      if (activeCourseIds.has(course.id)) {
+      if (allEnrolledCourseIds.has(course.id)) {
         course.isEnrolled = true;
-      } else if (lockedCourseIds.has(course.id)) {
-        course.isLocked = true;
+        if (!activeCourseIds.has(course.id)) {
+          course.isLocked = true;
+        }
       }
     });
   }
@@ -667,13 +757,19 @@ const getPublicCourses = async (queryParams, studentId = null) => {
     const courseIds = courses.map((c) => c.id);
     const templateIds = courses.map((c) => c.templateId).filter(Boolean);
 
-    const siblingCourses = await CourseChallenge.find(
-      { templateId: { $in: templateIds } },
+    const relatedCourses = await CourseChallenge.find(
+      {
+        $or: [
+          { id: { $in: templateIds } },
+          { templateId: { $in: templateIds } },
+        ],
+        isDeleted: { $ne: true },
+      },
       { id: 1, templateId: 1 },
     ).lean();
 
     const allCourseIdsToCount = new Set(courseIds);
-    siblingCourses.forEach((c) => allCourseIdsToCount.add(c.id));
+    relatedCourses.forEach((c) => allCourseIdsToCount.add(c.id));
 
     const stats = await CourseEnrollment.aggregate([
       { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
@@ -700,15 +796,16 @@ const getPublicCourses = async (queryParams, studentId = null) => {
     }, {});
 
     const statsByTemplate = {};
-    siblingCourses.forEach((c) => {
-      if (!statsByTemplate[c.templateId]) statsByTemplate[c.templateId] = 0;
-      statsByTemplate[c.templateId] += statsByCourse[c.id]?.totalStudents || 0;
+    relatedCourses.forEach((c) => {
+      const tId = c.templateId || c.id;
+      if (!statsByTemplate[tId]) statsByTemplate[tId] = 0;
+      statsByTemplate[tId] += statsByCourse[c.id]?.totalStudents || 0;
     });
 
     courses.forEach((course) => {
       course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
-      if (course.templateId) {
-        course.completedStudents = statsByTemplate[course.templateId] || 0;
+      if (course.templateId && statsByTemplate[course.templateId] !== undefined) {
+        course.completedStudents = statsByTemplate[course.templateId];
       } else {
         course.completedStudents = statsByCourse[course.id]?.totalStudents || 0;
       }
@@ -733,6 +830,56 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
     throw createHttpError(404, 'Không tìm thấy khóa học');
   }
 
+  const templateId = course.templateId;
+  const relatedCourses = templateId
+    ? await CourseChallenge.find(
+        {
+          $or: [{ id: templateId }, { templateId: templateId }],
+          isDeleted: { $ne: true },
+        },
+        { id: 1, templateId: 1 },
+      ).lean()
+    : [];
+
+  const allCourseIdsToCount = new Set([course.id]);
+  relatedCourses.forEach((c) => allCourseIdsToCount.add(c.id));
+
+  const stats = await CourseEnrollment.aggregate([
+    { $match: { courseId: { $in: Array.from(allCourseIdsToCount) } } },
+    {
+      $group: {
+        _id: '$courseId',
+        totalStudents: { $sum: 1 },
+        activeStudents: {
+          $sum: {
+            $cond: [
+              { $eq: ['$status', COURSE_ENROLLMENT_STATUS.ACTIVE] },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ]);
+
+  const statsByCourse = stats.reduce((acc, curr) => {
+    acc[curr._id] = curr;
+    return acc;
+  }, {});
+
+  course.activeStudents = statsByCourse[course.id]?.activeStudents || 0;
+
+  if (templateId) {
+    let totalStudied = 0;
+    relatedCourses.forEach((c) => {
+      totalStudied += statsByCourse[c.id]?.totalStudents || 0;
+    });
+    course.completedStudents = totalStudied;
+  } else {
+    course.completedStudents = statsByCourse[course.id]?.totalStudents || 0;
+  }
+
   let isEnrolled = false;
   if (studentId) {
     const enrollment = await CourseEnrollment.findOne({
@@ -740,10 +887,11 @@ const getPublicCourseBySlug = async (slug, studentId = null) => {
       studentId,
     });
     if (enrollment) {
+      course.isEnrolled = true;
+      course.enrollmentId = enrollment.id;
+      course.enrollmentStatus = enrollment.status;
       if (enrollment.status === COURSE_ENROLLMENT_STATUS.ACTIVE) {
         isEnrolled = true;
-        course.isEnrolled = true;
-        course.enrollmentId = enrollment.id;
         const progressData = await module.exports.getMyProgress(
           course.id,
           studentId,

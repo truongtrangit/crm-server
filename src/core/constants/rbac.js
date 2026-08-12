@@ -38,9 +38,13 @@ const RESOURCES = {
   COURSES_ENROLLMENTS: "courses_enrollments", // Đăng ký khóa học
   COURSES_SUBMISSIONS: "courses_submissions", // Nộp bài
   COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
+  COURSES_CREDITS: "courses_credits", // Lịch sử nạp credit
+  COURSES_FAVORITES: "courses_favorites", // Khoá học yêu thích
   ZCODES: "zcodes", // Quản lý ZCode
   BANK_LOGS: "bank_logs", // Bank Log transactions
   BANK_LOG_RULES: "bank_log_rules", // Bank Log routing rules
+  INVOICES: "invoices", // Hoá đơn điện tử
+  INVOICE_PROVIDERS: "invoice_providers", // Cấu hình nhà cung cấp HĐĐT
 };
 
 // Actions
@@ -303,11 +307,17 @@ const PERMISSIONS = {
   COURSES_SUBMISSIONS_READ: `${RESOURCES.COURSES_SUBMISSIONS}_${ACTIONS.READ}`,
   COURSES_SUBMISSIONS_UPDATE: `${RESOURCES.COURSES_SUBMISSIONS}_${ACTIONS.UPDATE}`,
 
-  // Course Knowledge
   COURSES_KNOWLEDGE_READ: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.READ}`,
   COURSES_KNOWLEDGE_CREATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.CREATE}`,
   COURSES_KNOWLEDGE_UPDATE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.UPDATE}`,
   COURSES_KNOWLEDGE_DELETE: `${RESOURCES.COURSES_KNOWLEDGE}_${ACTIONS.DELETE}`,
+
+  // Course Credits
+  COURSES_CREDITS_READ: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.READ}`,
+  COURSES_CREDITS_MANAGE: `${RESOURCES.COURSES_CREDITS}_${ACTIONS.MANAGE}`,
+
+  // Course Favorites
+  COURSES_FAVORITES_READ: `${RESOURCES.COURSES_FAVORITES}_${ACTIONS.READ}`,
 
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
@@ -323,6 +333,14 @@ const PERMISSIONS = {
   BANK_LOGS_DELETE: `${RESOURCES.BANK_LOGS}_${ACTIONS.DELETE}`,
   BANK_LOGS_MANAGE: `${RESOURCES.BANK_LOGS}_${ACTIONS.MANAGE}`,
   BANK_LOG_RULES_CONFIG: `${RESOURCES.BANK_LOG_RULES}_${ACTIONS.CONFIG}`,
+
+  // Invoice
+  INVOICES_READ: `${RESOURCES.INVOICES}_${ACTIONS.READ}`,
+  INVOICES_CREATE: `${RESOURCES.INVOICES}_${ACTIONS.CREATE}`,
+  INVOICES_UPDATE: `${RESOURCES.INVOICES}_${ACTIONS.UPDATE}`,
+  INVOICES_DELETE: `${RESOURCES.INVOICES}_${ACTIONS.DELETE}`,
+  INVOICES_MANAGE: `${RESOURCES.INVOICES}_${ACTIONS.MANAGE}`,
+  INVOICE_PROVIDERS_CONFIG: `${RESOURCES.INVOICE_PROVIDERS}_${ACTIONS.CONFIG}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -356,9 +374,17 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.JOBHUB_WORK_READ,
   PERMISSIONS.JOBHUB_TASK_CREATE,
   PERMISSIONS.JOBHUB_TASK_UPDATE,
+  PERMISSIONS.JOBHUB_TASK_DELETE,         // delete_task action
   PERMISSIONS.JOBHUB_CONFIG_STATUS_READ,
   PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ,
   PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ,
+  PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_READ, // jobhub.tasks.view cần
+  PERMISSIONS.JOBHUB_FOLDER_CREATE,       // manage_folders action
+  PERMISSIONS.JOBHUB_FOLDER_UPDATE,
+  PERMISSIONS.JOBHUB_FOLDER_DELETE,
+  PERMISSIONS.JOBHUB_CONFIG_READ,         // jobhub.config.view
+  PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ, // jobhub.config.repeatRule.view
+  PERMISSIONS.USERS_READ, // Cần cho dropdown "người phụ trách" ở hầu hết modules
 ];
 
 const MANAGER_PERMISSIONS = Array.from(
@@ -378,6 +404,7 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.ORGANIZATION_MANAGE,
     PERMISSIONS.ACTIONS_CFG_CREATE,
     PERMISSIONS.ACTIONS_CFG_UPDATE,
+    PERMISSIONS.ACTIONS_CFG_DELETE,
     PERMISSIONS.STAFFS_READ,
     PERMISSIONS.STAFFS_CREATE,
     PERMISSIONS.STAFFS_UPDATE,
@@ -392,6 +419,15 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.COMPANIES_CREATE,
     PERMISSIONS.COMPANIES_UPDATE,
     PERMISSIONS.COMPANIES_DELETE,
+    PERMISSIONS.EVENTS_DELETE,
+    PERMISSIONS.EVENT_CHAINS_DELETE,
+    PERMISSIONS.LEADS_DELETE,
+    PERMISSIONS.LEADS_CFG_MANAGE,
+    PERMISSIONS.TASKS_DELETE,
+    PERMISSIONS.TASK_CHAINS_DELETE,
+    PERMISSIONS.META_DELETE,
+    PERMISSIONS.ROLES_READ,
+    PERMISSIONS.PERMISSIONS_READ,
     PERMISSIONS.JOBHUB_TASK_DELETE,
     PERMISSIONS.JOBHUB_FOLDER_CREATE,
     PERMISSIONS.JOBHUB_FOLDER_UPDATE,
@@ -413,6 +449,7 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE,
     PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE,
     PERMISSIONS.JOBHUB_CONFIG_READ,
+    PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_READ,
 
     PERMISSIONS.COURSE_CONFIG_READ,
     PERMISSIONS.COURSE_CONFIG_CREATE,
@@ -449,6 +486,11 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.COURSES_KNOWLEDGE_CREATE,
     PERMISSIONS.COURSES_KNOWLEDGE_UPDATE,
     PERMISSIONS.COURSES_KNOWLEDGE_DELETE,
+
+    PERMISSIONS.COURSES_CREDITS_READ,
+    PERMISSIONS.COURSES_CREDITS_MANAGE,
+
+    PERMISSIONS.COURSES_FAVORITES_READ,
   ]),
 );
 
@@ -459,15 +501,13 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.CUSTOMERS_MANAGE,
     PERMISSIONS.EVENTS_MANAGE,
     PERMISSIONS.EVENT_CHAINS_MANAGE,
-    PERMISSIONS.ROLES_READ,
-    PERMISSIONS.PERMISSIONS_READ,
+    PERMISSIONS.ROLES_MANAGE,
     PERMISSIONS.FUNCTIONS_MANAGE,
     PERMISSIONS.ACTIONS_CFG_MANAGE,
     PERMISSIONS.LOGS_SYSTEM_READ,
     PERMISSIONS.LOGS_WEBHOOK_READ,
     PERMISSIONS.LOGS_AUTOMATION_READ,
     PERMISSIONS.META_MANAGE,
-    PERMISSIONS.LEADS_CFG_MANAGE,
     PERMISSIONS.LEADS_MANAGE,
     PERMISSIONS.TASKS_MANAGE,
     PERMISSIONS.TASK_CHAINS_MANAGE,
@@ -488,6 +528,8 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.ZCODES_MANAGE,
     PERMISSIONS.BANK_LOGS_MANAGE,
     PERMISSIONS.BANK_LOG_RULES_CONFIG,
+    PERMISSIONS.INVOICES_MANAGE,
+    PERMISSIONS.INVOICE_PROVIDERS_CONFIG,
   ]),
 );
 
@@ -518,6 +560,32 @@ const ROLE_DEFINITIONS = {
     permissions: STAFF_PERMISSIONS,
   },
 };
+
+// ─── Permission Implication Engine ─────────────────────────────────────────────
+// Khi user có action A, tự động grant action B.
+// Pattern: "Nếu bạn có quyền create, bạn PHẢI có quyền view"
+// Áp dụng khi computePermissionsFromModuleAccess() chạy.
+const ACTION_IMPLICATIONS = {
+  create: ["view"],       // create → phải có view
+  edit: ["view"],         // edit → phải có view
+  delete: ["view"],       // delete → phải có view
+  configure: ["view"],    // configure → phải có view
+  export: ["view"],       // export → phải có view
+  clone: ["view"],        // clone → phải có view
+  create_task: ["view"],  // jobhub: create task → phải có view
+  edit_task: ["view"],    // jobhub: edit task → phải có view
+  delete_task: ["view"],  // jobhub: delete task → phải có view
+  manage_folders: ["view"], // jobhub: manage folders → phải có view
+};
+
+// ─── Implicit Shared Permissions ──────────────────────────────────────────────
+// Permissions được tự động grant khi user có bất kỳ moduleAccess nào.
+// Đây là các API dùng chung cho dropdown, filter, lookup controls.
+const IMPLICIT_SHARED_PERMISSIONS = [
+  PERMISSIONS.METADATA_READ,          // Dropdown roles, departments, groups
+  PERMISSIONS.FUNCTIONS_READ,         // Dropdown chức năng (vai trò nhân sự)
+  PERMISSIONS.FUNCTIONAL_GROUPS_READ, // Dropdown khối chức năng
+];
 
 // ─── Module-Level Access Control (MLAC) Definitions ────────────────────────────
 // Defines the modules visible in the FE sidebar and the per-module permissions
@@ -787,6 +855,20 @@ const MODULE_DEFINITIONS = {
     parentKey: "courses",
     actions: ["view", "create", "edit", "delete"],
   },
+  "courses.credits": {
+    key: "courses.credits",
+    label: "Lịch sử nạp Credit",
+    type: "sub",
+    parentKey: "courses",
+    actions: ["view", "edit"],
+  },
+  "courses.favorites": {
+    key: "courses.favorites",
+    label: "Khoá học yêu thích",
+    type: "sub",
+    parentKey: "courses",
+    actions: ["view"],
+  },
   "courses.instructors": {
     key: "courses.instructors",
     label: "Giảng viên",
@@ -810,7 +892,7 @@ const MODULE_DEFINITIONS = {
     label: "Lịch sử giao dịch",
     type: "sub",
     parentKey: "bankLog",
-    actions: ["view", "create", "edit", "delete"],
+    actions: ["view", "edit", "export"],
   },
   "bankLog.rules": {
     key: "bankLog.rules",
@@ -818,6 +900,22 @@ const MODULE_DEFINITIONS = {
     type: "sub",
     parentKey: "bankLog",
     actions: ["view", "create", "edit", "delete"],
+  },
+
+  invoice: { key: "invoice", label: "Hóa đơn", type: "root", actions: [] },
+  "invoice.manage": {
+    key: "invoice.manage",
+    label: "Quản lý hóa đơn",
+    type: "sub",
+    parentKey: "invoice",
+    actions: ["view", "create", "edit", "delete"],
+  },
+  "invoice.config": {
+    key: "invoice.config",
+    label: "Cấu hình nhà cung cấp",
+    type: "sub",
+    parentKey: "invoice",
+    actions: ["view", "configure"],
   },
 };
 
@@ -844,7 +942,11 @@ const MODULE_TO_PERMISSIONS_MAP = {
       PERMISSIONS.USERS_READ,
     ],
     create: [PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASK_CHAINS_CREATE],
-    edit: [PERMISSIONS.TASKS_UPDATE, PERMISSIONS.TASK_CHAINS_UPDATE],
+    edit: [
+      PERMISSIONS.TASKS_UPDATE,
+      PERMISSIONS.TASK_CHAINS_UPDATE,
+      PERMISSIONS.TASK_CHAINS_CLOSE,
+    ],
     delete: [PERMISSIONS.TASKS_DELETE, PERMISSIONS.TASK_CHAINS_DELETE],
   },
   "operations.events": {
@@ -860,20 +962,30 @@ const MODULE_TO_PERMISSIONS_MAP = {
       PERMISSIONS.EVENT_CHAINS_CREATE,
       PERMISSIONS.CUSTOMERS_READ,
     ],
-    edit: [PERMISSIONS.EVENTS_UPDATE, PERMISSIONS.EVENT_CHAINS_UPDATE],
+    edit: [
+      PERMISSIONS.EVENTS_UPDATE,
+      PERMISSIONS.EVENT_CHAINS_UPDATE,
+      PERMISSIONS.EVENT_CHAINS_CLOSE,
+    ],
     delete: [PERMISSIONS.EVENTS_DELETE, PERMISSIONS.EVENT_CHAINS_DELETE],
-    configure: [PERMISSIONS.ACTIONS_CFG_MANAGE],
+    configure: [
+      PERMISSIONS.ACTIONS_CFG_MANAGE,
+      PERMISSIONS.ACTIONS_CFG_CREATE,
+      PERMISSIONS.ACTIONS_CFG_UPDATE,
+      PERMISSIONS.ACTIONS_CFG_DELETE,
+    ],
   },
   "operations.leads": {
     view: [
-      PERMISSIONS.LEADS_READ,
-      PERMISSIONS.ACTIONS_CFG_READ,
-      PERMISSIONS.USERS_READ,
+      PERMISSIONS.LEADS_READ,      // GET /leads, Kanban board
+      PERMISSIONS.ACTIONS_CFG_READ, // Dropdown action chain
+      PERMISSIONS.USERS_READ,       // Dropdown người phụ trách
+      // LEADS_CFG_MANAGE KHÔNG cần cho view — GET /lead-config/statuses & /groups chỉ cần LEADS_READ
     ],
     create: [PERMISSIONS.LEADS_CREATE],
     edit: [PERMISSIONS.LEADS_UPDATE],
     delete: [PERMISSIONS.LEADS_DELETE],
-    configure: [PERMISSIONS.LEADS_CFG_MANAGE],
+    configure: [PERMISSIONS.LEADS_CFG_MANAGE], // Quản lý funnel/group config
   },
   "meta.program": {
     view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ],
@@ -888,7 +1000,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
     delete: [PERMISSIONS.META_MANAGE],
   },
   "staff.users": {
-    view: [PERMISSIONS.USERS_READ, PERMISSIONS.COMPANIES_READ],
+    view: [
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.COMPANIES_READ,
+      PERMISSIONS.ROLES_READ,        // Dropdown vai trò khi edit user
+      PERMISSIONS.PERMISSIONS_READ,  // Đọc danh sách permissions
+    ],
     create: [PERMISSIONS.USERS_CREATE],
     edit: [PERMISSIONS.USERS_UPDATE],
     delete: [PERMISSIONS.USERS_DELETE],
@@ -1034,29 +1151,71 @@ const MODULE_TO_PERMISSIONS_MAP = {
     delete: [PERMISSIONS.COURSE_LECTURERS_DELETE],
   },
   "courses.online": {
-    view: [PERMISSIONS.COURSES_ONLINE_READ],
+    view: [
+      PERMISSIONS.COURSES_ONLINE_READ,
+      PERMISSIONS.COURSE_CONFIG_READ,
+      PERMISSIONS.COURSE_LECTURERS_READ,
+    ],
     create: [PERMISSIONS.COURSES_ONLINE_CREATE],
     edit: [PERMISSIONS.COURSES_ONLINE_UPDATE],
     delete: [PERMISSIONS.COURSES_ONLINE_DELETE],
   },
   "courses.offline": {
-    view: [PERMISSIONS.COURSES_OFFLINE_READ],
+    view: [
+      PERMISSIONS.COURSES_OFFLINE_READ,
+      PERMISSIONS.COURSE_CONFIG_READ,
+      PERMISSIONS.COURSE_LECTURERS_READ,
+    ],
+    create: [PERMISSIONS.COURSES_OFFLINE_CREATE],
+    edit: [PERMISSIONS.COURSES_OFFLINE_UPDATE],
+    delete: [PERMISSIONS.COURSES_OFFLINE_DELETE],
+  },
+  "courses.zoom": {
+    view: [
+      PERMISSIONS.COURSES_OFFLINE_READ,
+      PERMISSIONS.COURSE_CONFIG_READ,
+      PERMISSIONS.COURSE_LECTURERS_READ,
+    ],
     create: [PERMISSIONS.COURSES_OFFLINE_CREATE],
     edit: [PERMISSIONS.COURSES_OFFLINE_UPDATE],
     delete: [PERMISSIONS.COURSES_OFFLINE_DELETE],
   },
   "courses.challenges": {
-    view: [PERMISSIONS.COURSES_CHALLENGES_READ, PERMISSIONS.COURSE_ENROLLMENTS_READ],
+    view: [
+      PERMISSIONS.COURSES_CHALLENGES_READ,
+      PERMISSIONS.COURSE_ENROLLMENTS_READ,
+      PERMISSIONS.COURSES_SUBMISSIONS_READ, // Tab nộp bài trong chi tiết khóa thử thách
+      PERMISSIONS.COURSE_CONFIG_READ,
+      PERMISSIONS.COURSE_LECTURERS_READ,
+    ],
     create: [PERMISSIONS.COURSES_CHALLENGES_CREATE],
-    edit: [PERMISSIONS.COURSES_CHALLENGES_UPDATE, PERMISSIONS.COURSE_ENROLLMENTS_UPDATE],
+    edit: [
+      PERMISSIONS.COURSES_CHALLENGES_UPDATE,
+      PERMISSIONS.COURSE_ENROLLMENTS_UPDATE,
+      PERMISSIONS.COURSES_SUBMISSIONS_UPDATE,
+    ],
     delete: [PERMISSIONS.COURSES_CHALLENGES_DELETE],
     clone: [PERMISSIONS.COURSES_CHALLENGES_CLONE],
   },
   "courses.knowledge": {
-    view: [PERMISSIONS.COURSES_KNOWLEDGE_READ],
+    view: [
+      PERMISSIONS.COURSES_KNOWLEDGE_READ,
+      PERMISSIONS.COURSE_CONFIG_READ,
+    ],
     create: [PERMISSIONS.COURSES_KNOWLEDGE_CREATE],
     edit: [PERMISSIONS.COURSES_KNOWLEDGE_UPDATE],
     delete: [PERMISSIONS.COURSES_KNOWLEDGE_DELETE],
+  },
+  "courses.credits": {
+    view: [
+      PERMISSIONS.COURSES_CREDITS_READ,
+    ],
+    edit: [PERMISSIONS.COURSES_CREDITS_MANAGE],
+  },
+  "courses.favorites": {
+    view: [
+      PERMISSIONS.COURSES_FAVORITES_READ,
+    ],
   },
   "zcode.manage": {
     view: [PERMISSIONS.ZCODES_READ],
@@ -1067,15 +1226,24 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   "bankLog.transactions": {
     view: [PERMISSIONS.BANK_LOGS_READ],
-    create: [PERMISSIONS.BANK_LOGS_CREATE],
     edit: [PERMISSIONS.BANK_LOGS_UPDATE],
-    delete: [PERMISSIONS.BANK_LOGS_DELETE],
+    export: [PERMISSIONS.BANK_LOGS_READ],
   },
   "bankLog.rules": {
     view: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
     create: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
     edit: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
     delete: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
+  },
+  "invoice.manage": {
+    view: [PERMISSIONS.INVOICES_READ],
+    create: [PERMISSIONS.INVOICES_CREATE],
+    edit: [PERMISSIONS.INVOICES_UPDATE],
+    delete: [PERMISSIONS.INVOICES_DELETE],
+  },
+  "invoice.config": {
+    view: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],
+    configure: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],
   },
 };
 
@@ -1095,4 +1263,6 @@ module.exports = {
   MODULE_DEFINITIONS,
   MODULE_TO_PERMISSIONS_MAP,
   VALID_ASSIGNABLE_PERMISSIONS,
+  ACTION_IMPLICATIONS,
+  IMPLICIT_SHARED_PERMISSIONS,
 };

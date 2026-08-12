@@ -63,6 +63,16 @@ const env = {
     process.env.SMAX_CREDIT_VALIDATION_URL ||
     'https://dev.smax.ai/api/backdoors/botvn/billing',
   smaxCreditValidationToken: process.env.SMAX_CREDIT_VALIDATION_TOKEN || '',
+
+  // ─── eInvoice (BKAV eHoaDon) ──────────────────────────────────────────────
+  // Endpoint WebService: Dev=wsdemo.ehoadon.vn, Prod=ws.ehoadon.vn
+  bkavInvoiceEndpoint:
+    process.env.BKAV_INVOICE_ENDPOINT ||
+    'https://wsdemo.ehoadon.vn/WSPublicEHoaDon.asmx',
+  bkavInvoicePartnerGUID: process.env.BKAV_INVOICE_PARTNER_GUID || '',
+  bkavInvoicePartnerToken: process.env.BKAV_INVOICE_PARTNER_TOKEN || '',
+  bkavInvoiceCmdType: Number(process.env.BKAV_INVOICE_CMD_TYPE) || 111,
+  bkavInvoiceSerial: process.env.BKAV_INVOICE_SERIAL || '',  // Ký hiệu HĐ: MAA, MVK
 };
 
 Object.freeze(env);

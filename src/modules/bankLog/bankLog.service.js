@@ -195,8 +195,10 @@ class BankLogService {
       return {
         id: ids[i],
         txId,
-        bank: 'ACB',
+        bank: acbTx.transactionEntityAttribute?.issuerBankName || 'ACB',
+        bankTxCode: acbTx.transactionCode ? String(acbTx.transactionCode) : null,
         sender: acbTx.transactionEntityAttribute?.remitterName || null,
+        senderAccountNumber: acbTx.transactionEntityAttribute?.remitterAccountNumber || null,
         amount: acbTx.amount,
         content: acbTx.transactionContent || null,
         transactionDate: acbTx.transactionDate ? new Date(acbTx.transactionDate) : new Date(),
@@ -392,13 +394,18 @@ class BankLogService {
 
     // Resolve createdBy IDs to user names
     const creatorIds = [...new Set(items.map((r) => r.createdBy).filter(Boolean))];
+    let userMap = {};
     if (creatorIds.length > 0) {
       const users = await User.find({ id: { $in: creatorIds } }, 'id name').lean();
-      const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
-      for (const item of items) {
-        if (item.createdBy) {
-          item.createdByName = userMap[item.createdBy] || item.createdBy;
-        }
+      userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+    }
+
+    for (const item of items) {
+      if (item.createdBy) {
+        item.createdByName = userMap[item.createdBy] || item.createdBy;
+      }
+      if (item.targetApi && item.targetApi.headers instanceof Map) {
+        item.targetApi.headers = Object.fromEntries(item.targetApi.headers);
       }
     }
 
@@ -415,25 +422,48 @@ class BankLogService {
     });
 
     await CacheService.del(RULES_CACHE_KEY);
-    return rule.toObject();
+    const ruleObj = rule.toObject();
+    if (ruleObj.targetApi && ruleObj.targetApi.headers instanceof Map) {
+      ruleObj.targetApi.headers = Object.fromEntries(ruleObj.targetApi.headers);
+    }
+    return ruleObj;
   }
 
   async updateRule(id, data) {
-    const rule = await BankLogRoutingRule.findOneAndUpdate(
-      { id },
-      { $set: data },
-      { new: true, runValidators: true },
-    ).lean();
-
+    const rule = await BankLogRoutingRule.findOne({ id });
     if (!rule) throw createHttpError(404, 'Không tìm thấy quy tắc');
 
+    if (data.targetApi) {
+      // Clear authToken if switching to an authType that doesn't need it
+      if (['none', 'custom_header'].includes(data.targetApi.authType)) {
+        data.targetApi.authToken = null;
+      }
+      rule.targetApi = data.targetApi;
+    }
+
+    if (data.name !== undefined) rule.name = data.name;
+    if (data.priority !== undefined) rule.priority = data.priority;
+    if (data.isActive !== undefined) rule.isActive = data.isActive;
+    if (data.conditions !== undefined) rule.conditions = data.conditions;
+
+    await rule.save();
     await CacheService.del(RULES_CACHE_KEY);
-    return rule;
+
+    const ruleObj = rule.toObject();
+    if (ruleObj.targetApi && ruleObj.targetApi.headers instanceof Map) {
+      ruleObj.targetApi.headers = Object.fromEntries(ruleObj.targetApi.headers);
+    }
+
+    return ruleObj;
   }
 
   async deleteRule(id) {
     const rule = await BankLogRoutingRule.findOneAndDelete({ id }).lean();
     if (!rule) throw createHttpError(404, 'Không tìm thấy quy tắc');
+
+    if (rule.targetApi && rule.targetApi.headers instanceof Map) {
+      rule.targetApi.headers = Object.fromEntries(rule.targetApi.headers);
+    }
 
     await CacheService.del(RULES_CACHE_KEY);
     return rule;
@@ -580,14 +610,22 @@ class BankLogService {
       // Numeric operators
       case 'greater_than':
         return Number(txValue) > Number(value);
+      case 'greater_than_or_equal':
+        return Number(txValue) >= Number(value);
       case 'less_than':
         return Number(txValue) < Number(value);
+      case 'less_than_or_equal':
+        return Number(txValue) <= Number(value);
       case 'equal':
         return String(txValue).toLowerCase() === value.toLowerCase();
+      case 'not_equal':
+        return String(txValue).toLowerCase() !== value.toLowerCase();
 
       // String operators
       case 'contains':
         return String(txValue).toLowerCase().includes(value.toLowerCase());
+      case 'not_contains':
+        return !String(txValue).toLowerCase().includes(value.toLowerCase());
       case 'starts_with':
         return String(txValue).toLowerCase().startsWith(value.toLowerCase());
       case 'ends_with':
@@ -647,8 +685,10 @@ class BankLogService {
 
     const payload = {
       txId: tx.txId,
+      bankTxCode: tx.bankTxCode,
       bank: tx.bank,
       sender: tx.sender,
+      senderAccountNumber: tx.senderAccountNumber,
       amount: tx.amount,
       content: tx.content,
       transactionDate: tx.transactionDate,

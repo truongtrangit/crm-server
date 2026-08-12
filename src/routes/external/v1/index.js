@@ -44,6 +44,7 @@ externalV1Router.use(
 externalV1Router.use('/credits', require('./credits.routes'));
 externalV1Router.use('/checkout', require('./checkout.routes'));
 externalV1Router.use('/enrollments', require('./enrollment.routes'));
+externalV1Router.use('/favorites', require('./favorites.routes'));
 externalV1Router.use('/submissions', require('./submissions.routes'));
 
 module.exports = externalV1Router;

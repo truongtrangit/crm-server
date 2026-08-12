@@ -62,6 +62,7 @@ const ID_PREFIXES = Object.freeze({
   COURSE_CATEGORY: "CCT",
   COURSE_HASHTAG: "CHT",
   COURSE_LECTURER: "CLT",
+  FAVORITE_COURSE: "FAV",
 
   // Course Challenge
   COURSE_CHALLENGE_TEMPLATE: "CHCT",
@@ -82,6 +83,13 @@ const ID_PREFIXES = Object.freeze({
   // Bank Log
   BANK_LOG_TX: "BLT",
   BANK_LOG_RULE: "BLR",
+
+  // Invoice
+  INVOICE: "INV",
+  INVOICE_PROVIDER: "INVP",
+
+  // Topup Request
+  TOPUP_REQUEST: "TPR",
 });
 
 /**
