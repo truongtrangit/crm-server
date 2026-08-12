@@ -224,15 +224,17 @@ class CheckoutService {
           );
         }
 
+        const price = pkg.price || 0;
+
         // Check payment method support
-        if (!pkg.paymentTypes || !pkg.paymentTypes.includes(paymentMethod)) {
+        // Best practice: if price is 0, we don't need to strictly check paymentTypes,
+        // or at least we allow 'free' method without requiring it to be in paymentTypes.
+        if (price > 0 && (!pkg.paymentTypes || !pkg.paymentTypes.includes(paymentMethod))) {
           throw createHttpError(
             400,
             `Phương thức thanh toán ${paymentMethod} không được hỗ trợ cho gói ${packageId}`,
           );
         }
-
-        const price = pkg.price || 0;
 
         switch (paymentMethod) {
           case PAYMENT_METHODS.MAIN_CREDIT:
@@ -251,6 +253,12 @@ class CheckoutService {
             totalEduCreditRequired += price;
             break;
           case PAYMENT_METHODS.FREE:
+            if (price > 0) {
+              throw createHttpError(
+                400,
+                `Gói giá ${packageId} không miễn phí, không thể sử dụng phương thức thanh toán này`,
+              );
+            }
             break;
           default:
             throw createHttpError(
