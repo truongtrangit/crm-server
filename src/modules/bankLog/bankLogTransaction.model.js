@@ -8,6 +8,7 @@ const bankLogTransactionSchema = new mongoose.Schema(
     txId: { type: String, required: true, unique: true, trim: true },
     bank: { type: String, required: true, trim: true },
     sender: { type: String, default: null, trim: true },
+    senderAccountNumber: { type: String, default: null, trim: true },
     amount: { type: Number, required: true },
     content: { type: String, default: null, trim: true },
     transactionDate: { type: Date, default: null },
