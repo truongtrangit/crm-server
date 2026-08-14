@@ -25,6 +25,7 @@ const env = {
 
   // ─── External API ────────────────────────────────────────────────────────────
   externalApiKey: process.env.EXTERNAL_API_KEY || 'botvn_key_123',
+  integrationWebhookApiKey: process.env.INTEGRATION_WEBHOOK_API_KEY || '',
 
   // ─── Video Encryption ─────────────────────────────────────────────────────────
   // 32-byte hex key for AES-256-GCM videoId encryption.

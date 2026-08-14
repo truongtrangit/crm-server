@@ -201,7 +201,10 @@ class CheckoutService {
           (e) => e.courseId === courseId || e.courseId === item.courseId,
         );
         if (existingEnr || enrolledSet.has(courseId)) {
-          if (existingEnr && existingEnr.status !== COURSE_ENROLLMENT_STATUS.ACTIVE) {
+          if (
+            existingEnr &&
+            existingEnr.status !== COURSE_ENROLLMENT_STATUS.ACTIVE
+          ) {
             throw createHttpError(
               400,
               `Khóa học "${course.title || course.name || courseId}" của bạn hiện đang bị KHOÁ. Vui lòng liên hệ Admin để được hỗ trợ.`,
@@ -354,12 +357,13 @@ class CheckoutService {
       await CourseEnrollment.insertMany(enrollmentsToCreate, { session });
 
       // Log transaction
-      await SystemLogService.log(
-        'create',
-        'Checkout',
-        studentId, // Or generate a generic transaction ID
-        'checkout',
-        {
+      await SystemLogService.log({
+        action: 'create',
+        resource: 'other', // fallback since 'Checkout' is not in RESOURCES by default, or you can use RESOURCES if imported
+        resourceId: studentId,
+        resourceName: 'checkout',
+        description: 'Checkout transaction',
+        metadata: {
           items,
           totalMainCreditRequired,
           totalRewardCreditRequired,
@@ -368,8 +372,8 @@ class CheckoutService {
           remainingRewardCredit: customer.rewardCredit,
           remainingEduCredit: customer.eduCredit,
         },
-        studentId, // Actor
-      );
+        performedBy: { userId: studentId, userName: 'Student' },
+      });
 
       await session.commitTransaction();
       session.endSession();

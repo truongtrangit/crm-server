@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const { softDeletePlugin } = require('../../../core/utils/softDelete');
-const { EVENT_GROUP_IDS } = require('../../../core/constants/eventGroups');
 
 const timelineEntrySchema = new mongoose.Schema(
   {
@@ -36,9 +35,9 @@ const eventSchema = new mongoose.Schema(
     isArchived: { type: Boolean, default: false },
     name: { type: String, required: true, trim: true },
     sub: { type: String, default: "" },
+    /** Group ID — ref EventGroup collection (DB-driven, không dùng enum) */
     group: {
       type: String,
-      enum: EVENT_GROUP_IDS,
       required: true,
     },
     customerId: { type: String, ref: "Customer", default: null, index: true },

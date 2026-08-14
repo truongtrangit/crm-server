@@ -6,12 +6,16 @@ const Task = require('../../job/task/task.model');
 const Funnel = require('../funnel/funnel.model');
 const LeadStatusGroup = require('../leadConfig/leadStatusGroup.model');
 const TaskService = require('../../job/task/task.service');
+const TaskActionChainService = require('../../job/taskActionChain/taskActionChain.service');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { buildSearchRegex } = require('../../../core/utils/query');
 const { resolveSort } = require('../../../core/utils/pagination');
 const { createHttpError } = require('../../../core/utils/http');
 const { computeChanges } = require('../../../core/utils/diff');
-const { LEAD_STAGE_MAP, getNextStage } = require('../../../core/constants/leadStages');
+const {
+  LEAD_STAGE_MAP,
+  getNextStage,
+} = require('../../../core/constants/leadStages');
 
 class LeadService {
   /**
@@ -26,7 +30,7 @@ class LeadService {
    */
   async getLeads(queryParams, scopeFilter = {}) {
     const {
-      search = "",
+      search = '',
       stage,
       lastId,
       limit: rawLimit = 20,
@@ -50,7 +54,7 @@ class LeadService {
           { email: searchRegex },
           { phone: searchRegex },
           { id: searchRegex },
-          { "assignees.userName": searchRegex },
+          { 'assignees.userName': searchRegex },
         ],
       });
     }
@@ -59,15 +63,15 @@ class LeadService {
 
     if (stage) query.stage = stage;
 
-    if (isArchived === "true") {
+    if (isArchived === 'true') {
       query.isArchived = true;
-    } else if (isArchived === "false" || !isArchived) {
+    } else if (isArchived === 'false' || !isArchived) {
       query.isArchived = { $ne: true };
     }
 
     // ── Cursor-based lazy load ──
     if (lastId) {
-      const lastDoc = await Lead.findOne({ id: lastId }).select("createdAt");
+      const lastDoc = await Lead.findOne({ id: lastId }).select('createdAt');
       if (lastDoc) {
         query.createdAt = { $lt: lastDoc.createdAt };
       }
@@ -85,10 +89,10 @@ class LeadService {
     if (items.length > 0) {
       const leadIds = items.map((l) => l.id);
       const activeTasks = await Task.find({
-        "linkedLeads.leadId": { $in: leadIds },
-        status: "active",
+        'linkedLeads.leadId': { $in: leadIds },
+        status: 'active',
       })
-        .select("name linkedLeads")
+        .select('name linkedLeads')
         .lean();
 
       for (const lead of items) {
@@ -117,7 +121,7 @@ class LeadService {
     // RBAC Scoping — đồng bộ với getLeads
     const counts = await Lead.aggregate([
       { $match: { ...scopeFilter, isArchived: { $ne: true } } },
-      { $group: { _id: "$stage", count: { $sum: 1 } } },
+      { $group: { _id: '$stage', count: { $sum: 1 } } },
     ]);
 
     return Object.fromEntries(counts.map((c) => [c._id, c.count]));
@@ -126,7 +130,7 @@ class LeadService {
   async getLeadById(id) {
     const lead = await Lead.findOne({ id });
     if (!lead) {
-      throw createHttpError(404, "Lead not found", { code: "LEAD_NOT_FOUND" });
+      throw createHttpError(404, 'Lead not found', { code: 'LEAD_NOT_FOUND' });
     }
     return lead;
   }
@@ -137,6 +141,15 @@ class LeadService {
   async createLead(data, currentUser) {
     const id = await generateMonotonicId(ID_PREFIXES.LEAD);
 
+    // Kiểm tra funnel hợp lệ trước khi tạo
+    let funnel = null;
+    if (data.funnelId) {
+      funnel = await Funnel.findOne({ id: data.funnelId }).lean();
+      if (!funnel) {
+        throw createHttpError(400, 'Phễu không hợp lệ', { code: 'INVALID_FUNNEL' });
+      }
+    }
+
     // Auto-map customer nếu email/phone khớp
     let customerId = null;
     if (data.email || data.phone) {
@@ -144,7 +157,7 @@ class LeadService {
       if (data.email) matchConditions.push({ email: data.email.toLowerCase() });
       if (data.phone) matchConditions.push({ phone: data.phone });
       const customer = await Customer.findOne({ $or: matchConditions }).select(
-        "id",
+        'id',
       );
       if (customer) customerId = customer.id;
     }
@@ -155,28 +168,60 @@ class LeadService {
     const lead = await Lead.create({
       id,
       name: data.name,
-      avatar: data.avatar || "",
-      email: data.email || "",
-      phone: data.phone || "",
-      stage: data.stage || "lead_moi",
+      avatar: data.avatar || '',
+      email: data.email || '',
+      phone: data.phone || '',
+      stage: data.stage || 'lead_moi',
       funnelId: data.funnelId || null,
       statusId: data.statusId || null,
       customerId,
       assignees,
       address: data.address || {},
-      street: data.street || "",
-      source: data.source || "CRM",
+      street: data.street || '',
+      source: data.source || 'CRM',
       createdBy: currentUser?.id || null,
       tags: data.tags || [],
-      note: data.note || "",
+      note: data.note || '',
       activityLogs: [
         {
-          action: "create",
+          action: 'create',
           description: `Tạo lead "${data.name}"`,
           performedBy: this._extractPerformer(currentUser),
         },
       ],
     });
+
+    // Bổ sung logic Funnel Auto-Chain
+    if (
+      funnel &&
+      funnel.autoCreateChain &&
+      funnel.actionChainIds?.length > 0
+    ) {
+        try {
+          const taskName = `Xử lý Lead: ${lead.name}`;
+          const task = await TaskService.createTask(
+            {
+              name: taskName,
+              note: `Tự động tạo tác vụ từ phễu "${funnel.name}"`,
+              linkedLeads: [{ leadId: lead.id }],
+            },
+            currentUser,
+          );
+          for (const chainId of funnel.actionChainIds) {
+            await TaskActionChainService.addChainToTask(
+              task.id,
+              chainId,
+              currentUser,
+            );
+          }
+          // NOTE: Biến tạm `_autoTask` đóng vai trò như một caching property.
+          // Mục đích để IntegrationConfigService (hoặc các luồng webhook gọi createLead)
+          // biết rằng tác vụ đã được tạo tự động bởi phễu, tránh việc tạo trùng lặp tác vụ.
+          lead._autoTask = task;
+        } catch (err) {
+          console.error(`Lỗi tạo auto-chain cho lead ${lead.id}:`, err);
+        }
+      }
 
     return lead;
   }
@@ -205,27 +250,27 @@ class LeadService {
       if (matchConditions.length > 0) {
         const customer = await Customer.findOne({
           $or: matchConditions,
-        }).select("id");
+        }).select('id');
         if (customer) updates.customerId = customer.id;
       }
     }
 
     // Whitelist updatable fields
     const allowedFields = [
-      "name",
-      "avatar",
-      "email",
-      "phone",
-      "stage",
-      "funnelId",
-      "statusId",
-      "address",
-      "street",
-      "source",
-      "tags",
-      "note",
-      "customerId",
-      "assignees",
+      'name',
+      'avatar',
+      'email',
+      'phone',
+      'stage',
+      'funnelId',
+      'statusId',
+      'address',
+      'street',
+      'source',
+      'tags',
+      'note',
+      'customerId',
+      'assignees',
     ];
     const $set = {};
     for (const key of allowedFields) {
@@ -238,21 +283,21 @@ class LeadService {
     let desc = `Cập nhật lead "${lead.name}"`;
     if (updatedKeys.length > 0) {
       const fieldNames = {
-        name: "tên",
-        avatar: "ảnh đại diện",
-        email: "email",
-        phone: "SĐT",
-        stage: "trạng thái",
-        assignees: "người phụ trách",
-        address: "khu vực",
-        street: "địa chỉ",
-        source: "nguồn",
-        tags: "tags",
-        note: "ghi chú",
-        customerId: "khách hàng",
+        name: 'tên',
+        avatar: 'ảnh đại diện',
+        email: 'email',
+        phone: 'SĐT',
+        stage: 'trạng thái',
+        assignees: 'người phụ trách',
+        address: 'khu vực',
+        street: 'địa chỉ',
+        source: 'nguồn',
+        tags: 'tags',
+        note: 'ghi chú',
+        customerId: 'khách hàng',
       };
       const names = updatedKeys.map((k) => fieldNames[k] || k);
-      desc = `Cập nhật ${names.join(", ")}`;
+      desc = `Cập nhật ${names.join(', ')}`;
     }
 
     const changes = computeChanges(before, lead.toObject());
@@ -260,7 +305,7 @@ class LeadService {
     // Push activity log
     const performer = this._extractPerformer(currentUser);
     lead.activityLogs.push({
-      action: "update",
+      action: 'update',
       description: desc,
       performedBy: performer,
       metadata: { updatedFields: updatedKeys, changes },
@@ -282,9 +327,9 @@ class LeadService {
     if (!nextStage) {
       throw createHttpError(
         400,
-        "Lead đã ở giai đoạn cuối, không thể chuyển tiếp.",
+        'Lead đã ở giai đoạn cuối, không thể chuyển tiếp.',
         {
-          code: "ALREADY_FINAL_STAGE",
+          code: 'ALREADY_FINAL_STAGE',
         },
       );
     }
@@ -295,15 +340,15 @@ class LeadService {
 
     // Auto-add timeline entry
     lead.timeline.push({
-      type: "event",
+      type: 'event',
       title: `Chuyển sang: ${nextStage.label}`,
-      createdBy: currentUser?.name || currentUser?.id || "",
+      createdBy: currentUser?.name || currentUser?.id || '',
     });
 
     // Push activity log
     const performer = this._extractPerformer(currentUser);
     lead.activityLogs.push({
-      action: "stage_change",
+      action: 'stage_change',
       description: `Chuyển từ "${previousStageLabel}" sang "${nextStage.label}"`,
       performedBy: performer,
       metadata: { from: before.stage, to: nextStage.id },
@@ -330,7 +375,7 @@ class LeadService {
     // Push activity log before soft delete
     const performer = this._extractPerformer(currentUser);
     lead.activityLogs.push({
-      action: "delete",
+      action: 'delete',
       description: `Xóa lead "${lead.name}"`,
       performedBy: performer,
     });
@@ -341,14 +386,14 @@ class LeadService {
     // ━ Cascade: close all active Tasks linked to this Lead
     try {
       const activeTasks = await Task.find({
-        "linkedLeads.leadId": id,
-        status: { $ne: "closed" },
+        'linkedLeads.leadId': id,
+        status: { $ne: 'closed' },
       });
       for (const task of activeTasks) {
         const performer = currentUser || {
-          id: "system",
-          name: "System",
-          email: "",
+          id: 'system',
+          name: 'System',
+          email: '',
         };
         await TaskService.closeTask(task.id, performer).catch((err) => {
           console.error(
@@ -358,7 +403,7 @@ class LeadService {
         });
       }
     } catch (err) {
-      console.error("Error during cascading task close for lead", err);
+      console.error('Error during cascading task close for lead', err);
     }
 
     return lead;
@@ -388,7 +433,7 @@ class LeadService {
       }
     } else {
       // Legacy stage fallback
-      if (lead.stage === "chot_hop_dong") {
+      if (lead.stage === 'chot_hop_dong') {
         isLastStep = true;
       }
     }
@@ -396,15 +441,15 @@ class LeadService {
     if (!isLastStep) {
       throw createHttpError(
         400,
-        "BAD_REQUEST",
-        "Chỉ được phép lưu trữ khi Lead ở trạng thái cuối cùng của phễu",
+        'BAD_REQUEST',
+        'Chỉ được phép lưu trữ khi Lead ở trạng thái cuối cùng của phễu',
       );
     }
 
     const performer = this._extractPerformer(currentUser);
     lead.isArchived = true;
     lead.activityLogs.push({
-      action: "update",
+      action: 'update',
       description: `Lưu trữ lead "${lead.name}"`,
       performedBy: performer,
     });
@@ -417,7 +462,7 @@ class LeadService {
     const performer = this._extractPerformer(currentUser);
     lead.isArchived = false;
     lead.activityLogs.push({
-      action: "update",
+      action: 'update',
       description: `Khôi phục lead "${lead.name}" từ lưu trữ`,
       performedBy: performer,
     });
@@ -432,14 +477,14 @@ class LeadService {
     const lead = await this.getLeadById(id);
     lead.timeline.push({
       ...entryData,
-      createdBy: currentUser?.name || currentUser?.id || "",
+      createdBy: currentUser?.name || currentUser?.id || '',
     });
 
     // Push activity log
     const performer = this._extractPerformer(currentUser);
     lead.activityLogs.push({
-      action: "add_timeline",
-      description: `Thêm ${entryData.type === "phone" ? "cuộc gọi" : entryData.type === "email" ? "email" : "ghi chú"}: "${entryData.title}"`,
+      action: 'add_timeline',
+      description: `Thêm ${entryData.type === 'phone' ? 'cuộc gọi' : entryData.type === 'email' ? 'email' : 'ghi chú'}: "${entryData.title}"`,
       performedBy: performer,
     });
 
@@ -472,13 +517,13 @@ class LeadService {
     const lead = await this.getLeadById(id);
 
     // Kiểm tra vai trò của người dùng nếu là STAFF hoặc MANAGER
-    const userRole = (currentUser.roleId || "").toUpperCase();
-    if (["STAFF", "MANAGER"].includes(userRole)) {
+    const userRole = (currentUser.roleId || '').toUpperCase();
+    if (['STAFF', 'MANAGER'].includes(userRole)) {
       const userFuncs = currentUser.functions || [];
       if (!functionId || !userFuncs.includes(functionId)) {
         throw createHttpError(
           403,
-          "Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.",
+          'Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.',
         );
       }
     }
@@ -505,7 +550,7 @@ class LeadService {
 
     const performer = this._extractPerformer(currentUser);
     lead.activityLogs.push({
-      action: "assign",
+      action: 'assign',
       description: `Tự nhận phụ trách lead "${lead.name}"`,
       performedBy: performer,
       metadata: { changes },
@@ -549,12 +594,12 @@ class LeadService {
     const [users, funcs] = await Promise.all([
       userIds.length > 0
         ? User.find({ id: { $in: userIds }, isActive: { $ne: false } })
-            .select("id name avatar")
+            .select('id name avatar')
             .lean()
         : [],
       funcIds.length > 0
         ? StaffFunction.find({ id: { $in: funcIds } })
-            .select("id title")
+            .select('id title')
             .lean()
         : [],
     ]);
@@ -565,8 +610,8 @@ class LeadService {
     // If user is inactive, return error
     rawAssignees.forEach((a) => {
       if (!userMap[a.userId]) {
-        throw createHttpError(400, "User not found or inactive", {
-          code: "USER_NOT_FOUND",
+        throw createHttpError(400, 'User not found or inactive', {
+          code: 'USER_NOT_FOUND',
         });
       }
     });
@@ -575,10 +620,10 @@ class LeadService {
       .filter((a) => a.userId && userMap[a.userId]) // chỉ lấy user hợp lệ + active
       .map((a) => ({
         userId: a.userId,
-        userName: userMap[a.userId]?.name || "",
-        userAvatar: userMap[a.userId]?.avatar || "",
+        userName: userMap[a.userId]?.name || '',
+        userAvatar: userMap[a.userId]?.avatar || '',
         functionId: a.functionId || null,
-        functionTitle: a.functionId ? funcMap[a.functionId]?.title || "" : "",
+        functionTitle: a.functionId ? funcMap[a.functionId]?.title || '' : '',
       }));
   }
 
@@ -587,12 +632,12 @@ class LeadService {
    */
   _extractPerformer(currentUser) {
     if (!currentUser) {
-      return { userId: null, userName: "System", userAvatar: "" };
+      return { userId: null, userName: 'System', userAvatar: '' };
     }
     return {
       userId: currentUser.id || null,
-      userName: currentUser.name || "Unknown",
-      userAvatar: currentUser.avatar || "",
+      userName: currentUser.name || 'Unknown',
+      userAvatar: currentUser.avatar || '',
     };
   }
 }

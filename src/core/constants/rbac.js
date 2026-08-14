@@ -45,6 +45,7 @@ const RESOURCES = {
   BANK_LOG_RULES: 'bank_log_rules', // Bank Log routing rules
   INVOICES: 'invoices', // Hoá đơn điện tử
   INVOICE_PROVIDERS: 'invoice_providers', // Cấu hình nhà cung cấp HĐĐT
+  INTEGRATION: 'integration', // Cấu hình tích hợp đa module (Event Groups, Integration Config)
 };
 
 // Actions
@@ -343,6 +344,9 @@ const PERMISSIONS = {
   INVOICES_DELETE: `${RESOURCES.INVOICES}_${ACTIONS.DELETE}`,
   INVOICES_MANAGE: `${RESOURCES.INVOICES}_${ACTIONS.MANAGE}`,
   INVOICE_PROVIDERS_CONFIG: `${RESOURCES.INVOICE_PROVIDERS}_${ACTIONS.CONFIG}`,
+
+  // Integration Config (Event Groups + Integration Config)
+  INTEGRATION_CONFIG: `${RESOURCES.INTEGRATION}_${ACTIONS.CONFIG}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -534,6 +538,7 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.BANK_LOG_RULES_CONFIG,
     PERMISSIONS.INVOICES_MANAGE,
     PERMISSIONS.INVOICE_PROVIDERS_CONFIG,
+    PERMISSIONS.INTEGRATION_CONFIG,
   ]),
 );
 
@@ -720,13 +725,6 @@ const MODULE_DEFINITIONS = {
     type: 'sub',
     parentKey: 'logs',
     actions: ['view'],
-  },
-  'logs.external': {
-    key: 'logs.external',
-    label: 'External API Logs',
-    type: 'sub',
-    parentKey: 'logs',
-    actions: ['view', 'replay'],
   },
 
   finance: { key: 'finance', label: 'Tài chính', type: 'root', actions: [] },
@@ -1053,10 +1051,6 @@ const MODULE_TO_PERMISSIONS_MAP = {
   'logs.blockautomation': {
     view: [PERMISSIONS.LOGS_AUTOMATION_READ],
   },
-  'logs.external': {
-    view: [PERMISSIONS.LOGS_EXTERNAL_READ],
-    replay: [PERMISSIONS.LOGS_EXTERNAL_REPLAY],
-  },
   'finance.dashboard': {
     view: [PERMISSIONS.FINANCE_READ],
   },
@@ -1252,6 +1246,25 @@ const MODULE_TO_PERMISSIONS_MAP = {
   'invoice.config': {
     view: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],
     configure: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],
+  },
+  integration: {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+  },
+  'integration.event_groups': {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+    create: [PERMISSIONS.INTEGRATION_CONFIG],
+    edit: [PERMISSIONS.INTEGRATION_CONFIG],
+    delete: [PERMISSIONS.INTEGRATION_CONFIG],
+  },
+  'integration.configs': {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+    create: [PERMISSIONS.INTEGRATION_CONFIG],
+    edit: [PERMISSIONS.INTEGRATION_CONFIG],
+    delete: [PERMISSIONS.INTEGRATION_CONFIG],
+  },
+  'integration.config': {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+    configure: [PERMISSIONS.INTEGRATION_CONFIG],
   },
 };
 

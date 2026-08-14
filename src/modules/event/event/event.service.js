@@ -1,4 +1,5 @@
 const Event = require('./event.model');
+const EventGroupService = require('../eventGroup/eventGroup.service');
 const Customer = require('../../customer/customer/customer.model');
 const User = require('../../system/user/user.model');
 const StaffFunction = require('../../hr/function/staffFunction.model');
@@ -8,15 +9,18 @@ const EventActionChain = require('../eventActionChain/eventActionChain.model');
 const TaskService = require('../../job/task/task.service');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { buildSearchRegex } = require('../../../core/utils/query');
-const { resolvePagination, buildPaginatedResponse, resolveSort } = require('../../../core/utils/pagination');
+const {
+  resolvePagination,
+  buildPaginatedResponse,
+  resolveSort,
+} = require('../../../core/utils/pagination');
 const { createHttpError } = require('../../../core/utils/http');
 const { computeChanges } = require('../../../core/utils/diff');
 const { getDefaultAvatar } = require('../../../core/utils/avatar');
 
-
 class EventService {
   async getEvents(queryParams, scopeFilter = {}) {
-    const { search = "", group, stage, assignee, isArchived } = queryParams;
+    const { search = '', group, stage, assignee, isArchived } = queryParams;
     const searchRegex = buildSearchRegex(search);
     const { page, limit, skip } = resolvePagination(queryParams || {});
 
@@ -34,10 +38,10 @@ class EventService {
         $or: [
           { name: searchRegex },
           { id: searchRegex },
-          { "customer.name": searchRegex },
-          { "biz.id": searchRegex },
+          { 'customer.name': searchRegex },
+          { 'biz.id': searchRegex },
           { stage: searchRegex },
-          { "assignees.userName": searchRegex },
+          { 'assignees.userName': searchRegex },
         ],
       });
     }
@@ -52,9 +56,15 @@ class EventService {
 
     if (group) query.group = group;
     if (stage) query.stage = stage;
-    if (assignee) query["assignees.userId"] = assignee;
+    if (assignee) query['assignees.userId'] = assignee;
 
-    const sortObj = resolveSort(queryParams, ["createdAt", "name", "updatedAt", "customer.name", "stage"]);
+    const sortObj = resolveSort(queryParams, [
+      'createdAt',
+      'name',
+      'updatedAt',
+      'customer.name',
+      'stage',
+    ]);
 
     const [events, totalItems] = await Promise.all([
       Event.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
@@ -65,17 +75,12 @@ class EventService {
   }
 
   async getEventStats(scopeFilter = {}) {
-    const groups = [
-      "user_moi",
-      "biz_moi",
-      "can_nang_cap",
-      "sap_het_han",
-      "chuyen_khoan",
-    ];
+    const allGroups = await EventGroupService.listGroups();
+    const groups = allGroups.map((g) => g.id);
 
     const counts = await Event.aggregate([
       { $match: { ...scopeFilter, isArchived: { $ne: true } } },
-      { $group: { _id: "$group", count: { $sum: 1 } } },
+      { $group: { _id: '$group', count: { $sum: 1 } } },
     ]);
 
     const countMap = {};
@@ -97,7 +102,9 @@ class EventService {
   async getEventById(id) {
     const event = await Event.findOne({ id });
     if (!event) {
-      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     }
     return event;
   }
@@ -108,13 +115,15 @@ class EventService {
     // Build the mapped customer subdocument
     const payloadCust = payload.customer || {};
     const mappedCustomer = {
-      name: payloadCust.name || "Unknown",
-      avatar: payloadCust.avatar || getDefaultAvatar(payloadCust.name || payloadCust.email || "unknown"),
-      role: payloadCust.role || "",
-      email: payloadCust.email || "",
-      phone: payloadCust.phone || "",
-      source: payloadCust.source || "",
-      address: payloadCust.address || "",
+      name: payloadCust.name || 'Unknown',
+      avatar:
+        payloadCust.avatar ||
+        getDefaultAvatar(payloadCust.name || payloadCust.email || 'unknown'),
+      role: payloadCust.role || '',
+      email: payloadCust.email || '',
+      phone: payloadCust.phone || '',
+      source: payloadCust.source || '',
+      address: payloadCust.address || '',
     };
 
     // 1. Try to map Customer by email or phone
@@ -123,11 +132,17 @@ class EventService {
     else if (mappedCustomer.phone) custSearch.phone = mappedCustomer.phone;
 
     if (Object.keys(custSearch).length > 0) {
-      const existingCustomer = await Customer.findOne({ $or: [{ email: mappedCustomer.email }, { phone: mappedCustomer.phone }].filter(c => Object.values(c)[0]) });
+      const existingCustomer = await Customer.findOne({
+        $or: [
+          { email: mappedCustomer.email },
+          { phone: mappedCustomer.phone },
+        ].filter((c) => Object.values(c)[0]),
+      });
       if (existingCustomer) {
         customerId = existingCustomer.id;
         mappedCustomer.name = existingCustomer.name || mappedCustomer.name;
-        mappedCustomer.avatar = existingCustomer.avatar || mappedCustomer.avatar;
+        mappedCustomer.avatar =
+          existingCustomer.avatar || mappedCustomer.avatar;
       }
     }
 
@@ -136,34 +151,36 @@ class EventService {
 
     const event = await Event.create({
       id: await generateMonotonicId(ID_PREFIXES.EVENT),
-      name: payload.name || "Sự kiện mới",
-      sub: payload.sub || "",
+      name: payload.name || 'Sự kiện mới',
+      sub: payload.sub || '',
       group: payload.group,
       customerId,
       customer: mappedCustomer,
       assignees,
-      biz: payload.biz || { id: "", tags: [] },
-      stage: payload.stage || "",
-      source: payload.source || "CRM",
+      biz: payload.biz || { id: '', tags: [] },
+      stage: payload.stage || '',
+      source: payload.source || 'CRM',
       createdBy: currentUser?.id || null,
       tags: payload.tags || [],
       plan: payload.plan || {
-        name: "TRIAL",
-        cycle: "Thanh toán theo tháng",
-        price: "0 đ",
+        name: 'TRIAL',
+        cycle: 'Thanh toán theo tháng',
+        price: '0 đ',
         daysLeft: 30,
-        expiryDate: "",
+        expiryDate: '',
       },
       services: payload.services || [],
       quotas: payload.quotas || [],
       timeline: [
         {
-          type: "event",
-          title: "Sự kiện được tạo",
-          time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
+          type: 'event',
+          title: 'Sự kiện được tạo',
+          time: new Date().toLocaleString('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+          }),
           content: null,
           duration: null,
-          createdBy: currentUser?.name || "System",
+          createdBy: currentUser?.name || 'System',
         },
       ],
     });
@@ -173,7 +190,9 @@ class EventService {
   async updateEvent(id, payload) {
     const event = await Event.findOne({ id });
     if (!event) {
-      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     }
 
     // Capture old state for diffing
@@ -204,11 +223,17 @@ class EventService {
       else if (event.customer.phone) custSearch.phone = event.customer.phone;
 
       if (Object.keys(custSearch).length > 0) {
-        const existingCustomer = await Customer.findOne({ $or: [{ email: event.customer.email }, { phone: event.customer.phone }].filter(c => Object.values(c)[0]) });
+        const existingCustomer = await Customer.findOne({
+          $or: [
+            { email: event.customer.email },
+            { phone: event.customer.phone },
+          ].filter((c) => Object.values(c)[0]),
+        });
         if (existingCustomer) {
           event.customerId = existingCustomer.id;
           event.customer.name = existingCustomer.name || event.customer.name;
-          event.customer.avatar = existingCustomer.avatar || event.customer.avatar;
+          event.customer.avatar =
+            existingCustomer.avatar || event.customer.avatar;
         } else {
           event.customerId = null;
         }
@@ -244,7 +269,20 @@ class EventService {
 
     // Compute diff
     const newState = event.toObject();
-    const keysToCheck = ["name", "sub", "group", "stage", "source", "tags", "customer", "biz", "assignees", "plan", "services", "quotas"];
+    const keysToCheck = [
+      'name',
+      'sub',
+      'group',
+      'stage',
+      'source',
+      'tags',
+      'customer',
+      'biz',
+      'assignees',
+      'plan',
+      'services',
+      'quotas',
+    ];
     const changes = computeChanges(oldState, newState, keysToCheck);
 
     return { event, changes };
@@ -253,16 +291,20 @@ class EventService {
   async addEventTimeline(id, entryData, currentUser) {
     const event = await Event.findOne({ id });
     if (!event) {
-      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     }
 
     const entry = {
-      type: entryData.type || "note",
+      type: entryData.type || 'note',
       title: entryData.title,
-      time: entryData.time || new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
+      time:
+        entryData.time ||
+        new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
       content: entryData.content || null,
       duration: entryData.duration || null,
-      createdBy: currentUser?.name || "",
+      createdBy: currentUser?.name || '',
     };
 
     event.timeline.unshift(entry);
@@ -273,16 +315,22 @@ class EventService {
   async deleteEventTimeline(eventId, timelineId) {
     const event = await Event.findOne({ id: eventId });
     if (!event) {
-      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     }
 
     const initialLength = event.timeline.length;
-    const timelineEntry = event.timeline.find((entry) => entry._id.toString() === timelineId);
+    const timelineEntry = event.timeline.find(
+      (entry) => entry._id.toString() === timelineId,
+    );
 
-    event.timeline = event.timeline.filter((entry) => entry._id.toString() !== timelineId);
+    event.timeline = event.timeline.filter(
+      (entry) => entry._id.toString() !== timelineId,
+    );
 
     if (event.timeline.length === initialLength) {
-      throw createHttpError(404, "Timeline entry not found");
+      throw createHttpError(404, 'Timeline entry not found');
     }
 
     await event.save();
@@ -292,7 +340,9 @@ class EventService {
   async deleteEvent(id, currentUser) {
     const event = await Event.findOne({ id });
     if (!event) {
-      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     }
 
     // ━ Cascade: soft-delete all EventActionChains belonging to this event
@@ -304,17 +354,24 @@ class EventService {
     // ━ Cascade: close all active Tasks linked to this Event
     try {
       const activeTasks = await Task.find({
-        "linkedEvents.eventId": id,
-        status: { $ne: "closed" }
+        'linkedEvents.eventId': id,
+        status: { $ne: 'closed' },
       });
       for (const task of activeTasks) {
-        const performer = currentUser || { id: "system", name: "System", email: "" };
-        await TaskService.closeTask(task.id, performer).catch(err => {
-          console.error(`Failed to close task ${task.id} cascading from event ${id}`, err);
+        const performer = currentUser || {
+          id: 'system',
+          name: 'System',
+          email: '',
+        };
+        await TaskService.closeTask(task.id, performer).catch((err) => {
+          console.error(
+            `Failed to close task ${task.id} cascading from event ${id}`,
+            err,
+          );
         });
       }
     } catch (err) {
-      console.error("Error during cascading task close for event", err);
+      console.error('Error during cascading task close for event', err);
     }
 
     await event.softDelete();
@@ -322,14 +379,19 @@ class EventService {
 
   async archiveEvent(id, currentUser) {
     const event = await Event.findOne({ id });
-    if (!event) throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+    if (!event)
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     event.isArchived = true;
     event.timeline.unshift({
-      type: "note",
-      title: "Lưu trữ sự kiện",
-      time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
+      type: 'note',
+      title: 'Lưu trữ sự kiện',
+      time: new Date().toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }),
       content: null,
-      createdBy: currentUser?.name || "System",
+      createdBy: currentUser?.name || 'System',
     });
     await event.save();
     return event;
@@ -337,14 +399,19 @@ class EventService {
 
   async unarchiveEvent(id, currentUser) {
     const event = await Event.findOne({ id });
-    if (!event) throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+    if (!event)
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     event.isArchived = false;
     event.timeline.unshift({
-      type: "note",
-      title: "Khôi phục sự kiện từ lưu trữ",
-      time: new Date().toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
+      type: 'note',
+      title: 'Khôi phục sự kiện từ lưu trữ',
+      time: new Date().toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }),
       content: null,
-      createdBy: currentUser?.name || "System",
+      createdBy: currentUser?.name || 'System',
     });
     await event.save();
     return event;
@@ -353,12 +420,17 @@ class EventService {
   async syncCustomer(id) {
     const event = await Event.findOne({ id });
     if (!event) {
-      throw createHttpError(404, "Event not found", { code: "EVENT_NOT_FOUND" });
+      throw createHttpError(404, 'Event not found', {
+        code: 'EVENT_NOT_FOUND',
+      });
     }
 
     const { email, phone } = event.customer;
     if (!email && !phone) {
-      throw createHttpError(400, "Sự kiện này không có email hoặc số điện thoại để đồng bộ");
+      throw createHttpError(
+        400,
+        'Sự kiện này không có email hoặc số điện thoại để đồng bộ',
+      );
     }
 
     const orConditions = [];
@@ -368,7 +440,10 @@ class EventService {
     const existingCustomer = await Customer.findOne({ $or: orConditions });
 
     if (!existingCustomer) {
-      throw createHttpError(404, "Không tìm thấy khách hàng nào trong hệ thống khớp với thông tin này");
+      throw createHttpError(
+        404,
+        'Không tìm thấy khách hàng nào trong hệ thống khớp với thông tin này',
+      );
     }
 
     event.customerId = existingCustomer.id;
@@ -377,13 +452,13 @@ class EventService {
     event.customer.role = existingCustomer.role || event.customer.role;
     event.customer.email = existingCustomer.email || event.customer.email;
     event.customer.phone = existingCustomer.phone || event.customer.phone;
-    event.customer.source = event.customer.source || existingCustomer.source || "CRM";
+    event.customer.source =
+      event.customer.source || existingCustomer.source || 'CRM';
     event.customer.address = existingCustomer.address || event.customer.address;
 
     await event.save();
     return event;
   }
-
 
   /**
    * Bỏ phân công 1 user khỏi event.
@@ -398,12 +473,14 @@ class EventService {
     const event = await Event.findOne({ id });
     if (!event) throw createHttpError(404, 'Event not found');
 
-    const existingAssignee = event.assignees.find(a => a.userId === removeUserId);
+    const existingAssignee = event.assignees.find(
+      (a) => a.userId === removeUserId,
+    );
     if (!existingAssignee) {
       throw createHttpError(400, 'Người này chưa được phân công trong sự kiện');
     }
 
-    event.assignees = event.assignees.filter(a => a.userId !== removeUserId);
+    event.assignees = event.assignees.filter((a) => a.userId !== removeUserId);
     await event.save();
     return event;
   }
@@ -421,18 +498,28 @@ class EventService {
     if (['STAFF', 'MANAGER'].includes(userRole)) {
       const userFuncs = currentUser.functions || [];
       if (!functionId || !userFuncs.includes(functionId)) {
-        throw createHttpError(403, 'Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.');
+        throw createHttpError(
+          403,
+          'Tài khoản của bạn chưa được cấu hình vai trò này. Vui lòng liên hệ Admin.',
+        );
       }
     }
 
     // Kiểm tra đã assign chưa
-    const alreadyAssigned = event.assignees.some(a => a.userId === currentUser.id && a.functionId === functionId);
+    const alreadyAssigned = event.assignees.some(
+      (a) => a.userId === currentUser.id && a.functionId === functionId,
+    );
     if (alreadyAssigned) {
-      throw createHttpError(409, 'Bạn đã được phân công trong sự kiện này với vai trò này');
+      throw createHttpError(
+        409,
+        'Bạn đã được phân công trong sự kiện này với vai trò này',
+      );
     }
 
     // Resolve thông tin user
-    const resolved = await this._resolveAssignees([{ userId: currentUser.id, functionId }]);
+    const resolved = await this._resolveAssignees([
+      { userId: currentUser.id, functionId },
+    ]);
     if (resolved.length > 0) {
       event.assignees.push(resolved[0]);
     } else {
@@ -463,8 +550,16 @@ class EventService {
     const funcIds = rawAssignees.map((a) => a.functionId).filter(Boolean);
 
     const [users, funcs] = await Promise.all([
-      userIds.length > 0 ? User.find({ id: { $in: userIds }, isActive: { $ne: false } }).select("id name avatar").lean() : [],
-      funcIds.length > 0 ? StaffFunction.find({ id: { $in: funcIds } }).select("id title").lean() : [],
+      userIds.length > 0
+        ? User.find({ id: { $in: userIds }, isActive: { $ne: false } })
+            .select('id name avatar')
+            .lean()
+        : [],
+      funcIds.length > 0
+        ? StaffFunction.find({ id: { $in: funcIds } })
+            .select('id title')
+            .lean()
+        : [],
     ]);
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
@@ -474,10 +569,10 @@ class EventService {
       .filter((a) => a.userId && userMap[a.userId]) // chỉ lấy user hợp lệ + active
       .map((a) => ({
         userId: a.userId,
-        userName: userMap[a.userId]?.name || "",
-        userAvatar: userMap[a.userId]?.avatar || "",
+        userName: userMap[a.userId]?.name || '',
+        userAvatar: userMap[a.userId]?.avatar || '',
         functionId: a.functionId || null,
-        functionTitle: a.functionId ? (funcMap[a.functionId]?.title || "") : "",
+        functionTitle: a.functionId ? funcMap[a.functionId]?.title || '' : '',
       }));
   }
 }

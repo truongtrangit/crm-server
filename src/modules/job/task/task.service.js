@@ -220,14 +220,18 @@ class TaskService {
       linkedLeads,
     });
 
+    const userLog = currentUser
+      ? {
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email,
+        }
+      : { id: null, name: "System", email: "" };
+
     task.logs.push({
       action: "create",
       description: `Tạo mới tác vụ`,
-      user: {
-        id: currentUser.id,
-        name: currentUser.name,
-        email: currentUser.email,
-      },
+      user: userLog,
     });
 
     if (linkedEvents.length > 0) {
@@ -235,11 +239,7 @@ class TaskService {
         task.logs.push({
           action: "link",
           description: `Liên kết Sự kiện: ${e.eventName}`,
-          user: {
-            id: currentUser.id,
-            name: currentUser.name,
-            email: currentUser.email,
-          },
+          user: userLog,
         });
       });
     }
@@ -249,11 +249,7 @@ class TaskService {
         task.logs.push({
           action: "link",
           description: `Liên kết Lead: ${l.leadName}`,
-          user: {
-            id: currentUser.id,
-            name: currentUser.name,
-            email: currentUser.email,
-          },
+          user: userLog,
         });
       });
     }

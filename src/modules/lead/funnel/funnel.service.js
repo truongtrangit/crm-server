@@ -1,6 +1,7 @@
 const FunnelFolder = require('./funnelFolder.model');
 const FunnelGroup = require('./funnelGroup.model');
 const Funnel = require('./funnel.model');
+const ActionChain = require('../../event/eventActionChain/actionChain.model');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { createHttpError } = require('../../../core/utils/http');
 const { isSystemEntity, SYSTEM_IDS } = require('../../../core/constants/systemFunnel');
@@ -9,6 +10,16 @@ const { CACHE_TTL } = require('../../../core/constants/cache');
 const { computeChanges } = require('../../../core/utils/diff');
 
 class FunnelService {
+  async _validateActionChains(chainIds) {
+    if (!chainIds || chainIds.length === 0) return;
+    const existing = await ActionChain.find({ id: { $in: chainIds }, active: true }).select('id').lean();
+    const existingSet = new Set(existing.map(c => c.id));
+    const missing = chainIds.filter(id => !existingSet.has(id));
+    if (missing.length > 0) {
+      throw createHttpError(400, `Chuỗi hành động "${missing.join(', ')}" không tồn tại hoặc đã bị tắt.`);
+    }
+  }
+
   async getFolders() {
     return CacheService.withVersionedCache("funnels:folders", {}, CACHE_TTL.LONG, async () => {
       return await FunnelFolder.find().sort({ createdAt: 1 }).lean();
@@ -100,7 +111,7 @@ class FunnelService {
     }, { swr: true, maxTtl: CACHE_TTL.LONG });
   }
 
-  async createFunnel(data) {
+  async _prepareFunnelPayload(data) {
     const cleaned = { ...data };
     if (!cleaned.groupId || cleaned.groupId === "") cleaned.groupId = null;
     if (!cleaned.folderId || cleaned.folderId === "") cleaned.folderId = null;
@@ -111,6 +122,23 @@ class FunnelService {
     if (!cleaned.groupId && !cleaned.folderId) {
       throw createHttpError(400, "Phễu phải thuộc thư mục hoặc nhóm phễu.");
     }
+
+    // Chuẩn hóa Action Chains
+    const rawChainIds = cleaned.autoCreateChain && Array.isArray(cleaned.actionChainIds)
+      ? cleaned.actionChainIds
+      : [];
+
+    cleaned.actionChainIds = [...new Set(rawChainIds.filter(Boolean))];
+
+    if (cleaned.actionChainIds.length > 0) {
+      await this._validateActionChains(cleaned.actionChainIds);
+    }
+
+    return cleaned;
+  }
+
+  async createFunnel(data) {
+    const cleaned = await this._prepareFunnelPayload(data);
 
     const newFunnel = new Funnel({
       ...cleaned,
@@ -124,16 +152,7 @@ class FunnelService {
   async updateFunnel(id, data) {
     if (isSystemEntity(id)) throw createHttpError(400, "Không thể sửa phễu hệ thống.");
 
-    const cleaned = { ...data };
-    if (!cleaned.groupId || cleaned.groupId === "") cleaned.groupId = null;
-    if (!cleaned.folderId || cleaned.folderId === "") cleaned.folderId = null;
-
-    if (cleaned.groupId && cleaned.folderId) {
-      throw createHttpError(400, "Phễu không thể vừa thuộc thư mục vừa thuộc nhóm phễu.");
-    }
-    if (!cleaned.groupId && !cleaned.folderId) {
-      throw createHttpError(400, "Phễu phải thuộc thư mục hoặc nhóm phễu.");
-    }
+    const cleaned = await this._prepareFunnelPayload(data);
 
     const funnel = await Funnel.findOne({ id });
     if (!funnel) throw createHttpError(404, "Không tìm thấy phễu");
