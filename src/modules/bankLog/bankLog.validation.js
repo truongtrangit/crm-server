@@ -38,16 +38,20 @@ const targetApiSchema = Joi.object({
   authType: Joi.string()
     .valid(...Object.values(BANK_LOG_AUTH_TYPES))
     .default(BANK_LOG_AUTH_TYPES.NONE),
-  authToken: Joi.string().trim().allow(null, '').default(null).when('authType', {
-    is: Joi.string().valid(
-      BANK_LOG_AUTH_TYPES.BEARER,
-      BANK_LOG_AUTH_TYPES.API_KEY,
-      BANK_LOG_AUTH_TYPES.BASIC,
-    ),
-    then: Joi.string().trim().required().messages({
-      'any.required': 'Auth token là bắt buộc khi chọn auth type',
+  authToken: Joi.string()
+    .trim()
+    .allow(null, '')
+    .default(null)
+    .when('authType', {
+      is: Joi.string().valid(
+        BANK_LOG_AUTH_TYPES.BEARER,
+        BANK_LOG_AUTH_TYPES.API_KEY,
+        BANK_LOG_AUTH_TYPES.BASIC,
+      ),
+      then: Joi.string().trim().required().messages({
+        'any.required': 'Auth token là bắt buộc khi chọn auth type',
+      }),
     }),
-  }),
   headers: Joi.object().pattern(Joi.string(), Joi.string()).default({}),
   timeout: Joi.number().integer().min(1).max(60).allow(null).default(null),
 });
@@ -124,14 +128,13 @@ const acbTransactionItemSchema = Joi.object({
   //   MAPP — Mobile App, IBFT — Internet Banking Fund Transfer,
   //   ATM, API, WWW — Web, SMS, ...
   transactionChannel: Joi.string()
-    .valid(
-      'BAT', 'VRU', 'WWW', 'ATM', 'ONLI', 'ACH', 'FSC', 'CCM', 'API', 'MG',
-      'SECU', 'MAPP', 'SMS', 'ACHS', 'CCAT', 'AAP', 'IBFT', 'CLMS', 'REMI',
-      'TB', 'SOBA', 'BIZ',
-    )
+    // .valid(
+    //   'BAT', 'VRU', 'WWW', 'ATM', 'ONLI', 'ACH', 'FSC', 'CCM', 'API', 'MG',
+    //   'SECU', 'MAPP', 'SMS', 'ACHS', 'CCAT', 'AAP', 'IBFT', 'CLMS', 'REMI',
+    //   'TB', 'SOBA', 'BIZ',
+    // )
     .required()
     .messages({
-      'any.only': 'transactionChannel không hợp lệ',
       'any.required': 'transactionChannel là bắt buộc',
     }),
 
@@ -172,7 +175,10 @@ const acbTransactionItemSchema = Joi.object({
   virtualAccountInfo: Joi.object({
     vaPrefixCd: Joi.string().allow(null, '').default(null),
     vaNbr: Joi.string().allow(null, '').default(null),
-  }).unknown(true).allow(null).default(null),
+  })
+    .unknown(true)
+    .allow(null)
+    .default(null),
 
   // Tài khoản ảo (ví dụ: "HU1")
   virtualAccount: Joi.string().allow(null, '').default(null),
@@ -199,14 +205,17 @@ const acbTransactionItemSchema = Joi.object({
 
   // Thông tin thuộc tính khác của giao dịch
   transactionEntityAttribute: Joi.object({
-    traceNumber: Joi.string().allow(null, '').default(null),              // Mã giao dịch
-    beneficiaryName: Joi.string().allow(null, '').default(null),          // Tên khách hàng thụ hưởng
+    traceNumber: Joi.string().allow(null, '').default(null), // Mã giao dịch
+    beneficiaryName: Joi.string().allow(null, '').default(null), // Tên khách hàng thụ hưởng
     beneficiaryAccountNumber: Joi.string().allow(null, '').default(null), // Số TK khách hàng thụ hưởng
-    receiverBankName: Joi.string().allow(null, '').default(null),         // Tên ngân hàng thụ hưởng
-    remitterName: Joi.string().allow(null, '').default(null),             // Tên khách hàng chuyển tiền
-    remitterAccountNumber: Joi.string().allow(null, '').default(null),    // Số TK khách hàng chuyển tiền
-    issuerBankName: Joi.string().allow(null, '').default(null),           // Tên ngân hàng chuyển tiền
-  }).unknown(true).allow(null).default(null),
+    receiverBankName: Joi.string().allow(null, '').default(null), // Tên ngân hàng thụ hưởng
+    remitterName: Joi.string().allow(null, '').default(null), // Tên khách hàng chuyển tiền
+    remitterAccountNumber: Joi.string().allow(null, '').default(null), // Số TK khách hàng chuyển tiền
+    issuerBankName: Joi.string().allow(null, '').default(null), // Tên ngân hàng chuyển tiền
+  })
+    .unknown(true)
+    .allow(null)
+    .default(null),
 
   // Nội dung giao dịch / nội dung chuyển khoản
   transactionContent: Joi.string().allow(null, '').default(null),
@@ -222,7 +231,9 @@ const acbTransactionItemSchema = Joi.object({
   custom8: Joi.string().allow(null, '').default(null),
   custom9: Joi.string().allow(null, '').default(null),
   custom10: Joi.string().allow(null, '').default(null),
-}).unknown(true).options({ stripUnknown: false });
+})
+  .unknown(true)
+  .options({ stripUnknown: false });
 
 const acbWebhookSchema = Joi.object({
   // Thông tin định danh của truy vấn
@@ -239,55 +250,64 @@ const acbWebhookSchema = Joi.object({
     checksum: Joi.string().required().messages({
       'any.required': 'masterMeta.checksum là bắt buộc',
     }),
-  }).required().messages({
-    'any.required': 'masterMeta là bắt buộc',
-  }),
+  })
+    .required()
+    .messages({
+      'any.required': 'masterMeta là bắt buộc',
+    }),
 
   // Mảng thông tin chi tiết các yêu cầu
-  requests: Joi.array().items(
-    Joi.object({
-      // Thông tin xác định yêu cầu nghiệp vụ
-      requestMeta: Joi.object({
-        // Loại dịch vụ yêu cầu — hiện chỉ có giá trị NOTIFICATION
-        requestType: Joi.string().valid('NOTIFICATION').required().messages({
-          'any.only': 'requestType phải là NOTIFICATION',
-          'any.required': 'requestMeta.requestType là bắt buộc',
-        }),
-        // Phân loại yêu cầu thông báo:
-        //   TRANSACTION_UPDATE  — Thông báo nợ/có tức thì
-        //   TRANSACTION_HISTORY — Thông báo nợ/có cuối ngày
-        requestCode: Joi.string()
-          .valid('TRANSACTION_UPDATE', 'TRANSACTION_HISTORY')
-          .required()
-          .messages({
-            'any.only': 'requestCode phải là TRANSACTION_UPDATE hoặc TRANSACTION_HISTORY',
-            'any.required': 'requestMeta.requestCode là bắt buộc',
+  requests: Joi.array()
+    .items(
+      Joi.object({
+        // Thông tin xác định yêu cầu nghiệp vụ
+        requestMeta: Joi.object({
+          // Loại dịch vụ yêu cầu — hiện chỉ có giá trị NOTIFICATION
+          requestType: Joi.string().valid('NOTIFICATION').required().messages({
+            'any.only': 'requestType phải là NOTIFICATION',
+            'any.required': 'requestMeta.requestType là bắt buộc',
           }),
-      }).required(),
+          // Phân loại yêu cầu thông báo:
+          //   TRANSACTION_UPDATE  — Thông báo nợ/có tức thì
+          //   TRANSACTION_HISTORY — Thông báo nợ/có cuối ngày
+          requestCode: Joi.string()
+            .valid('TRANSACTION_UPDATE', 'TRANSACTION_HISTORY')
+            .required()
+            .messages({
+              'any.only':
+                'requestCode phải là TRANSACTION_UPDATE hoặc TRANSACTION_HISTORY',
+              'any.required': 'requestMeta.requestCode là bắt buộc',
+            }),
+        }).required(),
 
-      // Thông tin chi tiết của yêu cầu
-      requestParams: Joi.object({
-        // Mảng chi tiết các giao dịch
-        transactions: Joi.array()
-          .items(acbTransactionItemSchema)
-          .min(1)
-          .required()
-          .messages({
-            'array.min': 'transactions phải có ít nhất 1 giao dịch',
-            'any.required': 'requestParams.transactions là bắt buộc',
-          }),
-        // Thông tin phân trang dữ liệu
-        pagination: Joi.object({
-          page: Joi.number().integer().allow(null),      // Số trang hiện tại (≥ 1)
-          pageSize: Joi.number().integer().allow(null),   // Số dòng dữ liệu trong 1 trang (1..1000)
-          totalPage: Joi.number().integer().allow(null),  // Tổng số trang (≥ 1)
-        }).allow(null).default(null),
-      }).required(),
+        // Thông tin chi tiết của yêu cầu
+        requestParams: Joi.object({
+          // Mảng chi tiết các giao dịch
+          transactions: Joi.array()
+            .items(acbTransactionItemSchema)
+            .min(1)
+            .required()
+            .messages({
+              'array.min': 'transactions phải có ít nhất 1 giao dịch',
+              'any.required': 'requestParams.transactions là bắt buộc',
+            }),
+          // Thông tin phân trang dữ liệu
+          pagination: Joi.object({
+            page: Joi.number().integer().allow(null), // Số trang hiện tại (≥ 1)
+            pageSize: Joi.number().integer().allow(null), // Số dòng dữ liệu trong 1 trang (1..1000)
+            totalPage: Joi.number().integer().allow(null), // Tổng số trang (≥ 1)
+          })
+            .allow(null)
+            .default(null),
+        }).required(),
+      }),
+    )
+    .min(1)
+    .required()
+    .messages({
+      'array.min': 'requests phải có ít nhất 1 phần tử',
+      'any.required': 'requests là bắt buộc',
     }),
-  ).min(1).required().messages({
-    'array.min': 'requests phải có ít nhất 1 phần tử',
-    'any.required': 'requests là bắt buộc',
-  }),
 }).options({ stripUnknown: false });
 
 module.exports = {
