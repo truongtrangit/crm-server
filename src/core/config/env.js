@@ -46,6 +46,9 @@ const env = {
   botvnOtpApiUrl: process.env.BOTVN_OTP_API_URL || '', // URL API bên thứ 3 gửi OTP (rỗng = chỉ log console)
   botvnOtpApiKey: process.env.BOTVN_OTP_API_KEY || '', // API key xác thực bên thứ 3
 
+  // ─── Google OAuth ──────────────────────────────────────────────────────────
+  botvnGoogleClientId: process.env.BOTVN_GOOGLE_CLIENT_ID || '',
+
   // ─── ZCode ──────────────────────────────────────────────────────────────────
   zcodeSkus:
     process.env.ZCODE_SKUS || 'ZB5000,ZB10000,ZC10GB,ZC100GB,ZC500GB,ZC1T',

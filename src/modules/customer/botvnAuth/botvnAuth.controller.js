@@ -168,6 +168,37 @@ class BotvnAuthController {
   }
 
   // ==========================================
+  // GOOGLE LOGIN
+  // ==========================================
+
+  async googleLogin(req, res) {
+    const { customer, tokens } = await BotvnAuthService.googleLogin(req.body.idToken, req);
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'Google login successful', payload);
+  }
+
+  // ==========================================
   // ZALO QR ENDPOINTS
   // ==========================================
 

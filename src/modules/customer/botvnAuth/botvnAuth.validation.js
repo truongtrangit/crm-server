@@ -100,6 +100,13 @@ const resetPasswordSchema = Joi.object({
     }),
 });
 
+const googleLoginSchema = Joi.object({
+  idToken: Joi.string().required().messages({
+    "string.empty": "Google ID token is required",
+    "any.required": "Google ID token is required",
+  }),
+});
+
 module.exports = {
   loginSchema,
   registerSchema,
@@ -108,4 +115,5 @@ module.exports = {
   forgotPasswordSchema,
   forgotPasswordVerifyOtpSchema,
   resetPasswordSchema,
+  googleLoginSchema,
 };

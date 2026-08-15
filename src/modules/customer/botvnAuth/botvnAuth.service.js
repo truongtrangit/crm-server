@@ -17,6 +17,7 @@ const env = require('../../../core/config/env');
 const CacheService = require('../../../core/services/CacheService');
 const crypto = require('crypto');
 const logger = require('../../../core/utils/logger');
+const { OAuth2Client } = require('google-auth-library');
 
 const OTP_CACHE_PREFIX = 'botvn_otp';
 const PWD_RESET_OTP_PREFIX = 'botvn_pwd_reset';
@@ -406,6 +407,155 @@ class BotvnAuthService {
     });
 
     // Ẩn password trong response
+    customer.botvnPassword = undefined;
+
+    return { customer, tokens };
+  }
+
+  // ==========================================
+  // GOOGLE LOGIN
+  // ==========================================
+
+  /**
+   * Google Login / Auto-register.
+   * 1. Verify Google ID token (audience check)
+   * 2. Tìm Customer bằng googleId → returning user
+   * 3. Tìm bằng email → link googleId vào account cũ
+   * 4. Không tìm → tạo Customer mới (auto-register, auto-active)
+   * 5. Tạo session tokens
+   */
+  async googleLogin(idToken, req) {
+    if (!env.botvnGoogleClientId) {
+      const error = new Error('Google login is not configured.');
+      error.status = 500;
+      throw error;
+    }
+
+    // --- Config check ---
+    const config = await BotvnConfig.findOne().lean();
+    if (config?.login?.google === false) {
+      const error = new Error('Tính năng đăng nhập bằng Google đang bị khóa.');
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.LOGIN_METHOD_DISABLED;
+      throw error;
+    }
+
+    // --- Verify ID token ---
+    const googleClient = new OAuth2Client(env.botvnGoogleClientId);
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: env.botvnGoogleClientId,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      logger.warn('Google ID token verification failed', { error: err.message });
+      const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
+      error.status = 401;
+      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+      throw error;
+    }
+
+    if (!payload.email_verified) {
+      const error = new Error('Email Google chưa được xác thực.');
+      error.status = 401;
+      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+      throw error;
+    }
+
+    const googleId = payload.sub;
+    const email = this._normalizeEmail(payload.email);
+    const name = payload.name || email.split('@')[0];
+    const avatar = payload.picture || '';
+
+    // --- Find or create customer ---
+    let customer = await Customer.findOne({ googleId });
+
+    if (!customer) {
+      // Try to find existing customer by email (account linking)
+      customer = await Customer.findOne({
+        email,
+        mainType: CUSTOMER_MAIN_TYPES.USER,
+      });
+
+      if (customer) {
+        // Link Google ID to existing account
+        customer.googleId = googleId;
+        if (!customer.avatar && avatar) customer.avatar = avatar;
+      } else {
+        // Auto-register new customer
+        const id = await generateMonotonicId(ID_PREFIXES.CUSTOMER);
+        customer = new Customer({
+          id,
+          name,
+          email,
+          avatar,
+          googleId,
+          mainType: CUSTOMER_MAIN_TYPES.USER,
+          type: 'Bot.vn user',
+          platforms: ['Botvn'],
+          isActive: true, // Google đã verify email → auto-active
+          registeredAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    // --- Check account status ---
+    if (customer.isActive === false) {
+      const error = new Error(
+        'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
+      );
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
+      throw error;
+    }
+
+    // --- Maintenance check ---
+    if (config && config.maintenance && config.maintenance.isActive) {
+      const allowedRoles = config.maintenance.allowedRoles || [];
+      if (!customer.botvnRole || !allowedRoles.includes(customer.botvnRole)) {
+        const error = new Error(
+          'Hệ thống đang bảo trì. Tài khoản của bạn không có quyền truy cập lúc này.',
+        );
+        error.status = 503;
+        error.code = AUTH_ERROR_CODES.MAINTENANCE_MODE;
+        error.context = {
+          type: config.maintenance.type,
+          title: config.maintenance.title,
+          reason: config.maintenance.reason,
+          time: config.maintenance.time,
+        };
+        throw error;
+      }
+    }
+
+    // --- Session tokens ---
+    const tokens = createSessionTokens(req);
+    const now = Date.now();
+    tokens.session.accessTokenExpiresAt = new Date(
+      now + env.botvnAccessTokenTtlMinutes * 1000,
+    );
+    tokens.session.refreshTokenExpiresAt = new Date(
+      now + env.botvnRefreshTokenTtlDays * 24 * 60 * 60 * 1000,
+    );
+
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+    await BotvnUserSession.create({
+      customerId: customer._id,
+      sessionId: tokens.session.sessionId,
+      accessTokenHash: tokens.session.accessTokenHash,
+      refreshTokenHash: tokens.session.refreshTokenHash,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+      userAgent: tokens.session.userAgent,
+      ipAddress: tokens.session.ipAddress,
+      lastUsedAt: tokens.session.lastUsedAt,
+    });
+
+    customer.lastLoginAt = new Date().toISOString();
+    await customer.save();
+
     customer.botvnPassword = undefined;
 
     return { customer, tokens };

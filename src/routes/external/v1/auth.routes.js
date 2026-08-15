@@ -19,6 +19,7 @@ const {
   forgotPasswordSchema,
   forgotPasswordVerifyOtpSchema,
   resetPasswordSchema,
+  googleLoginSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
 
 const router = express.Router();
@@ -63,6 +64,9 @@ router.post(
   validate(resetPasswordSchema),
   BotvnAuthController.resetPassword,
 );
+
+// Google Login
+router.post('/google', validate(googleLoginSchema), BotvnAuthController.googleLogin);
 
 // Zalo QR Login
 router.post('/qr/generate', qrGenerateLimiter, BotvnAuthController.generateQr);
