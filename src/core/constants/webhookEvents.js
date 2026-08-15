@@ -2,17 +2,16 @@
  * Webhook Event Types — nguồn sự thật duy nhất cho các loại event từ bên thứ 3.
  *
  * Khi bên thứ 3 thêm event mới → thêm vào đây + tạo processor trong WebhookService.
- * Mapping trực tiếp với EVENT_GROUP_IDS trong eventGroups.js.
  */
 
 const WEBHOOK_EVENT_TYPES = Object.freeze({
-  USER_LOGIN: "user_login", // user đăng nhập
-  NEW_REGISTRATION: "user_moi", // user mới
-  NEW_BUSINESS: "biz_moi", // business mới
-  ORDER_CREATE: "order_create", // đơn hàng / subscription mới
-  ORDER_ACTIVE: "order_active", // đơn hàng được kích hoạt (PAID)
-  PLAN_EXPIRED: "sap_het_han", // sắp hết hạn
-  PLAN_UPGRADE: "can_nang_cap", // cần nâng cấp
+  USER_LOGIN: 'user_login', // user đăng nhập
+  NEW_REGISTRATION: 'user_moi', // user mới
+  NEW_BUSINESS: 'biz_moi', // business mới
+  ORDER_CREATE: 'order_create', // đơn hàng / subscription mới
+  ORDER_ACTIVE: 'order_active', // đơn hàng được kích hoạt (PAID)
+  PLAN_EXPIRED: 'sap_het_han', // sắp hết hạn
+  PLAN_UPGRADE: 'can_nang_cap', // cần nâng cấp
 });
 
 /** Mảng các event type — dùng làm enum cho validation */

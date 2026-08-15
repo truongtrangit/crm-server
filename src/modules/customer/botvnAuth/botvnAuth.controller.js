@@ -61,6 +61,22 @@ class BotvnAuthController {
       ipAddress: req.ip || 'unknown',
     });
 
+    // Trigger internal Webhook integration
+    const CrmEventEmitter = require('../../../core/services/CrmEventEmitter');
+    const {
+      SYSTEM_SOURCES,
+      SYSTEM_EVENT_TYPES,
+    } = require('../../../core/constants/integrationConfig');
+    CrmEventEmitter.emit(
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_DANG_KY,
+      {
+        ...(customer.toJSON?.() || customer), // Pass customer object as payload
+        registrationIp: req.ip,
+        registeredAt: new Date().toISOString(),
+      },
+    );
+
     const payload = {
       customer: {
         id: customer.id,
@@ -105,13 +121,14 @@ class BotvnAuthController {
     });
 
     // Lấy current_status từ query (mặc định là PENDING nếu client không gửi)
-    const currentClientStatus = req.query.current_status || QR_SESSION_STATUS.PENDING;
+    const currentClientStatus =
+      req.query.current_status || QR_SESSION_STATUS.PENDING;
 
     while (elapsed < MAX_WAIT_MS && !isClientClosed) {
       const session = await BotvnAuthService.getQrStatus(token);
 
       // Nếu trạng thái trong Cache khác với trạng thái hiện tại của Client, lập tức trả về!
-      // Điều này giúp: 
+      // Điều này giúp:
       // 1. Từ PENDING -> SCANNED: báo ngay cho Client biết để mờ UI.
       // 2. Client gọi lại với current_status=SCANNED -> Server tiếp tục hold.
       // 3. Từ SCANNED -> AUTHENTICATED: báo ngay cho Client biết để login.

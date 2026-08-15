@@ -21,6 +21,11 @@ const {
   CREDIT_SOURCES,
   CREDIT_TRANSACTION_STATUS,
 } = require('../../core/constants/appData');
+const logger = require('../../core/utils/logger');
+const {
+  SYSTEM_SOURCES,
+  SYSTEM_EVENT_TYPES,
+} = require('../../core/constants/integrationConfig');
 
 class CheckoutService {
   /**
@@ -201,7 +206,10 @@ class CheckoutService {
           (e) => e.courseId === courseId || e.courseId === item.courseId,
         );
         if (existingEnr || enrolledSet.has(courseId)) {
-          if (existingEnr && existingEnr.status !== COURSE_ENROLLMENT_STATUS.ACTIVE) {
+          if (
+            existingEnr &&
+            existingEnr.status !== COURSE_ENROLLMENT_STATUS.ACTIVE
+          ) {
             throw createHttpError(
               400,
               `Khóa học "${course.title || course.name || courseId}" của bạn hiện đang bị KHOÁ. Vui lòng liên hệ Admin để được hỗ trợ.`,
@@ -362,12 +370,13 @@ class CheckoutService {
       await CourseEnrollment.insertMany(enrollmentsToCreate, { session });
 
       // Log transaction
-      await SystemLogService.log(
-        'create',
-        'Checkout',
-        studentId, // Or generate a generic transaction ID
-        'checkout',
-        {
+      await SystemLogService.log({
+        action: 'create',
+        resource: 'other', // fallback since 'Checkout' is not in RESOURCES by default, or you can use RESOURCES if imported
+        resourceId: studentId,
+        resourceName: 'checkout',
+        description: 'Checkout transaction',
+        metadata: {
           items,
           totalMainCreditRequired,
           totalRewardCreditRequired,
@@ -376,11 +385,43 @@ class CheckoutService {
           remainingRewardCredit: customer.rewardCredit,
           remainingEduCredit: customer.eduCredit,
         },
-        studentId, // Actor
-      );
+        performedBy: { userId: studentId, userName: 'Student' },
+      });
 
       await session.commitTransaction();
       session.endSession();
+
+      // Bắn event CRM Mua khoá học (fire-and-forget, sau khi commit)
+      try {
+        const CrmEventEmitter = require('../../core/services/CrmEventEmitter');
+
+        for (const item of enrollmentsToCreate) {
+          const courseObj = courseMap.get(item.courseId);
+          const courseName = courseObj?.name || courseObj?.title || 'Khoá học';
+          CrmEventEmitter.emit(
+            SYSTEM_SOURCES.BOTVN,
+            SYSTEM_EVENT_TYPES.BOTVN_MUA_KHOA_HOC,
+            {
+              name: customer.name || '',
+              email: customer.email || '',
+              phone: customer.phone || '',
+              amount: item.amountPaid || 0,
+              courseName: courseName,
+              courseId: item.courseId,
+              studentId: customer.id,
+            },
+          );
+        }
+      } catch (evtErr) {
+        // Non-blocking CRM event emission
+        logger.error(
+          `Error emitting CRM event ${JSON.stringify(evtErr.message)}`,
+          {
+            stack: evtErr.stack,
+            detail: JSON.stringify(evtErr),
+          },
+        );
+      }
 
       return {
         message: 'Thanh toán và đăng ký thành công',

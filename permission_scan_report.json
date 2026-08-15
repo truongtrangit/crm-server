@@ -1,11 +1,11 @@
 {
   "summary": {
-    "totalRouteFiles": 44,
-    "totalEndpoints": 345,
-    "totalPermissionsUsedInRoutes": 130,
-    "totalPermissionsDefined": 190,
-    "unprotectedEndpoints": 16,
-    "orphanPermissions": 6,
+    "totalRouteFiles": 50,
+    "totalEndpoints": 375,
+    "totalPermissionsUsedInRoutes": 136,
+    "totalPermissionsDefined": 196,
+    "unprotectedEndpoints": 17,
+    "orphanPermissions": 0,
     "unusedPermissions": 60,
     "modulesMissingPermMap": 0
   },
@@ -66,6 +66,12 @@
     },
     {
       "method": "POST",
+      "path": "/:source/:eventType",
+      "file": "integrationWebhook.routes.js",
+      "line": 15
+    },
+    {
+      "method": "POST",
       "path": "/new-login",
       "file": "webhooks.routes.js",
       "line": 24
@@ -107,14 +113,7 @@
       "line": 42
     }
   ],
-  "orphanPermissions": [
-    "customers_restore",
-    "customers_permanent_delete",
-    "metadata_read",
-    "roles_manage",
-    "users_restore",
-    "users_permanent_delete"
-  ],
+  "orphanPermissions": [],
   "unusedPermissions": [
     "users_manage",
     "customers_manage",
@@ -211,6 +210,20 @@
           "neededFromModules": [
             "customers.user"
           ]
+        },
+        {
+          "permission": "customers_permanent_delete",
+          "neededFromModules": [
+            "customers.user"
+          ]
+        }
+      ],
+      "restore": [
+        {
+          "permission": "customers_restore",
+          "neededFromModules": [
+            "customers.user"
+          ]
         }
       ]
     },
@@ -243,6 +256,20 @@
       "delete": [
         {
           "permission": "customers_delete",
+          "neededFromModules": [
+            "customers.biz"
+          ]
+        },
+        {
+          "permission": "customers_permanent_delete",
+          "neededFromModules": [
+            "customers.biz"
+          ]
+        }
+      ],
+      "restore": [
+        {
+          "permission": "customers_restore",
           "neededFromModules": [
             "customers.biz"
           ]
@@ -345,6 +372,12 @@
             "staff.users",
             "jobhub.tasks"
           ]
+        },
+        {
+          "permission": "metadata_read",
+          "neededFromModules": [
+            "meta.config"
+          ]
         }
       ]
     },
@@ -352,6 +385,12 @@
       "view": [
         {
           "permission": "meta_read",
+          "neededFromModules": [
+            "meta.program"
+          ]
+        },
+        {
+          "permission": "metadata_read",
           "neededFromModules": [
             "meta.program"
           ]
@@ -754,6 +793,11 @@
           "meta_manage"
         ]
       },
+      "staff.users": {
+        "edit": [
+          "roles_manage"
+        ]
+      },
       "logs.system": {
         "view": [
           "logs_system_read"
@@ -762,6 +806,14 @@
       "logs.webhook": {
         "view": [
           "logs_webhook_read"
+        ]
+      },
+      "logs.external": {
+        "view": [
+          "logs_external_read"
+        ],
+        "replay": [
+          "logs_external_replay"
         ]
       },
       "logs.blockautomation": {
@@ -883,14 +935,11 @@
         "view": [
           "bank_logs_read"
         ],
-        "create": [
-          "bank_logs_create"
-        ],
         "edit": [
           "bank_logs_update"
         ],
-        "delete": [
-          "bank_logs_delete"
+        "export": [
+          "bank_logs_read"
         ]
       },
       "bankLog.rules": {
@@ -928,17 +977,66 @@
         "configure": [
           "invoice_providers_config"
         ]
+      },
+      "integration": {
+        "view": [
+          "integration_config"
+        ]
+      },
+      "integration.event_groups": {
+        "view": [
+          "integration_config"
+        ],
+        "create": [
+          "integration_config"
+        ],
+        "edit": [
+          "integration_config"
+        ],
+        "delete": [
+          "integration_config"
+        ]
+      },
+      "integration.configs": {
+        "view": [
+          "integration_config"
+        ],
+        "create": [
+          "integration_config"
+        ],
+        "edit": [
+          "integration_config"
+        ],
+        "delete": [
+          "integration_config"
+        ]
+      },
+      "integration.config": {
+        "view": [
+          "integration_config"
+        ],
+        "configure": [
+          "integration_config"
+        ]
       }
     },
     "STAFF": {
       "customers.biz": {
         "delete": [
-          "customers_delete"
+          "customers_delete",
+          "customers_permanent_delete"
+        ],
+        "restore": [
+          "customers_restore"
         ]
       },
       "customers.user": {
         "delete": [
-          "customers_delete"
+          "customers_delete",
+          "customers_permanent_delete"
+        ],
+        "restore": [
+          "customers_restore"
         ]
       },
       "operations.tasks": {
@@ -993,10 +1091,15 @@
           "users_create"
         ],
         "edit": [
-          "users_update"
+          "users_update",
+          "roles_manage"
         ],
         "delete": [
-          "users_delete"
+          "users_delete",
+          "users_permanent_delete"
+        ],
+        "restore": [
+          "users_restore"
         ]
       },
       "staff.organization": {
@@ -1055,6 +1158,14 @@
       "logs.webhook": {
         "view": [
           "logs_webhook_read"
+        ]
+      },
+      "logs.external": {
+        "view": [
+          "logs_external_read"
+        ],
+        "replay": [
+          "logs_external_replay"
         ]
       },
       "logs.blockautomation": {
@@ -1318,6 +1429,19 @@
           "courses_knowledge_delete"
         ]
       },
+      "courses.credits": {
+        "view": [
+          "courses_credits_read"
+        ],
+        "edit": [
+          "courses_credits_manage"
+        ]
+      },
+      "courses.favorites": {
+        "view": [
+          "courses_favorites_read"
+        ]
+      },
       "zcode.manage": {
         "view": [
           "zcodes_read"
@@ -1339,14 +1463,11 @@
         "view": [
           "bank_logs_read"
         ],
-        "create": [
-          "bank_logs_create"
-        ],
         "edit": [
           "bank_logs_update"
         ],
-        "delete": [
-          "bank_logs_delete"
+        "export": [
+          "bank_logs_read"
         ]
       },
       "bankLog.rules": {
@@ -1383,6 +1504,47 @@
         ],
         "configure": [
           "invoice_providers_config"
+        ]
+      },
+      "integration": {
+        "view": [
+          "integration_config"
+        ]
+      },
+      "integration.event_groups": {
+        "view": [
+          "integration_config"
+        ],
+        "create": [
+          "integration_config"
+        ],
+        "edit": [
+          "integration_config"
+        ],
+        "delete": [
+          "integration_config"
+        ]
+      },
+      "integration.configs": {
+        "view": [
+          "integration_config"
+        ],
+        "create": [
+          "integration_config"
+        ],
+        "edit": [
+          "integration_config"
+        ],
+        "delete": [
+          "integration_config"
+        ]
+      },
+      "integration.config": {
+        "view": [
+          "integration_config"
+        ],
+        "configure": [
+          "integration_config"
         ]
       }
     }
@@ -2037,9 +2199,97 @@
     },
     {
       "method": "GET",
+      "path": "???",
+      "file": "courseCredits.routes.js",
+      "line": 13,
+      "permissions": [
+        "courses_credits_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "courseCredits.routes.js",
+      "line": 23,
+      "permissions": [
+        "courses_credits_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "courseCredits.routes.js",
+      "line": 30,
+      "permissions": [
+        "courses_credits_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "???",
+      "file": "courseCredits.routes.js",
+      "line": 38,
+      "permissions": [
+        "courses_credits_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "???",
+      "file": "courseCredits.routes.js",
+      "line": 45,
+      "permissions": [
+        "courses_credits_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "???",
+      "file": "courseCredits.routes.js",
+      "line": 53,
+      "permissions": [
+        "courses_credits_manage"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/all",
+      "file": "courseEnrollments.routes.js",
+      "line": 11,
+      "permissions": [
+        "courses_enrollments_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "courseEnrollments.routes.js",
+      "line": 19,
+      "permissions": [
+        "courses_enrollments_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
       "path": "/course/:courseId",
       "file": "courseEnrollments.routes.js",
-      "line": 9,
+      "line": 27,
       "permissions": [
         "courses_enrollments_read"
       ],
@@ -2050,9 +2300,42 @@
       "method": "PUT",
       "path": "/:id/status",
       "file": "courseEnrollments.routes.js",
-      "line": 16,
+      "line": 34,
       "permissions": [
         "courses_enrollments_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/batch-status",
+      "file": "courseEnrollments.routes.js",
+      "line": 42,
+      "permissions": [
+        "courses_enrollments_update"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/all",
+      "file": "courseFavorites.routes.js",
+      "line": 11,
+      "permissions": [
+        "courses_favorites_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/stats",
+      "file": "courseFavorites.routes.js",
+      "line": 19,
+      "permissions": [
+        "courses_favorites_read"
       ],
       "roles": [],
       "protected": true
@@ -2554,6 +2837,50 @@
       "line": 114,
       "permissions": [
         "event_chains_delete"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "eventGroups.routes.js",
+      "line": 14,
+      "permissions": [
+        "events_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "eventGroups.routes.js",
+      "line": 21,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "eventGroups.routes.js",
+      "line": 29,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "eventGroups.routes.js",
+      "line": 37,
+      "permissions": [
+        "integration_config"
       ],
       "roles": [],
       "protected": true
@@ -3105,6 +3432,147 @@
     },
     {
       "method": "GET",
+      "path": "/",
+      "file": "integrationConfigs.routes.js",
+      "line": 14,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/sources",
+      "file": "integrationConfigs.routes.js",
+      "line": 21,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/metadata/system-events",
+      "file": "integrationConfigs.routes.js",
+      "line": 28,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/test-trigger",
+      "file": "integrationConfigs.routes.js",
+      "line": 35,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/variables/preview",
+      "file": "integrationConfigs.routes.js",
+      "line": 42,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id/variables",
+      "file": "integrationConfigs.routes.js",
+      "line": 49,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "integrationConfigs.routes.js",
+      "line": 56,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "file": "integrationConfigs.routes.js",
+      "line": 63,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "PUT",
+      "path": "/:id",
+      "file": "integrationConfigs.routes.js",
+      "line": 71,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/:id",
+      "file": "integrationConfigs.routes.js",
+      "line": 79,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "integrationLog.routes.js",
+      "line": 7,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/:id",
+      "file": "integrationLog.routes.js",
+      "line": 13,
+      "permissions": [
+        "integration_config"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/:source/:eventType",
+      "file": "integrationWebhook.routes.js",
+      "line": 15,
+      "permissions": [],
+      "roles": [],
+      "protected": false
+    },
+    {
+      "method": "GET",
       "path": "/stats",
       "file": "invoices.routes.js",
       "line": 10,
@@ -3296,7 +3764,7 @@
       "file": "invoices.routes.js",
       "line": 121,
       "permissions": [
-        "invoices_read"
+        "invoices_update"
       ],
       "roles": [],
       "protected": true
@@ -3307,7 +3775,7 @@
       "file": "invoices.routes.js",
       "line": 127,
       "permissions": [
-        "invoices_read"
+        "invoices_update"
       ],
       "roles": [],
       "protected": true
@@ -3788,6 +4256,28 @@
       "line": 27,
       "permissions": [
         "logs_automation_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "GET",
+      "path": "/external",
+      "file": "logs.routes.js",
+      "line": 33,
+      "permissions": [
+        "logs_external_read"
+      ],
+      "roles": [],
+      "protected": true
+    },
+    {
+      "method": "POST",
+      "path": "/external/:id/replay",
+      "file": "logs.routes.js",
+      "line": 39,
+      "permissions": [
+        "logs_external_replay"
       ],
       "roles": [],
       "protected": true

@@ -6,7 +6,8 @@ const leadStatusGroupSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     statusIds: [{ type: String, ref: "LeadStatus" }],
     isDefault: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true },
+    isTemplate: { type: Boolean, default: true },
+    funnelId: { type: String, ref: 'Funnel', default: null },
   },
   {
     timestamps: true,

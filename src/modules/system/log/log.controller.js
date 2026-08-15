@@ -1,6 +1,7 @@
 const SystemLogService = require('./systemLog.service');
 const AutomationLogService = require('./automationLog.service');
 const WebhookService = require('../webhook/webhook.service');
+const ExternalApiLogService = require('./externalApiLog.service');
 const { sendSuccess } = require('../../../core/utils/http');
 
 /**
@@ -42,6 +43,24 @@ class LogController {
     const { id } = req.params;
     const result = await WebhookService.retryEvent(id);
     return sendSuccess(res, 200, "Thử lại webhook thành công", result);
+  }
+
+  /**
+   * GET /api/v1/logs/external
+   * Query params: page, limit, system, method, path, responseStatus, callerIp
+   */
+  async getExternalLogs(req, res) {
+    const result = await ExternalApiLogService.getLogs(req.query);
+    return sendSuccess(res, 200, "External logs retrieved", result);
+  }
+
+  /**
+   * POST /api/v1/logs/external/:id/replay
+   */
+  async replayExternalLog(req, res) {
+    const { id } = req.params;
+    const result = await ExternalApiLogService.replayEvent(id, req);
+    return sendSuccess(res, 200, "Replay external log thành công", result);
   }
 }
 

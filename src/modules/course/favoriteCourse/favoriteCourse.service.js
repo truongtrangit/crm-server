@@ -4,10 +4,11 @@ const CourseChallenge = require('../courseChallenge/courseChallenge.model');
 const CourseOnline = require('../courseOnline/courseOnline.model');
 const CourseOffline = require('../courseOffline/courseOffline.model');
 const { COURSE_TYPES } = require('../../../core/constants/appData');
+const { ID_PREFIXES, generateMonotonicId } = require('../../../core/utils/id');
 const {
-  ID_PREFIXES,
-  generateMonotonicId,
-} = require('../../../core/utils/id');
+  SYSTEM_SOURCES,
+  SYSTEM_EVENT_TYPES,
+} = require('../../../core/constants/integrationConfig');
 
 class FavoriteCourseService {
   /**
@@ -43,17 +44,26 @@ class FavoriteCourseService {
     const courseFields = 'id title name cover covers status packages';
     const [challenges, onlines, offlines] = await Promise.all([
       challengeIds.length
-        ? CourseChallenge.find({ id: { $in: challengeIds }, isDeleted: { $ne: true } })
+        ? CourseChallenge.find({
+            id: { $in: challengeIds },
+            isDeleted: { $ne: true },
+          })
             .select(courseFields)
             .lean()
         : [],
       onlineIds.length
-        ? CourseOnline.find({ id: { $in: onlineIds }, isDeleted: { $ne: true } })
+        ? CourseOnline.find({
+            id: { $in: onlineIds },
+            isDeleted: { $ne: true },
+          })
             .select(courseFields)
             .lean()
         : [],
       offlineIds.length
-        ? CourseOffline.find({ id: { $in: offlineIds }, isDeleted: { $ne: true } })
+        ? CourseOffline.find({
+            id: { $in: offlineIds },
+            isDeleted: { $ne: true },
+          })
             .select(courseFields)
             .lean()
         : [],
@@ -82,7 +92,10 @@ class FavoriteCourseService {
     }
 
     // Check đã tồn tại chưa (idempotent)
-    const existing = await FavoriteCourse.findOne({ customerId, courseId }).lean();
+    const existing = await FavoriteCourse.findOne({
+      customerId,
+      courseId,
+    }).lean();
     if (existing) {
       return existing;
     }
@@ -94,6 +107,17 @@ class FavoriteCourseService {
       courseId,
       courseType,
     });
+
+    // Bắn event vào CRM (fire-and-forget)
+    require('../../../core/services/CrmEventEmitter').emit(
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_YEU_THICH,
+      {
+        customerId,
+        courseId,
+        courseName: course.name || course.title || '',
+      },
+    );
 
     return favorite.toObject();
   }
@@ -123,7 +147,9 @@ class FavoriteCourseService {
     const result = {};
     for (const cid of courseIds) {
       const fav = favorites.find((f) => f.courseId === cid);
-      result[cid] = fav ? { isFavorite: true, packageId: fav.packageId } : { isFavorite: false };
+      result[cid] = fav
+        ? { isFavorite: true, packageId: fav.packageId }
+        : { isFavorite: false };
     }
     return result;
   }
@@ -133,7 +159,18 @@ class FavoriteCourseService {
   /**
    * Lấy tất cả favorites cho CRM staff (có phân trang, lọc).
    */
-  async getAllFavorites({ page = 1, limit = 20, search, courseType, courseId, customerId, fromDate, toDate, sortBy = 'addedAt', sortOrder = 'desc' }) {
+  async getAllFavorites({
+    page = 1,
+    limit = 20,
+    search,
+    courseType,
+    courseId,
+    customerId,
+    fromDate,
+    toDate,
+    sortBy = 'addedAt',
+    sortOrder = 'desc',
+  }) {
     const filter = {};
 
     if (courseType) filter.courseType = courseType;
@@ -184,21 +221,31 @@ class FavoriteCourseService {
     const customerFields = 'id name email phone avatar';
     const [challenges, onlines, offlines, customers] = await Promise.all([
       challengeIds.length
-        ? CourseChallenge.find({ id: { $in: challengeIds } }).select(courseFields).lean()
+        ? CourseChallenge.find({ id: { $in: challengeIds } })
+            .select(courseFields)
+            .lean()
         : [],
       onlineIds.length
-        ? CourseOnline.find({ id: { $in: onlineIds } }).select(courseFields).lean()
+        ? CourseOnline.find({ id: { $in: onlineIds } })
+            .select(courseFields)
+            .lean()
         : [],
       offlineIds.length
-        ? CourseOffline.find({ id: { $in: offlineIds } }).select(courseFields).lean()
+        ? CourseOffline.find({ id: { $in: offlineIds } })
+            .select(courseFields)
+            .lean()
         : [],
       customerIds.length
-        ? Customer.find({ id: { $in: customerIds } }).select(customerFields).lean()
+        ? Customer.find({ id: { $in: customerIds } })
+            .select(customerFields)
+            .lean()
         : [],
     ]);
 
     const courseMap = new Map();
-    [...challenges, ...onlines, ...offlines].forEach((c) => courseMap.set(c.id, c));
+    [...challenges, ...onlines, ...offlines].forEach((c) =>
+      courseMap.set(c.id, c),
+    );
 
     const customerMap = new Map();
     customers.forEach((c) => customerMap.set(c.id, c));
@@ -213,10 +260,14 @@ class FavoriteCourseService {
     if (search) {
       const q = search.toLowerCase();
       enriched = enriched.filter((item) => {
-        const courseName = (item.course?.title || item.course?.name || '').toLowerCase();
+        const courseName = (
+          item.course?.title ||
+          item.course?.name ||
+          ''
+        ).toLowerCase();
         const customerName = (item.customer?.name || '').toLowerCase();
         const customerEmail = (item.customer?.email || '').toLowerCase();
-        const customerPhone = (item.customer?.phone || '');
+        const customerPhone = item.customer?.phone || '';
         return (
           courseName.includes(q) ||
           customerName.includes(q) ||
@@ -272,11 +323,21 @@ class FavoriteCourseService {
 
     switch (courseType) {
       case COURSE_TYPES.CHALLENGE:
-        return CourseChallenge.findOne({ $or: orQ, isTemplate: false, isDeleted: { $ne: true } }).lean();
+        return CourseChallenge.findOne({
+          $or: orQ,
+          isTemplate: false,
+          isDeleted: { $ne: true },
+        }).lean();
       case COURSE_TYPES.ONLINE:
-        return CourseOnline.findOne({ $or: orQ, isDeleted: { $ne: true } }).lean();
+        return CourseOnline.findOne({
+          $or: orQ,
+          isDeleted: { $ne: true },
+        }).lean();
       case COURSE_TYPES.OFFLINE:
-        return CourseOffline.findOne({ $or: orQ, isDeleted: { $ne: true } }).lean();
+        return CourseOffline.findOne({
+          $or: orQ,
+          isDeleted: { $ne: true },
+        }).lean();
       default:
         return null;
     }
