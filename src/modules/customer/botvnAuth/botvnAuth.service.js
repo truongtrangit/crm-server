@@ -19,7 +19,10 @@ const crypto = require('crypto');
 const logger = require('../../../core/utils/logger');
 
 const OTP_CACHE_PREFIX = 'botvn_otp';
+const PWD_RESET_OTP_PREFIX = 'botvn_pwd_reset';
+const PWD_RESET_TOKEN_PREFIX = 'botvn_pwd_reset_token';
 const OTP_MAX_VERIFY_ATTEMPTS = 5;
+const PWD_RESET_TOKEN_TTL_SECONDS = 600; // 10 phút
 
 class BotvnAuthService {
   _normalizeEmail(value) {
@@ -659,6 +662,181 @@ class BotvnAuthService {
     );
 
     return { message: 'Xác thực thành công' };
+  }
+
+  // ==========================================
+  // FORGOT PASSWORD (OTP-based)
+  // ==========================================
+
+  /**
+   * Step 1: Gửi OTP cho user đã active khi quên mật khẩu
+   */
+  async forgotPassword(email) {
+    const normalizedEmail = this._normalizeEmail(email);
+    const ttl = env.botvnOtpTtlSeconds;
+
+    const customer = await Customer.findOne({
+      email: normalizedEmail,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (!customer) {
+      const error = new Error('Email không tồn tại trong hệ thống.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    if (customer.isActive === false) {
+      const error = new Error(
+        'Tài khoản chưa được kích hoạt. Vui lòng kích hoạt tài khoản trước.',
+      );
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
+      throw error;
+    }
+
+    const otp = this._generateOtp();
+    const otpHash = hashToken(otp);
+
+    await CacheService.set(
+      `${PWD_RESET_OTP_PREFIX}:${normalizedEmail}`,
+      {
+        otpHash,
+        attempts: 0,
+        createdAt: Date.now(),
+      },
+      ttl,
+    );
+
+    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+
+    return { expiresIn: ttl };
+  }
+
+  /**
+   * Step 2: Verify OTP quên mật khẩu → trả về reset token
+   */
+  async forgotPasswordVerifyOtp(payload) {
+    const email = this._normalizeEmail(payload?.email);
+    const otp = typeof payload?.otp === 'string' ? payload.otp.trim() : '';
+    const cacheKey = `${PWD_RESET_OTP_PREFIX}:${email}`;
+
+    const cached = await CacheService.get(cacheKey);
+    if (!cached) {
+      const error = new Error(
+        'Mã OTP đã hết hạn hoặc chưa được gửi. Vui lòng yêu cầu gửi lại.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.OTP_EXPIRED;
+      throw error;
+    }
+
+    if (cached.attempts >= OTP_MAX_VERIFY_ATTEMPTS) {
+      await CacheService.del(cacheKey);
+      const error = new Error(
+        'Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu gửi lại mã OTP mới.',
+      );
+      error.status = 429;
+      error.code = AUTH_ERROR_CODES.OTP_MAX_ATTEMPTS;
+      throw error;
+    }
+
+    const inputHash = hashToken(otp);
+    if (inputHash !== cached.otpHash) {
+      cached.attempts += 1;
+      const remainingTtl = Math.max(
+        1,
+        Math.ceil(
+          (cached.createdAt + env.botvnOtpTtlSeconds * 1000 - Date.now()) /
+            1000,
+        ),
+      );
+      await CacheService.set(cacheKey, cached, remainingTtl);
+
+      const error = new Error(
+        `Mã OTP không chính xác. Bạn còn ${OTP_MAX_VERIFY_ATTEMPTS - cached.attempts} lần thử.`,
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.OTP_INVALID;
+      error.context = {
+        attemptsRemaining: OTP_MAX_VERIFY_ATTEMPTS - cached.attempts,
+      };
+      throw error;
+    }
+
+    // OTP đúng → xóa OTP cache, tạo reset token
+    await CacheService.del(cacheKey);
+
+    const resetToken = crypto.randomBytes(48).toString('base64url');
+    const resetTokenHash = hashToken(resetToken);
+
+    await CacheService.set(
+      `${PWD_RESET_TOKEN_PREFIX}:${email}`,
+      { resetTokenHash, createdAt: Date.now() },
+      PWD_RESET_TOKEN_TTL_SECONDS,
+    );
+
+    return { resetToken };
+  }
+
+  /**
+   * Step 3: Đổi mật khẩu bằng reset token
+   */
+  async resetPassword(payload) {
+    const email = this._normalizeEmail(payload?.email);
+    const resetToken =
+      typeof payload?.resetToken === 'string'
+        ? payload.resetToken.trim()
+        : '';
+    const newPassword =
+      typeof payload?.newPassword === 'string' ? payload.newPassword : '';
+    const cacheKey = `${PWD_RESET_TOKEN_PREFIX}:${email}`;
+
+    const cached = await CacheService.get(cacheKey);
+    if (!cached || !cached.resetTokenHash) {
+      const error = new Error(
+        'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    if (hashToken(resetToken) !== cached.resetTokenHash) {
+      // Token sai → xóa luôn để chống brute-force
+      await CacheService.del(cacheKey);
+      const error = new Error(
+        'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    // Token hợp lệ → xóa cache
+    await CacheService.del(cacheKey);
+
+    const customer = await Customer.findOne({
+      email,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    }).select('+botvnPassword');
+
+    if (!customer) {
+      const error = new Error('Tài khoản không tồn tại.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    // Đổi mật khẩu
+    customer.botvnPassword = await hashPassword(newPassword);
+    await customer.save();
+
+    // Force re-login: xóa toàn bộ sessions cũ
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+
+    return { message: 'Đổi mật khẩu thành công.' };
   }
 }
 

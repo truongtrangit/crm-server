@@ -16,6 +16,9 @@ const {
   registerSchema,
   verifyOtpSchema,
   resendOtpSchema,
+  forgotPasswordSchema,
+  forgotPasswordVerifyOtpSchema,
+  resetPasswordSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
 
 const router = express.Router();
@@ -40,6 +43,25 @@ router.post(
   otpResendLimiter,
   validate(resendOtpSchema),
   BotvnAuthController.resendOtp,
+);
+
+// Forgot Password
+router.post(
+  '/password/forgot',
+  otpResendLimiter,
+  validate(forgotPasswordSchema),
+  BotvnAuthController.forgotPassword,
+);
+router.post(
+  '/password/verify-otp',
+  otpVerifyLimiter,
+  validate(forgotPasswordVerifyOtpSchema),
+  BotvnAuthController.forgotPasswordVerifyOtp,
+);
+router.post(
+  '/password/reset',
+  validate(resetPasswordSchema),
+  BotvnAuthController.resetPassword,
 );
 
 // Zalo QR Login

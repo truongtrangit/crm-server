@@ -148,6 +148,24 @@ class BotvnAuthController {
     return sendSuccess(res, 200, 'OTP resent', result);
   }
 
+  // ==========================================
+  // FORGOT PASSWORD
+  // ==========================================
+
+  async forgotPassword(req, res) {
+    const result = await BotvnAuthService.forgotPassword(req.body.email);
+    return sendSuccess(res, 200, 'OTP sent for password reset', result);
+  }
+
+  async forgotPasswordVerifyOtp(req, res) {
+    const result = await BotvnAuthService.forgotPasswordVerifyOtp(req.body);
+    return sendSuccess(res, 200, 'OTP verified', result);
+  }
+
+  async resetPassword(req, res) {
+    const result = await BotvnAuthService.resetPassword(req.body);
+    return sendSuccess(res, 200, result.message);
+  }
 
   // ==========================================
   // ZALO QR ENDPOINTS
