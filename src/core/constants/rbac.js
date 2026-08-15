@@ -613,14 +613,14 @@ const MODULE_DEFINITIONS = {
     label: 'Doanh nghiệp',
     type: 'sub',
     parentKey: 'customers',
-    actions: ['view', 'create', 'edit', 'delete', 'export'],
+    actions: ['view', 'create', 'edit', 'delete', 'restore', 'export'],
   },
   'customers.user': {
     key: 'customers.user',
     label: 'Cá nhân',
     type: 'sub',
     parentKey: 'customers',
-    actions: ['view', 'create', 'edit', 'delete', 'export'],
+    actions: ['view', 'create', 'edit', 'delete', 'restore', 'export'],
   },
 
   operations: {
@@ -673,7 +673,7 @@ const MODULE_DEFINITIONS = {
     label: 'Tài khoản',
     type: 'sub',
     parentKey: 'staff',
-    actions: ['view', 'create', 'edit', 'delete'],
+    actions: ['view', 'create', 'edit', 'delete', 'restore'],
   },
   'staff.organization': {
     key: 'staff.organization',
@@ -725,6 +725,13 @@ const MODULE_DEFINITIONS = {
     type: 'sub',
     parentKey: 'logs',
     actions: ['view'],
+  },
+  'logs.external': {
+    key: 'logs.external',
+    label: 'External Logs',
+    type: 'sub',
+    parentKey: 'logs',
+    actions: ['view', 'replay'],
   },
 
   finance: { key: 'finance', label: 'Tài chính', type: 'root', actions: [] },
@@ -933,14 +940,16 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE],
+    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
   'customers.user': {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE],
+    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
   'operations.tasks': {
@@ -997,13 +1006,13 @@ const MODULE_TO_PERMISSIONS_MAP = {
     configure: [PERMISSIONS.LEADS_CFG_MANAGE], // Quản lý funnel/group config
   },
   'meta.program': {
-    view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ],
+    view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ, PERMISSIONS.METADATA_READ],
     create: [PERMISSIONS.META_CREATE],
     edit: [PERMISSIONS.META_UPDATE],
     delete: [PERMISSIONS.META_DELETE],
   },
   'meta.config': {
-    view: [PERMISSIONS.META_READ],
+    view: [PERMISSIONS.META_READ, PERMISSIONS.METADATA_READ],
     create: [PERMISSIONS.META_MANAGE],
     edit: [PERMISSIONS.META_MANAGE],
     delete: [PERMISSIONS.META_MANAGE],
@@ -1016,8 +1025,9 @@ const MODULE_TO_PERMISSIONS_MAP = {
       PERMISSIONS.PERMISSIONS_READ, // Đọc danh sách permissions
     ],
     create: [PERMISSIONS.USERS_CREATE],
-    edit: [PERMISSIONS.USERS_UPDATE],
-    delete: [PERMISSIONS.USERS_DELETE],
+    edit: [PERMISSIONS.USERS_UPDATE, PERMISSIONS.ROLES_MANAGE],
+    delete: [PERMISSIONS.USERS_DELETE, PERMISSIONS.USERS_PERMANENT_DELETE],
+    restore: [PERMISSIONS.USERS_RESTORE],
   },
   'staff.organization': {
     view: [PERMISSIONS.ORGANIZATION_READ],
@@ -1047,6 +1057,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   'logs.webhook': {
     view: [PERMISSIONS.LOGS_WEBHOOK_READ],
+  },
+  'logs.external': {
+    view: [PERMISSIONS.LOGS_EXTERNAL_READ],
+    replay: [PERMISSIONS.LOGS_EXTERNAL_REPLAY],
   },
   'logs.blockautomation': {
     view: [PERMISSIONS.LOGS_AUTOMATION_READ],
