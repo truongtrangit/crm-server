@@ -8,10 +8,14 @@ const {
 const {
   qrGenerateLimiter,
   qrStatusLimiter,
+  otpVerifyLimiter,
+  otpResendLimiter,
 } = require('../../../core/middleware/rateLimiter');
 const {
   loginSchema,
   registerSchema,
+  verifyOtpSchema,
+  resendOtpSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
 
 const router = express.Router();
@@ -23,6 +27,20 @@ router.post(
   BotvnAuthController.register,
 );
 router.post('/logout', BotvnAuthController.logout);
+
+// OTP Verification
+router.post(
+  '/otp/verify',
+  otpVerifyLimiter,
+  validate(verifyOtpSchema),
+  BotvnAuthController.verifyOtp,
+);
+router.post(
+  '/otp/resend',
+  otpResendLimiter,
+  validate(resendOtpSchema),
+  BotvnAuthController.resendOtp,
+);
 
 // Zalo QR Login
 router.post('/qr/generate', qrGenerateLimiter, BotvnAuthController.generateQr);

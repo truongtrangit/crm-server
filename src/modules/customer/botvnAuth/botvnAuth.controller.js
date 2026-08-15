@@ -44,7 +44,10 @@ class BotvnAuthController {
   }
 
   async register(req, res) {
-    const customer = await BotvnAuthService.register(req.body, req);
+    const { customer, otpExpiresIn } = await BotvnAuthService.register(
+      req.body,
+      req,
+    );
 
     SystemLogService.log({
       action: 'create',
@@ -88,10 +91,63 @@ class BotvnAuthController {
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
       },
+      otpSent: true,
+      otpExpiresIn,
     };
 
     return sendSuccess(res, 201, 'Registration success', payload);
   }
+
+  async verifyOtp(req, res) {
+    const { customer, tokens } = await BotvnAuthService.verifyOtp(
+      req.body,
+      req,
+    );
+
+    SystemLogService.log({
+      action: 'login',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customer.id,
+      resourceName: customer.name,
+      description: 'Bot.vn user activated via OTP verification',
+      performedBy: {
+        userId: customer.id,
+        userName: customer.name,
+        userAvatar: customer.avatar || '',
+      },
+      status: 'success',
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'OTP verified, account activated', payload);
+  }
+
+  async resendOtp(req, res) {
+    const result = await BotvnAuthService.sendOtp(req.body.email);
+    return sendSuccess(res, 200, 'OTP resent', result);
+  }
+
 
   // ==========================================
   // ZALO QR ENDPOINTS

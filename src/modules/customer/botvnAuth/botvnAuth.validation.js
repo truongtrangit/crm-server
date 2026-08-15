@@ -32,7 +32,33 @@ const registerSchema = Joi.object({
     }),
 });
 
+const verifyOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Email must be a valid email",
+    "any.required": "Email is required",
+  }),
+  otp: Joi.string()
+    .pattern(/^\d{6}$/)
+    .required()
+    .messages({
+      "string.empty": "OTP is required",
+      "string.pattern.base": "OTP phải là 6 chữ số",
+      "any.required": "OTP is required",
+    }),
+});
+
+const resendOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Email must be a valid email",
+    "any.required": "Email is required",
+  }),
+});
+
 module.exports = {
   loginSchema,
   registerSchema,
+  verifyOtpSchema,
+  resendOtpSchema,
 };
