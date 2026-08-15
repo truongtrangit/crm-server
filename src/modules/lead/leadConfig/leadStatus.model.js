@@ -12,7 +12,8 @@ const leadStatusSchema = new mongoose.Schema(
     },
     color: { type: String, default: "#f1f5f9" },
     isDefault: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true },
+    isTemplate: { type: Boolean, default: true },
+    funnelId: { type: String, ref: 'Funnel', default: null },
   },
   {
     timestamps: true,

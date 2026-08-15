@@ -122,7 +122,10 @@ class IntegrationConfigService {
 
     if (data.name !== undefined) config.name = data.name;
     if (data.description !== undefined) config.description = data.description;
-    if (data.actions !== undefined) config.actions = data.actions;
+    if (data.actions !== undefined) {
+      config.actions = data.actions;
+      config.markModified('actions');
+    }
     if (data.fieldMapping !== undefined)
       config.fieldMapping = data.fieldMapping;
     if (data.status !== undefined) config.status = data.status;
@@ -275,18 +278,13 @@ class IntegrationConfigService {
 
     // Update trigger metrics + auto-discover payload variables
     const newVars = this._extractPayloadKeys(payload);
-    const mergedVars = [
-      ...new Set([...(config.discoveredVariables || []), ...newVars]),
-    ];
 
     IntegrationConfig.updateOne(
       { _id: config._id },
       {
         $inc: { triggerCount: 1 },
-        $set: {
-          lastTriggeredAt: new Date(),
-          discoveredVariables: mergedVars,
-        },
+        $set: { lastTriggeredAt: new Date() },
+        $addToSet: { discoveredVariables: { $each: newVars } },
       },
     ).catch((err) =>
       logger.warn('IntegrationConfig: metrics update error', {
@@ -361,17 +359,14 @@ class IntegrationConfigService {
   async _enrichMappedCustomer(mapped, payload) {
     const custId = payload?.customerId || payload?.customer_id;
 
+    const orConds = [];
+    if (custId) orConds.push({ id: custId });
+    if (mapped.email) orConds.push({ email: mapped.email.toLowerCase() });
+    if (mapped.phone) orConds.push({ phone: mapped.phone });
+
     let customer = null;
-    if (custId) {
-      customer = await Customer.findOne({ id: custId }).lean();
-    }
-    if (!customer && mapped.email) {
-      customer = await Customer.findOne({
-        email: mapped.email.toLowerCase(),
-      }).lean();
-    }
-    if (!customer && mapped.phone) {
-      customer = await Customer.findOne({ phone: mapped.phone }).lean();
+    if (orConds.length > 0) {
+      customer = await Customer.findOne({ $or: orConds }).lean();
     }
 
     if (customer) {
@@ -513,8 +508,13 @@ class IntegrationConfigService {
     const leadSource = actionConfig?.source || mapped.source || 'Integration';
 
     // Smart Upsert: Check if an active Lead already exists in this Funnel for this Customer
+    // Bỏ qua khi alwaysCreateNew = true (mỗi event luôn tạo Lead mới riêng biệt)
     let existingLead = null;
-    if (targetFunnelId && (customerId || mapped.email || mapped.phone)) {
+    if (
+      !actionConfig?.alwaysCreateNew &&
+      targetFunnelId &&
+      (customerId || mapped.email || mapped.phone)
+    ) {
       const orConds = [];
       if (customerId) orConds.push({ customerId });
       if (mapped.email) orConds.push({ email: mapped.email.toLowerCase() });
@@ -533,10 +533,14 @@ class IntegrationConfigService {
 
     // If Lead already exists in this Funnel -> Update it (Smart Upsert)
     if (existingLead) {
-      if (targetFunnelId) {
-        existingLead.statusId = targetStage;
-      } else {
-        existingLead.stage = targetStage;
+      // Chỉ ghi đè statusId nếu Lead chưa có statusId (mới tạo / chưa được xử lý)
+      // Tránh reset Lead mà sale đã chuyển sang trạng thái khác
+      if (targetStage && !existingLead.statusId) {
+        if (targetFunnelId) {
+          existingLead.statusId = targetStage;
+        } else {
+          existingLead.stage = targetStage;
+        }
       }
       if (leadSource) existingLead.source = leadSource;
       if (mapped.avatar) existingLead.avatar = mapped.avatar;
@@ -550,7 +554,9 @@ class IntegrationConfigService {
       let humanReadableStage = targetStage;
       if (targetStage) {
         if (targetFunnelId) {
-          const statusDoc = await LeadStatus.findOne({ id: targetStage }).lean();
+          const statusDoc = await LeadStatus.findOne({
+            id: targetStage,
+          }).lean();
           if (statusDoc) humanReadableStage = statusDoc.name;
         } else {
           const stageConfig = LEAD_STAGE_MAP[targetStage];
@@ -591,24 +597,17 @@ class IntegrationConfigService {
       );
     }
 
-    // NOTE: Kiểm tra biến tạm `_autoTask` được gán bởi LeadService trong lúc tạo Lead (nếu Phễu có bật autoCreateChain).
+    // NOTE: Kiểm tra biến tạm `_autoTask` được gán bởi LeadService trong lúc tạo Lead MỚI (nếu Phễu có bật autoCreateChain).
     // Nếu Phễu đã tạo Task rồi thì dùng luôn Task đó để gộp chuỗi hành động, tránh sinh ra 2 Task trùng lặp.
+    // Khi UPSERT Lead cũ, luôn tạo Task mới (mỗi event trigger = 1 Task riêng biệt).
     let createdTask = finalLead?._autoTask || null;
 
     if (actionConfig?.createTask) {
       try {
-        if (!createdTask && finalLead) {
-          // Nếu không có _autoTask (vd Lead được tạo từ trước, tìm trong CSDL xem Lead có Task đang mở không)
-          createdTask = await Task.findOne({
-            'linkedLeads.leadId': finalLead.id,
-            status: 'active',
-            isArchived: { $ne: true },
-          }).sort({ createdAt: -1 });
-        }
-
         if (createdTask) {
+          // _autoTask tồn tại = Phễu vừa tự tạo Task khi createLead → gộp chains vào Task đó
           logger.info(
-            `[Integration] Tìm thấy Tác vụ đang mở của Lead ${finalLead.id}. Tiến hành gộp chuỗi hành động tránh trùng lặp.`,
+            `[Integration] Phễu đã tự tạo Tác vụ ${createdTask.id} cho Lead ${finalLead.id}. Gộp chuỗi hành động.`,
           );
 
           if (
@@ -624,7 +623,6 @@ class IntegrationConfigService {
                 );
               } catch (addChainErr) {
                 if (addChainErr?.status === 409) {
-                  // Ignore 409: Chuỗi hành động đã có trong task
                   logger.info(
                     `[Integration] Chuỗi ${chainId} đã tồn tại trong task ${createdTask.id}`,
                   );
@@ -634,18 +632,8 @@ class IntegrationConfigService {
               }
             }
           }
-
-          finalLead.activityLogs.push({
-            action: 'update',
-            description: `Tích hợp tự động gộp các chuỗi hành động vào Tác vụ "${createdTask.name}" đang mở để tránh tạo trùng lặp tác vụ.`,
-            performedBy: {
-              userId: null,
-              userName: 'System Integration',
-              userAvatar: '',
-            },
-          });
-          await finalLead.save();
         } else {
+          // Không có _autoTask → tạo Task mới (cả trường hợp Lead mới lẫn Lead upsert)
           const taskName = this._resolveTemplate(
             actionConfig.taskNameTemplate || 'Xử lý Lead {{name}}',
             mapped,

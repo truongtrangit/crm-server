@@ -9,7 +9,16 @@ const actionSchema = Joi.object({
     .valid(...Object.values(INTEGRATION_ACTION_TYPES))
     .required(),
   enabled: Joi.boolean().optional(),
-  config: Joi.object().optional(),
+  config: Joi.when('type', {
+    is: INTEGRATION_ACTION_TYPES.CREATE_LEAD,
+    then: Joi.object({
+      funnelId: Joi.string().required().messages({
+        'any.required': 'Phễu Chăm Sóc (funnelId) là bắt buộc khi tạo Lead',
+        'string.empty': 'Phễu Chăm Sóc (funnelId) là bắt buộc khi tạo Lead',
+      }),
+    }).unknown(true).required(),
+    otherwise: Joi.object().optional(),
+  }),
 });
 
 const fieldMappingSchema = Joi.object()

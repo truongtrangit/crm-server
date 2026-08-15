@@ -68,8 +68,8 @@ class BotvnAuthController {
       SYSTEM_EVENT_TYPES,
     } = require('../../../core/constants/integrationConfig');
     CrmEventEmitter.emit(
-      SYSTEM_SOURCES?.BOTVN,
-      SYSTEM_EVENT_TYPES?.BOTVN_DANG_KY,
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_DANG_KY,
       {
         ...(customer.toJSON?.() || customer), // Pass customer object as payload
         registrationIp: req.ip,

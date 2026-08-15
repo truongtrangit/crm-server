@@ -110,8 +110,8 @@ class FavoriteCourseService {
 
     // Bắn event vào CRM (fire-and-forget)
     require('../../../core/services/CrmEventEmitter').emit(
-      SYSTEM_SOURCES?.BOTVN,
-      SYSTEM_EVENT_TYPES?.BOTVN_YEU_THICH,
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_YEU_THICH,
       {
         customerId,
         courseId,

@@ -21,6 +21,11 @@ const {
   CREDIT_SOURCES,
   CREDIT_TRANSACTION_STATUS,
 } = require('../../core/constants/appData');
+const logger = require('../../core/utils/logger');
+const {
+  SYSTEM_SOURCES,
+  SYSTEM_EVENT_TYPES,
+} = require('../../core/constants/integrationConfig');
 
 class CheckoutService {
   /**
@@ -377,6 +382,38 @@ class CheckoutService {
 
       await session.commitTransaction();
       session.endSession();
+
+      // Bắn event CRM Mua khoá học (fire-and-forget, sau khi commit)
+      try {
+        const CrmEventEmitter = require('../../core/services/CrmEventEmitter');
+
+        for (const item of enrollmentsToCreate) {
+          const courseObj = courseMap.get(item.courseId);
+          const courseName = courseObj?.name || courseObj?.title || 'Khoá học';
+          CrmEventEmitter.emit(
+            SYSTEM_SOURCES.BOTVN,
+            SYSTEM_EVENT_TYPES.BOTVN_MUA_KHOA_HOC,
+            {
+              name: customer.name || '',
+              email: customer.email || '',
+              phone: customer.phone || '',
+              amount: item.amountPaid || 0,
+              courseName: courseName,
+              courseId: item.courseId,
+              studentId: customer.id,
+            },
+          );
+        }
+      } catch (evtErr) {
+        // Non-blocking CRM event emission
+        logger.error(
+          `Error emitting CRM event ${JSON.stringify(evtErr.message)}`,
+          {
+            stack: evtErr.stack,
+            detail: JSON.stringify(evtErr),
+          },
+        );
+      }
 
       return {
         message: 'Thanh toán và đăng ký thành công',
