@@ -20,7 +20,16 @@ const {
   forgotPasswordVerifyOtpSchema,
   resetPasswordSchema,
   googleLoginSchema,
+  updateProfileSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
+
+const {
+  botvnAuthenticateRequest,
+} = require('../../../core/middleware/externalAuth');
+
+const {
+  checkBotvnMaintenance,
+} = require('../../../core/middleware/botvnConfigAccess');
 
 const router = express.Router();
 
@@ -31,6 +40,15 @@ router.post(
   BotvnAuthController.register,
 );
 router.post('/logout', BotvnAuthController.logout);
+
+// Profile
+router.put(
+  '/profile',
+  checkBotvnMaintenance,
+  botvnAuthenticateRequest,
+  validate(updateProfileSchema),
+  BotvnAuthController.updateProfile,
+);
 
 // OTP Verification
 router.post(
@@ -66,11 +84,19 @@ router.post(
 );
 
 // Google Login
-router.post('/google', validate(googleLoginSchema), BotvnAuthController.googleLogin);
+router.post(
+  '/google',
+  validate(googleLoginSchema),
+  BotvnAuthController.googleLogin,
+);
 
 // Zalo QR Login
 router.post('/qr/generate', qrGenerateLimiter, BotvnAuthController.generateQr);
-router.get('/qr/status/:token', qrStatusLimiter, BotvnAuthController.getQrStatus);
+router.get(
+  '/qr/status/:token',
+  qrStatusLimiter,
+  BotvnAuthController.getQrStatus,
+);
 router.get('/qr/scan/:token', BotvnAuthController.scanQr);
 router.post(
   '/qr/verify',

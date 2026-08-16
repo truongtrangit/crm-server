@@ -21,6 +21,8 @@ class BotvnAuthController {
         email: customer.email,
         phone: customer.phone,
         avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
         isActive: customer.isActive,
         botvnRole: customer.botvnRole,
         rewardCredit: customer.rewardCredit || 0,
@@ -126,6 +128,8 @@ class BotvnAuthController {
         email: customer.email,
         phone: customer.phone,
         avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
         isActive: customer.isActive,
         botvnRole: customer.botvnRole,
         rewardCredit: customer.rewardCredit || 0,
@@ -172,7 +176,10 @@ class BotvnAuthController {
   // ==========================================
 
   async googleLogin(req, res) {
-    const { customer, tokens } = await BotvnAuthService.googleLogin(req.body.idToken, req);
+    const { customer, tokens } = await BotvnAuthService.googleLogin(
+      req.body.idToken,
+      req,
+    );
 
     const payload = {
       customer: {
@@ -181,6 +188,8 @@ class BotvnAuthController {
         email: customer.email,
         phone: customer.phone,
         avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
         isActive: customer.isActive,
         botvnRole: customer.botvnRole,
         rewardCredit: customer.rewardCredit || 0,
@@ -196,6 +205,36 @@ class BotvnAuthController {
     };
 
     return sendSuccess(res, 200, 'Google login successful', payload);
+  }
+
+  // ==========================================
+  // UPDATE PROFILE
+  // ==========================================
+
+  async updateProfile(req, res) {
+    const customerId = req.user.id; // From botvnAuthenticateRequest middleware
+    const updatedCustomer = await BotvnAuthService.updateProfile(
+      customerId,
+      req.body,
+    );
+
+    const payload = {
+      id: updatedCustomer.id,
+      name: updatedCustomer.name,
+      email: updatedCustomer.email,
+      phone: updatedCustomer.phone,
+      avatar: updatedCustomer.avatar,
+      bio: updatedCustomer.bio,
+      jobTitle: updatedCustomer.jobTitle,
+      isActive: updatedCustomer.isActive,
+      botvnRole: updatedCustomer.botvnRole,
+      rewardCredit: updatedCustomer.rewardCredit || 0,
+      mainCredit: updatedCustomer.mainCredit || 0,
+      eduCredit: updatedCustomer.eduCredit || 0,
+      isEduAccount: updatedCustomer.isEduAccount || false,
+    };
+
+    return sendSuccess(res, 200, 'Cập nhật hồ sơ thành công', payload);
   }
 
   // ==========================================
@@ -249,6 +288,8 @@ class BotvnAuthController {
               email: customer.email,
               phone: customer.phone,
               avatar: customer.avatar,
+              bio: customer.bio,
+              jobTitle: customer.jobTitle,
               isActive: customer.isActive,
               botvnRole: customer.botvnRole,
               rewardCredit: customer.rewardCredit || 0,
