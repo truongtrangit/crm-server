@@ -12,7 +12,7 @@ class BotvnAuthController {
    * - No system log is recorded here to optimize performance and keep separation.
    */
   async login(req, res) {
-    const { customer, tokens } = await BotvnAuthService.login(req.body, req);
+    const { customer, tokens, hasPassword } = await BotvnAuthService.login(req.body, req);
 
     const payload = {
       customer: {
@@ -29,6 +29,8 @@ class BotvnAuthController {
         mainCredit: customer.mainCredit || 0,
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
       },
       sessionId: tokens.sessionId,
       accessToken: tokens.accessToken,
@@ -92,6 +94,7 @@ class BotvnAuthController {
         mainCredit: customer.mainCredit || 0,
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
       },
       otpSent: true,
       otpExpiresIn,
@@ -100,8 +103,14 @@ class BotvnAuthController {
     return sendSuccess(res, 201, 'Registration success', payload);
   }
 
+
+
+  // ==========================================
+  // OTP VERIFICATION
+  // ==========================================
+
   async verifyOtp(req, res) {
-    const { customer, tokens } = await BotvnAuthService.verifyOtp(
+    const { customer, tokens, hasPassword } = await BotvnAuthService.verifyOtp(
       req.body,
       req,
     );
@@ -136,6 +145,8 @@ class BotvnAuthController {
         mainCredit: customer.mainCredit || 0,
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
       },
       sessionId: tokens.sessionId,
       accessToken: tokens.accessToken,
@@ -176,7 +187,7 @@ class BotvnAuthController {
   // ==========================================
 
   async googleLogin(req, res) {
-    const { customer, tokens } = await BotvnAuthService.googleLogin(
+    const { customer, tokens, hasPassword } = await BotvnAuthService.googleLogin(
       req.body.idToken,
       req,
     );
@@ -196,6 +207,8 @@ class BotvnAuthController {
         mainCredit: customer.mainCredit || 0,
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
       },
       sessionId: tokens.sessionId,
       accessToken: tokens.accessToken,
@@ -235,6 +248,42 @@ class BotvnAuthController {
     };
 
     return sendSuccess(res, 200, 'Cập nhật hồ sơ thành công', payload);
+  }
+
+  // ==========================================
+  // CHANGE PASSWORD & DELETE ACCOUNT
+  // ==========================================
+
+  async changePassword(req, res) {
+    const customerId = req.user.id;
+    const result = await BotvnAuthService.changePassword(customerId, req.body);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customerId,
+      resourceName: req.user.name || customerId,
+      description: 'Bot.vn user changed password',
+      req,
+    });
+
+    return sendSuccess(res, 200, result.message);
+  }
+
+  async deleteAccount(req, res) {
+    const customerId = req.user.id;
+    const result = await BotvnAuthService.deleteAccount(customerId, req.body);
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customerId,
+      resourceName: req.user.name || customerId,
+      description: 'Bot.vn user deleted account',
+      req,
+    });
+
+    return sendSuccess(res, 200, result.message);
   }
 
   // ==========================================
@@ -279,7 +328,7 @@ class BotvnAuthController {
       if (session.status !== currentClientStatus) {
         // Nếu AUTHENTICATED, format payload trả về kèm user info để client tự login
         if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
-          const { customer, tokens } = session;
+          const { customer, tokens, hasPassword } = session;
           const payload = {
             status: session.status,
             customer: {
@@ -296,6 +345,8 @@ class BotvnAuthController {
               mainCredit: customer.mainCredit || 0,
               eduCredit: customer.eduCredit || 0,
               isEduAccount: customer.isEduAccount || false,
+              platforms: customer.platforms || [],
+              hasPassword,
             },
             sessionId: tokens.sessionId,
             accessToken: tokens.accessToken,

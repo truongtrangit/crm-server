@@ -132,9 +132,10 @@ class BotvnAuthService {
     await customer.save();
 
     // Prevent leaking the botvnPassword in the response
+    const hasPassword = !!customer.botvnPassword;
     customer.botvnPassword = undefined;
 
-    return { customer, tokens };
+    return { customer, tokens, hasPassword };
   }
 
   async logout(payload) {
@@ -368,7 +369,7 @@ class BotvnAuthService {
     const customer = await Customer.findOne({
       email,
       mainType: CUSTOMER_MAIN_TYPES.USER,
-    });
+    }).select('+botvnPassword');
 
     if (!customer) {
       const error = new Error('Tài khoản không tồn tại.');
@@ -407,9 +408,10 @@ class BotvnAuthService {
     });
 
     // Ẩn password trong response
+    const hasPassword = !!customer.botvnPassword;
     customer.botvnPassword = undefined;
 
-    return { customer, tokens };
+    return { customer, tokens, hasPassword };
   }
 
   // ==========================================
@@ -470,19 +472,21 @@ class BotvnAuthService {
     const avatar = payload.picture || '';
 
     // --- Find or create customer ---
-    let customer = await Customer.findOne({ googleId });
+    let customer = await Customer.findOne({ googleId }).select('+botvnPassword');
 
     if (!customer) {
       // Try to find existing customer by email (account linking)
       customer = await Customer.findOne({
         email,
         mainType: CUSTOMER_MAIN_TYPES.USER,
-      });
+      }).select('+botvnPassword');
 
       if (customer) {
         // Link Google ID to existing account
         customer.googleId = googleId;
         if (!customer.avatar && avatar) customer.avatar = avatar;
+        if (!customer.platforms) customer.platforms = ['Botvn'];
+        if (!customer.platforms.includes('Google')) customer.platforms.push('Google');
       } else {
         // Auto-register new customer
         const id = await generateMonotonicId(ID_PREFIXES.CUSTOMER);
@@ -494,7 +498,7 @@ class BotvnAuthService {
           googleId,
           mainType: CUSTOMER_MAIN_TYPES.USER,
           type: 'Bot.vn user',
-          platforms: ['Botvn'],
+          platforms: ['Botvn', 'Google'],
           isActive: true, // Google đã verify email → auto-active
           registeredAt: new Date().toISOString(),
         });
@@ -556,9 +560,10 @@ class BotvnAuthService {
     customer.lastLoginAt = new Date().toISOString();
     await customer.save();
 
+    const hasPassword = !!customer.botvnPassword;
     customer.botvnPassword = undefined;
 
-    return { customer, tokens };
+    return { customer, tokens, hasPassword };
   }
 
   // ==========================================
@@ -586,6 +591,92 @@ class BotvnAuthService {
     await customer.save();
 
     return customer;
+  }
+
+  // ==========================================
+  // CHANGE PASSWORD & DELETE ACCOUNT
+  // ==========================================
+
+  async changePassword(customerId, payload) {
+    const customer = await Customer.findOne({
+      id: customerId,
+      isActive: true,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    }).select('+botvnPassword');
+
+    if (!customer) {
+      const error = new Error('Tài khoản không tồn tại hoặc đã bị khóa.');
+      error.status = 404;
+      throw error;
+    }
+
+    const hasPassword = !!customer.botvnPassword;
+    
+    if (hasPassword) {
+      if (!payload.oldPassword) {
+        const error = new Error('Vui lòng nhập mật khẩu hiện tại.');
+        error.status = 400;
+        throw error;
+      }
+      
+      const isValidPassword = await verifyPassword(payload.oldPassword, customer.botvnPassword);
+      if (!isValidPassword) {
+        const error = new Error('Mật khẩu hiện tại không chính xác.');
+        error.status = 401;
+        throw error;
+      }
+    }
+
+    const hashedBotvnPassword = await hashPassword(payload.newPassword);
+    customer.botvnPassword = hashedBotvnPassword;
+    await customer.save();
+
+    // Revoke all existing sessions so they have to login again
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+
+    return { message: 'Đổi mật khẩu thành công' };
+  }
+
+  async deleteAccount(customerId, payload) {
+    const customer = await Customer.findOne({
+      id: customerId,
+      isActive: true,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    }).select('+botvnPassword');
+
+    if (!customer) {
+      const error = new Error('Tài khoản không tồn tại hoặc đã bị khóa.');
+      error.status = 404;
+      throw error;
+    }
+
+    const hasPassword = !!customer.botvnPassword;
+    
+    if (hasPassword) {
+      if (!payload.password) {
+        const error = new Error('Vui lòng nhập mật khẩu để xác nhận.');
+        error.status = 400;
+        throw error;
+      }
+      
+      const isValidPassword = await verifyPassword(payload.password, customer.botvnPassword);
+      if (!isValidPassword) {
+        const error = new Error('Mật khẩu không chính xác.');
+        error.status = 401;
+        throw error;
+      }
+    }
+
+    customer.isActive = false;
+    await customer.save();
+    
+    if (typeof customer.delete === 'function') {
+      await customer.delete();
+    }
+
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+
+    return { message: 'Tài khoản đã được xóa' };
   }
 
   // ==========================================
@@ -724,7 +815,7 @@ class BotvnAuthService {
     let customer = await Customer.findOne({
       zaloId,
       mainType: CUSTOMER_MAIN_TYPES.USER,
-    });
+    }).select('+botvnPassword');
 
     if (!customer) {
       // Auto-register (Đăng ký nhanh) do email không còn bắt buộc
@@ -733,7 +824,7 @@ class BotvnAuthService {
         const existingPhone = await Customer.findOne({
           phone,
           mainType: CUSTOMER_MAIN_TYPES.USER,
-        });
+        }).select('+botvnPassword');
         if (existingPhone) {
           // Gắn zaloId vào tài khoản hiện tại nếu muốn, hoặc báo lỗi. Ở đây ta ưu tiên gắn zaloId vào tk có cùng phone.
           customer = existingPhone;
@@ -825,6 +916,7 @@ class BotvnAuthService {
     await customer.save();
 
     // Prevent leaking the botvnPassword in the response
+    const hasPassword = !!customer.botvnPassword;
     customer.botvnPassword = undefined;
 
     // 5. Cập nhật trạng thái session QR thành công
@@ -834,6 +926,7 @@ class BotvnAuthService {
         status: QR_SESSION_STATUS.AUTHENTICATED,
         tokens,
         customer,
+        hasPassword,
       },
       env.botvnQrTokenTtlSeconds,
     );

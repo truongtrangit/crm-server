@@ -123,6 +123,25 @@ const updateProfileSchema = Joi.object({
   jobTitle: Joi.string().allow('').optional(),
 });
 
+const changePasswordSchema = Joi.object({
+  oldPassword: Joi.string().allow('').optional(),
+  newPassword: Joi.string()
+    .pattern(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    )
+    .required()
+    .messages({
+      'string.empty': 'Password is required',
+      'string.pattern.base':
+        'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
+      'any.required': 'Password is required',
+    }),
+});
+
+const deleteAccountSchema = Joi.object({
+  password: Joi.string().allow('').optional(),
+});
+
 module.exports = {
   loginSchema,
   registerSchema,
@@ -133,4 +152,6 @@ module.exports = {
   resetPasswordSchema,
   googleLoginSchema,
   updateProfileSchema,
+  changePasswordSchema,
+  deleteAccountSchema,
 };

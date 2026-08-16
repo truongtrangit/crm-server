@@ -21,6 +21,8 @@ const {
   resetPasswordSchema,
   googleLoginSchema,
   updateProfileSchema,
+  changePasswordSchema,
+  deleteAccountSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
 
 const {
@@ -88,6 +90,21 @@ router.post(
   '/google',
   validate(googleLoginSchema),
   BotvnAuthController.googleLogin,
+);
+
+// Account Settings
+router.put(
+  '/password/change',
+  botvnAuthenticateRequest,
+  validate(changePasswordSchema),
+  BotvnAuthController.changePassword,
+);
+
+router.delete(
+  '/account',
+  botvnAuthenticateRequest,
+  validate(deleteAccountSchema),
+  BotvnAuthController.deleteAccount,
 );
 
 // Zalo QR Login
