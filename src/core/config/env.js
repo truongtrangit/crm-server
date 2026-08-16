@@ -41,22 +41,39 @@ const env = {
     Number(process.env.BOTVN_REFRESH_TOKEN_TTL_DAYS) || 15, // 15 days
   botvnQrTokenTtlSeconds: Number(process.env.BOTVN_QR_TOKEN_TTL_SECONDS) || 180, // Default 3 minutes
 
+  // ─── BotVN OTP ────────────────────────────────────────────────────────────
+  botvnOtpTtlSeconds: Number(process.env.BOTVN_OTP_TTL_SECONDS) || 60, // Default 1 phút
+  botvnOtpApiUrl: process.env.BOTVN_OTP_API_URL || '', // URL API bên thứ 3 gửi OTP (rỗng = chỉ log console)
+  botvnOtpApiKey: process.env.BOTVN_OTP_API_KEY || '', // API key xác thực bên thứ 3
+
+  // ─── Google OAuth ──────────────────────────────────────────────────────────
+  botvnGoogleClientId: process.env.BOTVN_GOOGLE_CLIENT_ID || '',
+
   // ─── ZCode ──────────────────────────────────────────────────────────────────
-  zcodeSkus: process.env.ZCODE_SKUS || 'ZB5000,ZB10000,ZC10GB,ZC100GB,ZC500GB,ZC1T',
+  zcodeSkus:
+    process.env.ZCODE_SKUS || 'ZB5000,ZB10000,ZC10GB,ZC100GB,ZC500GB,ZC1T',
   zcodeAllowedIps: process.env.ZCODE_ALLOWED_IPS || '', // comma-separated, empty = allow all
-  zcodeApiKey: process.env.ZCODE_API_KEY || 'zcode_secret_key_change_in_production',
-  zcodeEncryptionKey: process.env.ZCODE_ENCRYPTION_KEY || 'zcode_encryption_key_change_in_production',
+  zcodeApiKey:
+    process.env.ZCODE_API_KEY || 'zcode_secret_key_change_in_production',
+  zcodeEncryptionKey:
+    process.env.ZCODE_ENCRYPTION_KEY ||
+    'zcode_encryption_key_change_in_production',
 
   // ─── Feature Flags ───────────────────────────────────────────────────────────
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',
   enableHttpRetry: process.env.ENABLE_HTTP_RETRY === 'true',
 
   // ─── ACB Bank Webhook ─────────────────────────────────────────────────────────
-  acbWebhookApiKey: process.env.ACB_WEBHOOK_API_KEY || 'acb_webhook_key_change_in_production',
-  acbWebhookSecretKey: process.env.ACB_WEBHOOK_SECRET_KEY || 'acb_secret_key_change_in_production', // VIK tạo & cung cấp cho ACB (ACB gọi là "secret_key")
-  acbWebhookBankKey: process.env.ACB_WEBHOOK_BANK_KEY || 'acb_bank_key_change_in_production', // ACB tạo & cung cấp cho VIK (ACB gọi là "server_key")
-  acbWebhookChecksumHeader: process.env.ACB_WEBHOOK_CHECKSUM_HEADER || 'signature', // Tên header chứa checksum
-  acbWebhookChecksumAlgorithm: process.env.ACB_WEBHOOK_CHECKSUM_ALGORITHM || 'SHA256', // SHA1, SHA256, SHA512, MD5
+  acbWebhookApiKey:
+    process.env.ACB_WEBHOOK_API_KEY || 'acb_webhook_key_change_in_production',
+  acbWebhookSecretKey:
+    process.env.ACB_WEBHOOK_SECRET_KEY || 'acb_secret_key_change_in_production', // VIK tạo & cung cấp cho ACB (ACB gọi là "secret_key")
+  acbWebhookBankKey:
+    process.env.ACB_WEBHOOK_BANK_KEY || 'acb_bank_key_change_in_production', // ACB tạo & cung cấp cho VIK (ACB gọi là "server_key")
+  acbWebhookChecksumHeader:
+    process.env.ACB_WEBHOOK_CHECKSUM_HEADER || 'signature', // Tên header chứa checksum
+  acbWebhookChecksumAlgorithm:
+    process.env.ACB_WEBHOOK_CHECKSUM_ALGORITHM || 'SHA256', // SHA1, SHA256, SHA512, MD5
   acbWebhookAllowedIps: process.env.ACB_WEBHOOK_ALLOWED_IPS || '', // comma-separated, supports CIDR, '0.0.0.0' = allow all
 
   // ─── Smax Ai ─────────────────────────────────────────────────────────────────
@@ -73,7 +90,7 @@ const env = {
   bkavInvoicePartnerGUID: process.env.BKAV_INVOICE_PARTNER_GUID || '',
   bkavInvoicePartnerToken: process.env.BKAV_INVOICE_PARTNER_TOKEN || '',
   bkavInvoiceCmdType: Number(process.env.BKAV_INVOICE_CMD_TYPE) || 111,
-  bkavInvoiceSerial: process.env.BKAV_INVOICE_SERIAL || '',  // Ký hiệu HĐ: MAA, MVK
+  bkavInvoiceSerial: process.env.BKAV_INVOICE_SERIAL || '', // Ký hiệu HĐ: MAA, MVK
 };
 
 Object.freeze(env);

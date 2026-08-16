@@ -8,6 +8,8 @@ const {
 const {
   qrGenerateLimiter,
   qrStatusLimiter,
+  otpVerifyLimiter,
+  otpResendLimiter,
 } = require('../../../core/middleware/rateLimiter');
 const {
   loginSchema,

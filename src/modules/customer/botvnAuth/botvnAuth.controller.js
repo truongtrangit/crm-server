@@ -46,7 +46,10 @@ class BotvnAuthController {
   }
 
   async register(req, res) {
-    const customer = await BotvnAuthService.register(req.body, req);
+    const { customer, otpExpiresIn } = await BotvnAuthService.register(
+      req.body,
+      req,
+    );
 
     SystemLogService.log({
       action: 'create',
@@ -90,6 +93,8 @@ class BotvnAuthController {
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
       },
+      otpSent: true,
+      otpExpiresIn,
     };
 
     return sendSuccess(res, 201, 'Registration success', payload);

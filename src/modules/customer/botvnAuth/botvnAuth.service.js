@@ -4,6 +4,7 @@ const {
   verifyPassword,
   createSessionTokens,
   hashPassword,
+  hashToken,
 } = require('../../../core/utils/auth');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const {
@@ -15,6 +16,14 @@ const BotvnConfig = require('../../course/courseConfig/botvnConfig.model');
 const env = require('../../../core/config/env');
 const CacheService = require('../../../core/services/CacheService');
 const crypto = require('crypto');
+const logger = require('../../../core/utils/logger');
+const { OAuth2Client } = require('google-auth-library');
+
+const OTP_CACHE_PREFIX = 'botvn_otp';
+const PWD_RESET_OTP_PREFIX = 'botvn_pwd_reset';
+const PWD_RESET_TOKEN_PREFIX = 'botvn_pwd_reset_token';
+const OTP_MAX_VERIFY_ATTEMPTS = 5;
+const PWD_RESET_TOKEN_TTL_SECONDS = 600; // 10 phút
 
 class BotvnAuthService {
   _normalizeEmail(value) {
@@ -179,13 +188,377 @@ class BotvnAuthService {
       mainType: CUSTOMER_MAIN_TYPES.USER,
       type: 'Bot.vn user',
       platforms: ['Botvn'],
-      isActive: false, // Default is inactive
+      isActive: false, // Default is inactive, sẽ active sau khi verify OTP
       registeredAt: new Date().toISOString(),
     });
 
     await newCustomer.save();
 
-    return newCustomer;
+    // Auto gửi OTP sau khi đăng ký
+    const otpResult = await this.sendOtp(email);
+
+    return { customer: newCustomer, otpExpiresIn: otpResult.expiresIn };
+  }
+
+  // ==========================================
+  // OTP VERIFICATION
+  // ==========================================
+
+  /**
+   * Generate mã OTP 6 chữ số ngẫu nhiên bảo mật bằng crypto
+   */
+  _generateOtp() {
+    return crypto.randomInt(100000, 999999).toString();
+  }
+
+  /**
+   * Gửi OTP qua API bên thứ 3.
+   * Nếu chưa config API URL → chỉ log ra console để dev test.
+   * API contract linh hoạt: POST JSON body, Bearer token auth.
+   */
+  async _sendOtpToThirdParty(email, otp, ttlSeconds) {
+    const apiUrl = env.botvnOtpApiUrl;
+    const apiKey = env.botvnOtpApiKey;
+
+    if (!apiUrl) {
+      logger.info(
+        `[BotVN OTP] No OTP API configured. OTP for ${email}: ${otp} (expires in ${ttlSeconds}s)`,
+      );
+      return;
+    }
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          email,
+          otp,
+          expiresInSeconds: ttlSeconds,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        logger.error('[BotVN OTP] Third-party API error', {
+          status: response.status,
+          body: text,
+          email,
+        });
+      } else {
+        logger.info(`[BotVN OTP] OTP sent successfully for ${email}`);
+      }
+    } catch (err) {
+      logger.error('[BotVN OTP] Failed to call third-party API', {
+        error: err.message,
+        email,
+      });
+      // Không throw — OTP đã lưu cache, user có thể resend
+    }
+  }
+
+  /**
+   * Generate OTP, lưu cache (hash), và gửi qua API bên thứ 3
+   */
+  async sendOtp(email) {
+    const normalizedEmail = this._normalizeEmail(email);
+    const ttl = env.botvnOtpTtlSeconds;
+
+    // Kiểm tra customer tồn tại và chưa active
+    const customer = await Customer.findOne({
+      email: normalizedEmail,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (!customer) {
+      const error = new Error('Email không tồn tại trong hệ thống.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    if (customer.isActive === true) {
+      const error = new Error('Tài khoản đã được kích hoạt.');
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    const otp = this._generateOtp();
+    const otpHash = hashToken(otp);
+
+    // Lưu OTP hash vào cache, KHÔNG lưu OTP plaintext
+    await CacheService.set(
+      `${OTP_CACHE_PREFIX}:${normalizedEmail}`,
+      {
+        otpHash,
+        attempts: 0,
+        createdAt: Date.now(),
+      },
+      ttl,
+    );
+
+    // Gửi OTP plaintext qua API bên thứ 3
+    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+
+    return { expiresIn: ttl };
+  }
+
+  /**
+   * Xác thực OTP, kích hoạt tài khoản và tự động đăng nhập
+   */
+  async verifyOtp(payload, req) {
+    const email = this._normalizeEmail(payload?.email);
+    const otp = typeof payload?.otp === 'string' ? payload.otp.trim() : '';
+    const cacheKey = `${OTP_CACHE_PREFIX}:${email}`;
+
+    // Lấy dữ liệu OTP từ cache
+    const cached = await CacheService.get(cacheKey);
+    if (!cached) {
+      const error = new Error(
+        'Mã OTP đã hết hạn hoặc chưa được gửi. Vui lòng yêu cầu gửi lại.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.OTP_EXPIRED;
+      throw error;
+    }
+
+    // Kiểm tra số lần thử
+    if (cached.attempts >= OTP_MAX_VERIFY_ATTEMPTS) {
+      await CacheService.del(cacheKey);
+      const error = new Error(
+        'Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu gửi lại mã OTP mới.',
+      );
+      error.status = 429;
+      error.code = AUTH_ERROR_CODES.OTP_MAX_ATTEMPTS;
+      throw error;
+    }
+
+    // So sánh hash OTP
+    const inputHash = hashToken(otp);
+    if (inputHash !== cached.otpHash) {
+      // Tăng số lần thử, giữ nguyên TTL còn lại
+      cached.attempts += 1;
+      const remainingTtl = Math.max(
+        1,
+        Math.ceil(
+          (cached.createdAt + env.botvnOtpTtlSeconds * 1000 - Date.now()) /
+            1000,
+        ),
+      );
+      await CacheService.set(cacheKey, cached, remainingTtl);
+
+      const error = new Error(
+        `Mã OTP không chính xác. Bạn còn ${OTP_MAX_VERIFY_ATTEMPTS - cached.attempts} lần thử.`,
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.OTP_INVALID;
+      error.context = {
+        attemptsRemaining: OTP_MAX_VERIFY_ATTEMPTS - cached.attempts,
+      };
+      throw error;
+    }
+
+    // OTP đúng — Xóa cache và kích hoạt tài khoản
+    await CacheService.del(cacheKey);
+
+    const customer = await Customer.findOne({
+      email,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (!customer) {
+      const error = new Error('Tài khoản không tồn tại.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    // Kích hoạt tài khoản
+    customer.isActive = true;
+    customer.lastLoginAt = new Date().toISOString();
+    await customer.save();
+
+    // Auto login: tạo session tokens
+    const tokens = createSessionTokens(req);
+    const now = Date.now();
+    const botvnAccessTtlMs = env.botvnAccessTokenTtlMinutes * 1000;
+    const botvnRefreshTtlMs =
+      env.botvnRefreshTokenTtlDays * 24 * 60 * 60 * 1000;
+
+    tokens.session.accessTokenExpiresAt = new Date(now + botvnAccessTtlMs);
+    tokens.session.refreshTokenExpiresAt = new Date(now + botvnRefreshTtlMs);
+
+    // Xóa session cũ (nếu có) và tạo mới
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+    await BotvnUserSession.create({
+      customerId: customer._id,
+      sessionId: tokens.session.sessionId,
+      accessTokenHash: tokens.session.accessTokenHash,
+      refreshTokenHash: tokens.session.refreshTokenHash,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+      userAgent: tokens.session.userAgent,
+      ipAddress: tokens.session.ipAddress,
+      lastUsedAt: tokens.session.lastUsedAt,
+    });
+
+    // Ẩn password trong response
+    customer.botvnPassword = undefined;
+
+    return { customer, tokens };
+  }
+
+  // ==========================================
+  // GOOGLE LOGIN
+  // ==========================================
+
+  /**
+   * Google Login / Auto-register.
+   * 1. Verify Google ID token (audience check)
+   * 2. Tìm Customer bằng googleId → returning user
+   * 3. Tìm bằng email → link googleId vào account cũ
+   * 4. Không tìm → tạo Customer mới (auto-register, auto-active)
+   * 5. Tạo session tokens
+   */
+  async googleLogin(idToken, req) {
+    if (!env.botvnGoogleClientId) {
+      const error = new Error('Google login is not configured.');
+      error.status = 500;
+      throw error;
+    }
+
+    // --- Config check ---
+    const config = await BotvnConfig.findOne().lean();
+    if (config?.login?.google === false) {
+      const error = new Error('Tính năng đăng nhập bằng Google đang bị khóa.');
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.LOGIN_METHOD_DISABLED;
+      throw error;
+    }
+
+    // --- Verify ID token ---
+    const googleClient = new OAuth2Client(env.botvnGoogleClientId);
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: env.botvnGoogleClientId,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      logger.warn('Google ID token verification failed', { error: err.message });
+      const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
+      error.status = 401;
+      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+      throw error;
+    }
+
+    if (!payload.email_verified) {
+      const error = new Error('Email Google chưa được xác thực.');
+      error.status = 401;
+      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+      throw error;
+    }
+
+    const googleId = payload.sub;
+    const email = this._normalizeEmail(payload.email);
+    const name = payload.name || email.split('@')[0];
+    const avatar = payload.picture || '';
+
+    // --- Find or create customer ---
+    let customer = await Customer.findOne({ googleId });
+
+    if (!customer) {
+      // Try to find existing customer by email (account linking)
+      customer = await Customer.findOne({
+        email,
+        mainType: CUSTOMER_MAIN_TYPES.USER,
+      });
+
+      if (customer) {
+        // Link Google ID to existing account
+        customer.googleId = googleId;
+        if (!customer.avatar && avatar) customer.avatar = avatar;
+      } else {
+        // Auto-register new customer
+        const id = await generateMonotonicId(ID_PREFIXES.CUSTOMER);
+        customer = new Customer({
+          id,
+          name,
+          email,
+          avatar,
+          googleId,
+          mainType: CUSTOMER_MAIN_TYPES.USER,
+          type: 'Bot.vn user',
+          platforms: ['Botvn'],
+          isActive: true, // Google đã verify email → auto-active
+          registeredAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    // --- Check account status ---
+    if (customer.isActive === false) {
+      const error = new Error(
+        'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
+      );
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
+      throw error;
+    }
+
+    // --- Maintenance check ---
+    if (config && config.maintenance && config.maintenance.isActive) {
+      const allowedRoles = config.maintenance.allowedRoles || [];
+      if (!customer.botvnRole || !allowedRoles.includes(customer.botvnRole)) {
+        const error = new Error(
+          'Hệ thống đang bảo trì. Tài khoản của bạn không có quyền truy cập lúc này.',
+        );
+        error.status = 503;
+        error.code = AUTH_ERROR_CODES.MAINTENANCE_MODE;
+        error.context = {
+          type: config.maintenance.type,
+          title: config.maintenance.title,
+          reason: config.maintenance.reason,
+          time: config.maintenance.time,
+        };
+        throw error;
+      }
+    }
+
+    // --- Session tokens ---
+    const tokens = createSessionTokens(req);
+    const now = Date.now();
+    tokens.session.accessTokenExpiresAt = new Date(
+      now + env.botvnAccessTokenTtlMinutes * 1000,
+    );
+    tokens.session.refreshTokenExpiresAt = new Date(
+      now + env.botvnRefreshTokenTtlDays * 24 * 60 * 60 * 1000,
+    );
+
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+    await BotvnUserSession.create({
+      customerId: customer._id,
+      sessionId: tokens.session.sessionId,
+      accessTokenHash: tokens.session.accessTokenHash,
+      refreshTokenHash: tokens.session.refreshTokenHash,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+      userAgent: tokens.session.userAgent,
+      ipAddress: tokens.session.ipAddress,
+      lastUsedAt: tokens.session.lastUsedAt,
+    });
+
+    customer.lastLoginAt = new Date().toISOString();
+    await customer.save();
+
+    customer.botvnPassword = undefined;
+
+    return { customer, tokens };
   }
 
   // ==========================================
@@ -466,6 +839,181 @@ class BotvnAuthService {
     );
 
     return { message: 'Xác thực thành công' };
+  }
+
+  // ==========================================
+  // FORGOT PASSWORD (OTP-based)
+  // ==========================================
+
+  /**
+   * Step 1: Gửi OTP cho user đã active khi quên mật khẩu
+   */
+  async forgotPassword(email) {
+    const normalizedEmail = this._normalizeEmail(email);
+    const ttl = env.botvnOtpTtlSeconds;
+
+    const customer = await Customer.findOne({
+      email: normalizedEmail,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (!customer) {
+      const error = new Error('Email không tồn tại trong hệ thống.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    if (customer.isActive === false) {
+      const error = new Error(
+        'Tài khoản chưa được kích hoạt. Vui lòng kích hoạt tài khoản trước.',
+      );
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
+      throw error;
+    }
+
+    const otp = this._generateOtp();
+    const otpHash = hashToken(otp);
+
+    await CacheService.set(
+      `${PWD_RESET_OTP_PREFIX}:${normalizedEmail}`,
+      {
+        otpHash,
+        attempts: 0,
+        createdAt: Date.now(),
+      },
+      ttl,
+    );
+
+    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+
+    return { expiresIn: ttl };
+  }
+
+  /**
+   * Step 2: Verify OTP quên mật khẩu → trả về reset token
+   */
+  async forgotPasswordVerifyOtp(payload) {
+    const email = this._normalizeEmail(payload?.email);
+    const otp = typeof payload?.otp === 'string' ? payload.otp.trim() : '';
+    const cacheKey = `${PWD_RESET_OTP_PREFIX}:${email}`;
+
+    const cached = await CacheService.get(cacheKey);
+    if (!cached) {
+      const error = new Error(
+        'Mã OTP đã hết hạn hoặc chưa được gửi. Vui lòng yêu cầu gửi lại.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.OTP_EXPIRED;
+      throw error;
+    }
+
+    if (cached.attempts >= OTP_MAX_VERIFY_ATTEMPTS) {
+      await CacheService.del(cacheKey);
+      const error = new Error(
+        'Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu gửi lại mã OTP mới.',
+      );
+      error.status = 429;
+      error.code = AUTH_ERROR_CODES.OTP_MAX_ATTEMPTS;
+      throw error;
+    }
+
+    const inputHash = hashToken(otp);
+    if (inputHash !== cached.otpHash) {
+      cached.attempts += 1;
+      const remainingTtl = Math.max(
+        1,
+        Math.ceil(
+          (cached.createdAt + env.botvnOtpTtlSeconds * 1000 - Date.now()) /
+            1000,
+        ),
+      );
+      await CacheService.set(cacheKey, cached, remainingTtl);
+
+      const error = new Error(
+        `Mã OTP không chính xác. Bạn còn ${OTP_MAX_VERIFY_ATTEMPTS - cached.attempts} lần thử.`,
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.OTP_INVALID;
+      error.context = {
+        attemptsRemaining: OTP_MAX_VERIFY_ATTEMPTS - cached.attempts,
+      };
+      throw error;
+    }
+
+    // OTP đúng → xóa OTP cache, tạo reset token
+    await CacheService.del(cacheKey);
+
+    const resetToken = crypto.randomBytes(48).toString('base64url');
+    const resetTokenHash = hashToken(resetToken);
+
+    await CacheService.set(
+      `${PWD_RESET_TOKEN_PREFIX}:${email}`,
+      { resetTokenHash, createdAt: Date.now() },
+      PWD_RESET_TOKEN_TTL_SECONDS,
+    );
+
+    return { resetToken };
+  }
+
+  /**
+   * Step 3: Đổi mật khẩu bằng reset token
+   */
+  async resetPassword(payload) {
+    const email = this._normalizeEmail(payload?.email);
+    const resetToken =
+      typeof payload?.resetToken === 'string'
+        ? payload.resetToken.trim()
+        : '';
+    const newPassword =
+      typeof payload?.newPassword === 'string' ? payload.newPassword : '';
+    const cacheKey = `${PWD_RESET_TOKEN_PREFIX}:${email}`;
+
+    const cached = await CacheService.get(cacheKey);
+    if (!cached || !cached.resetTokenHash) {
+      const error = new Error(
+        'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    if (hashToken(resetToken) !== cached.resetTokenHash) {
+      // Token sai → xóa luôn để chống brute-force
+      await CacheService.del(cacheKey);
+      const error = new Error(
+        'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+      );
+      error.status = 400;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    // Token hợp lệ → xóa cache
+    await CacheService.del(cacheKey);
+
+    const customer = await Customer.findOne({
+      email,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    }).select('+botvnPassword');
+
+    if (!customer) {
+      const error = new Error('Tài khoản không tồn tại.');
+      error.status = 404;
+      error.code = AUTH_ERROR_CODES.VALIDATION_ERROR;
+      throw error;
+    }
+
+    // Đổi mật khẩu
+    customer.botvnPassword = await hashPassword(newPassword);
+    await customer.save();
+
+    // Force re-login: xóa toàn bộ sessions cũ
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+
+    return { message: 'Đổi mật khẩu thành công.' };
   }
 }
 

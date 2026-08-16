@@ -54,6 +54,7 @@ const customerSchema = new mongoose.Schema(
     registeredAt: { type: String, default: "" },
     lastLoginAt: { type: String, default: "" },
     botvnPassword: { type: String, select: false },
+    googleId: { type: String, sparse: true, index: true },
     tags: { type: [String], default: [] },
 
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },

@@ -73,6 +73,30 @@ const acbWebhookLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const otpVerifyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // Max 5 OTP verify attempts per minute per IP (chống brute-force)
+  message: {
+    success: false,
+    message: 'Quá nhiều lần xác thực OTP. Vui lòng thử lại sau 1 phút.',
+    code: 'OTP_RATE_LIMITED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const otpResendLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 3, // Max 3 OTP resend requests per 5 minutes per IP (chống spam)
+  message: {
+    success: false,
+    message: 'Quá nhiều lần gửi lại OTP. Vui lòng thử lại sau 5 phút.',
+    code: 'OTP_RESEND_RATE_LIMITED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   voucherRedeemLimiter,
   qrGenerateLimiter,
@@ -80,4 +104,6 @@ module.exports = {
   videoAccessLimiter,
   zcodeRedeemLimiter,
   acbWebhookLimiter,
+  otpVerifyLimiter,
+  otpResendLimiter,
 };
