@@ -21,6 +21,8 @@ class BotvnAuthController {
         email: customer.email,
         phone: customer.phone,
         avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
         isActive: customer.isActive,
         botvnRole: customer.botvnRole,
         rewardCredit: customer.rewardCredit || 0,
@@ -93,6 +95,143 @@ class BotvnAuthController {
     return sendSuccess(res, 201, 'Registration success', payload);
   }
 
+  async verifyOtp(req, res) {
+    const { customer, tokens } = await BotvnAuthService.verifyOtp(
+      req.body,
+      req,
+    );
+
+    SystemLogService.log({
+      action: 'login',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customer.id,
+      resourceName: customer.name,
+      description: 'Bot.vn user activated via OTP verification',
+      performedBy: {
+        userId: customer.id,
+        userName: customer.name,
+        userAvatar: customer.avatar || '',
+      },
+      status: 'success',
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'OTP verified, account activated', payload);
+  }
+
+  async resendOtp(req, res) {
+    const result = await BotvnAuthService.sendOtp(req.body.email);
+    return sendSuccess(res, 200, 'OTP resent', result);
+  }
+
+  // ==========================================
+  // FORGOT PASSWORD
+  // ==========================================
+
+  async forgotPassword(req, res) {
+    const result = await BotvnAuthService.forgotPassword(req.body.email);
+    return sendSuccess(res, 200, 'OTP sent for password reset', result);
+  }
+
+  async forgotPasswordVerifyOtp(req, res) {
+    const result = await BotvnAuthService.forgotPasswordVerifyOtp(req.body);
+    return sendSuccess(res, 200, 'OTP verified', result);
+  }
+
+  async resetPassword(req, res) {
+    const result = await BotvnAuthService.resetPassword(req.body);
+    return sendSuccess(res, 200, result.message);
+  }
+
+  // ==========================================
+  // GOOGLE LOGIN
+  // ==========================================
+
+  async googleLogin(req, res) {
+    const { customer, tokens } = await BotvnAuthService.googleLogin(
+      req.body.idToken,
+      req,
+    );
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'Google login successful', payload);
+  }
+
+  // ==========================================
+  // UPDATE PROFILE
+  // ==========================================
+
+  async updateProfile(req, res) {
+    const customerId = req.user.id; // From botvnAuthenticateRequest middleware
+    const updatedCustomer = await BotvnAuthService.updateProfile(
+      customerId,
+      req.body,
+    );
+
+    const payload = {
+      id: updatedCustomer.id,
+      name: updatedCustomer.name,
+      email: updatedCustomer.email,
+      phone: updatedCustomer.phone,
+      avatar: updatedCustomer.avatar,
+      bio: updatedCustomer.bio,
+      jobTitle: updatedCustomer.jobTitle,
+      isActive: updatedCustomer.isActive,
+      botvnRole: updatedCustomer.botvnRole,
+      rewardCredit: updatedCustomer.rewardCredit || 0,
+      mainCredit: updatedCustomer.mainCredit || 0,
+      eduCredit: updatedCustomer.eduCredit || 0,
+      isEduAccount: updatedCustomer.isEduAccount || false,
+    };
+
+    return sendSuccess(res, 200, 'Cập nhật hồ sơ thành công', payload);
+  }
+
   // ==========================================
   // ZALO QR ENDPOINTS
   // ==========================================
@@ -144,6 +283,8 @@ class BotvnAuthController {
               email: customer.email,
               phone: customer.phone,
               avatar: customer.avatar,
+              bio: customer.bio,
+              jobTitle: customer.jobTitle,
               isActive: customer.isActive,
               botvnRole: customer.botvnRole,
               rewardCredit: customer.rewardCredit || 0,

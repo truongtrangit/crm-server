@@ -12,7 +12,22 @@ const {
 const {
   loginSchema,
   registerSchema,
+  verifyOtpSchema,
+  resendOtpSchema,
+  forgotPasswordSchema,
+  forgotPasswordVerifyOtpSchema,
+  resetPasswordSchema,
+  googleLoginSchema,
+  updateProfileSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
+
+const {
+  botvnAuthenticateRequest,
+} = require('../../../core/middleware/externalAuth');
+
+const {
+  checkBotvnMaintenance,
+} = require('../../../core/middleware/botvnConfigAccess');
 
 const router = express.Router();
 
@@ -24,9 +39,62 @@ router.post(
 );
 router.post('/logout', BotvnAuthController.logout);
 
+// Profile
+router.put(
+  '/profile',
+  checkBotvnMaintenance,
+  botvnAuthenticateRequest,
+  validate(updateProfileSchema),
+  BotvnAuthController.updateProfile,
+);
+
+// OTP Verification
+router.post(
+  '/otp/verify',
+  otpVerifyLimiter,
+  validate(verifyOtpSchema),
+  BotvnAuthController.verifyOtp,
+);
+router.post(
+  '/otp/resend',
+  otpResendLimiter,
+  validate(resendOtpSchema),
+  BotvnAuthController.resendOtp,
+);
+
+// Forgot Password
+router.post(
+  '/password/forgot',
+  otpResendLimiter,
+  validate(forgotPasswordSchema),
+  BotvnAuthController.forgotPassword,
+);
+router.post(
+  '/password/verify-otp',
+  otpVerifyLimiter,
+  validate(forgotPasswordVerifyOtpSchema),
+  BotvnAuthController.forgotPasswordVerifyOtp,
+);
+router.post(
+  '/password/reset',
+  validate(resetPasswordSchema),
+  BotvnAuthController.resetPassword,
+);
+
+// Google Login
+router.post(
+  '/google',
+  validate(googleLoginSchema),
+  BotvnAuthController.googleLogin,
+);
+
 // Zalo QR Login
 router.post('/qr/generate', qrGenerateLimiter, BotvnAuthController.generateQr);
-router.get('/qr/status/:token', qrStatusLimiter, BotvnAuthController.getQrStatus);
+router.get(
+  '/qr/status/:token',
+  qrStatusLimiter,
+  BotvnAuthController.getQrStatus,
+);
 router.get('/qr/scan/:token', BotvnAuthController.scanQr);
 router.post(
   '/qr/verify',

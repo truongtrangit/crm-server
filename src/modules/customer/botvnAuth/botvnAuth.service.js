@@ -189,6 +189,33 @@ class BotvnAuthService {
   }
 
   // ==========================================
+  // UPDATE PROFILE
+  // ==========================================
+  
+  async updateProfile(customerId, payload) {
+    const customer = await Customer.findOne({
+      id: customerId,
+      isActive: true,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (!customer) {
+      const error = new Error('Tài khoản không tồn tại hoặc đã bị khóa.');
+      error.status = 404;
+      throw error;
+    }
+
+    if (payload.name !== undefined) customer.name = payload.name;
+    if (payload.phone !== undefined) customer.phone = payload.phone;
+    if (payload.bio !== undefined) customer.bio = payload.bio;
+    if (payload.jobTitle !== undefined) customer.jobTitle = payload.jobTitle;
+
+    await customer.save();
+
+    return customer;
+  }
+
+  // ==========================================
   // ZALO QR LOGIN FLOW
   // ==========================================
 
