@@ -8,6 +8,10 @@ const router = express.Router();
 router.get("/botvn", async (req, res, next) => {
   try {
     const config = await CourseConfigService.getBotvnConfig();
+    // Loại bỏ otpApi khỏi response — field nội bộ, không gửi cho client
+    if (config) {
+      delete config.otpApi;
+    }
     return sendSuccess(res, 200, "Get botvn config success", { config });
   } catch (error) {
     next(error);

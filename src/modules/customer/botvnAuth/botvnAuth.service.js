@@ -215,33 +215,60 @@ class BotvnAuthService {
   /**
    * Gửi OTP qua API bên thứ 3.
    * Nếu chưa config API URL → chỉ log ra console để dev test.
-   * API contract linh hoạt: POST JSON body, Bearer token auth.
+   *
+   * @param {Object} dataContext - Tất cả data có sẵn (customer fields + otp + ttlSeconds)
+   *   Ví dụ: { email, phone, name, id, otp, ttlSeconds, ...bất kỳ field nào khác }
+   * @param {Object} additionalParams - Params bổ sung từ code (ưu tiên cao nhất)
+   *
+   * Payload được build theo BotvnConfig.otpApi.fieldMappings:
+   *   [{ field: "email", mapTo: "emailKH" }] → { emailKH: dataContext.email }
+   * Nếu chưa config fieldMappings → dùng payload mặc định.
    */
-  async _sendOtpToThirdParty(email, otp, ttlSeconds, additionalParams = {}) {
+  async _sendOtpToThirdParty(dataContext, additionalParams = {}) {
     const apiUrl = env.botvnOtpApiUrl;
     const apiKey = env.botvnOtpApiKey;
 
     if (!apiUrl) {
-      logger.info(
-        `[BotVN OTP] No OTP API configured. OTP for ${email}: ${otp} (expires in ${ttlSeconds}s)`,
-        additionalParams
-      );
+      logger.info('[BotVN OTP] No OTP API configured. OTP data:', {
+        dataContext,
+        additionalParams,
+      });
       return;
     }
 
     try {
+      // Đọc fieldMappings từ DB
+      const config = await BotvnConfig.findOne().lean();
+      const fieldMappings = config?.otpApi?.fieldMappings;
+
+      let bodyPayload;
+      if (fieldMappings && fieldMappings.length > 0) {
+        // Build payload từ fieldMappings: pick field từ dataContext, map sang tên API (mapTo)
+        bodyPayload = {};
+        for (const { field, mapTo } of fieldMappings) {
+          if (field && mapTo && dataContext[field] !== undefined) {
+            bodyPayload[mapTo] = dataContext[field];
+          }
+        }
+      } else {
+        // Fallback: payload mặc định
+        bodyPayload = {
+          email: dataContext.email,
+          otp: dataContext.otp,
+          expiresInSeconds: dataContext.ttlSeconds,
+        };
+      }
+
+      // additionalParams luôn ghi đè cuối cùng
+      bodyPayload = { ...bodyPayload, ...additionalParams };
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
-        body: JSON.stringify({
-          email,
-          otp,
-          expiresInSeconds: ttlSeconds,
-          ...additionalParams,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -304,8 +331,12 @@ class BotvnAuthService {
       ttl,
     );
 
-    // Gửi OTP plaintext qua API bên thứ 3
-    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+    // Gửi OTP plaintext qua API bên thứ 3 — truyền customer fields để fieldMappings có thể pick
+    await this._sendOtpToThirdParty({
+      ...customer.toObject(),
+      otp,
+      ttlSeconds: ttl,
+    });
 
     return { expiresIn: ttl };
   }
@@ -1015,7 +1046,11 @@ class BotvnAuthService {
       ttl,
     );
 
-    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+    await this._sendOtpToThirdParty({
+      ...customer.toObject(),
+      otp,
+      ttlSeconds: ttl,
+    });
 
     return { expiresIn: ttl };
   }
