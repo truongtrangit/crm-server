@@ -217,13 +217,14 @@ class BotvnAuthService {
    * Nếu chưa config API URL → chỉ log ra console để dev test.
    * API contract linh hoạt: POST JSON body, Bearer token auth.
    */
-  async _sendOtpToThirdParty(email, otp, ttlSeconds) {
+  async _sendOtpToThirdParty(email, otp, ttlSeconds, additionalParams = {}) {
     const apiUrl = env.botvnOtpApiUrl;
     const apiKey = env.botvnOtpApiKey;
 
     if (!apiUrl) {
       logger.info(
         `[BotVN OTP] No OTP API configured. OTP for ${email}: ${otp} (expires in ${ttlSeconds}s)`,
+        additionalParams
       );
       return;
     }
@@ -239,6 +240,7 @@ class BotvnAuthService {
           email,
           otp,
           expiresInSeconds: ttlSeconds,
+          ...additionalParams,
         }),
       });
 

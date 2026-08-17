@@ -3,8 +3,16 @@ const BankLogRoutingRule = require('./bankLogRoutingRule.model');
 const User = require('../system/user/user.model');
 const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
-const { generateMonotonicId, generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
-const { BANK_LOG_TX_STATUSES, BANK_LOG_AUTH_TYPES, BANK_LOG_DEBIT_CREDIT } = require('../../core/constants/bankLog');
+const {
+  generateMonotonicId,
+  generateMonotonicIdsBatch,
+  ID_PREFIXES,
+} = require('../../core/utils/id');
+const {
+  BANK_LOG_TX_STATUSES,
+  BANK_LOG_AUTH_TYPES,
+  BANK_LOG_DEBIT_CREDIT,
+} = require('../../core/constants/bankLog');
 const { escapeRegex } = require('../../core/utils/query');
 const CacheService = require('../../core/services/CacheService');
 const httpClient = require('../../core/utils/httpClient');
@@ -100,7 +108,8 @@ class BankLogService {
       ]);
 
     const totalAll = await BankLogTransaction.countDocuments();
-    const successRate = totalAll > 0 ? ((successCount / totalAll) * 100).toFixed(1) : '0.0';
+    const successRate =
+      totalAll > 0 ? ((successCount / totalAll) * 100).toFixed(1) : '0.0';
 
     return {
       todayReceived: todayAmount[0]?.total || 0,
@@ -141,8 +150,14 @@ class BankLogService {
       });
     } catch (err) {
       if (err.code === 11000) {
-        logger.info('Bank Log: Duplicate transaction ignored', { txId: payload.txId });
-        return { txId: payload.txId, status: 'DUPLICATE', message: 'Transaction already ingested' };
+        logger.info('Bank Log: Duplicate transaction ignored', {
+          txId: payload.txId,
+        });
+        return {
+          txId: payload.txId,
+          status: 'DUPLICATE',
+          message: 'Transaction already ingested',
+        };
       }
       throw err;
     }
@@ -185,7 +200,9 @@ class BankLogService {
 
     // Map ACB fields → internal documents
     const docs = acbTransactions.map((acbTx, i) => {
-      const txId = acbTx.transactionCode ? `ACB-${acbTx.transactionCode}` : `ACB-UNKNOWN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const txId = acbTx.transactionCode
+        ? `ACB-${acbTx.transactionCode}`
+        : `ACB-UNKNOWN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       // Determine if we should process this or just log it
       let initialStatus = BANK_LOG_TX_STATUSES.PENDING;
       if (
@@ -199,12 +216,17 @@ class BankLogService {
         id: ids[i],
         txId,
         bank: acbTx.transactionEntityAttribute?.issuerBankName || 'ACB',
-        bankTxCode: acbTx.transactionCode ? String(acbTx.transactionCode) : null,
+        bankTxCode: acbTx.transactionCode
+          ? String(acbTx.transactionCode)
+          : null,
         sender: acbTx.transactionEntityAttribute?.remitterName || null,
-        senderAccountNumber: acbTx.transactionEntityAttribute?.remitterAccountNumber || null,
+        senderAccountNumber:
+          acbTx.transactionEntityAttribute?.remitterAccountNumber || null,
         amount: acbTx.amount,
         content: acbTx.transactionContent || null,
-        transactionDate: acbTx.transactionDate ? new Date(acbTx.transactionDate) : new Date(),
+        transactionDate: acbTx.transactionDate
+          ? new Date(acbTx.transactionDate)
+          : new Date(),
         debitOrCredit: acbTx.debitOrCredit,
         accountNumber: String(acbTx.accountNumber),
         transactionChannel: acbTx.transactionChannel || null,
@@ -213,7 +235,9 @@ class BankLogService {
         acbRequestCode: acbTx.acbRequestCode || null,
         acbClientId: clientId,
         acbClientRequestId: clientRequestId,
-        effectiveDate: acbTx.effectiveDate ? new Date(acbTx.effectiveDate) : null,
+        effectiveDate: acbTx.effectiveDate
+          ? new Date(acbTx.effectiveDate)
+          : null,
         status: initialStatus,
         rawPayload: acbTx,
         createdBy: 'system',
@@ -223,7 +247,9 @@ class BankLogService {
     // 1 DB call: bulk insert, ordered:false → skip duplicates, don't fail batch
     let insertedDocs = [];
     try {
-      const result = await BankLogTransaction.insertMany(docs, { ordered: false });
+      const result = await BankLogTransaction.insertMany(docs, {
+        ordered: false,
+      });
       insertedDocs = result;
     } catch (err) {
       // BulkWriteError: some inserts succeeded, some were duplicates
@@ -247,8 +273,10 @@ class BankLogService {
     // Fire-and-forget: process all new transactions in background
     // Pre-fetch rules once for all transactions
     if (insertedDocs.length > 0) {
-      const pendingDocs = insertedDocs.filter(d => d.status === BANK_LOG_TX_STATUSES.PENDING);
-      
+      const pendingDocs = insertedDocs.filter(
+        (d) => d.status === BANK_LOG_TX_STATUSES.PENDING,
+      );
+
       if (pendingDocs.length > 0) {
         this._getActiveRules()
           .then((rules) => {
@@ -262,10 +290,13 @@ class BankLogService {
             }
           })
           .catch((rulesErr) => {
-            logger.error('Bank Log: Failed to fetch rules for batch processing', {
-              clientRequestId,
-              error: rulesErr.message,
-            });
+            logger.error(
+              'Bank Log: Failed to fetch rules for batch processing',
+              {
+                clientRequestId,
+                error: rulesErr.message,
+              },
+            );
           });
       }
     }
@@ -276,7 +307,11 @@ class BankLogService {
       if (insertedTxIds.has(doc.txId)) {
         return { id: doc.id, txId: doc.txId, status: doc.status };
       }
-      return { txId: doc.txId, status: 'DUPLICATE', message: 'Transaction already ingested' };
+      return {
+        txId: doc.txId,
+        status: 'DUPLICATE',
+        message: 'Transaction already ingested',
+      };
     });
   }
 
@@ -396,10 +431,15 @@ class BankLogService {
     ]);
 
     // Resolve createdBy IDs to user names
-    const creatorIds = [...new Set(items.map((r) => r.createdBy).filter(Boolean))];
+    const creatorIds = [
+      ...new Set(items.map((r) => r.createdBy).filter(Boolean)),
+    ];
     let userMap = {};
     if (creatorIds.length > 0) {
-      const users = await User.find({ id: { $in: creatorIds } }, 'id name').lean();
+      const users = await User.find(
+        { id: { $in: creatorIds } },
+        'id name',
+      ).lean();
       userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
     }
 
@@ -545,7 +585,10 @@ class BankLogService {
               matchedRuleName: matchedRule.name,
               matchedRuleId: matchedRule.id,
               targetApiUrl: matchedRule.targetApi.url,
-              apiResponseBody: { error: 'Circuit breaker OPEN — target API temporarily unavailable' },
+              apiResponseBody: {
+                error:
+                  'Circuit breaker OPEN — target API temporarily unavailable',
+              },
               processingDurationMs: Date.now() - startTime,
             },
           },
@@ -759,13 +802,19 @@ class BankLogService {
   }
 
   _recordFailure(url) {
-    const cb = this._circuitBreakers.get(url) || { failures: 0, lastFailure: 0 };
+    const cb = this._circuitBreakers.get(url) || {
+      failures: 0,
+      lastFailure: 0,
+    };
     cb.failures += 1;
     cb.lastFailure = Date.now();
     this._circuitBreakers.set(url, cb);
 
     if (cb.failures >= 5) {
-      logger.warn('Bank Log: Circuit breaker OPEN', { url, failures: cb.failures });
+      logger.warn('Bank Log: Circuit breaker OPEN', {
+        url,
+        failures: cb.failures,
+      });
     }
   }
 
@@ -808,11 +857,13 @@ class BankLogService {
     // We strip all spaces to handle cases where banks append extra text
     const content = tx.content.toUpperCase().replace(/\s+/g, '');
     const upperPrefix = prefix.toUpperCase();
-    
+
     // Create strict regex: e.g. /BOT(TPR\d+)/
-    const regex = new RegExp(escapeRegex(upperPrefix) + '(' + ID_PREFIXES.TOPUP_REQUEST + '\\d+)');
+    const regex = new RegExp(
+      escapeRegex(upperPrefix) + '(' + ID_PREFIXES.TOPUP_REQUEST + '\\d+)',
+    );
     const match = content.match(regex);
-    
+
     if (!match) return;
 
     const requestId = match[1]; // e.g. "TPR12"
@@ -826,9 +877,10 @@ class BankLogService {
     });
 
     // Auto-approve via TopupRequestService
+    const bankTxIdentifier = tx.bankTxCode || tx.txId;
     const result = await TopupRequestService.autoApprove(
       requestId,
-      tx.id,
+      bankTxIdentifier,
       tx.amount,
     );
 
