@@ -218,11 +218,12 @@ class BotvnAuthService {
    *
    * @param {Object} dataContext - Tất cả data có sẵn (customer fields + otp + ttlSeconds)
    *   Ví dụ: { email, phone, name, id, otp, ttlSeconds, ...bất kỳ field nào khác }
-   * @param {Object} additionalParams - Params bổ sung từ code (ưu tiên cao nhất)
+   * @param {Object} additionalParams - Params bổ sung từ code (ưu tiên cao nhất, merge vào root payload)
    *
-   * Payload được build theo BotvnConfig.otpApi.fieldMappings:
-   *   [{ field: "email", mapTo: "emailKH" }] → { emailKH: dataContext.email }
-   * Nếu chưa config fieldMappings → dùng payload mặc định.
+   * Payload được build theo BotvnConfig.otpApi.payloadTemplate (Mixed):
+   *   Template lưu nguyên cấu trúc JSON, dùng {{fieldName}} làm placeholder.
+   *   Ví dụ: { "customer": { "id": "{{email}}" }, "attrs": [{ "name": "Ma_OTP", "value": "{{otp}}" }] }
+   * Nếu chưa config payloadTemplate → dùng payload mặc định { email, otp, expiresInSeconds }.
    */
   async _sendOtpToThirdParty(dataContext, additionalParams = {}) {
     const apiUrl = env.botvnOtpApiUrl;
@@ -237,30 +238,46 @@ class BotvnAuthService {
     }
 
     try {
-      // Đọc fieldMappings từ DB
+      // Đọc payloadTemplate từ DB (BotvnConfig)
       const config = await BotvnConfig.findOne().lean();
-      const fieldMappings = config?.otpApi?.fieldMappings;
+      const payloadTemplate = config?.otpApi?.payloadTemplate;
 
       let bodyPayload;
-      if (fieldMappings && fieldMappings.length > 0) {
-        // Build payload từ fieldMappings: pick field từ dataContext, map sang tên API (mapTo)
-        bodyPayload = {};
-        for (const { field, mapTo } of fieldMappings) {
-          if (field && mapTo && dataContext[field] !== undefined) {
-            bodyPayload[mapTo] = dataContext[field];
+      if (payloadTemplate && typeof payloadTemplate === 'object') {
+        // Traverse toàn bộ cấu trúc template, thay {{fieldName}} bằng giá trị thực từ dataContext
+        const resolveTemplate = (node) => {
+          if (typeof node === 'string') {
+            // Nếu toàn bộ string chỉ là 1 placeholder → trả về giá trị gốc (giữ nguyên type: number, boolean...)
+            const exactMatch = node.match(/^\{\{(\w+)\}\}$/);
+            if (exactMatch) {
+              const val = dataContext[exactMatch[1]];
+              return val !== undefined ? val : node;
+            }
+            // Nếu string chứa nhiều placeholder hoặc text hỗn hợp → replace tất cả
+            return node.replace(/\{\{(\w+)\}\}/g, (_, field) => {
+              const val = dataContext[field];
+              return val !== undefined ? val : `{{${field}}}`;
+            });
           }
-        }
+          if (Array.isArray(node)) return node.map(resolveTemplate);
+          if (node && typeof node === 'object') {
+            return Object.fromEntries(
+              Object.entries(node).map(([k, v]) => [k, resolveTemplate(v)]),
+            );
+          }
+          return node;
+        };
+
+        bodyPayload = { ...resolveTemplate(payloadTemplate), ...additionalParams };
       } else {
         // Fallback: payload mặc định
         bodyPayload = {
           email: dataContext.email,
           otp: dataContext.otp,
           expiresInSeconds: dataContext.ttlSeconds,
+          ...additionalParams,
         };
       }
-
-      // additionalParams luôn ghi đè cuối cùng
-      bodyPayload = { ...bodyPayload, ...additionalParams };
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -276,15 +293,15 @@ class BotvnAuthService {
         logger.error('[BotVN OTP] Third-party API error', {
           status: response.status,
           body: text,
-          email,
+          email: dataContext.email,
         });
       } else {
-        logger.info(`[BotVN OTP] OTP sent successfully for ${email}`);
+        logger.info(`[BotVN OTP] OTP sent successfully for ${dataContext.email}`);
       }
     } catch (err) {
       logger.error('[BotVN OTP] Failed to call third-party API', {
         error: err.message,
-        email,
+        email: dataContext.email,
       });
       // Không throw — OTP đã lưu cache, user có thể resend
     }

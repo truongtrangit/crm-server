@@ -53,17 +53,11 @@ const botvnConfigSchema = new mongoose.Schema(
       notes: [{ type: String }],
     },
     otpApi: {
-      // Mapping động: chỉ định field nào từ customer/context sẽ được gửi sang API, với key tuỳ chỉnh.
-      // Ví dụ: [{ field: "email", mapTo: "emailKH" }, { field: "phone", mapTo: "soDienThoai" }]
-      // field: tên field trong object customer (email, phone, name, id...)
-      // mapTo: tên key sẽ gửi sang API bên thứ 3
+      // Template payload dạng Mixed — admin lưu nguyên cấu trúc JSON mà API bên thứ 3 yêu cầu.
+      // Dùng placeholder {{fieldName}} sẽ được thay bằng giá trị từ customer/context khi runtime.
+      // Ví dụ: { "customer": { "id": "{{email}}" }, "attrs": [{ "name": "Ma_OTP", "value": "{{otp}}" }] }
       // Nếu không config → dùng payload mặc định { email, otp, expiresInSeconds }
-      fieldMappings: [
-        {
-          field: { type: String, required: true },
-          mapTo: { type: String, required: true },
-        },
-      ],
+      payloadTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
     },
   },
   {
