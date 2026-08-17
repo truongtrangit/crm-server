@@ -107,10 +107,14 @@ const resetPasswordSchema = Joi.object({
 });
 
 const googleLoginSchema = Joi.object({
-  idToken: Joi.string().required().messages({
-    'string.empty': 'Google ID token is required',
-    'any.required': 'Google ID token is required',
+  idToken: Joi.string().optional().messages({
+    'string.empty': 'Google ID token must not be empty',
   }),
+  accessToken: Joi.string().optional().messages({
+    'string.empty': 'Google access token must not be empty',
+  }),
+}).or('idToken', 'accessToken').messages({
+  'object.missing': 'Either idToken or accessToken is required',
 });
 
 const updateProfileSchema = Joi.object({

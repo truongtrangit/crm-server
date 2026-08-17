@@ -187,8 +187,9 @@ class BotvnAuthController {
   // ==========================================
 
   async googleLogin(req, res) {
+    const { idToken, accessToken } = req.body;
     const { customer, tokens, hasPassword } = await BotvnAuthService.googleLogin(
-      req.body.idToken,
+      { idToken, accessToken },
       req,
     );
 

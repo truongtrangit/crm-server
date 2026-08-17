@@ -420,18 +420,25 @@ class BotvnAuthService {
 
   /**
    * Google Login / Auto-register.
-   * 1. Verify Google ID token (audience check)
+   * Supports two credential types:
+   * 1. idToken — from FedCM / One Tap prompt (primary)
+   * 2. accessToken — from OAuth2 popup fallback (when FedCM is disabled)
+   *
+   * Flow:
+   * 1. Verify Google credential (ID token via audience check, or access token via userinfo API)
    * 2. Tìm Customer bằng googleId → returning user
    * 3. Tìm bằng email → link googleId vào account cũ
    * 4. Không tìm → tạo Customer mới (auto-register, auto-active)
    * 5. Tạo session tokens
    */
-  async googleLogin(idToken, req) {
+  async googleLogin(credential, req) {
     if (!env.botvnGoogleClientId) {
       const error = new Error('Google login is not configured.');
       error.status = 500;
       throw error;
     }
+
+    const { idToken, accessToken } = credential;
 
     // --- Config check ---
     const config = await BotvnConfig.findOne().lean();
@@ -442,20 +449,47 @@ class BotvnAuthService {
       throw error;
     }
 
-    // --- Verify ID token ---
-    const googleClient = new OAuth2Client(env.botvnGoogleClientId);
+    // --- Verify credential ---
     let payload;
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: env.botvnGoogleClientId,
-      });
-      payload = ticket.getPayload();
-    } catch (err) {
-      logger.warn('Google ID token verification failed', { error: err.message });
-      const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
-      error.status = 401;
-      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+
+    if (idToken) {
+      // Path 1: Verify ID token (from FedCM / One Tap)
+      const googleClient = new OAuth2Client(env.botvnGoogleClientId);
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: env.botvnGoogleClientId,
+        });
+        payload = ticket.getPayload();
+      } catch (err) {
+        logger.warn('Google ID token verification failed', { error: err.message });
+        const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
+        error.status = 401;
+        error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+        throw error;
+      }
+    } else if (accessToken) {
+      // Path 2: Verify access token via Google userinfo API (from OAuth2 popup fallback)
+      try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+          throw new Error(`Google userinfo returned ${res.status}`);
+        }
+        payload = await res.json();
+        // userinfo returns: { sub, email, email_verified, name, picture, ... }
+        // Same fields as ID token payload — no mapping needed
+      } catch (err) {
+        logger.warn('Google access token verification failed', { error: err.message });
+        const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
+        error.status = 401;
+        error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+        throw error;
+      }
+    } else {
+      const error = new Error('No Google credential provided.');
+      error.status = 400;
       throw error;
     }
 
