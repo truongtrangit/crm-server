@@ -44,6 +44,7 @@ const bankLogTransactionSchema = new mongoose.Schema(
     apiResponseBody: { type: mongoose.Schema.Types.Mixed, default: null },
     retryCount: { type: Number, default: 0 },
     lastRetryAt: { type: Date, default: null },
+    matchedTopupRequestId: { type: String, default: null },
     rawPayload: { type: mongoose.Schema.Types.Mixed, default: null },
     processingDurationMs: { type: Number, default: null },
     createdBy: { type: String, default: 'system' },

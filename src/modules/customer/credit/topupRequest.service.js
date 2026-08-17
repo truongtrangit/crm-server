@@ -6,14 +6,20 @@ const BotvnConfig = require('../../course/courseConfig/botvnConfig.model');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const { buildPaginatedResponse } = require('../../../core/utils/pagination');
 const { createHttpError } = require('../../../core/utils/http');
+const logger = require('../../../core/utils/logger');
 const { escapeRegex } = require('../../../core/utils/query');
-const { getVietnamTime, getStartOfDayVN, getEndOfDayVN } = require('../../../core/utils/date');
+const {
+  getVietnamTime,
+  getStartOfDayVN,
+  getEndOfDayVN,
+} = require('../../../core/utils/date');
 const {
   TOPUP_REQUEST_STATUS,
   CREDIT_TYPES,
   CREDIT_TRANSACTION_TYPES,
   CREDIT_SOURCES,
   CREDIT_TRANSACTION_STATUS,
+  PAYMENT_METHODS,
 } = require('../../../core/constants/appData');
 const {
   SYSTEM_SOURCES,
@@ -49,7 +55,13 @@ class TopupRequestService {
    * Build VietQR URL (public, no API key needed)
    * @see https://www.vietqr.io/en/api-document
    */
-  _buildVietQRUrl({ bankCode, accountNumber, amount, transferContent, accountHolder }) {
+  _buildVietQRUrl({
+    bankCode,
+    accountNumber,
+    amount,
+    transferContent,
+    accountHolder,
+  }) {
     const params = new URLSearchParams();
     if (amount) params.set('amount', String(amount));
     if (transferContent) params.set('addInfo', transferContent);
@@ -92,7 +104,10 @@ class TopupRequestService {
     // Validate bank transfer is enabled
     const bankTransfer = await this._getBankTransferConfig();
     if (!bankTransfer || !bankTransfer.isEnabled) {
-      throw createHttpError(400, 'Tính năng nạp tiền qua chuyển khoản chưa được bật');
+      throw createHttpError(
+        400,
+        'Tính năng nạp tiền qua chuyển khoản chưa được bật',
+      );
     }
 
     // Validate required bank info
@@ -111,7 +126,10 @@ class TopupRequestService {
     const creditAmount = Math.floor(amount * creditRatio);
 
     if (creditAmount !== expectedCredit) {
-      throw createHttpError(400, 'Tỷ giá đã thay đổi, vui lòng tải lại trang và tạo lại yêu cầu nạp tiền');
+      throw createHttpError(
+        400,
+        'Tỷ giá đã thay đổi, vui lòng tải lại trang và tạo lại yêu cầu nạp tiền',
+      );
     }
 
     // Generate ID
@@ -219,7 +237,10 @@ class TopupRequestService {
     }
 
     if (request.status !== TOPUP_REQUEST_STATUS.PENDING) {
-      throw createHttpError(400, 'Chỉ có thể hủy yêu cầu đang ở trạng thái chờ');
+      throw createHttpError(
+        400,
+        'Chỉ có thể hủy yêu cầu đang ở trạng thái chờ',
+      );
     }
 
     request.status = TOPUP_REQUEST_STATUS.CANCELED;
@@ -346,12 +367,21 @@ class TopupRequestService {
 
     const enrichedItems = items.map((item) => {
       const customer = customerMap.get(item.customerId);
-      const invoiceInfo = item.invoiceInfo || (item.requestInvoice && customer?.billingInfo ? customer.billingInfo : null);
+      const invoiceInfo =
+        item.invoiceInfo ||
+        (item.requestInvoice && customer?.billingInfo
+          ? customer.billingInfo
+          : null);
       return {
         ...item,
         invoiceInfo,
         customer: customer
-          ? { id: customer.id, name: customer.name, phone: customer.phone, email: customer.email }
+          ? {
+              id: customer.id,
+              name: customer.name,
+              phone: customer.phone,
+              email: customer.email,
+            }
           : null,
       };
     });
@@ -372,7 +402,11 @@ class TopupRequestService {
     const customer = await Customer.findOne({ id: request.customerId })
       .select('id name phone email billingInfo')
       .lean();
-    const invoiceInfo = request.invoiceInfo || (request.requestInvoice && customer?.billingInfo ? customer.billingInfo : null);
+    const invoiceInfo =
+      request.invoiceInfo ||
+      (request.requestInvoice && customer?.billingInfo
+        ? customer.billingInfo
+        : null);
 
     return {
       ...request,
@@ -414,7 +448,7 @@ class TopupRequestService {
       await request.save({ session });
 
       // 2. Add credit to customer
-      const creditField = 'mainCredit'; // Always mainCredit for bank transfer
+      const creditField = PAYMENT_METHODS.MAIN_CREDIT; // Always mainCredit for bank transfer
       await Customer.findOneAndUpdate(
         { id: request.customerId },
         { $inc: { [creditField]: request.creditAmount } },
@@ -450,13 +484,17 @@ class TopupRequestService {
     }
 
     // Bắn event vào CRM (fire-and-forget, sau khi transaction commit)
-    require("../../../core/services/CrmEventEmitter").emit(SYSTEM_SOURCES.BOTVN, SYSTEM_EVENT_TYPES.BOTVN_CHUYEN_KHOAN, {
-      name: request.customerName || "",
-      email: request.customerEmail || "",
-      phone: request.customerPhone || "",
-      customerId: request.customerId,
-      amount: request.amount,
-    });
+    require('../../../core/services/CrmEventEmitter').emit(
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_CHUYEN_KHOAN,
+      {
+        name: request.customerName || '',
+        email: request.customerEmail || '',
+        phone: request.customerPhone || '',
+        customerId: request.customerId,
+        amount: request.amount,
+      },
+    );
 
     return {
       id: request.id,
@@ -479,7 +517,10 @@ class TopupRequestService {
     }
 
     if (request.status === TOPUP_REQUEST_STATUS.APPROVED) {
-      throw createHttpError(400, 'Yêu cầu này đã được duyệt, không thể từ chối');
+      throw createHttpError(
+        400,
+        'Yêu cầu này đã được duyệt, không thể từ chối',
+      );
     }
 
     if (request.status === TOPUP_REQUEST_STATUS.REJECTED) {
@@ -513,14 +554,30 @@ class TopupRequestService {
       if (to) filter.createdAt.$lte = getEndOfDayVN(to);
     }
 
-    const [total, pending, userConfirmed, approved, rejected, canceled] = await Promise.all([
-      TopupRequest.countDocuments(filter),
-      TopupRequest.countDocuments({ ...filter, status: TOPUP_REQUEST_STATUS.PENDING }),
-      TopupRequest.countDocuments({ ...filter, status: TOPUP_REQUEST_STATUS.USER_CONFIRMED }),
-      TopupRequest.countDocuments({ ...filter, status: TOPUP_REQUEST_STATUS.APPROVED }),
-      TopupRequest.countDocuments({ ...filter, status: TOPUP_REQUEST_STATUS.REJECTED }),
-      TopupRequest.countDocuments({ ...filter, status: TOPUP_REQUEST_STATUS.CANCELED }),
-    ]);
+    const [total, pending, userConfirmed, approved, rejected, canceled] =
+      await Promise.all([
+        TopupRequest.countDocuments(filter),
+        TopupRequest.countDocuments({
+          ...filter,
+          status: TOPUP_REQUEST_STATUS.PENDING,
+        }),
+        TopupRequest.countDocuments({
+          ...filter,
+          status: TOPUP_REQUEST_STATUS.USER_CONFIRMED,
+        }),
+        TopupRequest.countDocuments({
+          ...filter,
+          status: TOPUP_REQUEST_STATUS.APPROVED,
+        }),
+        TopupRequest.countDocuments({
+          ...filter,
+          status: TOPUP_REQUEST_STATUS.REJECTED,
+        }),
+        TopupRequest.countDocuments({
+          ...filter,
+          status: TOPUP_REQUEST_STATUS.CANCELED,
+        }),
+      ]);
 
     const totalApprovedAmount = await TopupRequest.aggregate([
       { $match: { ...filter, status: TOPUP_REQUEST_STATUS.APPROVED } },
@@ -536,6 +593,144 @@ class TopupRequestService {
       canceled,
       needsAttention: pending + userConfirmed,
       totalApprovedAmount: totalApprovedAmount[0]?.total || 0,
+    };
+  }
+
+  // ─── Auto-Approve (Bank Log Matching) ──────────────────────────────────────
+
+  /**
+   * Auto-approve a topup request matched from bank log transaction content.
+   * Reuses the same ACID transaction logic as adminApprove().
+   *
+   * @param {string} requestId - TopupRequest.id (e.g. "TPR12")
+   * @param {string} bankLogTxId - BankLogTransaction.id for linking
+   * @param {number} bankAmount - Actual amount received from bank
+   * @returns {object|null} Result object or null if no match / already processed
+   */
+  async autoApprove(requestId, bankLogTxId, bankAmount) {
+    const request = await TopupRequest.findOne({ id: requestId });
+    if (!request) {
+      logger.warn('Auto-approve skipped: topup request not found', {
+        requestId,
+        bankLogTxId,
+        bankAmount,
+      });
+      return null;
+    }
+
+    // Only auto-approve if status is pending or user_confirmed
+    const approvableStatuses = [
+      TOPUP_REQUEST_STATUS.PENDING,
+      TOPUP_REQUEST_STATUS.USER_CONFIRMED,
+    ];
+    if (!approvableStatuses.includes(request.status)) {
+      logger.warn('Auto-approve skipped: invalid status', {
+        requestId,
+        bankLogTxId,
+        currentStatus: request.status,
+      });
+      return null;
+    }
+
+    // Validate: bank amount must be >= topup request amount
+    if (bankAmount < request.amount) {
+      logger.warn('Auto-approve skipped: bank amount less than requested', {
+        requestId,
+        bankLogTxId,
+        bankAmount,
+        requestedAmount: request.amount,
+      });
+
+      // Ghi chú lại lỗi cho admin check
+      request.adminNote = `[Tự động duyệt thất bại] Giao dịch ngân hàng (Mã: ${bankLogTxId}) nạp ${bankAmount.toLocaleString('vi-VN')}₫ (nhỏ hơn yêu cầu ${request.amount.toLocaleString('vi-VN')}₫).`;
+      await request.save();
+
+      return null;
+    }
+
+    // ACID transaction: update request + update customer credit + create credit transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // 1. Update request status
+      request.status = TOPUP_REQUEST_STATUS.APPROVED;
+      request.processedBy = 'System';
+      request.processedAt = getVietnamTime().toDate();
+      request.adminNote = `Tự động xác nhận từ giao dịch ngân hàng ${bankLogTxId}`;
+      request.matchedBankLogTxId = bankLogTxId;
+      await request.save({ session });
+
+      // 2. Add credit to customer
+      const creditField = PAYMENT_METHODS.MAIN_CREDIT;
+      await Customer.findOneAndUpdate(
+        { id: request.customerId },
+        { $inc: { [creditField]: request.creditAmount } },
+        { session },
+      );
+
+      // 3. Create credit transaction record
+      const transactionGroupId = new mongoose.Types.ObjectId().toString();
+      await CreditTransaction.create(
+        [
+          {
+            userId: request.customerId,
+            amount: request.creditAmount,
+            creditType: CREDIT_TYPES.MAIN,
+            transactionType: CREDIT_TRANSACTION_TYPES.IN,
+            source: CREDIT_SOURCES.BANK_TRANSFER,
+            reference: request.id,
+            transactionGroupId,
+            status: CREDIT_TRANSACTION_STATUS.SUCCESS,
+            description: `Nạp ${request.amount.toLocaleString('vi-VN')}₫ qua chuyển khoản (${request.bankInfo.transferContent}) — tự động xác nhận`,
+          },
+        ],
+        { session },
+      );
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+
+      // Ghi chú lỗi hệ thống để admin check
+      await TopupRequest.updateOne(
+        { id: request.id },
+        {
+          $set: {
+            adminNote: `[Tự động duyệt lỗi hệ thống] Giao dịch NH ${bankLogTxId} - Chi tiết: ${err.message}`,
+          },
+        },
+      ).catch(() => {}); // Bỏ qua nếu lỗi update
+
+      throw err;
+    } finally {
+      session.endSession();
+    }
+
+    // Fire-and-forget: emit CRM event
+    require('../../../core/services/CrmEventEmitter').emit(
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_CHUYEN_KHOAN,
+      {
+        customerId: request.customerId,
+        amount: request.amount,
+        autoApproved: true,
+        bankLogTxId,
+      },
+    );
+
+    logger.info('TopupRequest auto-approved', {
+      requestId,
+      bankLogTxId,
+      creditAmount: request.creditAmount,
+      customerId: request.customerId,
+    });
+
+    return {
+      id: request.id,
+      status: request.status,
+      creditAmount: request.creditAmount,
+      processedAt: request.processedAt,
     };
   }
 }

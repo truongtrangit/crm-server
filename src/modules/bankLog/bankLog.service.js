@@ -4,12 +4,15 @@ const User = require('../system/user/user.model');
 const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
 const { generateMonotonicId, generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
-const { BANK_LOG_TX_STATUSES, BANK_LOG_AUTH_TYPES } = require('../../core/constants/bankLog');
+const { BANK_LOG_TX_STATUSES, BANK_LOG_AUTH_TYPES, BANK_LOG_DEBIT_CREDIT } = require('../../core/constants/bankLog');
 const { escapeRegex } = require('../../core/utils/query');
 const CacheService = require('../../core/services/CacheService');
 const httpClient = require('../../core/utils/httpClient');
 const logger = require('../../core/utils/logger');
 const { getStartOfDayVN } = require('../../core/utils/date');
+const BotvnConfig = require('../course/courseConfig/botvnConfig.model');
+const TopupRequestService = require('../customer/credit/topupRequest.service');
+const env = require('../../core/config/env');
 
 const RULES_CACHE_KEY = 'banklog:rules';
 const RULES_CACHE_TTL = 300; // 5 minutes
@@ -519,6 +522,16 @@ class BankLogService {
           },
         );
         logger.info('Bank Log: No matching rule', { txId: tx.txId });
+
+        // Still try to auto-match BotVN topup even without routing rule
+        if (tx.content && tx.debitOrCredit === BANK_LOG_DEBIT_CREDIT.CREDIT) {
+          this._autoMatchTopupRequest(tx).catch((autoErr) =>
+            logger.error('Bank Log: Auto-match topup failed', {
+              txId: tx.txId,
+              error: autoErr.message,
+            }),
+          );
+        }
         return;
       }
 
@@ -559,6 +572,15 @@ class BankLogService {
           },
         },
       );
+      // --- Auto-match BotVN topup request (runs independently of routing rules) ---
+      if (tx.content && tx.debitOrCredit === BANK_LOG_DEBIT_CREDIT.CREDIT) {
+        this._autoMatchTopupRequest(tx).catch((autoErr) =>
+          logger.error('Bank Log: Auto-match topup failed', {
+            txId: tx.txId,
+            error: autoErr.message,
+          }),
+        );
+      }
     } catch (err) {
       logger.error('Bank Log: Processing error', {
         txId: tx.txId,
@@ -745,6 +767,107 @@ class BankLogService {
     if (cb.failures >= 5) {
       logger.warn('Bank Log: Circuit breaker OPEN', { url, failures: cb.failures });
     }
+  }
+
+  // ─── BotVN Topup Auto-Match ────────────────────────────────────────────────
+
+  /**
+   * Parse bank transaction content to find matching BotVN topup request.
+   * Template is configurable in BotvnConfig.bankTransfer.transferContentTemplate.
+   *
+   * Example:
+   *   Template: "BOT{requestId}" → prefix = "BOT"
+   *   Content: "BOTTPR12 chuyen tien" → extracted requestId = "TPR12"
+   *
+   * @param {Object} tx - BankLogTransaction document
+   */
+  async _autoMatchTopupRequest(tx) {
+    if (!env.enableAutoApproveTopup) return;
+
+    // Skip if this transaction was already matched
+    if (tx.matchedTopupRequestId) return;
+
+    // Skip invalid amounts
+    if (!tx.amount || tx.amount <= 0) return;
+
+    // Cache BotvnConfig to avoid hitting DB on every transaction
+    const config = await this._getBotvnConfig();
+    if (!config?.bankTransfer?.isEnabled) return;
+
+    const template = config.bankTransfer.transferContentTemplate;
+    if (!template) return;
+
+    // Extract prefix from template: everything before {requestId}
+    const placeholderIndex = template.indexOf('{requestId}');
+    if (placeholderIndex === -1) return; // Template doesn't have {requestId} placeholder
+
+    const prefix = template.substring(0, placeholderIndex);
+    if (!prefix) return;
+
+    // Find prefix + TopupRequest ID in transaction content
+    // We strip all spaces to handle cases where banks append extra text
+    const content = tx.content.toUpperCase().replace(/\s+/g, '');
+    const upperPrefix = prefix.toUpperCase();
+    
+    // Create strict regex: e.g. /BOT(TPR\d+)/
+    const regex = new RegExp(escapeRegex(upperPrefix) + '(' + ID_PREFIXES.TOPUP_REQUEST + '\\d+)');
+    const match = content.match(regex);
+    
+    if (!match) return;
+
+    const requestId = match[1]; // e.g. "TPR12"
+
+    logger.info('Bank Log: Topup pattern matched', {
+      txId: tx.txId,
+      prefix,
+      requestId,
+      bankAmount: tx.amount,
+      originalContent: tx.content,
+    });
+
+    // Auto-approve via TopupRequestService
+    const result = await TopupRequestService.autoApprove(
+      requestId,
+      tx.id,
+      tx.amount,
+    );
+
+    if (result) {
+      // Link bank log → topup request
+      await BankLogTransaction.updateOne(
+        { _id: tx._id },
+        { $set: { matchedTopupRequestId: requestId } },
+      );
+      logger.info('Bank Log: Topup auto-approved successfully', {
+        txId: tx.txId,
+        requestId,
+      });
+    } else {
+      // Pattern matched but auto-approve returned null
+      // (request not found, already processed, or amount mismatch — details logged by autoApprove)
+      logger.warn('Bank Log: Topup pattern matched but auto-approve skipped', {
+        txId: tx.txId,
+        requestId,
+        bankAmount: tx.amount,
+      });
+    }
+  }
+
+  /**
+   * Cache BotvnConfig to reduce DB queries (TTL: 5 minutes)
+   */
+  async _getBotvnConfig() {
+    const CACHE_KEY = '_botvnConfig';
+    const CACHE_TTL = 300_000; // 5 minutes
+
+    const cached = this[CACHE_KEY];
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+      return cached.data;
+    }
+
+    const config = await BotvnConfig.findOne().lean();
+    this[CACHE_KEY] = { data: config, fetchedAt: Date.now() };
+    return config;
   }
 }
 

@@ -62,6 +62,7 @@ const env = {
   // ─── Feature Flags ───────────────────────────────────────────────────────────
   enableCloneUpdate: process.env.ENABLE_CLONE_UPDATE === 'true',
   enableHttpRetry: process.env.ENABLE_HTTP_RETRY === 'true',
+  enableAutoApproveTopup: process.env.ENABLE_AUTO_APPROVE_TOPUP === 'true',
 
   // ─── ACB Bank Webhook ─────────────────────────────────────────────────────────
   acbWebhookApiKey:
