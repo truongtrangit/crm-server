@@ -45,6 +45,9 @@ const courseFavoritesRouter = require('./courseFavorites.routes');
 const zcodesRouter = require('./zcodes.routes');
 const bankLogsRouter = require('./bankLogs.routes');
 const invoicesRouter = require('./invoices.routes');
+const eventGroupsRouter = require('./eventGroups.routes');
+const integrationConfigsRouter = require('./integrationConfigs.routes');
+const integrationLogsRouter = require('./integrationLog.routes');
 
 const { authenticateRequest } = require('../../core/middleware/auth');
 const { sendSuccess } = require('../../core/utils/http');
@@ -79,6 +82,8 @@ v1Router.get('/', (_req, res) =>
       'zcodes',
       'bank-logs',
       'invoices',
+      'event-groups',
+      'integration-configs',
       'organization',
       'metadata',
       'functions',
@@ -95,6 +100,10 @@ v1Router.use('/auth', authRouter);
 
 // ─── Webhook ingestion (own auth — bearer token, not CRM session) ───────────
 v1Router.use('/webhooks', webhooksRouter);
+
+// ─── Public Integration Webhook ─────────────────────────────────────────────
+const integrationWebhookRouter = require('./integrationWebhook.routes');
+v1Router.use('/integration-webhook', integrationWebhookRouter);
 
 // ─── Protected ───────────────────────────────────────────────────────────────
 v1Router.use(authenticateRequest);
@@ -136,6 +145,9 @@ v1Router.use('/courses/favorites', courseFavoritesRouter);
 v1Router.use('/zcodes', zcodesRouter);
 v1Router.use('/bank-logs', bankLogsRouter);
 v1Router.use('/invoices', invoicesRouter);
+v1Router.use('/event-groups', eventGroupsRouter);
+v1Router.use('/integration-configs', integrationConfigsRouter);
+v1Router.use('/integration-logs', integrationLogsRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
 v1Router.use('/organization', organizationRouter);

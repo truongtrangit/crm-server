@@ -15,6 +15,10 @@ const {
   CREDIT_SOURCES,
   CREDIT_TRANSACTION_STATUS,
 } = require('../../../core/constants/appData');
+const {
+  SYSTEM_SOURCES,
+  SYSTEM_EVENT_TYPES,
+} = require('../../../core/constants/integrationConfig');
 
 class TopupRequestService {
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -444,6 +448,15 @@ class TopupRequestService {
     } finally {
       session.endSession();
     }
+
+    // Bắn event vào CRM (fire-and-forget, sau khi transaction commit)
+    require("../../../core/services/CrmEventEmitter").emit(SYSTEM_SOURCES.BOTVN, SYSTEM_EVENT_TYPES.BOTVN_CHUYEN_KHOAN, {
+      name: request.customerName || "",
+      email: request.customerEmail || "",
+      phone: request.customerPhone || "",
+      customerId: request.customerId,
+      amount: request.amount,
+    });
 
     return {
       id: request.id,

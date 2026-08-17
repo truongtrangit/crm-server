@@ -5,59 +5,60 @@
 
 // Resources
 const RESOURCES = {
-  USERS: "users",
-  CUSTOMERS: "customers",
-  EVENTS: "events",
-  EVENT_CHAINS: "event_chains", // Chuỗi hành động trong sự kiện
-  TASKS: "tasks", // Quản lý Tác vụ
-  TASK_CHAINS: "task_chains", // Chuỗi hành động trong tác vụ
-  ACTIONS_CFG: "actions_cfg",
-  ORGANIZATION: "organization",
-  ROLES: "roles",
-  PERMISSIONS: "permissions",
-  METADATA: "metadata",
-  FUNCTIONS: "functions",
-  FUNCTIONAL_GROUPS: "functional_groups",
-  LOGS: "logs", // System / Automation / Webhook logs (read-only)
-  META: "meta", // Meta integration programs
-  LEADS_CFG: "leads_cfg", // Cấu hình trạng thái Lead
-  LEADS: "leads", // Quản lý Lead
-  STAFFS: "staffs", // Cấu hình nhân sự
-  SALARIES: "salaries", // Cấu hình và bảng lương
-  REVENUES: "revenues", // Doanh thu
-  EXPENSES: "expenses", // Chi phí
-  SALARY_CONFIGS: "salary_configs", // Cấu hình lương
-  COMPANIES: "companies", // Cấu hình công ty
-  FINANCE: "finance", // Báo cáo tài chính
-  PROJECT_BONUS: "project_bonus", // Thưởng dự án
-  JOBHUB: "jobhub", // Job Hub
-  COURSES: "courses", // Khóa học
-  COURSES_ONLINE: "courses_online", // Khóa học online
-  COURSES_OFFLINE: "courses_offline", // Khóa học offline
-  COURSES_CHALLENGES: "courses_challenges", // Khóa học thử thách
-  COURSES_ENROLLMENTS: "courses_enrollments", // Đăng ký khóa học
-  COURSES_SUBMISSIONS: "courses_submissions", // Nộp bài
-  COURSES_KNOWLEDGE: "courses_knowledge", // Kiến thức
-  COURSES_CREDITS: "courses_credits", // Lịch sử nạp credit
-  COURSES_FAVORITES: "courses_favorites", // Khoá học yêu thích
-  ZCODES: "zcodes", // Quản lý ZCode
-  BANK_LOGS: "bank_logs", // Bank Log transactions
-  BANK_LOG_RULES: "bank_log_rules", // Bank Log routing rules
-  INVOICES: "invoices", // Hoá đơn điện tử
-  INVOICE_PROVIDERS: "invoice_providers", // Cấu hình nhà cung cấp HĐĐT
+  USERS: 'users',
+  CUSTOMERS: 'customers',
+  EVENTS: 'events',
+  EVENT_CHAINS: 'event_chains', // Chuỗi hành động trong sự kiện
+  TASKS: 'tasks', // Quản lý Tác vụ
+  TASK_CHAINS: 'task_chains', // Chuỗi hành động trong tác vụ
+  ACTIONS_CFG: 'actions_cfg',
+  ORGANIZATION: 'organization',
+  ROLES: 'roles',
+  PERMISSIONS: 'permissions',
+  METADATA: 'metadata',
+  FUNCTIONS: 'functions',
+  FUNCTIONAL_GROUPS: 'functional_groups',
+  LOGS: 'logs', // System / Automation / Webhook logs (read-only)
+  META: 'meta', // Meta integration programs
+  LEADS_CFG: 'leads_cfg', // Cấu hình trạng thái Lead
+  LEADS: 'leads', // Quản lý Lead
+  STAFFS: 'staffs', // Cấu hình nhân sự
+  SALARIES: 'salaries', // Cấu hình và bảng lương
+  REVENUES: 'revenues', // Doanh thu
+  EXPENSES: 'expenses', // Chi phí
+  SALARY_CONFIGS: 'salary_configs', // Cấu hình lương
+  COMPANIES: 'companies', // Cấu hình công ty
+  FINANCE: 'finance', // Báo cáo tài chính
+  PROJECT_BONUS: 'project_bonus', // Thưởng dự án
+  JOBHUB: 'jobhub', // Job Hub
+  COURSES: 'courses', // Khóa học
+  COURSES_ONLINE: 'courses_online', // Khóa học online
+  COURSES_OFFLINE: 'courses_offline', // Khóa học offline
+  COURSES_CHALLENGES: 'courses_challenges', // Khóa học thử thách
+  COURSES_ENROLLMENTS: 'courses_enrollments', // Đăng ký khóa học
+  COURSES_SUBMISSIONS: 'courses_submissions', // Nộp bài
+  COURSES_KNOWLEDGE: 'courses_knowledge', // Kiến thức
+  COURSES_CREDITS: 'courses_credits', // Lịch sử nạp credit
+  COURSES_FAVORITES: 'courses_favorites', // Khoá học yêu thích
+  ZCODES: 'zcodes', // Quản lý ZCode
+  BANK_LOGS: 'bank_logs', // Bank Log transactions
+  BANK_LOG_RULES: 'bank_log_rules', // Bank Log routing rules
+  INVOICES: 'invoices', // Hoá đơn điện tử
+  INVOICE_PROVIDERS: 'invoice_providers', // Cấu hình nhà cung cấp HĐĐT
+  INTEGRATION: 'integration', // Cấu hình tích hợp đa module (Event Groups, Integration Config)
 };
 
 // Actions
 const ACTIONS = {
-  CREATE: "create",
-  READ: "read",
-  UPDATE: "update",
-  DELETE: "delete",
-  CONFIG: "config",
-  PERMANENT_DELETE: "permanent_delete",
-  RESTORE: "restore",
-  CLONE: "clone",
-  MANAGE: "manage", // Has all permissions for this resource
+  CREATE: 'create',
+  READ: 'read',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  CONFIG: 'config',
+  PERMANENT_DELETE: 'permanent_delete',
+  RESTORE: 'restore',
+  CLONE: 'clone',
+  MANAGE: 'manage', // Has all permissions for this resource
 };
 
 // Permission definitions
@@ -138,6 +139,8 @@ const PERMISSIONS = {
   LOGS_SYSTEM_READ: `${RESOURCES.LOGS}_system_${ACTIONS.READ}`,
   LOGS_WEBHOOK_READ: `${RESOURCES.LOGS}_webhook_${ACTIONS.READ}`,
   LOGS_AUTOMATION_READ: `${RESOURCES.LOGS}_automation_${ACTIONS.READ}`,
+  LOGS_EXTERNAL_READ: `${RESOURCES.LOGS}_external_${ACTIONS.READ}`,
+  LOGS_EXTERNAL_REPLAY: `${RESOURCES.LOGS}_external_replay`,
 
   // Meta integration
   META_CREATE: `${RESOURCES.META}_${ACTIONS.CREATE}`,
@@ -341,6 +344,9 @@ const PERMISSIONS = {
   INVOICES_DELETE: `${RESOURCES.INVOICES}_${ACTIONS.DELETE}`,
   INVOICES_MANAGE: `${RESOURCES.INVOICES}_${ACTIONS.MANAGE}`,
   INVOICE_PROVIDERS_CONFIG: `${RESOURCES.INVOICE_PROVIDERS}_${ACTIONS.CONFIG}`,
+
+  // Integration Config (Event Groups + Integration Config)
+  INTEGRATION_CONFIG: `${RESOURCES.INTEGRATION}_${ACTIONS.CONFIG}`,
 };
 
 const STAFF_PERMISSIONS = [
@@ -374,15 +380,15 @@ const STAFF_PERMISSIONS = [
   PERMISSIONS.JOBHUB_WORK_READ,
   PERMISSIONS.JOBHUB_TASK_CREATE,
   PERMISSIONS.JOBHUB_TASK_UPDATE,
-  PERMISSIONS.JOBHUB_TASK_DELETE,         // delete_task action
+  PERMISSIONS.JOBHUB_TASK_DELETE, // delete_task action
   PERMISSIONS.JOBHUB_CONFIG_STATUS_READ,
   PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ,
   PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ,
   PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_GROUP_READ, // jobhub.tasks.view cần
-  PERMISSIONS.JOBHUB_FOLDER_CREATE,       // manage_folders action
+  PERMISSIONS.JOBHUB_FOLDER_CREATE, // manage_folders action
   PERMISSIONS.JOBHUB_FOLDER_UPDATE,
   PERMISSIONS.JOBHUB_FOLDER_DELETE,
-  PERMISSIONS.JOBHUB_CONFIG_READ,         // jobhub.config.view
+  PERMISSIONS.JOBHUB_CONFIG_READ, // jobhub.config.view
   PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ, // jobhub.config.repeatRule.view
   PERMISSIONS.USERS_READ, // Cần cho dropdown "người phụ trách" ở hầu hết modules
 ];
@@ -507,6 +513,8 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.LOGS_SYSTEM_READ,
     PERMISSIONS.LOGS_WEBHOOK_READ,
     PERMISSIONS.LOGS_AUTOMATION_READ,
+    PERMISSIONS.LOGS_EXTERNAL_READ,
+    PERMISSIONS.LOGS_EXTERNAL_REPLAY,
     PERMISSIONS.META_MANAGE,
     PERMISSIONS.LEADS_MANAGE,
     PERMISSIONS.TASKS_MANAGE,
@@ -530,32 +538,33 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.BANK_LOG_RULES_CONFIG,
     PERMISSIONS.INVOICES_MANAGE,
     PERMISSIONS.INVOICE_PROVIDERS_CONFIG,
+    PERMISSIONS.INTEGRATION_CONFIG,
   ]),
 );
 
 // Role definitions with their permissions
 const ROLE_DEFINITIONS = {
   OWNER: {
-    name: "OWNER",
-    description: "Owner - Has all permissions",
+    name: 'OWNER',
+    description: 'Owner - Has all permissions',
     level: 4,
     permissions: Object.values(PERMISSIONS),
   },
   ADMIN: {
-    name: "ADMIN",
-    description: "Administrator - Can manage users, customers",
+    name: 'ADMIN',
+    description: 'Administrator - Can manage users, customers',
     level: 3,
     permissions: ADMIN_PERMISSIONS,
   },
   MANAGER: {
-    name: "MANAGER",
-    description: "Manager - Can create and manage staff, view customers",
+    name: 'MANAGER',
+    description: 'Manager - Can create and manage staff, view customers',
     level: 2,
     permissions: MANAGER_PERMISSIONS,
   },
   STAFF: {
-    name: "STAFF",
-    description: "Staff - Can view and create customers",
+    name: 'STAFF',
+    description: 'Staff - Can view and create customers',
     level: 1,
     permissions: STAFF_PERMISSIONS,
   },
@@ -566,24 +575,24 @@ const ROLE_DEFINITIONS = {
 // Pattern: "Nếu bạn có quyền create, bạn PHẢI có quyền view"
 // Áp dụng khi computePermissionsFromModuleAccess() chạy.
 const ACTION_IMPLICATIONS = {
-  create: ["view"],       // create → phải có view
-  edit: ["view"],         // edit → phải có view
-  delete: ["view"],       // delete → phải có view
-  configure: ["view"],    // configure → phải có view
-  export: ["view"],       // export → phải có view
-  clone: ["view"],        // clone → phải có view
-  create_task: ["view"],  // jobhub: create task → phải có view
-  edit_task: ["view"],    // jobhub: edit task → phải có view
-  delete_task: ["view"],  // jobhub: delete task → phải có view
-  manage_folders: ["view"], // jobhub: manage folders → phải có view
+  create: ['view'], // create → phải có view
+  edit: ['view'], // edit → phải có view
+  delete: ['view'], // delete → phải có view
+  configure: ['view'], // configure → phải có view
+  export: ['view'], // export → phải có view
+  clone: ['view'], // clone → phải có view
+  create_task: ['view'], // jobhub: create task → phải có view
+  edit_task: ['view'], // jobhub: edit task → phải có view
+  delete_task: ['view'], // jobhub: delete task → phải có view
+  manage_folders: ['view'], // jobhub: manage folders → phải có view
 };
 
 // ─── Implicit Shared Permissions ──────────────────────────────────────────────
 // Permissions được tự động grant khi user có bất kỳ moduleAccess nào.
 // Đây là các API dùng chung cho dropdown, filter, lookup controls.
 const IMPLICIT_SHARED_PERMISSIONS = [
-  PERMISSIONS.METADATA_READ,          // Dropdown roles, departments, groups
-  PERMISSIONS.FUNCTIONS_READ,         // Dropdown chức năng (vai trò nhân sự)
+  PERMISSIONS.METADATA_READ, // Dropdown roles, departments, groups
+  PERMISSIONS.FUNCTIONS_READ, // Dropdown chức năng (vai trò nhân sự)
   PERMISSIONS.FUNCTIONAL_GROUPS_READ, // Dropdown khối chức năng
 ];
 
@@ -594,347 +603,356 @@ const IMPLICIT_SHARED_PERMISSIONS = [
 
 const MODULE_DEFINITIONS = {
   customers: {
-    key: "customers",
-    label: "Khách hàng",
-    type: "root",
+    key: 'customers',
+    label: 'Khách hàng',
+    type: 'root',
     actions: [],
   },
-  "customers.biz": {
-    key: "customers.biz",
-    label: "Doanh nghiệp",
-    type: "sub",
-    parentKey: "customers",
-    actions: ["view", "create", "edit", "delete", "export"],
+  'customers.biz': {
+    key: 'customers.biz',
+    label: 'Doanh nghiệp',
+    type: 'sub',
+    parentKey: 'customers',
+    actions: ['view', 'create', 'edit', 'delete', 'restore', 'export'],
   },
-  "customers.user": {
-    key: "customers.user",
-    label: "Cá nhân",
-    type: "sub",
-    parentKey: "customers",
-    actions: ["view", "create", "edit", "delete", "export"],
+  'customers.user': {
+    key: 'customers.user',
+    label: 'Cá nhân',
+    type: 'sub',
+    parentKey: 'customers',
+    actions: ['view', 'create', 'edit', 'delete', 'restore', 'export'],
   },
 
   operations: {
-    key: "operations",
-    label: "Quản lý",
-    type: "root",
+    key: 'operations',
+    label: 'Quản lý',
+    type: 'root',
     actions: [],
   },
-  "operations.tasks": {
-    key: "operations.tasks",
-    label: "Quản lý Tác vụ",
-    type: "sub",
-    parentKey: "operations",
-    actions: ["view", "create", "edit", "delete"],
+  'operations.tasks': {
+    key: 'operations.tasks',
+    label: 'Quản lý Tác vụ',
+    type: 'sub',
+    parentKey: 'operations',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
-  "operations.events": {
-    key: "operations.events",
-    label: "Quản lý Sự kiện",
-    type: "sub",
-    parentKey: "operations",
-    actions: ["view", "create", "edit", "delete", "configure"],
+  'operations.events': {
+    key: 'operations.events',
+    label: 'Quản lý Sự kiện',
+    type: 'sub',
+    parentKey: 'operations',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
   },
-  "operations.leads": {
-    key: "operations.leads",
-    label: "Quản lý Lead",
-    type: "sub",
-    parentKey: "operations",
-    actions: ["view", "create", "edit", "delete", "configure"],
-  },
-
-  meta: { key: "meta", label: "Hợp tác Meta", type: "root", actions: [] },
-  "meta.program": {
-    key: "meta.program",
-    label: "Chương trình",
-    type: "sub",
-    parentKey: "meta",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "meta.config": {
-    key: "meta.config",
-    label: "Cấu hình",
-    type: "sub",
-    parentKey: "meta",
-    actions: ["view", "create", "edit", "delete"],
+  'operations.leads': {
+    key: 'operations.leads',
+    label: 'Quản lý Lead',
+    type: 'sub',
+    parentKey: 'operations',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
   },
 
-  staff: { key: "staff", label: "Nhân viên", type: "root", actions: [] },
-  "staff.users": {
-    key: "staff.users",
-    label: "Tài khoản",
-    type: "sub",
-    parentKey: "staff",
-    actions: ["view", "create", "edit", "delete"],
+  meta: { key: 'meta', label: 'Hợp tác Meta', type: 'root', actions: [] },
+  'meta.program': {
+    key: 'meta.program',
+    label: 'Chương trình',
+    type: 'sub',
+    parentKey: 'meta',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
-  "staff.organization": {
-    key: "staff.organization",
-    label: "Sơ đồ tổ chức",
-    type: "sub",
-    parentKey: "staff",
-    actions: ["view", "create", "edit"],
-  },
-  "staff.functions": {
-    key: "staff.functions",
-    label: "Chức năng",
-    type: "sub",
-    parentKey: "staff",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "staff.functional_groups": {
-    key: "staff.functional_groups",
-    label: "Khối chức năng",
-    type: "sub",
-    parentKey: "staff",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "staff.companies": {
-    key: "staff.companies",
-    label: "Công ty",
-    type: "sub",
-    parentKey: "staff",
-    actions: ["view", "create", "edit", "delete"],
+  'meta.config': {
+    key: 'meta.config',
+    label: 'Cấu hình',
+    type: 'sub',
+    parentKey: 'meta',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
 
-  logs: { key: "logs", label: "Logs Hệ thống", type: "root", actions: [] },
-  "logs.system": {
-    key: "logs.system",
-    label: "System Logs",
-    type: "sub",
-    parentKey: "logs",
-    actions: ["view"],
+  staff: { key: 'staff', label: 'Nhân viên', type: 'root', actions: [] },
+  'staff.users': {
+    key: 'staff.users',
+    label: 'Tài khoản',
+    type: 'sub',
+    parentKey: 'staff',
+    actions: ['view', 'create', 'edit', 'delete', 'restore'],
   },
-  "logs.webhook": {
-    key: "logs.webhook",
-    label: "Webhook Logs",
-    type: "sub",
-    parentKey: "logs",
-    actions: ["view"],
+  'staff.organization': {
+    key: 'staff.organization',
+    label: 'Sơ đồ tổ chức',
+    type: 'sub',
+    parentKey: 'staff',
+    actions: ['view', 'create', 'edit'],
   },
-  "logs.blockautomation": {
-    key: "logs.blockautomation",
-    label: "Block Automation Logs",
-    type: "sub",
-    parentKey: "logs",
-    actions: ["view"],
+  'staff.functions': {
+    key: 'staff.functions',
+    label: 'Chức năng',
+    type: 'sub',
+    parentKey: 'staff',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
-
-  finance: { key: "finance", label: "Tài chính", type: "root", actions: [] },
-  "finance.dashboard": {
-    key: "finance.dashboard",
-    label: "Tổng quan",
-    type: "sub",
-    parentKey: "finance",
-    actions: ["view"],
+  'staff.functional_groups': {
+    key: 'staff.functional_groups',
+    label: 'Khối chức năng',
+    type: 'sub',
+    parentKey: 'staff',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
-  "finance.revenue": {
-    key: "finance.revenue",
-    label: "Doanh thu",
-    type: "sub",
-    parentKey: "finance",
-    actions: ["view", "create", "edit", "delete", "configure"],
-  },
-  "finance.expense": {
-    key: "finance.expense",
-    label: "Chi phí",
-    type: "sub",
-    parentKey: "finance",
-    actions: ["view", "create", "edit", "delete", "configure"],
-  },
-  "finance.salary": {
-    key: "finance.salary",
-    label: "Lương",
-    type: "sub",
-    parentKey: "finance",
-    actions: ["view", "create", "edit", "delete", "configure"],
-  },
-  "finance.salary_config": {
-    key: "finance.salary_config",
-    label: "Cấu hình lương",
-    type: "sub",
-    parentKey: "finance",
-    actions: ["view", "create", "edit", "delete", "configure"],
-  },
-  "finance.policy": {
-    key: "finance.policy",
-    label: "Chính sách",
-    type: "sub",
-    parentKey: "finance",
-    actions: ["view", "create", "edit", "delete", "configure"],
+  'staff.companies': {
+    key: 'staff.companies',
+    label: 'Công ty',
+    type: 'sub',
+    parentKey: 'staff',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
 
-  jobhub: { key: "jobhub", label: "Job Hub", type: "root", actions: [] },
-  "jobhub.tasks": {
-    key: "jobhub.tasks",
-    label: "Công việc",
-    type: "sub",
-    parentKey: "jobhub",
+  logs: { key: 'logs', label: 'Logs Hệ thống', type: 'root', actions: [] },
+  'logs.system': {
+    key: 'logs.system',
+    label: 'System Logs',
+    type: 'sub',
+    parentKey: 'logs',
+    actions: ['view'],
+  },
+  'logs.webhook': {
+    key: 'logs.webhook',
+    label: 'Webhook Logs',
+    type: 'sub',
+    parentKey: 'logs',
+    actions: ['view'],
+  },
+  'logs.blockautomation': {
+    key: 'logs.blockautomation',
+    label: 'Block Automation Logs',
+    type: 'sub',
+    parentKey: 'logs',
+    actions: ['view'],
+  },
+  'logs.external': {
+    key: 'logs.external',
+    label: 'External Logs',
+    type: 'sub',
+    parentKey: 'logs',
+    actions: ['view', 'replay'],
+  },
+
+  finance: { key: 'finance', label: 'Tài chính', type: 'root', actions: [] },
+  'finance.dashboard': {
+    key: 'finance.dashboard',
+    label: 'Tổng quan',
+    type: 'sub',
+    parentKey: 'finance',
+    actions: ['view'],
+  },
+  'finance.revenue': {
+    key: 'finance.revenue',
+    label: 'Doanh thu',
+    type: 'sub',
+    parentKey: 'finance',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
+  },
+  'finance.expense': {
+    key: 'finance.expense',
+    label: 'Chi phí',
+    type: 'sub',
+    parentKey: 'finance',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
+  },
+  'finance.salary': {
+    key: 'finance.salary',
+    label: 'Lương',
+    type: 'sub',
+    parentKey: 'finance',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
+  },
+  'finance.salary_config': {
+    key: 'finance.salary_config',
+    label: 'Cấu hình lương',
+    type: 'sub',
+    parentKey: 'finance',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
+  },
+  'finance.policy': {
+    key: 'finance.policy',
+    label: 'Chính sách',
+    type: 'sub',
+    parentKey: 'finance',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
+  },
+
+  jobhub: { key: 'jobhub', label: 'Job Hub', type: 'root', actions: [] },
+  'jobhub.tasks': {
+    key: 'jobhub.tasks',
+    label: 'Công việc',
+    type: 'sub',
+    parentKey: 'jobhub',
     actions: [
-      "view",
-      "create_task",
-      "edit_task",
-      "delete_task",
-      "manage_folders",
+      'view',
+      'create_task',
+      'edit_task',
+      'delete_task',
+      'manage_folders',
     ],
   },
-  "jobhub.config": {
-    key: "jobhub.config",
-    label: "Cấu hình",
-    type: "sub",
-    parentKey: "jobhub",
-    actions: ["view"],
+  'jobhub.config': {
+    key: 'jobhub.config',
+    label: 'Cấu hình',
+    type: 'sub',
+    parentKey: 'jobhub',
+    actions: ['view'],
   },
-  "jobhub.config.repeatRule": {
-    key: "jobhub.config.repeatRule",
-    label: "Quy tắc lặp lại",
-    type: "sub-sub",
-    parentKey: "jobhub.config",
-    actions: ["view", "create", "edit", "delete"],
+  'jobhub.config.repeatRule': {
+    key: 'jobhub.config.repeatRule',
+    label: 'Quy tắc lặp lại',
+    type: 'sub-sub',
+    parentKey: 'jobhub.config',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
-  "jobhub.config.channel": {
-    key: "jobhub.config.channel",
-    label: "Kênh triển khai",
-    type: "sub-sub",
-    parentKey: "jobhub.config",
-    actions: ["view", "create", "edit", "delete"],
+  'jobhub.config.channel': {
+    key: 'jobhub.config.channel',
+    label: 'Kênh triển khai',
+    type: 'sub-sub',
+    parentKey: 'jobhub.config',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
-  "jobhub.config.taskType": {
-    key: "jobhub.config.taskType",
-    label: "Loại công việc",
-    type: "sub-sub",
-    parentKey: "jobhub.config",
-    actions: ["view", "create", "edit", "delete", "configure"],
+  'jobhub.config.taskType': {
+    key: 'jobhub.config.taskType',
+    label: 'Loại công việc',
+    type: 'sub-sub',
+    parentKey: 'jobhub.config',
+    actions: ['view', 'create', 'edit', 'delete', 'configure'],
   },
-  "jobhub.config.status": {
-    key: "jobhub.config.status",
-    label: "Trạng thái",
-    type: "sub-sub",
-    parentKey: "jobhub.config",
-    actions: ["view", "create", "edit", "delete"],
-  },
-
-  courses: { key: "courses", label: "Khóa học", type: "root", actions: [] },
-  "courses.config": {
-    key: "courses.config",
-    label: "Cấu hình",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "courses.online": {
-    key: "courses.online",
-    label: "Khóa Online",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "courses.offline": {
-    key: "courses.offline",
-    label: "Khóa Offline",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "courses.zoom": {
-    key: "courses.zoom",
-    label: "Khóa Zoom",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "courses.challenges": {
-    key: "courses.challenges",
-    label: "Khóa Thử thách",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "courses.knowledge": {
-    key: "courses.knowledge",
-    label: "Kiến thức",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
-  },
-  "courses.credits": {
-    key: "courses.credits",
-    label: "Lịch sử nạp Credit",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "edit"],
-  },
-  "courses.favorites": {
-    key: "courses.favorites",
-    label: "Khoá học yêu thích",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view"],
-  },
-  "courses.instructors": {
-    key: "courses.instructors",
-    label: "Giảng viên",
-    type: "sub",
-    parentKey: "courses",
-    actions: ["view", "create", "edit", "delete"],
+  'jobhub.config.status': {
+    key: 'jobhub.config.status',
+    label: 'Trạng thái',
+    type: 'sub-sub',
+    parentKey: 'jobhub.config',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
 
-  zcode: { key: "zcode", label: "ZCode", type: "root", actions: [] },
-  "zcode.manage": {
-    key: "zcode.manage",
-    label: "Quản lý mã ZCode",
-    type: "sub",
-    parentKey: "zcode",
-    actions: ["view", "create", "edit", "delete", "export"],
+  courses: { key: 'courses', label: 'Khóa học', type: 'root', actions: [] },
+  'courses.config': {
+    key: 'courses.config',
+    label: 'Cấu hình',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'courses.online': {
+    key: 'courses.online',
+    label: 'Khóa Online',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'courses.offline': {
+    key: 'courses.offline',
+    label: 'Khóa Offline',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'courses.zoom': {
+    key: 'courses.zoom',
+    label: 'Khóa Zoom',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'courses.challenges': {
+    key: 'courses.challenges',
+    label: 'Khóa Thử thách',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'courses.knowledge': {
+    key: 'courses.knowledge',
+    label: 'Kiến thức',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'courses.credits': {
+    key: 'courses.credits',
+    label: 'Lịch sử nạp Credit',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'edit'],
+  },
+  'courses.favorites': {
+    key: 'courses.favorites',
+    label: 'Khoá học yêu thích',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view'],
+  },
+  'courses.instructors': {
+    key: 'courses.instructors',
+    label: 'Giảng viên',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
   },
 
-  bankLog: { key: "bankLog", label: "Bank Log", type: "root", actions: [] },
-  "bankLog.transactions": {
-    key: "bankLog.transactions",
-    label: "Lịch sử giao dịch",
-    type: "sub",
-    parentKey: "bankLog",
-    actions: ["view", "edit", "export"],
-  },
-  "bankLog.rules": {
-    key: "bankLog.rules",
-    label: "Quy tắc định tuyến",
-    type: "sub",
-    parentKey: "bankLog",
-    actions: ["view", "create", "edit", "delete"],
+  zcode: { key: 'zcode', label: 'ZCode', type: 'root', actions: [] },
+  'zcode.manage': {
+    key: 'zcode.manage',
+    label: 'Quản lý mã ZCode',
+    type: 'sub',
+    parentKey: 'zcode',
+    actions: ['view', 'create', 'edit', 'delete', 'export'],
   },
 
-  invoice: { key: "invoice", label: "Hóa đơn", type: "root", actions: [] },
-  "invoice.manage": {
-    key: "invoice.manage",
-    label: "Quản lý hóa đơn",
-    type: "sub",
-    parentKey: "invoice",
-    actions: ["view", "create", "edit", "delete"],
+  bankLog: { key: 'bankLog', label: 'Bank Log', type: 'root', actions: [] },
+  'bankLog.transactions': {
+    key: 'bankLog.transactions',
+    label: 'Lịch sử giao dịch',
+    type: 'sub',
+    parentKey: 'bankLog',
+    actions: ['view', 'edit', 'export'],
   },
-  "invoice.config": {
-    key: "invoice.config",
-    label: "Cấu hình nhà cung cấp",
-    type: "sub",
-    parentKey: "invoice",
-    actions: ["view", "configure"],
+  'bankLog.rules': {
+    key: 'bankLog.rules',
+    label: 'Quy tắc định tuyến',
+    type: 'sub',
+    parentKey: 'bankLog',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+
+  invoice: { key: 'invoice', label: 'Hóa đơn', type: 'root', actions: [] },
+  'invoice.manage': {
+    key: 'invoice.manage',
+    label: 'Quản lý hóa đơn',
+    type: 'sub',
+    parentKey: 'invoice',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
+  'invoice.config': {
+    key: 'invoice.config',
+    label: 'Cấu hình nhà cung cấp',
+    type: 'sub',
+    parentKey: 'invoice',
+    actions: ['view', 'configure'],
   },
 };
 
 const MODULE_TO_PERMISSIONS_MAP = {
-  "customers.biz": {
+  'customers.biz': {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE],
+    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
-  "customers.user": {
+  'customers.user': {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE],
+    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
-  "operations.tasks": {
+  'operations.tasks': {
     view: [
       PERMISSIONS.TASKS_READ,
       PERMISSIONS.TASK_CHAINS_READ,
@@ -949,7 +967,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     ],
     delete: [PERMISSIONS.TASKS_DELETE, PERMISSIONS.TASK_CHAINS_DELETE],
   },
-  "operations.events": {
+  'operations.events': {
     view: [
       PERMISSIONS.EVENTS_READ,
       PERMISSIONS.EVENT_CHAINS_READ,
@@ -975,11 +993,11 @@ const MODULE_TO_PERMISSIONS_MAP = {
       PERMISSIONS.ACTIONS_CFG_DELETE,
     ],
   },
-  "operations.leads": {
+  'operations.leads': {
     view: [
-      PERMISSIONS.LEADS_READ,      // GET /leads, Kanban board
+      PERMISSIONS.LEADS_READ, // GET /leads, Kanban board
       PERMISSIONS.ACTIONS_CFG_READ, // Dropdown action chain
-      PERMISSIONS.USERS_READ,       // Dropdown người phụ trách
+      PERMISSIONS.USERS_READ, // Dropdown người phụ trách
       // LEADS_CFG_MANAGE KHÔNG cần cho view — GET /lead-config/statuses & /groups chỉ cần LEADS_READ
     ],
     create: [PERMISSIONS.LEADS_CREATE],
@@ -987,86 +1005,91 @@ const MODULE_TO_PERMISSIONS_MAP = {
     delete: [PERMISSIONS.LEADS_DELETE],
     configure: [PERMISSIONS.LEADS_CFG_MANAGE], // Quản lý funnel/group config
   },
-  "meta.program": {
-    view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ],
+  'meta.program': {
+    view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ, PERMISSIONS.METADATA_READ],
     create: [PERMISSIONS.META_CREATE],
     edit: [PERMISSIONS.META_UPDATE],
     delete: [PERMISSIONS.META_DELETE],
   },
-  "meta.config": {
-    view: [PERMISSIONS.META_READ],
+  'meta.config': {
+    view: [PERMISSIONS.META_READ, PERMISSIONS.METADATA_READ],
     create: [PERMISSIONS.META_MANAGE],
     edit: [PERMISSIONS.META_MANAGE],
     delete: [PERMISSIONS.META_MANAGE],
   },
-  "staff.users": {
+  'staff.users': {
     view: [
       PERMISSIONS.USERS_READ,
       PERMISSIONS.COMPANIES_READ,
-      PERMISSIONS.ROLES_READ,        // Dropdown vai trò khi edit user
-      PERMISSIONS.PERMISSIONS_READ,  // Đọc danh sách permissions
+      PERMISSIONS.ROLES_READ, // Dropdown vai trò khi edit user
+      PERMISSIONS.PERMISSIONS_READ, // Đọc danh sách permissions
     ],
     create: [PERMISSIONS.USERS_CREATE],
-    edit: [PERMISSIONS.USERS_UPDATE],
-    delete: [PERMISSIONS.USERS_DELETE],
+    edit: [PERMISSIONS.USERS_UPDATE, PERMISSIONS.ROLES_MANAGE],
+    delete: [PERMISSIONS.USERS_DELETE, PERMISSIONS.USERS_PERMANENT_DELETE],
+    restore: [PERMISSIONS.USERS_RESTORE],
   },
-  "staff.organization": {
+  'staff.organization': {
     view: [PERMISSIONS.ORGANIZATION_READ],
     create: [PERMISSIONS.ORGANIZATION_MANAGE, PERMISSIONS.ORGANIZATION_UPDATE],
     edit: [PERMISSIONS.ORGANIZATION_UPDATE],
   },
-  "staff.functions": {
+  'staff.functions': {
     view: [PERMISSIONS.FUNCTIONS_READ],
     create: [PERMISSIONS.FUNCTIONS_CREATE],
     edit: [PERMISSIONS.FUNCTIONS_UPDATE],
     delete: [PERMISSIONS.FUNCTIONS_DELETE],
   },
-  "staff.functional_groups": {
+  'staff.functional_groups': {
     view: [PERMISSIONS.FUNCTIONAL_GROUPS_READ],
     create: [PERMISSIONS.FUNCTIONAL_GROUPS_CREATE],
     edit: [PERMISSIONS.FUNCTIONAL_GROUPS_UPDATE],
     delete: [PERMISSIONS.FUNCTIONAL_GROUPS_DELETE],
   },
-  "staff.companies": {
+  'staff.companies': {
     view: [PERMISSIONS.COMPANIES_READ],
     create: [PERMISSIONS.COMPANIES_CREATE],
     edit: [PERMISSIONS.COMPANIES_UPDATE],
     delete: [PERMISSIONS.COMPANIES_DELETE],
   },
-  "logs.system": {
+  'logs.system': {
     view: [PERMISSIONS.LOGS_SYSTEM_READ],
   },
-  "logs.webhook": {
+  'logs.webhook': {
     view: [PERMISSIONS.LOGS_WEBHOOK_READ],
   },
-  "logs.blockautomation": {
+  'logs.external': {
+    view: [PERMISSIONS.LOGS_EXTERNAL_READ],
+    replay: [PERMISSIONS.LOGS_EXTERNAL_REPLAY],
+  },
+  'logs.blockautomation': {
     view: [PERMISSIONS.LOGS_AUTOMATION_READ],
   },
-  "finance.dashboard": {
+  'finance.dashboard': {
     view: [PERMISSIONS.FINANCE_READ],
   },
-  "finance.revenue": {
+  'finance.revenue': {
     view: [PERMISSIONS.REVENUES_READ],
     create: [PERMISSIONS.REVENUES_CREATE],
     edit: [PERMISSIONS.REVENUES_UPDATE],
     delete: [PERMISSIONS.REVENUES_DELETE],
     configure: [PERMISSIONS.REVENUES_CONFIG, PERMISSIONS.REVENUES_MANAGE],
   },
-  "finance.expense": {
+  'finance.expense': {
     view: [PERMISSIONS.EXPENSES_READ],
     create: [PERMISSIONS.EXPENSES_CREATE],
     edit: [PERMISSIONS.EXPENSES_UPDATE],
     delete: [PERMISSIONS.EXPENSES_DELETE],
     configure: [PERMISSIONS.EXPENSES_CONFIG, PERMISSIONS.EXPENSES_MANAGE],
   },
-  "finance.salary": {
+  'finance.salary': {
     view: [PERMISSIONS.SALARIES_READ],
     create: [PERMISSIONS.SALARIES_CREATE],
     edit: [PERMISSIONS.SALARIES_UPDATE],
     delete: [PERMISSIONS.SALARIES_DELETE],
     configure: [PERMISSIONS.SALARIES_MANAGE],
   },
-  "finance.salary_config": {
+  'finance.salary_config': {
     view: [
       PERMISSIONS.SALARY_CONFIGS_READ,
       PERMISSIONS.STAFFS_READ,
@@ -1079,14 +1102,14 @@ const MODULE_TO_PERMISSIONS_MAP = {
     delete: [PERMISSIONS.SALARY_CONFIGS_DELETE, PERMISSIONS.STAFFS_DELETE],
     configure: [PERMISSIONS.SALARY_CONFIGS_MANAGE, PERMISSIONS.STAFFS_MANAGE],
   },
-  "finance.policy": {
+  'finance.policy': {
     view: [PERMISSIONS.PROJECT_BONUS_READ],
     create: [PERMISSIONS.PROJECT_BONUS_CREATE],
     edit: [PERMISSIONS.PROJECT_BONUS_UPDATE],
     delete: [PERMISSIONS.PROJECT_BONUS_DELETE],
     configure: [PERMISSIONS.PROJECT_BONUS_MANAGE],
   },
-  "jobhub.tasks": {
+  'jobhub.tasks': {
     view: [
       PERMISSIONS.JOBHUB_WORK_READ,
       PERMISSIONS.JOBHUB_CONFIG_STATUS_READ,
@@ -1104,10 +1127,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
       PERMISSIONS.JOBHUB_FOLDER_DELETE,
     ],
   },
-  "jobhub.config": {
+  'jobhub.config': {
     view: [PERMISSIONS.JOBHUB_CONFIG_READ],
   },
-  "jobhub.config.repeatRule": {
+  'jobhub.config.repeatRule': {
     view: [
       PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_READ,
       PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ,
@@ -1119,38 +1142,38 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_UPDATE],
     delete: [PERMISSIONS.JOBHUB_CONFIG_REPEAT_RULE_DELETE],
   },
-  "jobhub.config.channel": {
+  'jobhub.config.channel': {
     view: [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_READ],
     create: [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_CREATE],
     edit: [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_UPDATE],
     delete: [PERMISSIONS.JOBHUB_CONFIG_CHANNEL_DELETE],
   },
-  "jobhub.config.taskType": {
+  'jobhub.config.taskType': {
     view: [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_READ],
     create: [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_CREATE],
     edit: [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_UPDATE],
     delete: [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_DELETE],
     configure: [PERMISSIONS.JOBHUB_CONFIG_TASK_TYPE_MANAGE],
   },
-  "jobhub.config.status": {
+  'jobhub.config.status': {
     view: [PERMISSIONS.JOBHUB_CONFIG_STATUS_READ],
     create: [PERMISSIONS.JOBHUB_CONFIG_STATUS_CREATE],
     edit: [PERMISSIONS.JOBHUB_CONFIG_STATUS_UPDATE],
     delete: [PERMISSIONS.JOBHUB_CONFIG_STATUS_DELETE],
   },
-  "courses.config": {
+  'courses.config': {
     view: [PERMISSIONS.COURSE_CONFIG_READ],
     create: [PERMISSIONS.COURSE_CONFIG_CREATE],
     edit: [PERMISSIONS.COURSE_CONFIG_UPDATE],
     delete: [PERMISSIONS.COURSE_CONFIG_DELETE],
   },
-  "courses.instructors": {
+  'courses.instructors': {
     view: [PERMISSIONS.COURSE_LECTURERS_READ],
     create: [PERMISSIONS.COURSE_LECTURERS_CREATE],
     edit: [PERMISSIONS.COURSE_LECTURERS_UPDATE],
     delete: [PERMISSIONS.COURSE_LECTURERS_DELETE],
   },
-  "courses.online": {
+  'courses.online': {
     view: [
       PERMISSIONS.COURSES_ONLINE_READ,
       PERMISSIONS.COURSE_CONFIG_READ,
@@ -1160,7 +1183,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.COURSES_ONLINE_UPDATE],
     delete: [PERMISSIONS.COURSES_ONLINE_DELETE],
   },
-  "courses.offline": {
+  'courses.offline': {
     view: [
       PERMISSIONS.COURSES_OFFLINE_READ,
       PERMISSIONS.COURSE_CONFIG_READ,
@@ -1170,7 +1193,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.COURSES_OFFLINE_UPDATE],
     delete: [PERMISSIONS.COURSES_OFFLINE_DELETE],
   },
-  "courses.zoom": {
+  'courses.zoom': {
     view: [
       PERMISSIONS.COURSES_OFFLINE_READ,
       PERMISSIONS.COURSE_CONFIG_READ,
@@ -1180,7 +1203,7 @@ const MODULE_TO_PERMISSIONS_MAP = {
     edit: [PERMISSIONS.COURSES_OFFLINE_UPDATE],
     delete: [PERMISSIONS.COURSES_OFFLINE_DELETE],
   },
-  "courses.challenges": {
+  'courses.challenges': {
     view: [
       PERMISSIONS.COURSES_CHALLENGES_READ,
       PERMISSIONS.COURSE_ENROLLMENTS_READ,
@@ -1197,53 +1220,65 @@ const MODULE_TO_PERMISSIONS_MAP = {
     delete: [PERMISSIONS.COURSES_CHALLENGES_DELETE],
     clone: [PERMISSIONS.COURSES_CHALLENGES_CLONE],
   },
-  "courses.knowledge": {
-    view: [
-      PERMISSIONS.COURSES_KNOWLEDGE_READ,
-      PERMISSIONS.COURSE_CONFIG_READ,
-    ],
+  'courses.knowledge': {
+    view: [PERMISSIONS.COURSES_KNOWLEDGE_READ, PERMISSIONS.COURSE_CONFIG_READ],
     create: [PERMISSIONS.COURSES_KNOWLEDGE_CREATE],
     edit: [PERMISSIONS.COURSES_KNOWLEDGE_UPDATE],
     delete: [PERMISSIONS.COURSES_KNOWLEDGE_DELETE],
   },
-  "courses.credits": {
-    view: [
-      PERMISSIONS.COURSES_CREDITS_READ,
-    ],
+  'courses.credits': {
+    view: [PERMISSIONS.COURSES_CREDITS_READ],
     edit: [PERMISSIONS.COURSES_CREDITS_MANAGE],
   },
-  "courses.favorites": {
-    view: [
-      PERMISSIONS.COURSES_FAVORITES_READ,
-    ],
+  'courses.favorites': {
+    view: [PERMISSIONS.COURSES_FAVORITES_READ],
   },
-  "zcode.manage": {
+  'zcode.manage': {
     view: [PERMISSIONS.ZCODES_READ],
     create: [PERMISSIONS.ZCODES_CREATE],
     edit: [PERMISSIONS.ZCODES_UPDATE],
     delete: [PERMISSIONS.ZCODES_DELETE],
     export: [PERMISSIONS.ZCODES_READ],
   },
-  "bankLog.transactions": {
+  'bankLog.transactions': {
     view: [PERMISSIONS.BANK_LOGS_READ],
     edit: [PERMISSIONS.BANK_LOGS_UPDATE],
     export: [PERMISSIONS.BANK_LOGS_READ],
   },
-  "bankLog.rules": {
+  'bankLog.rules': {
     view: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
     create: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
     edit: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
     delete: [PERMISSIONS.BANK_LOG_RULES_CONFIG],
   },
-  "invoice.manage": {
+  'invoice.manage': {
     view: [PERMISSIONS.INVOICES_READ],
     create: [PERMISSIONS.INVOICES_CREATE],
     edit: [PERMISSIONS.INVOICES_UPDATE],
     delete: [PERMISSIONS.INVOICES_DELETE],
   },
-  "invoice.config": {
+  'invoice.config': {
     view: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],
     configure: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],
+  },
+  integration: {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+  },
+  'integration.event_groups': {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+    create: [PERMISSIONS.INTEGRATION_CONFIG],
+    edit: [PERMISSIONS.INTEGRATION_CONFIG],
+    delete: [PERMISSIONS.INTEGRATION_CONFIG],
+  },
+  'integration.configs': {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+    create: [PERMISSIONS.INTEGRATION_CONFIG],
+    edit: [PERMISSIONS.INTEGRATION_CONFIG],
+    delete: [PERMISSIONS.INTEGRATION_CONFIG],
+  },
+  'integration.config': {
+    view: [PERMISSIONS.INTEGRATION_CONFIG],
+    configure: [PERMISSIONS.INTEGRATION_CONFIG],
   },
 };
 

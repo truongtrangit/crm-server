@@ -12,7 +12,7 @@ class BotvnAuthController {
    * - No system log is recorded here to optimize performance and keep separation.
    */
   async login(req, res) {
-    const { customer, tokens } = await BotvnAuthService.login(req.body, req);
+    const { customer, tokens, hasPassword } = await BotvnAuthService.login(req.body, req);
 
     const payload = {
       customer: {
@@ -21,12 +21,16 @@ class BotvnAuthController {
         email: customer.email,
         phone: customer.phone,
         avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
         isActive: customer.isActive,
         botvnRole: customer.botvnRole,
         rewardCredit: customer.rewardCredit || 0,
         mainCredit: customer.mainCredit || 0,
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
       },
       sessionId: tokens.sessionId,
       accessToken: tokens.accessToken,
@@ -44,7 +48,10 @@ class BotvnAuthController {
   }
 
   async register(req, res) {
-    const customer = await BotvnAuthService.register(req.body, req);
+    const { customer, otpExpiresIn } = await BotvnAuthService.register(
+      req.body,
+      req,
+    );
 
     SystemLogService.log({
       action: 'create',
@@ -61,6 +68,22 @@ class BotvnAuthController {
       ipAddress: req.ip || 'unknown',
     });
 
+    // Trigger internal Webhook integration
+    const CrmEventEmitter = require('../../../core/services/CrmEventEmitter');
+    const {
+      SYSTEM_SOURCES,
+      SYSTEM_EVENT_TYPES,
+    } = require('../../../core/constants/integrationConfig');
+    CrmEventEmitter.emit(
+      SYSTEM_SOURCES.BOTVN,
+      SYSTEM_EVENT_TYPES.BOTVN_DANG_KY,
+      {
+        ...(customer.toJSON?.() || customer), // Pass customer object as payload
+        registrationIp: req.ip,
+        registeredAt: new Date().toISOString(),
+      },
+    );
+
     const payload = {
       customer: {
         id: customer.id,
@@ -71,10 +94,196 @@ class BotvnAuthController {
         mainCredit: customer.mainCredit || 0,
         eduCredit: customer.eduCredit || 0,
         isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
       },
+      otpSent: true,
+      otpExpiresIn,
     };
 
     return sendSuccess(res, 201, 'Registration success', payload);
+  }
+
+
+
+  // ==========================================
+  // OTP VERIFICATION
+  // ==========================================
+
+  async verifyOtp(req, res) {
+    const { customer, tokens, hasPassword } = await BotvnAuthService.verifyOtp(
+      req.body,
+      req,
+    );
+
+    SystemLogService.log({
+      action: 'login',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customer.id,
+      resourceName: customer.name,
+      description: 'Bot.vn user activated via OTP verification',
+      performedBy: {
+        userId: customer.id,
+        userName: customer.name,
+        userAvatar: customer.avatar || '',
+      },
+      status: 'success',
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'OTP verified, account activated', payload);
+  }
+
+  async resendOtp(req, res) {
+    const result = await BotvnAuthService.sendOtp(req.body.email);
+    return sendSuccess(res, 200, 'OTP resent', result);
+  }
+
+  // ==========================================
+  // FORGOT PASSWORD
+  // ==========================================
+
+  async forgotPassword(req, res) {
+    const result = await BotvnAuthService.forgotPassword(req.body.email);
+    return sendSuccess(res, 200, 'OTP sent for password reset', result);
+  }
+
+  async forgotPasswordVerifyOtp(req, res) {
+    const result = await BotvnAuthService.forgotPasswordVerifyOtp(req.body);
+    return sendSuccess(res, 200, 'OTP verified', result);
+  }
+
+  async resetPassword(req, res) {
+    const result = await BotvnAuthService.resetPassword(req.body);
+    return sendSuccess(res, 200, result.message);
+  }
+
+  // ==========================================
+  // GOOGLE LOGIN
+  // ==========================================
+
+  async googleLogin(req, res) {
+    const { customer, tokens, hasPassword } = await BotvnAuthService.googleLogin(
+      req.body.idToken,
+      req,
+    );
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'Google login successful', payload);
+  }
+
+  // ==========================================
+  // UPDATE PROFILE
+  // ==========================================
+
+  async updateProfile(req, res) {
+    const customerId = req.user.id; // From botvnAuthenticateRequest middleware
+    const updatedCustomer = await BotvnAuthService.updateProfile(
+      customerId,
+      req.body,
+    );
+
+    const payload = {
+      id: updatedCustomer.id,
+      name: updatedCustomer.name,
+      email: updatedCustomer.email,
+      phone: updatedCustomer.phone,
+      avatar: updatedCustomer.avatar,
+      bio: updatedCustomer.bio,
+      jobTitle: updatedCustomer.jobTitle,
+      isActive: updatedCustomer.isActive,
+      botvnRole: updatedCustomer.botvnRole,
+      rewardCredit: updatedCustomer.rewardCredit || 0,
+      mainCredit: updatedCustomer.mainCredit || 0,
+      eduCredit: updatedCustomer.eduCredit || 0,
+      isEduAccount: updatedCustomer.isEduAccount || false,
+    };
+
+    return sendSuccess(res, 200, 'Cập nhật hồ sơ thành công', payload);
+  }
+
+  // ==========================================
+  // CHANGE PASSWORD & DELETE ACCOUNT
+  // ==========================================
+
+  async changePassword(req, res) {
+    const customerId = req.user.id;
+    const result = await BotvnAuthService.changePassword(customerId, req.body);
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customerId,
+      resourceName: req.user.name || customerId,
+      description: 'Bot.vn user changed password',
+      req,
+    });
+
+    return sendSuccess(res, 200, result.message);
+  }
+
+  async deleteAccount(req, res) {
+    const customerId = req.user.id;
+    const result = await BotvnAuthService.deleteAccount(customerId, req.body);
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customerId,
+      resourceName: req.user.name || customerId,
+      description: 'Bot.vn user deleted account',
+      req,
+    });
+
+    return sendSuccess(res, 200, result.message);
   }
 
   // ==========================================
@@ -105,20 +314,21 @@ class BotvnAuthController {
     });
 
     // Lấy current_status từ query (mặc định là PENDING nếu client không gửi)
-    const currentClientStatus = req.query.current_status || QR_SESSION_STATUS.PENDING;
+    const currentClientStatus =
+      req.query.current_status || QR_SESSION_STATUS.PENDING;
 
     while (elapsed < MAX_WAIT_MS && !isClientClosed) {
       const session = await BotvnAuthService.getQrStatus(token);
 
       // Nếu trạng thái trong Cache khác với trạng thái hiện tại của Client, lập tức trả về!
-      // Điều này giúp: 
+      // Điều này giúp:
       // 1. Từ PENDING -> SCANNED: báo ngay cho Client biết để mờ UI.
       // 2. Client gọi lại với current_status=SCANNED -> Server tiếp tục hold.
       // 3. Từ SCANNED -> AUTHENTICATED: báo ngay cho Client biết để login.
       if (session.status !== currentClientStatus) {
         // Nếu AUTHENTICATED, format payload trả về kèm user info để client tự login
         if (session.status === QR_SESSION_STATUS.AUTHENTICATED) {
-          const { customer, tokens } = session;
+          const { customer, tokens, hasPassword } = session;
           const payload = {
             status: session.status,
             customer: {
@@ -127,12 +337,16 @@ class BotvnAuthController {
               email: customer.email,
               phone: customer.phone,
               avatar: customer.avatar,
+              bio: customer.bio,
+              jobTitle: customer.jobTitle,
               isActive: customer.isActive,
               botvnRole: customer.botvnRole,
               rewardCredit: customer.rewardCredit || 0,
               mainCredit: customer.mainCredit || 0,
               eduCredit: customer.eduCredit || 0,
               isEduAccount: customer.isEduAccount || false,
+              platforms: customer.platforms || [],
+              hasPassword,
             },
             sessionId: tokens.sessionId,
             accessToken: tokens.accessToken,

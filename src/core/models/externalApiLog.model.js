@@ -39,6 +39,10 @@ const externalApiLogSchema = new mongoose.Schema(
 
     /** Error message if request failed */
     error: { type: String, default: null },
+
+    /** Replay tracking */
+    replayCount: { type: Number, default: 0 },
+    lastReplayError: { type: String, default: null },
   },
   {
     timestamps: true,

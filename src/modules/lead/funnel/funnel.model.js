@@ -8,7 +8,7 @@ const funnelSchema = new mongoose.Schema(
     groupId: { type: String, ref: "FunnelGroup", default: null },
     statusGroupId: { type: String, ref: "LeadStatusGroup", required: true },
     isActive: { type: Boolean, default: true },
-    actionChainId: { type: String, ref: "ActionChain", default: null },
+    actionChainIds: [{ type: String, ref: "ActionChain" }],
     autoCreateChain: { type: Boolean, default: false },
   },
   { timestamps: true, versionKey: false, id: false }

@@ -1,13 +1,5 @@
 const Joi = require("joi");
 
-const EVENT_GROUPS = [
-  "user_moi",
-  "biz_moi",
-  "can_nang_cap",
-  "sap_het_han",
-  "chuyen_khoan",
-];
-
 const assigneeItemSchema = Joi.object({
   userId: Joi.string().required(),
   functionId: Joi.string().allow(null, "").optional(),
@@ -17,12 +9,11 @@ const createEventSchema = Joi.object({
     "any.required": "name is required",
   }),
   sub: Joi.string().allow("").optional(),
+  /** Group ID — validation chi tiết ở Service layer (lookup DB) */
   group: Joi.string()
-    .valid(...EVENT_GROUPS)
     .required()
     .messages({
       "any.required": "group is required",
-      "any.only": `group must be one of: ${EVENT_GROUPS.join(", ")}`,
     }),
   customer: Joi.object({
     name: Joi.string().trim().required().messages({
@@ -81,7 +72,6 @@ const updateEventSchema = Joi.object({
   name: Joi.string().trim().optional(),
   sub: Joi.string().allow("").optional(),
   group: Joi.string()
-    .valid(...EVENT_GROUPS)
     .optional(),
   customer: Joi.object({
     name: Joi.string().trim().optional(),
@@ -137,7 +127,6 @@ const updateEventSchema = Joi.object({
 const listEventsQuerySchema = Joi.object({
   search: Joi.string().allow("").optional(),
   group: Joi.string()
-    .valid(...EVENT_GROUPS)
     .allow("")
     .optional(),
   stage: Joi.string().allow("").optional(),

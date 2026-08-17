@@ -8,6 +8,8 @@ const customerSchema = new mongoose.Schema(
     id: { type: String, required: true, unique: true },
     name: { type: String, required: true, trim: true },
     avatar: { type: String, default: "" },
+    bio: { type: String, default: "", trim: true },
+    jobTitle: { type: String, default: "", trim: true },
     /**
      * mainType: phân loại cấp cao nhất.
      *   'biz'  — tài khoản Business/Organization
@@ -52,6 +54,7 @@ const customerSchema = new mongoose.Schema(
     registeredAt: { type: String, default: "" },
     lastLoginAt: { type: String, default: "" },
     botvnPassword: { type: String, select: false },
+    googleId: { type: String, sparse: true, index: true },
     tags: { type: [String], default: [] },
 
     extraInfo: { type: mongoose.Schema.Types.Mixed, default: {} },

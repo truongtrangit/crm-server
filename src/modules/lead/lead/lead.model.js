@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const { softDeletePlugin } = require('../../../core/utils/softDelete');
 const { LEAD_STAGE_IDS } = require('../../../core/constants/leadStages');
 
@@ -6,14 +6,14 @@ const timelineEntrySchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["phone", "email", "event", "note"],
-      default: "event",
+      enum: ['phone', 'email', 'event', 'note'],
+      default: 'event',
     },
     title: { type: String, required: true, trim: true },
-    time: { type: String, default: "" },
+    time: { type: String, default: '' },
     content: { type: String, default: null },
     duration: { type: String, default: null },
-    createdBy: { type: String, default: "" },
+    createdBy: { type: String, default: '' },
   },
   { _id: true, timestamps: true },
 );
@@ -21,11 +21,11 @@ const timelineEntrySchema = new mongoose.Schema(
 /** Mỗi nhân sự phụ trách — gắn 1 chức năng (StaffFunction) */
 const assigneeSchema = new mongoose.Schema(
   {
-    userId: { type: String, ref: "User", required: true },
-    userName: { type: String, default: "" },
-    userAvatar: { type: String, default: "" },
-    functionId: { type: String, ref: "StaffFunction", default: null },
-    functionTitle: { type: String, default: "" },
+    userId: { type: String, ref: 'User', required: true },
+    userName: { type: String, default: '' },
+    userAvatar: { type: String, default: '' },
+    functionId: { type: String, ref: 'StaffFunction', default: null },
+    functionTitle: { type: String, default: '' },
   },
   { _id: false },
 );
@@ -35,14 +35,25 @@ const activityLogSchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      enum: ["create", "update", "delete", "stage_change", "assign", "unassign", "add_tag", "remove_tag", "add_discussion", "add_timeline"],
+      enum: [
+        'create',
+        'update',
+        'delete',
+        'stage_change',
+        'assign',
+        'unassign',
+        'add_tag',
+        'remove_tag',
+        'add_discussion',
+        'add_timeline',
+      ],
       required: true,
     },
     description: { type: String, required: true, trim: true },
     performedBy: {
       userId: { type: String, default: null },
-      userName: { type: String, default: "System" },
-      userAvatar: { type: String, default: "" },
+      userName: { type: String, default: 'System' },
+      userAvatar: { type: String, default: '' },
     },
     metadata: { type: mongoose.Schema.Types.Mixed, default: null },
   },
@@ -55,8 +66,8 @@ const discussionSchema = new mongoose.Schema(
     content: { type: String, required: true, trim: true },
     createdBy: {
       userId: { type: String, required: true },
-      userName: { type: String, default: "" },
-      userAvatar: { type: String, default: "" },
+      userName: { type: String, default: '' },
+      userAvatar: { type: String, default: '' },
     },
   },
   { _id: true, timestamps: true },
@@ -67,41 +78,45 @@ const leadSchema = new mongoose.Schema(
     id: { type: String, required: true, unique: true },
     isArchived: { type: Boolean, default: false },
     name: { type: String, required: true, trim: true },
-    avatar: { type: String, default: "" },
-    email: { type: String, default: "", trim: true, lowercase: true, index: true },
-    phone: { type: String, default: "", trim: true, index: true },
+    avatar: { type: String, default: '' },
+    email: {
+      type: String,
+      default: '',
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+    phone: { type: String, default: '', trim: true, index: true },
 
-    /** Giai đoạn pipeline — enum 4 stages cố định */
+    /** Giai đoạn pipeline */
     stage: {
       type: String,
-      enum: LEAD_STAGE_IDS,
-      default: "lead_moi",
       index: true,
     },
 
     /** Ref Customer — auto-mapped khi tạo/cập nhật nếu email/phone khớp */
-    customerId: { type: String, ref: "Customer", default: null, index: true },
+    customerId: { type: String, ref: 'Customer', default: null, index: true },
 
     /** Nhiều nhân sự phụ trách, mỗi người 1 chức năng */
     assignees: [assigneeSchema],
 
     /** Địa chỉ */
     address: {
-      province: { type: String, default: "" },
-      district: { type: String, default: "" },
-      ward: { type: String, default: "" },
+      province: { type: String, default: '' },
+      district: { type: String, default: '' },
+      ward: { type: String, default: '' },
     },
-    street: { type: String, default: "" },
+    street: { type: String, default: '' },
 
-    source: { type: String, default: "CRM" },
+    source: { type: String, default: 'CRM' },
     /** Người tạo lead — dùng cho resource-level access control */
-    createdBy: { type: String, ref: "User", default: null, index: true },
+    createdBy: { type: String, ref: 'User', default: null, index: true },
     tags: [{ type: String }],
-    note: { type: String, default: "" },
+    note: { type: String, default: '' },
 
     /** Giữ lại để dùng sau cho hệ thống LeadStatus/LeadStatusGroup */
     statusId: { type: String, default: null },
-    funnelId: { type: String, ref: "Funnel", default: null, index: true },
+    funnelId: { type: String, ref: 'Funnel', default: null, index: true },
     groupId: { type: String, default: null },
 
     timeline: [timelineEntrySchema],
@@ -122,7 +137,7 @@ const leadSchema = new mongoose.Schema(
 leadSchema.plugin(softDeletePlugin);
 
 // Performance indexes for list queries
-leadSchema.index({ "assignees.userId": 1 });
+leadSchema.index({ 'assignees.userId': 1 });
 leadSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model("Lead", leadSchema);
+module.exports = mongoose.model('Lead', leadSchema);

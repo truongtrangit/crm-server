@@ -30,4 +30,16 @@ router.get(
   LogController.getAutomationLogs,
 );
 
+router.get(
+  "/external",
+  requirePermission(PERMISSIONS.LOGS_EXTERNAL_READ),
+  LogController.getExternalLogs,
+);
+
+router.post(
+  "/external/:id/replay",
+  requirePermission(PERMISSIONS.LOGS_EXTERNAL_REPLAY),
+  LogController.replayExternalLog,
+);
+
 module.exports = router;

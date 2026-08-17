@@ -90,6 +90,11 @@ const ID_PREFIXES = Object.freeze({
 
   // Topup Request
   TOPUP_REQUEST: "TPR",
+
+  // Integration
+  INTEGRATION_CONFIG: "ICF",
+  EVENT_GROUP: "EGR",
+  INTEGRATION_LOG: "ILG",
 });
 
 /**
