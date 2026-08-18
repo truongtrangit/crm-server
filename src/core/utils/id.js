@@ -95,6 +95,9 @@ const ID_PREFIXES = Object.freeze({
   INTEGRATION_CONFIG: "ICF",
   EVENT_GROUP: "EGR",
   INTEGRATION_LOG: "ILG",
+
+  // Order Webhook
+  ORDER_WEBHOOK_RULE: "OWR",
 });
 
 /**
