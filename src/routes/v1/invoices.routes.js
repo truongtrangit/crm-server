@@ -35,13 +35,13 @@ router.get(
 
 router.get(
   '/providers',
-  requirePermission(PERMISSIONS.INVOICE_PROVIDERS_CONFIG),
+  requirePermission([PERMISSIONS.INVOICES_READ, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
   InvoiceController.getProviders,
 );
 
 router.get(
   '/providers/:id',
-  requirePermission(PERMISSIONS.INVOICE_PROVIDERS_CONFIG),
+  requirePermission([PERMISSIONS.INVOICES_READ, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
   InvoiceController.getProviderById,
 );
 
