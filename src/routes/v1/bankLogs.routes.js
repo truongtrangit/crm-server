@@ -43,7 +43,7 @@ router.post(
 
 router.get(
   '/rules',
-  requirePermission(PERMISSIONS.BANK_LOG_RULES_CONFIG),
+  requirePermission([PERMISSIONS.BANK_LOGS_READ, PERMISSIONS.BANK_LOG_RULES_CONFIG], 'any'),
   BankLogController.getRules,
 );
 

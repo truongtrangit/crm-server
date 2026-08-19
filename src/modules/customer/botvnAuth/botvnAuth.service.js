@@ -215,31 +215,77 @@ class BotvnAuthService {
   /**
    * Gửi OTP qua API bên thứ 3.
    * Nếu chưa config API URL → chỉ log ra console để dev test.
-   * API contract linh hoạt: POST JSON body, Bearer token auth.
+   *
+   * @param {Object} dataContext - Tất cả data có sẵn (customer fields + otp + ttlSeconds)
+   *   Ví dụ: { email, phone, name, id, otp, ttlSeconds, ...bất kỳ field nào khác }
+   * @param {Object} additionalParams - Params bổ sung từ code (ưu tiên cao nhất, merge vào root payload)
+   *
+   * Payload được build theo BotvnConfig.otpApi.payloadTemplate (Mixed):
+   *   Template lưu nguyên cấu trúc JSON, dùng {{fieldName}} làm placeholder.
+   *   Ví dụ: { "customer": { "id": "{{email}}" }, "attrs": [{ "name": "Ma_OTP", "value": "{{otp}}" }] }
+   * Nếu chưa config payloadTemplate → dùng payload mặc định { email, otp, expiresInSeconds }.
    */
-  async _sendOtpToThirdParty(email, otp, ttlSeconds) {
+  async _sendOtpToThirdParty(dataContext, additionalParams = {}) {
     const apiUrl = env.botvnOtpApiUrl;
     const apiKey = env.botvnOtpApiKey;
 
     if (!apiUrl) {
-      logger.info(
-        `[BotVN OTP] No OTP API configured. OTP for ${email}: ${otp} (expires in ${ttlSeconds}s)`,
-      );
+      logger.info('[BotVN OTP] No OTP API configured. OTP data:', {
+        dataContext,
+        additionalParams,
+      });
       return;
     }
 
     try {
+      // Đọc payloadTemplate từ DB (BotvnConfig)
+      const config = await BotvnConfig.findOne().lean();
+      const payloadTemplate = config?.otpApi?.payloadTemplate;
+
+      let bodyPayload;
+      if (payloadTemplate && typeof payloadTemplate === 'object') {
+        // Traverse toàn bộ cấu trúc template, thay {{fieldName}} bằng giá trị thực từ dataContext
+        const resolveTemplate = (node) => {
+          if (typeof node === 'string') {
+            // Nếu toàn bộ string chỉ là 1 placeholder → trả về giá trị gốc (giữ nguyên type: number, boolean...)
+            const exactMatch = node.match(/^\{\{(\w+)\}\}$/);
+            if (exactMatch) {
+              const val = dataContext[exactMatch[1]];
+              return val !== undefined ? val : node;
+            }
+            // Nếu string chứa nhiều placeholder hoặc text hỗn hợp → replace tất cả
+            return node.replace(/\{\{(\w+)\}\}/g, (_, field) => {
+              const val = dataContext[field];
+              return val !== undefined ? val : `{{${field}}}`;
+            });
+          }
+          if (Array.isArray(node)) return node.map(resolveTemplate);
+          if (node && typeof node === 'object') {
+            return Object.fromEntries(
+              Object.entries(node).map(([k, v]) => [k, resolveTemplate(v)]),
+            );
+          }
+          return node;
+        };
+
+        bodyPayload = { ...resolveTemplate(payloadTemplate), ...additionalParams };
+      } else {
+        // Fallback: payload mặc định
+        bodyPayload = {
+          email: dataContext.email,
+          otp: dataContext.otp,
+          expiresInSeconds: dataContext.ttlSeconds,
+          ...additionalParams,
+        };
+      }
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
-        body: JSON.stringify({
-          email,
-          otp,
-          expiresInSeconds: ttlSeconds,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -247,15 +293,15 @@ class BotvnAuthService {
         logger.error('[BotVN OTP] Third-party API error', {
           status: response.status,
           body: text,
-          email,
+          email: dataContext.email,
         });
       } else {
-        logger.info(`[BotVN OTP] OTP sent successfully for ${email}`);
+        logger.info(`[BotVN OTP] OTP sent successfully for ${dataContext.email}`);
       }
     } catch (err) {
       logger.error('[BotVN OTP] Failed to call third-party API', {
         error: err.message,
-        email,
+        email: dataContext.email,
       });
       // Không throw — OTP đã lưu cache, user có thể resend
     }
@@ -302,8 +348,12 @@ class BotvnAuthService {
       ttl,
     );
 
-    // Gửi OTP plaintext qua API bên thứ 3
-    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+    // Gửi OTP plaintext qua API bên thứ 3 — truyền customer fields để fieldMappings có thể pick
+    await this._sendOtpToThirdParty({
+      ...customer.toObject(),
+      otp,
+      ttlSeconds: ttl,
+    });
 
     return { expiresIn: ttl };
   }
@@ -420,18 +470,25 @@ class BotvnAuthService {
 
   /**
    * Google Login / Auto-register.
-   * 1. Verify Google ID token (audience check)
+   * Supports two credential types:
+   * 1. idToken — from FedCM / One Tap prompt (primary)
+   * 2. accessToken — from OAuth2 popup fallback (when FedCM is disabled)
+   *
+   * Flow:
+   * 1. Verify Google credential (ID token via audience check, or access token via userinfo API)
    * 2. Tìm Customer bằng googleId → returning user
    * 3. Tìm bằng email → link googleId vào account cũ
    * 4. Không tìm → tạo Customer mới (auto-register, auto-active)
    * 5. Tạo session tokens
    */
-  async googleLogin(idToken, req) {
+  async googleLogin(credential, req) {
     if (!env.botvnGoogleClientId) {
       const error = new Error('Google login is not configured.');
       error.status = 500;
       throw error;
     }
+
+    const { idToken, accessToken } = credential;
 
     // --- Config check ---
     const config = await BotvnConfig.findOne().lean();
@@ -442,20 +499,47 @@ class BotvnAuthService {
       throw error;
     }
 
-    // --- Verify ID token ---
-    const googleClient = new OAuth2Client(env.botvnGoogleClientId);
+    // --- Verify credential ---
     let payload;
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: env.botvnGoogleClientId,
-      });
-      payload = ticket.getPayload();
-    } catch (err) {
-      logger.warn('Google ID token verification failed', { error: err.message });
-      const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
-      error.status = 401;
-      error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+
+    if (idToken) {
+      // Path 1: Verify ID token (from FedCM / One Tap)
+      const googleClient = new OAuth2Client(env.botvnGoogleClientId);
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: env.botvnGoogleClientId,
+        });
+        payload = ticket.getPayload();
+      } catch (err) {
+        logger.warn('Google ID token verification failed', { error: err.message });
+        const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
+        error.status = 401;
+        error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+        throw error;
+      }
+    } else if (accessToken) {
+      // Path 2: Verify access token via Google userinfo API (from OAuth2 popup fallback)
+      try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+          throw new Error(`Google userinfo returned ${res.status}`);
+        }
+        payload = await res.json();
+        // userinfo returns: { sub, email, email_verified, name, picture, ... }
+        // Same fields as ID token payload — no mapping needed
+      } catch (err) {
+        logger.warn('Google access token verification failed', { error: err.message });
+        const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
+        error.status = 401;
+        error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+        throw error;
+      }
+    } else {
+      const error = new Error('No Google credential provided.');
+      error.status = 400;
       throw error;
     }
 
@@ -979,7 +1063,11 @@ class BotvnAuthService {
       ttl,
     );
 
-    await this._sendOtpToThirdParty(normalizedEmail, otp, ttl);
+    await this._sendOtpToThirdParty({
+      ...customer.toObject(),
+      otp,
+      ttlSeconds: ttl,
+    });
 
     return { expiresIn: ttl };
   }

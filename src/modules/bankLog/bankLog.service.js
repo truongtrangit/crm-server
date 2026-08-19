@@ -3,13 +3,24 @@ const BankLogRoutingRule = require('./bankLogRoutingRule.model');
 const User = require('../system/user/user.model');
 const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
-const { generateMonotonicId, generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
-const { BANK_LOG_TX_STATUSES, BANK_LOG_AUTH_TYPES } = require('../../core/constants/bankLog');
+const {
+  generateMonotonicId,
+  generateMonotonicIdsBatch,
+  ID_PREFIXES,
+} = require('../../core/utils/id');
+const {
+  BANK_LOG_TX_STATUSES,
+  BANK_LOG_AUTH_TYPES,
+  BANK_LOG_DEBIT_CREDIT,
+} = require('../../core/constants/bankLog');
 const { escapeRegex } = require('../../core/utils/query');
 const CacheService = require('../../core/services/CacheService');
 const httpClient = require('../../core/utils/httpClient');
 const logger = require('../../core/utils/logger');
 const { getStartOfDayVN } = require('../../core/utils/date');
+const BotvnConfig = require('../course/courseConfig/botvnConfig.model');
+const TopupRequestService = require('../customer/credit/topupRequest.service');
+const env = require('../../core/config/env');
 
 const RULES_CACHE_KEY = 'banklog:rules';
 const RULES_CACHE_TTL = 300; // 5 minutes
@@ -97,7 +108,8 @@ class BankLogService {
       ]);
 
     const totalAll = await BankLogTransaction.countDocuments();
-    const successRate = totalAll > 0 ? ((successCount / totalAll) * 100).toFixed(1) : '0.0';
+    const successRate =
+      totalAll > 0 ? ((successCount / totalAll) * 100).toFixed(1) : '0.0';
 
     return {
       todayReceived: todayAmount[0]?.total || 0,
@@ -138,8 +150,14 @@ class BankLogService {
       });
     } catch (err) {
       if (err.code === 11000) {
-        logger.info('Bank Log: Duplicate transaction ignored', { txId: payload.txId });
-        return { txId: payload.txId, status: 'DUPLICATE', message: 'Transaction already ingested' };
+        logger.info('Bank Log: Duplicate transaction ignored', {
+          txId: payload.txId,
+        });
+        return {
+          txId: payload.txId,
+          status: 'DUPLICATE',
+          message: 'Transaction already ingested',
+        };
       }
       throw err;
     }
@@ -182,7 +200,9 @@ class BankLogService {
 
     // Map ACB fields → internal documents
     const docs = acbTransactions.map((acbTx, i) => {
-      const txId = acbTx.transactionCode ? `ACB-${acbTx.transactionCode}` : `ACB-UNKNOWN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const txId = acbTx.transactionCode
+        ? `ACB-${acbTx.transactionCode}`
+        : `ACB-UNKNOWN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       // Determine if we should process this or just log it
       let initialStatus = BANK_LOG_TX_STATUSES.PENDING;
       if (
@@ -196,12 +216,17 @@ class BankLogService {
         id: ids[i],
         txId,
         bank: acbTx.transactionEntityAttribute?.issuerBankName || 'ACB',
-        bankTxCode: acbTx.transactionCode ? String(acbTx.transactionCode) : null,
+        bankTxCode: acbTx.transactionCode
+          ? String(acbTx.transactionCode)
+          : null,
         sender: acbTx.transactionEntityAttribute?.remitterName || null,
-        senderAccountNumber: acbTx.transactionEntityAttribute?.remitterAccountNumber || null,
+        senderAccountNumber:
+          acbTx.transactionEntityAttribute?.remitterAccountNumber || null,
         amount: acbTx.amount,
         content: acbTx.transactionContent || null,
-        transactionDate: acbTx.transactionDate ? new Date(acbTx.transactionDate) : new Date(),
+        transactionDate: acbTx.transactionDate
+          ? new Date(acbTx.transactionDate)
+          : new Date(),
         debitOrCredit: acbTx.debitOrCredit,
         accountNumber: String(acbTx.accountNumber),
         transactionChannel: acbTx.transactionChannel || null,
@@ -210,7 +235,9 @@ class BankLogService {
         acbRequestCode: acbTx.acbRequestCode || null,
         acbClientId: clientId,
         acbClientRequestId: clientRequestId,
-        effectiveDate: acbTx.effectiveDate ? new Date(acbTx.effectiveDate) : null,
+        effectiveDate: acbTx.effectiveDate
+          ? new Date(acbTx.effectiveDate)
+          : null,
         status: initialStatus,
         rawPayload: acbTx,
         createdBy: 'system',
@@ -220,7 +247,9 @@ class BankLogService {
     // 1 DB call: bulk insert, ordered:false → skip duplicates, don't fail batch
     let insertedDocs = [];
     try {
-      const result = await BankLogTransaction.insertMany(docs, { ordered: false });
+      const result = await BankLogTransaction.insertMany(docs, {
+        ordered: false,
+      });
       insertedDocs = result;
     } catch (err) {
       // BulkWriteError: some inserts succeeded, some were duplicates
@@ -244,8 +273,10 @@ class BankLogService {
     // Fire-and-forget: process all new transactions in background
     // Pre-fetch rules once for all transactions
     if (insertedDocs.length > 0) {
-      const pendingDocs = insertedDocs.filter(d => d.status === BANK_LOG_TX_STATUSES.PENDING);
-      
+      const pendingDocs = insertedDocs.filter(
+        (d) => d.status === BANK_LOG_TX_STATUSES.PENDING,
+      );
+
       if (pendingDocs.length > 0) {
         this._getActiveRules()
           .then((rules) => {
@@ -259,10 +290,13 @@ class BankLogService {
             }
           })
           .catch((rulesErr) => {
-            logger.error('Bank Log: Failed to fetch rules for batch processing', {
-              clientRequestId,
-              error: rulesErr.message,
-            });
+            logger.error(
+              'Bank Log: Failed to fetch rules for batch processing',
+              {
+                clientRequestId,
+                error: rulesErr.message,
+              },
+            );
           });
       }
     }
@@ -273,7 +307,11 @@ class BankLogService {
       if (insertedTxIds.has(doc.txId)) {
         return { id: doc.id, txId: doc.txId, status: doc.status };
       }
-      return { txId: doc.txId, status: 'DUPLICATE', message: 'Transaction already ingested' };
+      return {
+        txId: doc.txId,
+        status: 'DUPLICATE',
+        message: 'Transaction already ingested',
+      };
     });
   }
 
@@ -393,10 +431,15 @@ class BankLogService {
     ]);
 
     // Resolve createdBy IDs to user names
-    const creatorIds = [...new Set(items.map((r) => r.createdBy).filter(Boolean))];
+    const creatorIds = [
+      ...new Set(items.map((r) => r.createdBy).filter(Boolean)),
+    ];
     let userMap = {};
     if (creatorIds.length > 0) {
-      const users = await User.find({ id: { $in: creatorIds } }, 'id name').lean();
+      const users = await User.find(
+        { id: { $in: creatorIds } },
+        'id name',
+      ).lean();
       userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
     }
 
@@ -519,6 +562,16 @@ class BankLogService {
           },
         );
         logger.info('Bank Log: No matching rule', { txId: tx.txId });
+
+        // Still try to auto-match BotVN topup even without routing rule
+        if (tx.content && tx.debitOrCredit === BANK_LOG_DEBIT_CREDIT.CREDIT) {
+          this._autoMatchTopupRequest(tx).catch((autoErr) =>
+            logger.error('Bank Log: Auto-match topup failed', {
+              txId: tx.txId,
+              error: autoErr.message,
+            }),
+          );
+        }
         return;
       }
 
@@ -532,7 +585,10 @@ class BankLogService {
               matchedRuleName: matchedRule.name,
               matchedRuleId: matchedRule.id,
               targetApiUrl: matchedRule.targetApi.url,
-              apiResponseBody: { error: 'Circuit breaker OPEN — target API temporarily unavailable' },
+              apiResponseBody: {
+                error:
+                  'Circuit breaker OPEN — target API temporarily unavailable',
+              },
               processingDurationMs: Date.now() - startTime,
             },
           },
@@ -559,6 +615,15 @@ class BankLogService {
           },
         },
       );
+      // --- Auto-match BotVN topup request (runs independently of routing rules) ---
+      if (tx.content && tx.debitOrCredit === BANK_LOG_DEBIT_CREDIT.CREDIT) {
+        this._autoMatchTopupRequest(tx).catch((autoErr) =>
+          logger.error('Bank Log: Auto-match topup failed', {
+            txId: tx.txId,
+            error: autoErr.message,
+          }),
+        );
+      }
     } catch (err) {
       logger.error('Bank Log: Processing error', {
         txId: tx.txId,
@@ -737,14 +802,124 @@ class BankLogService {
   }
 
   _recordFailure(url) {
-    const cb = this._circuitBreakers.get(url) || { failures: 0, lastFailure: 0 };
+    const cb = this._circuitBreakers.get(url) || {
+      failures: 0,
+      lastFailure: 0,
+    };
     cb.failures += 1;
     cb.lastFailure = Date.now();
     this._circuitBreakers.set(url, cb);
 
     if (cb.failures >= 5) {
-      logger.warn('Bank Log: Circuit breaker OPEN', { url, failures: cb.failures });
+      logger.warn('Bank Log: Circuit breaker OPEN', {
+        url,
+        failures: cb.failures,
+      });
     }
+  }
+
+  // ─── BotVN Topup Auto-Match ────────────────────────────────────────────────
+
+  /**
+   * Parse bank transaction content to find matching BotVN topup request.
+   * Template is configurable in BotvnConfig.bankTransfer.transferContentTemplate.
+   *
+   * Example:
+   *   Template: "BOT{requestId}" → prefix = "BOT"
+   *   Content: "BOTTPR12 chuyen tien" → extracted requestId = "TPR12"
+   *
+   * @param {Object} tx - BankLogTransaction document
+   */
+  async _autoMatchTopupRequest(tx) {
+    if (!env.enableAutoApproveTopup) return;
+
+    // Skip if this transaction was already matched
+    if (tx.matchedTopupRequestId) return;
+
+    // Skip invalid amounts
+    if (!tx.amount || tx.amount <= 0) return;
+
+    // Cache BotvnConfig to avoid hitting DB on every transaction
+    const config = await this._getBotvnConfig();
+    if (!config?.bankTransfer?.isEnabled) return;
+
+    const template = config.bankTransfer.transferContentTemplate;
+    if (!template) return;
+
+    // Extract prefix from template: everything before {requestId}
+    const placeholderIndex = template.indexOf('{requestId}');
+    if (placeholderIndex === -1) return; // Template doesn't have {requestId} placeholder
+
+    const prefix = template.substring(0, placeholderIndex);
+    if (!prefix) return;
+
+    // Find prefix + TopupRequest ID in transaction content
+    // We strip all spaces to handle cases where banks append extra text
+    const content = tx.content.toUpperCase().replace(/\s+/g, '');
+    const upperPrefix = prefix.toUpperCase();
+
+    // Create strict regex: e.g. /BOT(TPR\d+)/
+    const regex = new RegExp(
+      escapeRegex(upperPrefix) + '(' + ID_PREFIXES.TOPUP_REQUEST + '\\d+)',
+    );
+    const match = content.match(regex);
+
+    if (!match) return;
+
+    const requestId = match[1]; // e.g. "TPR12"
+
+    logger.info('Bank Log: Topup pattern matched', {
+      txId: tx.txId,
+      prefix,
+      requestId,
+      bankAmount: tx.amount,
+      originalContent: tx.content,
+    });
+
+    // Auto-approve via TopupRequestService
+    const bankTxIdentifier = tx.bankTxCode || tx.txId;
+    const result = await TopupRequestService.autoApprove(
+      requestId,
+      bankTxIdentifier,
+      tx.amount,
+    );
+
+    if (result) {
+      // Link bank log → topup request
+      await BankLogTransaction.updateOne(
+        { _id: tx._id },
+        { $set: { matchedTopupRequestId: requestId } },
+      );
+      logger.info('Bank Log: Topup auto-approved successfully', {
+        txId: tx.txId,
+        requestId,
+      });
+    } else {
+      // Pattern matched but auto-approve returned null
+      // (request not found, already processed, or amount mismatch — details logged by autoApprove)
+      logger.warn('Bank Log: Topup pattern matched but auto-approve skipped', {
+        txId: tx.txId,
+        requestId,
+        bankAmount: tx.amount,
+      });
+    }
+  }
+
+  /**
+   * Cache BotvnConfig to reduce DB queries (TTL: 5 minutes)
+   */
+  async _getBotvnConfig() {
+    const CACHE_KEY = '_botvnConfig';
+    const CACHE_TTL = 300_000; // 5 minutes
+
+    const cached = this[CACHE_KEY];
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+      return cached.data;
+    }
+
+    const config = await BotvnConfig.findOne().lean();
+    this[CACHE_KEY] = { data: config, fetchedAt: Date.now() };
+    return config;
   }
 }
 

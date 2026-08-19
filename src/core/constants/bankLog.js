@@ -60,10 +60,16 @@ const ACB_RESPONSE_CODES = Object.freeze({
   INTERNAL_ERROR: '50000001',   // Lỗi nội bộ server
 });
 
+const BANK_LOG_DEBIT_CREDIT = Object.freeze({
+  CREDIT: 'credit',
+  DEBIT: 'debit',
+});
+
 module.exports = {
   BANK_LOG_TX_STATUSES,
   BANK_LOG_CONDITION_PARAMS,
   BANK_LOG_OPERATORS,
   BANK_LOG_AUTH_TYPES,
   ACB_RESPONSE_CODES,
+  BANK_LOG_DEBIT_CREDIT,
 };

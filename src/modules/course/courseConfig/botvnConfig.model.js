@@ -52,6 +52,13 @@ const botvnConfigSchema = new mongoose.Schema(
       },
       notes: [{ type: String }],
     },
+    otpApi: {
+      // Template payload dạng Mixed — admin lưu nguyên cấu trúc JSON mà API bên thứ 3 yêu cầu.
+      // Dùng placeholder {{fieldName}} sẽ được thay bằng giá trị từ customer/context khi runtime.
+      // Ví dụ: { "customer": { "id": "{{email}}" }, "attrs": [{ "name": "Ma_OTP", "value": "{{otp}}" }] }
+      // Nếu không config → dùng payload mặc định { email, otp, expiresInSeconds }
+      payloadTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
+    },
   },
   {
     timestamps: true,
