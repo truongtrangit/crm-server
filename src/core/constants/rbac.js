@@ -893,6 +893,13 @@ const MODULE_DEFINITIONS = {
     parentKey: 'courses',
     actions: ['view'],
   },
+  'courses.webhooks': {
+    key: 'courses.webhooks',
+    label: 'Webhook & Trigger',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
   'courses.instructors': {
     key: 'courses.instructors',
     label: 'Giảng viên',
@@ -955,7 +962,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    delete: [
+      PERMISSIONS.CUSTOMERS_DELETE,
+      PERMISSIONS.CUSTOMERS_PERMANENT_DELETE,
+    ],
     restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
@@ -963,7 +973,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    delete: [
+      PERMISSIONS.CUSTOMERS_DELETE,
+      PERMISSIONS.CUSTOMERS_PERMANENT_DELETE,
+    ],
     restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
@@ -1021,7 +1034,11 @@ const MODULE_TO_PERMISSIONS_MAP = {
     configure: [PERMISSIONS.LEADS_CFG_MANAGE], // Quản lý funnel/group config
   },
   'meta.program': {
-    view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ, PERMISSIONS.METADATA_READ],
+    view: [
+      PERMISSIONS.META_READ,
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.METADATA_READ,
+    ],
     create: [PERMISSIONS.META_CREATE],
     edit: [PERMISSIONS.META_UPDATE],
     delete: [PERMISSIONS.META_DELETE],
