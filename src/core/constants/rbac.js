@@ -40,7 +40,6 @@ const RESOURCES = {
   COURSES_KNOWLEDGE: 'courses_knowledge', // Kiến thức
   COURSES_CREDITS: 'courses_credits', // Lịch sử nạp credit
   COURSES_FAVORITES: 'courses_favorites', // Khoá học yêu thích
-  COURSES_WEBHOOKS: 'courses_webhooks', // Cấu hình webhook & trigger
   ZCODES: 'zcodes', // Quản lý ZCode
   BANK_LOGS: 'bank_logs', // Bank Log transactions
   BANK_LOG_RULES: 'bank_log_rules', // Bank Log routing rules
@@ -506,11 +505,6 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.COURSES_CREDITS_MANAGE,
 
     PERMISSIONS.COURSES_FAVORITES_READ,
-
-    PERMISSIONS.COURSES_WEBHOOKS_READ,
-    PERMISSIONS.COURSES_WEBHOOKS_CREATE,
-    PERMISSIONS.COURSES_WEBHOOKS_UPDATE,
-    PERMISSIONS.COURSES_WEBHOOKS_DELETE,
   ]),
 );
 
