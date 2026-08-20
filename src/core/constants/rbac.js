@@ -47,6 +47,8 @@ const RESOURCES = {
   INVOICES: 'invoices', // Hoá đơn điện tử
   INVOICE_PROVIDERS: 'invoice_providers', // Cấu hình nhà cung cấp HĐĐT
   INTEGRATION: 'integration', // Cấu hình tích hợp đa module (Event Groups, Integration Config)
+  COURSES_ORDER_WEBHOOKS: 'courses_order_webhooks', // Webhook trigger đơn hàng
+  TOPUP_REQUESTS: 'topup_requests', // Yêu cầu nạp tiền
 };
 
 // Actions
@@ -323,11 +325,11 @@ const PERMISSIONS = {
   // Course Favorites
   COURSES_FAVORITES_READ: `${RESOURCES.COURSES_FAVORITES}_${ACTIONS.READ}`,
 
-  // Course Webhooks
-  COURSES_WEBHOOKS_READ: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.READ}`,
-  COURSES_WEBHOOKS_CREATE: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.CREATE}`,
-  COURSES_WEBHOOKS_UPDATE: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.UPDATE}`,
-  COURSES_WEBHOOKS_DELETE: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.DELETE}`,
+  // Course Order Webhooks
+  COURSES_ORDER_WEBHOOKS_READ: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.READ}`,
+  COURSES_ORDER_WEBHOOKS_CREATE: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.CREATE}`,
+  COURSES_ORDER_WEBHOOKS_UPDATE: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.UPDATE}`,
+  COURSES_ORDER_WEBHOOKS_DELETE: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.DELETE}`,
 
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
@@ -911,6 +913,13 @@ const MODULE_DEFINITIONS = {
     parentKey: 'courses',
     actions: ['view', 'create', 'edit', 'delete'],
   },
+  'courses.webhooks': {
+    key: 'courses.webhooks',
+    label: 'Webhook & Trigger đơn hàng',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
 
   zcode: { key: 'zcode', label: 'ZCode', type: 'root', actions: [] },
   'zcode.manage': {
@@ -959,7 +968,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    delete: [
+      PERMISSIONS.CUSTOMERS_DELETE,
+      PERMISSIONS.CUSTOMERS_PERMANENT_DELETE,
+    ],
     restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
@@ -967,7 +979,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [PERMISSIONS.CUSTOMERS_READ],
     create: [PERMISSIONS.CUSTOMERS_CREATE],
     edit: [PERMISSIONS.CUSTOMERS_UPDATE],
-    delete: [PERMISSIONS.CUSTOMERS_DELETE, PERMISSIONS.CUSTOMERS_PERMANENT_DELETE],
+    delete: [
+      PERMISSIONS.CUSTOMERS_DELETE,
+      PERMISSIONS.CUSTOMERS_PERMANENT_DELETE,
+    ],
     restore: [PERMISSIONS.CUSTOMERS_RESTORE],
     // "export": [PERMISSIONS.CUSTOMERS_READ]
   },
@@ -1025,7 +1040,11 @@ const MODULE_TO_PERMISSIONS_MAP = {
     configure: [PERMISSIONS.LEADS_CFG_MANAGE], // Quản lý funnel/group config
   },
   'meta.program': {
-    view: [PERMISSIONS.META_READ, PERMISSIONS.USERS_READ, PERMISSIONS.METADATA_READ],
+    view: [
+      PERMISSIONS.META_READ,
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.METADATA_READ,
+    ],
     create: [PERMISSIONS.META_CREATE],
     edit: [PERMISSIONS.META_UPDATE],
     delete: [PERMISSIONS.META_DELETE],
@@ -1253,10 +1272,10 @@ const MODULE_TO_PERMISSIONS_MAP = {
     view: [PERMISSIONS.COURSES_FAVORITES_READ],
   },
   'courses.webhooks': {
-    view: [PERMISSIONS.COURSES_WEBHOOKS_READ],
-    create: [PERMISSIONS.COURSES_WEBHOOKS_CREATE],
-    edit: [PERMISSIONS.COURSES_WEBHOOKS_UPDATE],
-    delete: [PERMISSIONS.COURSES_WEBHOOKS_DELETE],
+    view: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_READ],
+    create: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_CREATE],
+    edit: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_UPDATE],
+    delete: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_DELETE],
   },
   'zcode.manage': {
     view: [PERMISSIONS.ZCODES_READ],
