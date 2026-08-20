@@ -40,6 +40,7 @@ const RESOURCES = {
   COURSES_KNOWLEDGE: 'courses_knowledge', // Kiến thức
   COURSES_CREDITS: 'courses_credits', // Lịch sử nạp credit
   COURSES_FAVORITES: 'courses_favorites', // Khoá học yêu thích
+  COURSES_WEBHOOKS: 'courses_webhooks', // Cấu hình webhook & trigger
   ZCODES: 'zcodes', // Quản lý ZCode
   BANK_LOGS: 'bank_logs', // Bank Log transactions
   BANK_LOG_RULES: 'bank_log_rules', // Bank Log routing rules
@@ -322,6 +323,12 @@ const PERMISSIONS = {
   // Course Favorites
   COURSES_FAVORITES_READ: `${RESOURCES.COURSES_FAVORITES}_${ACTIONS.READ}`,
 
+  // Course Webhooks
+  COURSES_WEBHOOKS_READ: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.READ}`,
+  COURSES_WEBHOOKS_CREATE: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.CREATE}`,
+  COURSES_WEBHOOKS_UPDATE: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.UPDATE}`,
+  COURSES_WEBHOOKS_DELETE: `${RESOURCES.COURSES_WEBHOOKS}_${ACTIONS.DELETE}`,
+
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
   ZCODES_READ: `${RESOURCES.ZCODES}_${ACTIONS.READ}`,
@@ -497,6 +504,11 @@ const MANAGER_PERMISSIONS = Array.from(
     PERMISSIONS.COURSES_CREDITS_MANAGE,
 
     PERMISSIONS.COURSES_FAVORITES_READ,
+
+    PERMISSIONS.COURSES_WEBHOOKS_READ,
+    PERMISSIONS.COURSES_WEBHOOKS_CREATE,
+    PERMISSIONS.COURSES_WEBHOOKS_UPDATE,
+    PERMISSIONS.COURSES_WEBHOOKS_DELETE,
   ]),
 );
 
@@ -885,6 +897,13 @@ const MODULE_DEFINITIONS = {
     parentKey: 'courses',
     actions: ['view'],
   },
+  'courses.webhooks': {
+    key: 'courses.webhooks',
+    label: 'Webhook & Trigger',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
   'courses.instructors': {
     key: 'courses.instructors',
     label: 'Giảng viên',
@@ -1232,6 +1251,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   'courses.favorites': {
     view: [PERMISSIONS.COURSES_FAVORITES_READ],
+  },
+  'courses.webhooks': {
+    view: [PERMISSIONS.COURSES_WEBHOOKS_READ],
+    create: [PERMISSIONS.COURSES_WEBHOOKS_CREATE],
+    edit: [PERMISSIONS.COURSES_WEBHOOKS_UPDATE],
+    delete: [PERMISSIONS.COURSES_WEBHOOKS_DELETE],
   },
   'zcode.manage': {
     view: [PERMISSIONS.ZCODES_READ],
