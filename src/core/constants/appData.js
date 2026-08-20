@@ -216,6 +216,24 @@ const BUSINESS_TYPES = Object.freeze({
   INDIVIDUAL: 'individual',
 });
 
+// ─── Order Webhook ───────────────────────────────────────────────────────────
+const ORDER_WEBHOOK_EVENTS = Object.freeze({
+  COMPLETED: 'order.completed',
+  // Phase 2: NEW: 'order.new', UPDATED: 'order.updated', CANCELLED: 'order.cancelled',
+});
+
+const ORDER_WEBHOOK_SCOPE_TYPES = Object.freeze({
+  GLOBAL: 'global',
+  COURSE_TYPE: 'course_type',
+  SPECIFIC: 'specific',
+});
+
+const ORDER_WEBHOOK_DELIVERY_STATUSES = Object.freeze({
+  SUCCESS: 'success',
+  FAILED: 'failed',
+  TIMEOUT: 'timeout',
+});
+
 module.exports = {
   PLATFORMS,
   COMPANIES,
@@ -251,4 +269,7 @@ module.exports = {
   AUTH_ERROR_CODES,
   TOPUP_REQUEST_STATUS,
   BUSINESS_TYPES,
+  ORDER_WEBHOOK_EVENTS,
+  ORDER_WEBHOOK_SCOPE_TYPES,
+  ORDER_WEBHOOK_DELIVERY_STATUSES,
 };

@@ -46,6 +46,8 @@ const RESOURCES = {
   INVOICES: 'invoices', // Hoá đơn điện tử
   INVOICE_PROVIDERS: 'invoice_providers', // Cấu hình nhà cung cấp HĐĐT
   INTEGRATION: 'integration', // Cấu hình tích hợp đa module (Event Groups, Integration Config)
+  COURSES_ORDER_WEBHOOKS: 'courses_order_webhooks', // Webhook trigger đơn hàng
+  TOPUP_REQUESTS: 'topup_requests', // Yêu cầu nạp tiền
 };
 
 // Actions
@@ -321,6 +323,12 @@ const PERMISSIONS = {
 
   // Course Favorites
   COURSES_FAVORITES_READ: `${RESOURCES.COURSES_FAVORITES}_${ACTIONS.READ}`,
+
+  // Course Order Webhooks
+  COURSES_ORDER_WEBHOOKS_READ: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.READ}`,
+  COURSES_ORDER_WEBHOOKS_CREATE: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.CREATE}`,
+  COURSES_ORDER_WEBHOOKS_UPDATE: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.UPDATE}`,
+  COURSES_ORDER_WEBHOOKS_DELETE: `${RESOURCES.COURSES_ORDER_WEBHOOKS}_${ACTIONS.DELETE}`,
 
   // ZCode
   ZCODES_CREATE: `${RESOURCES.ZCODES}_${ACTIONS.CREATE}`,
@@ -892,6 +900,13 @@ const MODULE_DEFINITIONS = {
     parentKey: 'courses',
     actions: ['view', 'create', 'edit', 'delete'],
   },
+  'courses.webhooks': {
+    key: 'courses.webhooks',
+    label: 'Webhook & Trigger đơn hàng',
+    type: 'sub',
+    parentKey: 'courses',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
 
   zcode: { key: 'zcode', label: 'ZCode', type: 'root', actions: [] },
   'zcode.manage': {
@@ -1232,6 +1247,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
   'courses.favorites': {
     view: [PERMISSIONS.COURSES_FAVORITES_READ],
+  },
+  'courses.webhooks': {
+    view: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_READ],
+    create: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_CREATE],
+    edit: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_UPDATE],
+    delete: [PERMISSIONS.COURSES_ORDER_WEBHOOKS_DELETE],
   },
   'zcode.manage': {
     view: [PERMISSIONS.ZCODES_READ],

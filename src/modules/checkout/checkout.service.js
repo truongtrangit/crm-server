@@ -423,6 +423,21 @@ class CheckoutService {
         );
       }
 
+      // Bắn order webhook (fire-and-forget, sau khi commit)
+      try {
+        const OrderWebhookDispatcher = require('../../core/services/OrderWebhookDispatcher');
+        OrderWebhookDispatcher.dispatch(
+          enrollmentsToCreate,
+          courseMap,
+          customer,
+          transactionGroupId,
+        );
+      } catch (webhookErr) {
+        logger.error('Error dispatching order webhooks', {
+          error: webhookErr.message,
+        });
+      }
+
       return {
         message: 'Thanh toán và đăng ký thành công',
         enrollments: enrollmentsToCreate,
