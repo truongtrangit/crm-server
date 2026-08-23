@@ -1,22 +1,25 @@
-const http = require("http");
-const mongoose = require("mongoose");
-const app = require("./app");
-const env = require("./core/config/env");
-const { connectDatabase } = require("./core/config/database");
-const { connectRedis, closeRedis } = require("./core/config/redis");
-const { seedDatabase } = require("./core/services/seedDatabase");
-const logger = require("./core/utils/logger");
-const { seedRbac } = require("./core/services/rbacSeed");
-const { startCronJobs } = require("./core/utils/cron");
+const http = require('http');
+const mongoose = require('mongoose');
+const app = require('./app');
+const env = require('./core/config/env');
+const { connectDatabase } = require('./core/config/database');
+const { connectRedis, closeRedis } = require('./core/config/redis');
+const { seedDatabase } = require('./core/services/seedDatabase');
+const logger = require('./core/utils/logger');
+const { seedRbac } = require('./core/services/rbacSeed');
+const { startCronJobs } = require('./core/utils/cron');
 
 async function bootstrap() {
   try {
     await connectDatabase();
     await connectRedis();
-    await seedRbac()
+    await seedRbac();
     // await seedDatabase();
   } catch (error) {
-    logger.error("Failed to start CRM server", { error: error.message, stack: error.stack });
+    logger.error('Failed to start CRM server', {
+      error: error.message,
+      stack: error.stack,
+    });
     process.exit(1);
   }
 
@@ -37,16 +40,19 @@ async function bootstrap() {
     server.close(async () => {
       await mongoose.connection.close();
       await closeRedis();
-      logger.info("Server closed gracefully");
+      logger.info('Server closed gracefully');
       process.exit(0);
     });
   };
 
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 bootstrap().catch((error) => {
-  logger.error("Failed to start CRM server", { error: error.message, stack: error.stack });
+  logger.error('Failed to start CRM server', {
+    error: error.message,
+    stack: error.stack,
+  });
   process.exit(1);
 });

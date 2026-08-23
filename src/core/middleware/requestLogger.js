@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const env = require('../config/env');
+const { extractRequestMeta } = require('../utils/request');
 
 /**
  * Middleware to log every HTTP request/response.
@@ -13,51 +14,29 @@ function requestLogger(req, res, next) {
 
   res.end = function (...args) {
     const duration = Date.now() - start;
+    const requestMeta = extractRequestMeta(req);
     const meta = {
-      method: req.method,
-      url: req.originalUrl,
+      ...requestMeta,
       status: res.statusCode,
       duration: `${duration}ms`,
-      ip: req.ip || req.connection?.remoteAddress,
-      userAgent: req.get("user-agent") || "",
     };
 
-    // Attach user id if authenticated
-    if (req.user?.id) {
-      meta.userId = req.user.id;
-    }
-
-    // Log request body for mutation methods (POST/PUT/PATCH/DELETE) — omit sensitive fields
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && req.body) {
-      const sanitized = { ...req.body };
-      const sensitiveKeys = [
-        "password",
-        "newPassword",
-        "currentPassword",
-        "passwordHash",
-        "resetToken",
-        "refreshToken",
-        "accessToken",
-      ];
-
-      for (const key of sensitiveKeys) {
-        if (sanitized[key] !== undefined) {
-          sanitized[key] = "***";
-        }
-      }
-
-      meta.body = sanitized;
-    }
-
-    const isProduction = env.nodeEnv === "production";
-    const logLevel = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
+    const isProduction = env.nodeEnv === 'production';
+    const logLevel =
+      res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
 
     if (isProduction) {
-      logger[logLevel](`${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`, meta);
+      logger[logLevel](
+        `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
+        meta,
+      );
     } else {
-      let ext = "";
+      let ext = '';
       if (meta.userId) ext += ` [User:${meta.userId}]`;
-      logger[logLevel](`${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms${ext}`);
+      logger[logLevel](
+        `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms${ext}`,
+        meta,
+      );
     }
 
     originalEnd.apply(res, args);
