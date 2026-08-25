@@ -1,9 +1,10 @@
 const ZCode = require('./zcode.model');
-const {
-  buildPaginatedResponse,
-} = require('../../core/utils/pagination');
+const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
-const { generateMonotonicIdsBatch, ID_PREFIXES } = require('../../core/utils/id');
+const {
+  generateMonotonicIdsBatch,
+  ID_PREFIXES,
+} = require('../../core/utils/id');
 const {
   ZCODE_STATUSES,
   ZCODE_ERROR_REASONS,
@@ -15,7 +16,10 @@ const {
 } = require('../../core/constants/zcode');
 const { escapeRegex } = require('../../core/utils/query');
 const { getStartOfDayVN, getEndOfDayVN } = require('../../core/utils/date');
-const { encryptZCodeField, decryptZCodeField } = require('../../core/utils/crypto');
+const {
+  encryptZCodeField,
+  decryptZCodeField,
+} = require('../../core/utils/crypto');
 
 class ZCodeService {
   // ─── List & Query ──────────────────────────────────────────────────────────
@@ -40,7 +44,10 @@ class ZCodeService {
         if (parts.length === 3) {
           filter.$or.push({ keyCode: encryptZCodeField(query.search) });
         } else if (parts.length === 2) {
-          filter.$or.push({ partB: encryptZCodeField(parts[0]), partC: encryptZCodeField(parts[1]) });
+          filter.$or.push({
+            partB: encryptZCodeField(parts[0]),
+            partC: encryptZCodeField(parts[1]),
+          });
         }
       } else {
         filter.$or.push({ partB: encryptZCodeField(query.search) });
@@ -75,7 +82,7 @@ class ZCodeService {
         partA: decryptZCodeField(item.partA),
         partB: partB || undefined,
         partC: partC || undefined,
-        partialCode: (partB && partC) ? `${partB}-${partC}` : '',
+        partialCode: partB && partC ? `${partB}-${partC}` : '',
       };
     });
 
@@ -94,8 +101,10 @@ class ZCodeService {
     if (query.sku) matchFilter.sku = query.sku;
     if (query.startDate || query.endDate) {
       matchFilter.importedAt = {};
-      if (query.startDate) matchFilter.importedAt.$gte = getStartOfDayVN(query.startDate);
-      if (query.endDate) matchFilter.importedAt.$lte = getEndOfDayVN(query.endDate);
+      if (query.startDate)
+        matchFilter.importedAt.$gte = getStartOfDayVN(query.startDate);
+      if (query.endDate)
+        matchFilter.importedAt.$lte = getEndOfDayVN(query.endDate);
     }
     if (Object.keys(matchFilter).length > 0) {
       pipeline.push({ $match: matchFilter });
@@ -138,8 +147,8 @@ class ZCodeService {
             'batch_',
             { $toString: '$_id.importedAt' },
             '_',
-            '$_id.sku'
-          ]
+            '$_id.sku',
+          ],
         },
         importedAt: '$_id.importedAt',
         batchDate: '$_id.batchDate',
@@ -187,7 +196,8 @@ class ZCodeService {
     }
     if (query.startDate || query.endDate) {
       filter.importedAt = {};
-      if (query.startDate) filter.importedAt.$gte = getStartOfDayVN(query.startDate);
+      if (query.startDate)
+        filter.importedAt.$gte = getStartOfDayVN(query.startDate);
       if (query.endDate) filter.importedAt.$lte = getEndOfDayVN(query.endDate);
     }
 
@@ -202,44 +212,44 @@ class ZCodeService {
       $group: {
         _id: {
           batchDate: '$batchDate',
-          importedAt: '$importedAt',
+          // importedAt: '$importedAt',
           sku: '$sku',
           finalPrice: '$finalPrice',
         },
         quantity: { $sum: 1 },
         availableCodes: {
-          $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] }
+          $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] },
         },
         usedCodes: {
-          $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] }
+          $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] },
         },
         errorCodes: {
-          $sum: { $cond: [{ $eq: ['$status', 'error'] }, 1, 0] }
+          $sum: { $cond: [{ $eq: ['$status', 'error'] }, 1, 0] },
         },
         unavailableCodes: {
-          $sum: { $cond: [{ $eq: ['$status', 'unavailable'] }, 1, 0] }
-        }
-      }
+          $sum: { $cond: [{ $eq: ['$status', 'unavailable'] }, 1, 0] },
+        },
+      },
     });
 
     // Step 2: Calculate financial values for each SKU group
     pipeline.push({
       $addFields: {
         totalValue: { $multiply: ['$quantity', '$_id.finalPrice'] },
-        soldValue: { $multiply: ['$usedCodes', '$_id.finalPrice'] }
-      }
+        soldValue: { $multiply: ['$usedCodes', '$_id.finalPrice'] },
+      },
     });
 
     // Step 3: Sort SKUs before pushing (optional, but helps keep output consistent, e.g., sort by importedAt ascending)
     pipeline.push({
-      $sort: { '_id.importedAt': 1, '_id.sku': 1 }
+      $sort: { '_id.importedAt': 1, '_id.sku': 1 },
     });
 
     // Step 4: Group by batchDate to get the batch-level aggregates
     pipeline.push({
       $group: {
         _id: {
-          batchDate: '$_id.batchDate'
+          batchDate: '$_id.batchDate',
         },
         totalCodes: { $sum: '$quantity' },
         grandTotalValue: { $sum: '$totalValue' },
@@ -255,10 +265,10 @@ class ZCodeService {
             availableCodes: '$availableCodes',
             usedCodes: '$usedCodes',
             errorCodes: '$errorCodes',
-            unavailableCodes: '$unavailableCodes'
-          }
-        }
-      }
+            unavailableCodes: '$unavailableCodes',
+          },
+        },
+      },
     });
 
     // Step 5: Flatten output
@@ -270,8 +280,8 @@ class ZCodeService {
         totalCodes: 1,
         grandTotalValue: 1,
         grandTotalSoldValue: 1,
-        skus: 1
-      }
+        skus: 1,
+      },
     });
 
     // Step 6: Sorting by batchDate descending
@@ -303,7 +313,7 @@ class ZCodeService {
     const partC = zcode.partC ? decryptZCodeField(zcode.partC) : '';
     if (partB) zcode.partB = partB;
     if (partC) zcode.partC = partC;
-    zcode.partialCode = (partB && partC) ? `${partB}-${partC}` : '';
+    zcode.partialCode = partB && partC ? `${partB}-${partC}` : '';
     return zcode;
   }
 
@@ -333,11 +343,14 @@ class ZCodeService {
         if (value < 0 || value > 100) {
           throw createHttpError(400, 'Phần trăm giảm giá phải từ 0 đến 100');
         }
-        finalPrice = Math.round(listPrice - (listPrice * value / 100));
+        finalPrice = Math.round(listPrice - (listPrice * value) / 100);
         break;
       case ZCODE_PRICE_ADJUSTMENT_TYPES.DISCOUNT_AMOUNT:
         if (value > listPrice) {
-          throw createHttpError(400, 'Số tiền giảm không được vượt quá giá niêm yết');
+          throw createHttpError(
+            400,
+            'Số tiền giảm không được vượt quá giá niêm yết',
+          );
         }
         finalPrice = listPrice - value;
         break;
@@ -356,7 +369,8 @@ class ZCodeService {
     return {
       listPrice,
       priceAdjustmentType: type,
-      priceAdjustmentValue: type === ZCODE_PRICE_ADJUSTMENT_TYPES.NONE ? null : value,
+      priceAdjustmentValue:
+        type === ZCODE_PRICE_ADJUSTMENT_TYPES.NONE ? null : value,
       finalPrice,
     };
   }
@@ -375,7 +389,9 @@ class ZCodeService {
       .map((k) => k.trim())
       .filter(Boolean);
 
-    const invalidFormat = keys.find(k => !/^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/.test(k));
+    const invalidFormat = keys.find(
+      (k) => !/^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/.test(k),
+    );
     if (invalidFormat) {
       throw createHttpError(
         400,
@@ -405,14 +421,17 @@ class ZCodeService {
     const partialCode = keyCode.substring(partA.length + 1);
 
     if (!partA || !partialCode) {
-      throw createHttpError(400, `Mã Key "${keyCode}" không đúng định dạng chuẩn`);
+      throw createHttpError(
+        400,
+        `Mã Key "${keyCode}" không đúng định dạng chuẩn`,
+      );
     }
     return { partA, partB, partC, partialCode };
   }
 
   async createZCodes(data, userId) {
     const validSkus = getValidSkus();
-    
+
     const allKeyCodes = [];
     const itemDataList = [];
 
@@ -420,15 +439,18 @@ class ZCodeService {
       if (!validSkus.includes(item.sku)) {
         throw createHttpError(400, `SKU "${item.sku}" không hợp lệ`);
       }
-      
+
       const keyCodes = this._parseKeyCodes(item.listCode);
       if (keyCodes.length === 0) {
         throw createHttpError(400, `Danh sách mã Key rỗng cho SKU ${item.sku}`);
       }
-      
+
       const listPrice = getSkuListPrice(item.sku);
       if (listPrice == null) {
-        throw createHttpError(400, `Không tìm thấy giá niêm yết cho SKU "${item.sku}"`);
+        throw createHttpError(
+          400,
+          `Không tìm thấy giá niêm yết cho SKU "${item.sku}"`,
+        );
       }
       const pricing = this._calculateFinalPrice(listPrice, item);
 
@@ -443,7 +465,10 @@ class ZCodeService {
 
     // Check total code count limit
     if (allKeyCodes.length > ZCODE_MAX_CODES_PER_REQUEST) {
-      throw createHttpError(400, `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần nhập (bạn đã nhập ${allKeyCodes.length} mã)`);
+      throw createHttpError(
+        400,
+        `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần nhập (bạn đã nhập ${allKeyCodes.length} mã)`,
+      );
     }
 
     // Check for duplicates within the input itself
@@ -484,7 +509,8 @@ class ZCodeService {
 
     for (const itemData of itemDataList) {
       for (const keyCode of itemData.keyCodes) {
-        const { partA, partB, partC, partialCode } = this._splitKeyCode(keyCode);
+        const { partA, partB, partC, partialCode } =
+          this._splitKeyCode(keyCode);
         docs.push({
           id: ids[idIndex++],
           batchDate: data.batchDate,
@@ -508,14 +534,16 @@ class ZCodeService {
     return {
       count: result.length,
       items: result,
-      skus: [...new Set(data.items.map(i => i.sku))],
+      skus: [...new Set(data.items.map((i) => i.sku))],
     };
   }
 
   // ─── Check Duplicates ──────────────────────────────────────────────────────
 
   async checkDuplicates(keys) {
-    const existing = await ZCode.find({ keyCode: { $in: keys.map(encryptZCodeField) } })
+    const existing = await ZCode.find({
+      keyCode: { $in: keys.map(encryptZCodeField) },
+    })
       .select('keyCode sku status')
       .lean();
     return {
@@ -537,7 +565,10 @@ class ZCodeService {
     const oldStatus = zcode.status;
 
     if (oldStatus === newStatus) {
-      throw createHttpError(400, `Mã ZCode hiện đã ở trạng thái "${oldStatus}"`);
+      throw createHttpError(
+        400,
+        `Mã ZCode hiện đã ở trạng thái "${oldStatus}"`,
+      );
     }
 
     if (oldStatus === ZCODE_STATUSES.SUCCESS) {
@@ -575,18 +606,25 @@ class ZCodeService {
       throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
     }
     if (keyCodes.length > ZCODE_MAX_CODES_PER_REQUEST) {
-      throw createHttpError(400, `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần cập nhật (bạn đã nhập ${keyCodes.length} mã)`);
+      throw createHttpError(
+        400,
+        `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần cập nhật (bạn đã nhập ${keyCodes.length} mã)`,
+      );
     }
 
     const uniqueKeys = [...new Set(keyCodes)];
-    const duplicatesInInput = keyCodes.filter((k, i) => keyCodes.indexOf(k) !== i);
+    const duplicatesInInput = keyCodes.filter(
+      (k, i) => keyCodes.indexOf(k) !== i,
+    );
     const uniqueDuplicates = [...new Set(duplicatesInInput)];
 
     const existingCodes = await ZCode.find({
       keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
     }).lean();
 
-    const existingKeyCodes = existingCodes.map((c) => decryptZCodeField(c.keyCode));
+    const existingKeyCodes = existingCodes.map((c) =>
+      decryptZCodeField(c.keyCode),
+    );
     const notFound = uniqueKeys.filter((k) => !existingKeyCodes.includes(k));
 
     const validCodes = [];
@@ -595,18 +633,32 @@ class ZCodeService {
     existingCodes.forEach((code) => {
       const keyCodeStr = decryptZCodeField(code.keyCode);
       if (code.status === ZCODE_STATUSES.SUCCESS) {
-        invalidCodes.push({ keyCode: keyCodeStr, reason: 'Mã đã được sử dụng thành công (SUCCESS)', currentStatus: code.status });
+        invalidCodes.push({
+          keyCode: keyCodeStr,
+          reason: 'Mã đã được sử dụng thành công (SUCCESS)',
+          currentStatus: code.status,
+        });
       } else if (code.status === targetStatus) {
-        invalidCodes.push({ keyCode: keyCodeStr, reason: `Mã hiện đã ở trạng thái "${targetStatus}"`, currentStatus: code.status });
+        invalidCodes.push({
+          keyCode: keyCodeStr,
+          reason: `Mã hiện đã ở trạng thái "${targetStatus}"`,
+          currentStatus: code.status,
+        });
       } else {
-        validCodes.push({ id: code.id, keyCode: keyCodeStr, sku: code.sku, currentStatus: code.status });
+        validCodes.push({
+          id: code.id,
+          keyCode: keyCodeStr,
+          sku: code.sku,
+          currentStatus: code.status,
+        });
       }
     });
 
     // Group valid codes by sku
     const groupedBySkuMap = {};
     validCodes.forEach((c) => {
-      if (!groupedBySkuMap[c.sku]) groupedBySkuMap[c.sku] = { sku: c.sku, count: 0, codes: [] };
+      if (!groupedBySkuMap[c.sku])
+        groupedBySkuMap[c.sku] = { sku: c.sku, count: 0, codes: [] };
       groupedBySkuMap[c.sku].count += 1;
       groupedBySkuMap[c.sku].codes.push(c);
     });
@@ -625,18 +677,21 @@ class ZCodeService {
 
   async updateBulkStatus({ listCode, targetStatus, note }) {
     const checkResult = await this.checkBulkStatus({ listCode, targetStatus });
-    
+
     if (checkResult.validCodes.length === 0) {
-      throw createHttpError(400, 'Không có mã hợp lệ nào để cập nhật trạng thái');
+      throw createHttpError(
+        400,
+        'Không có mã hợp lệ nào để cập nhật trạng thái',
+      );
     }
 
-    const validIds = checkResult.validCodes.map(c => c.id);
+    const validIds = checkResult.validCodes.map((c) => c.id);
 
     const updateQuery = { status: targetStatus };
     if (note !== undefined) {
       updateQuery.note = note || null;
     }
-    
+
     // Clear error fields if changing to AVAILABLE
     if (targetStatus === ZCODE_STATUSES.AVAILABLE) {
       updateQuery.errorReason = null;
@@ -648,7 +703,7 @@ class ZCodeService {
 
     const result = await ZCode.updateMany(
       { id: { $in: validIds } },
-      { $set: updateQuery }
+      { $set: updateQuery },
     );
 
     return {
@@ -681,27 +736,26 @@ class ZCodeService {
   // ─── Stats ─────────────────────────────────────────────────────────────────
 
   async getStats() {
-    const [totalCount, statusCounts, skuAvailableCounts, revenueSummary] = await Promise.all([
-      ZCode.countDocuments(),
-      ZCode.aggregate([
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-      ]),
-      ZCode.aggregate([
-        { $match: { status: ZCODE_STATUSES.AVAILABLE } },
-        { $group: { _id: '$sku', count: { $sum: 1 } } },
-      ]),
-      ZCode.aggregate([
-        { $match: { finalPrice: { $ne: null } } },
-        {
-          $group: {
-            _id: '$status',
-            totalListPrice: { $sum: '$listPrice' },
-            totalFinalPrice: { $sum: '$finalPrice' },
-            count: { $sum: 1 },
+    const [totalCount, statusCounts, skuAvailableCounts, revenueSummary] =
+      await Promise.all([
+        ZCode.countDocuments(),
+        ZCode.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+        ZCode.aggregate([
+          { $match: { status: ZCODE_STATUSES.AVAILABLE } },
+          { $group: { _id: '$sku', count: { $sum: 1 } } },
+        ]),
+        ZCode.aggregate([
+          { $match: { finalPrice: { $ne: null } } },
+          {
+            $group: {
+              _id: '$status',
+              totalListPrice: { $sum: '$listPrice' },
+              totalFinalPrice: { $sum: '$finalPrice' },
+              count: { $sum: 1 },
+            },
           },
-        },
-      ]),
-    ]);
+        ]),
+      ]);
 
     const statusMap = {};
     for (const s of statusCounts) {
@@ -739,7 +793,9 @@ class ZCodeService {
       revenue: {
         totalListPrice: successRevenue.totalListPrice || 0,
         totalFinalPrice: successRevenue.totalFinalPrice || 0,
-        totalDiscount: (successRevenue.totalListPrice || 0) - (successRevenue.totalFinalPrice || 0),
+        totalDiscount:
+          (successRevenue.totalListPrice || 0) -
+          (successRevenue.totalFinalPrice || 0),
         redeemedCount: successRevenue.count || 0,
       },
     };
@@ -763,7 +819,10 @@ class ZCodeService {
         if (parts.length === 3) {
           filter.$or.push({ keyCode: encryptZCodeField(query.search) });
         } else if (parts.length === 2) {
-          filter.$or.push({ partB: encryptZCodeField(parts[0]), partC: encryptZCodeField(parts[1]) });
+          filter.$or.push({
+            partB: encryptZCodeField(parts[0]),
+            partC: encryptZCodeField(parts[1]),
+          });
         }
       } else {
         filter.$or.push({ partB: encryptZCodeField(query.search) });
@@ -790,7 +849,7 @@ class ZCodeService {
         partA: decryptZCodeField(item.partA),
         partB: partB || undefined,
         partC: partC || undefined,
-        partialCode: (partB && partC) ? `${partB}-${partC}` : '',
+        partialCode: partB && partC ? `${partB}-${partC}` : '',
       };
     });
   }
@@ -847,10 +906,14 @@ class ZCodeService {
           },
         },
       );
-      throw createHttpError(400, 'Duplicate codes detected – matching codes have been marked as error', {
-        code: 'ZCODE_DUPLICATE_CODE',
-        duplicateCount: availableCodes.length,
-      });
+      throw createHttpError(
+        400,
+        'Duplicate codes detected – matching codes have been marked as error',
+        {
+          code: 'ZCODE_DUPLICATE_CODE',
+          duplicateCount: availableCodes.length,
+        },
+      );
     }
 
     if (availableCodes.length === 1) {
@@ -869,20 +932,22 @@ class ZCodeService {
       ).lean();
 
       if (!zcode) {
-        throw createHttpError(409, 'Code was just redeemed by another request', {
-          code: 'ZCODE_RACE_CONDITION',
-        });
+        throw createHttpError(
+          409,
+          'Code was just redeemed by another request',
+          {
+            code: 'ZCODE_RACE_CONDITION',
+          },
+        );
       }
 
       // Calculate response time
       const respondedAt = zcode.respondedAt;
       const diffMs = respondedAt.getTime() - calledAt.getTime();
-      const responseTime = diffMs < 1000 ? `${diffMs}ms` : `${(diffMs / 1000).toFixed(2)}s`;
+      const responseTime =
+        diffMs < 1000 ? `${diffMs}ms` : `${(diffMs / 1000).toFixed(2)}s`;
 
-      await ZCode.updateOne(
-        { _id: zcode._id },
-        { $set: { responseTime } },
-      );
+      await ZCode.updateOne({ _id: zcode._id }, { $set: { responseTime } });
 
       return {
         partA: decryptZCodeField(zcode.partA),
@@ -1039,18 +1104,25 @@ class ZCodeService {
       throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
     }
     if (keyCodes.length > ZCODE_MAX_CODES_PER_REQUEST) {
-      throw createHttpError(400, `Chỉ được phép xoá tối đa ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần (bạn đã nhập ${keyCodes.length} mã)`);
+      throw createHttpError(
+        400,
+        `Chỉ được phép xoá tối đa ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần (bạn đã nhập ${keyCodes.length} mã)`,
+      );
     }
 
     const uniqueKeys = [...new Set(keyCodes)];
-    const duplicatesInInput = keyCodes.filter((k, i) => keyCodes.indexOf(k) !== i);
+    const duplicatesInInput = keyCodes.filter(
+      (k, i) => keyCodes.indexOf(k) !== i,
+    );
     const uniqueDuplicates = [...new Set(duplicatesInInput)];
 
     const existingCodes = await ZCode.find({
       keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
     }).lean();
 
-    const existingKeyCodes = existingCodes.map((c) => decryptZCodeField(c.keyCode));
+    const existingKeyCodes = existingCodes.map((c) =>
+      decryptZCodeField(c.keyCode),
+    );
     const notFound = uniqueKeys.filter((k) => !existingKeyCodes.includes(k));
 
     const validCodes = [];
@@ -1059,16 +1131,26 @@ class ZCodeService {
     existingCodes.forEach((code) => {
       const keyCodeStr = decryptZCodeField(code.keyCode);
       if (code.status === ZCODE_STATUSES.SUCCESS) {
-        invalidCodes.push({ keyCode: keyCodeStr, reason: 'Mã đã được sử dụng thành công - Không thể xoá', currentStatus: code.status });
+        invalidCodes.push({
+          keyCode: keyCodeStr,
+          reason: 'Mã đã được sử dụng thành công - Không thể xoá',
+          currentStatus: code.status,
+        });
       } else {
-        validCodes.push({ id: code.id, keyCode: keyCodeStr, sku: code.sku, currentStatus: code.status });
+        validCodes.push({
+          id: code.id,
+          keyCode: keyCodeStr,
+          sku: code.sku,
+          currentStatus: code.status,
+        });
       }
     });
 
     // Group valid codes by sku
     const groupedBySkuMap = {};
     validCodes.forEach((c) => {
-      if (!groupedBySkuMap[c.sku]) groupedBySkuMap[c.sku] = { sku: c.sku, count: 0, codes: [] };
+      if (!groupedBySkuMap[c.sku])
+        groupedBySkuMap[c.sku] = { sku: c.sku, count: 0, codes: [] };
       groupedBySkuMap[c.sku].count += 1;
       groupedBySkuMap[c.sku].codes.push(c);
     });
@@ -1097,7 +1179,10 @@ class ZCodeService {
       throw createHttpError(400, 'Danh sách mã Key rỗng sau khi parse');
     }
     if (keyCodes.length > 1000) {
-      throw createHttpError(400, `Chỉ được phép xoá tối đa 1000 mã mỗi lần (bạn đã nhập ${keyCodes.length} mã)`);
+      throw createHttpError(
+        400,
+        `Chỉ được phép xoá tối đa 1000 mã mỗi lần (bạn đã nhập ${keyCodes.length} mã)`,
+      );
     }
 
     const uniqueKeys = [...new Set(keyCodes)];
@@ -1126,7 +1211,10 @@ class ZCodeService {
     }
 
     if (zcode.status === ZCODE_STATUSES.SUCCESS) {
-      throw createHttpError(400, 'Không thể xoá mã ZCode đã được sử dụng thành công (SUCCESS)');
+      throw createHttpError(
+        400,
+        'Không thể xoá mã ZCode đã được sử dụng thành công (SUCCESS)',
+      );
     }
 
     await ZCode.deleteOne({ id });
