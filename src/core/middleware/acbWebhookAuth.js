@@ -424,13 +424,18 @@ function checkAcbRequestIdDedup(req, res, next) {
     }
   }
 
-  // Evict oldest if at capacity (FIFO)
-  if (_seenRequestIds.size >= REQUEST_ID_STORE_MAX_SIZE) {
-    const oldestKey = _seenRequestIds.keys().next().value;
-    _seenRequestIds.delete(oldestKey);
-  }
-
-  _seenRequestIds.set(clientRequestId, now);
+  // Only save clientRequestId if the request is processed successfully
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      if (!_seenRequestIds.has(clientRequestId)) {
+        if (_seenRequestIds.size >= REQUEST_ID_STORE_MAX_SIZE) {
+          const oldestKey = _seenRequestIds.keys().next().value;
+          _seenRequestIds.delete(oldestKey);
+        }
+        _seenRequestIds.set(clientRequestId, Date.now());
+      }
+    }
+  });
 
   return next();
 }
