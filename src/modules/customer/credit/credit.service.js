@@ -322,7 +322,10 @@ class CreditService {
           return {
             success: true,
             amount: existingTx.amount,
-            currentCredit: customer.mainCredit,
+            currentCredit: customer.rewardCredit,
+            rewardCredit: customer.rewardCredit,
+            mainCredit: customer.mainCredit,
+            eduCredit: customer.eduCredit,
           };
         }
         throw createHttpError(400, 'Yêu cầu đang được xử lý hoặc đã thất bại.');
@@ -345,7 +348,7 @@ class CreditService {
       transaction = await CreditTransaction.create({
         userId: customerId,
         amount: 0,
-        creditType: CREDIT_TYPES.MAIN,
+        creditType: CREDIT_TYPES.REWARD,
         transactionType: CREDIT_TRANSACTION_TYPES.IN,
         source: CREDIT_SOURCES.SMAXAI,
         reference: cleanCode,
@@ -456,7 +459,10 @@ class CreditService {
     return {
       success: true,
       amount: amount,
-      currentCredit: updatedCustomer.mainCredit,
+      currentCredit: updatedCustomer.rewardCredit,
+      rewardCredit: updatedCustomer.rewardCredit,
+      mainCredit: updatedCustomer.mainCredit,
+      eduCredit: updatedCustomer.eduCredit,
     };
   }
 }

@@ -10,6 +10,8 @@ const {
   sendSuccess,
 } = require("./core/utils/http");
 const logger = require("./core/utils/logger");
+const { extractRequestMeta } = require("./core/utils/request");
+const traceMiddleware = require("./core/middleware/traceMiddleware");
 
 // ─── Versioned Routers ────────────────────────────────────────────────────────
 const v1Router = require("./routes/v1");
@@ -98,16 +100,17 @@ app.use('/api/v1/webhooks/acb', express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
 }));
 
-app.use(express.json());
-app.use(requestLogger);
-
-// ─── Utility Routes ───────────────────────────────────────────────────────────
+// ─── Utility Routes (before logging to avoid noise) ──────────────────────────
 app.get("/health", (_req, res) =>
   sendSuccess(res, 200, "Health check success", {
     status: "ok",
     service: "crm-server",
   }),
 );
+
+app.use(traceMiddleware);
+app.use(express.json());
+app.use(requestLogger);
 
 /** API root: thông tin các versions hiện có */
 app.get("/api", (_req, res) =>
@@ -142,12 +145,15 @@ app.use((req, res) =>
 );
 
 // ─── Global Error Handler ────────────────────────────────────────────────────
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
+  const requestInfo = extractRequestMeta(req);
+
   logger.error("Unhandled error", {
     message: error.message,
     code: error.code,
     status: error.status,
     stack: error.stack,
+    request: requestInfo,
   });
 
   if (error?.code === 11000) {
