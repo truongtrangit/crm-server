@@ -53,7 +53,7 @@ class CreditController {
         resource: 'customers',
         resourceId: customerId,
         resourceName: req.user.name,
-        description: `Sử dụng mã SmaxAi ${code} nhận ${result.amount} credit`,
+        description: `Sử dụng mã SmaxAi ${code} nhận ${result.amount} credit tặng`,
         req,
       });
 
