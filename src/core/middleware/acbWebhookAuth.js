@@ -314,7 +314,6 @@ function verifyAcbChecksum(req, res, next) {
   const clientIp = _getClientIp(req);
   const checksumHeader = env.acbWebhookChecksumHeader || 'signature';
   const receivedChecksum = req.get(checksumHeader) || '';
-
   if (!receivedChecksum) {
     logger.warn('ACB Webhook: Missing checksum header', {
       ip: clientIp,
