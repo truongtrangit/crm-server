@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { promisify } = require("util");
 const env = require('../config/env');
+const { getClientIp } = require('./request');
 
 const scryptAsync = promisify(crypto.scrypt);
 const REFRESH_TOKEN_COOKIE = "crm_refresh_token";
@@ -60,15 +61,7 @@ function createPasswordResetToken() {
   };
 }
 
-function getClientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
 
-  if (typeof forwarded === "string" && forwarded.trim()) {
-    return forwarded.split(",")[0].trim();
-  }
-
-  return req.socket?.remoteAddress || "";
-}
 
 function createSessionTokens(req) {
   const now = Date.now();

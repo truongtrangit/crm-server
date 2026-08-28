@@ -6,6 +6,7 @@ const {
   hashPassword,
   hashToken,
 } = require('../../../core/utils/auth');
+const { getClientIp } = require('../../../core/utils/request');
 const { generateMonotonicId, ID_PREFIXES } = require('../../../core/utils/id');
 const {
   CUSTOMER_MAIN_TYPES,
@@ -146,6 +147,153 @@ class BotvnAuthService {
   }
 
   /**
+   * EXTERNAL LOGIC: Handle login for Zalo Mini App.
+   * - Validates zalo_id and phone as primary keys.
+   * - Returns sanitized customer data and session tokens.
+   */
+  async zaloMiniAppLogin(payload, req) {
+    const { zalo_id, phone, name, avatar } = payload;
+
+    // 1. Tìm kiếm bằng zaloId (Định danh mạnh nhất)
+    let customer = await Customer.findOne({
+      zaloId: zalo_id,
+      mainType: CUSTOMER_MAIN_TYPES.USER,
+    });
+
+    if (customer) {
+      // Nếu tìm thấy, kiểm tra xem có thông tin nào thay đổi không
+      let changed = false;
+      if (name && customer.name !== name) {
+        customer.name = name;
+        changed = true;
+      }
+      if (avatar && customer.avatar !== avatar) {
+        customer.avatar = avatar;
+        changed = true;
+      }
+      // Nếu user đổi SĐT trên Zalo, lưu SĐT cũ vào mảng oldPhones và cập nhật SĐT mới
+      if (phone && customer.phone !== phone) {
+        if (customer.phone) {
+          if (!customer.oldPhones) customer.oldPhones = [];
+          if (!customer.oldPhones.includes(customer.phone)) {
+            customer.oldPhones.push(customer.phone);
+          }
+        }
+        customer.phone = phone;
+        changed = true;
+      }
+      if (!customer.platforms.includes('ZaloMiniApp')) {
+        customer.platforms.push('ZaloMiniApp');
+        changed = true;
+      }
+      
+      if (changed) {
+        await customer.save();
+      }
+    } else {
+      // 2. Nếu không tìm thấy zaloId, thử tìm bằng SĐT (Link Account)
+      if (phone) {
+        customer = await Customer.findOne({
+          phone: phone,
+          mainType: CUSTOMER_MAIN_TYPES.USER,
+        });
+      }
+
+      if (customer) {
+        // Tìm thấy account cũ bằng SĐT -> Liên kết (Link) Zalo ID vào account này
+        customer.zaloId = zalo_id;
+        
+        // Chỉ cập nhật name/avatar nếu account cũ đang để trống
+        if (name && (!customer.name || customer.name === 'Người dùng Zalo')) {
+          customer.name = name;
+        }
+        if (avatar && !customer.avatar) {
+          customer.avatar = avatar;
+        }
+        if (!customer.platforms.includes('ZaloMiniApp')) {
+          customer.platforms.push('ZaloMiniApp');
+        }
+        await customer.save();
+      } else {
+        // 3. Nếu không tìm thấy cả zaloId lẫn phone -> Tạo mới hoàn toàn
+        const newId = await generateMonotonicId(ID_PREFIXES.CUSTOMER);
+        customer = new Customer({
+          id: newId,
+          name: name || 'Người dùng Zalo',
+          zaloId: zalo_id,
+          phone: phone,
+          avatar: avatar || '',
+          mainType: CUSTOMER_MAIN_TYPES.USER,
+          type: 'Bot.vn user',
+          platforms: ['Botvn', 'ZaloMiniApp'],
+          isActive: true, // Auto active
+          registeredAt: new Date().toISOString(),
+        });
+        await customer.save();
+      }
+    }
+
+    if (customer.isActive === false) {
+      const error = new Error('Tài khoản đã bị vô hiệu hóa.');
+      error.status = 403;
+      error.code = AUTH_ERROR_CODES.ACCOUNT_INACTIVE;
+      throw error;
+    }
+
+    const config = await BotvnConfig.findOne();
+    if (config && config.maintenance && config.maintenance.isActive) {
+      const allowedRoles = config.maintenance.allowedRoles || [];
+      if (!customer.botvnRole || !allowedRoles.includes(customer.botvnRole)) {
+        const error = new Error(
+          'Hệ thống đang bảo trì. Tài khoản của bạn không có quyền truy cập lúc này.',
+        );
+        error.status = 503;
+        error.code = AUTH_ERROR_CODES.MAINTENANCE_MODE;
+        error.context = {
+          type: config.maintenance.type,
+          title: config.maintenance.title,
+          reason: config.maintenance.reason,
+          time: config.maintenance.time,
+        };
+        throw error;
+      }
+    }
+
+    // Generate session tokens
+    const tokens = createSessionTokens(req);
+    const now = Date.now();
+    const botvnAccessTtlMs = env.botvnAccessTokenTtlMinutes * 1000;
+    const botvnRefreshTtlMs =
+      env.botvnRefreshTokenTtlDays * 24 * 60 * 60 * 1000;
+
+    tokens.session.accessTokenExpiresAt = new Date(now + botvnAccessTtlMs);
+    tokens.session.refreshTokenExpiresAt = new Date(now + botvnRefreshTtlMs);
+
+    // Ensure only 1 active session by deleting any existing sessions for this customer
+    await BotvnUserSession.deleteMany({ customerId: customer._id });
+
+    await BotvnUserSession.create({
+      customerId: customer._id,
+      sessionId: tokens.session.sessionId,
+      accessTokenHash: tokens.session.accessTokenHash,
+      refreshTokenHash: tokens.session.refreshTokenHash,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.session.refreshTokenExpiresAt,
+      userAgent: req.headers['user-agent'] || 'Zalo Mini App',
+      ipAddress: getClientIp(req) || 'unknown',
+      lastUsedAt: tokens.session.lastUsedAt,
+    });
+
+    customer.lastLoginAt = new Date().toISOString();
+    await customer.save();
+
+    const hasPassword = !!customer.botvnPassword;
+    customer.botvnPassword = undefined;
+
+    return { customer, tokens, hasPassword };
+  }
+
+  /**
    * EXTERNAL LOGIC: Handle registration specifically for Botvn users.
    */
   async register(payload, req) {
@@ -268,7 +416,10 @@ class BotvnAuthService {
           return node;
         };
 
-        bodyPayload = { ...resolveTemplate(payloadTemplate), ...additionalParams };
+        bodyPayload = {
+          ...resolveTemplate(payloadTemplate),
+          ...additionalParams,
+        };
       } else {
         // Fallback: payload mặc định
         bodyPayload = {
@@ -296,7 +447,9 @@ class BotvnAuthService {
           email: dataContext.email,
         });
       } else {
-        logger.info(`[BotVN OTP] OTP sent successfully for ${dataContext.email}`);
+        logger.info(
+          `[BotVN OTP] OTP sent successfully for ${dataContext.email}`,
+        );
       }
     } catch (err) {
       logger.error('[BotVN OTP] Failed to call third-party API', {
@@ -512,7 +665,9 @@ class BotvnAuthService {
         });
         payload = ticket.getPayload();
       } catch (err) {
-        logger.warn('Google ID token verification failed', { error: err.message });
+        logger.warn('Google ID token verification failed', {
+          error: err.message,
+        });
         const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
         error.status = 401;
         error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
@@ -521,9 +676,12 @@ class BotvnAuthService {
     } else if (accessToken) {
       // Path 2: Verify access token via Google userinfo API (from OAuth2 popup fallback)
       try {
-        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        const res = await fetch(
+          'https://www.googleapis.com/oauth2/v3/userinfo',
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          },
+        );
         if (!res.ok) {
           throw new Error(`Google userinfo returned ${res.status}`);
         }
@@ -531,7 +689,9 @@ class BotvnAuthService {
         // userinfo returns: { sub, email, email_verified, name, picture, ... }
         // Same fields as ID token payload — no mapping needed
       } catch (err) {
-        logger.warn('Google access token verification failed', { error: err.message });
+        logger.warn('Google access token verification failed', {
+          error: err.message,
+        });
         const error = new Error('Google token không hợp lệ hoặc đã hết hạn.');
         error.status = 401;
         error.code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
@@ -556,7 +716,9 @@ class BotvnAuthService {
     const avatar = payload.picture || '';
 
     // --- Find or create customer ---
-    let customer = await Customer.findOne({ googleId }).select('+botvnPassword');
+    let customer = await Customer.findOne({ googleId }).select(
+      '+botvnPassword',
+    );
 
     if (!customer) {
       // Try to find existing customer by email (account linking)
@@ -570,7 +732,8 @@ class BotvnAuthService {
         customer.googleId = googleId;
         if (!customer.avatar && avatar) customer.avatar = avatar;
         if (!customer.platforms) customer.platforms = ['Botvn'];
-        if (!customer.platforms.includes('Google')) customer.platforms.push('Google');
+        if (!customer.platforms.includes('Google'))
+          customer.platforms.push('Google');
       } else {
         // Auto-register new customer
         const id = await generateMonotonicId(ID_PREFIXES.CUSTOMER);
@@ -653,7 +816,7 @@ class BotvnAuthService {
   // ==========================================
   // UPDATE PROFILE
   // ==========================================
-  
+
   async updateProfile(customerId, payload) {
     const customer = await Customer.findOne({
       id: customerId,
@@ -695,15 +858,18 @@ class BotvnAuthService {
     }
 
     const hasPassword = !!customer.botvnPassword;
-    
+
     if (hasPassword) {
       if (!payload.oldPassword) {
         const error = new Error('Vui lòng nhập mật khẩu hiện tại.');
         error.status = 400;
         throw error;
       }
-      
-      const isValidPassword = await verifyPassword(payload.oldPassword, customer.botvnPassword);
+
+      const isValidPassword = await verifyPassword(
+        payload.oldPassword,
+        customer.botvnPassword,
+      );
       if (!isValidPassword) {
         const error = new Error('Mật khẩu hiện tại không chính xác.');
         error.status = 401;
@@ -735,15 +901,18 @@ class BotvnAuthService {
     }
 
     const hasPassword = !!customer.botvnPassword;
-    
+
     if (hasPassword) {
       if (!payload.password) {
         const error = new Error('Vui lòng nhập mật khẩu để xác nhận.');
         error.status = 400;
         throw error;
       }
-      
-      const isValidPassword = await verifyPassword(payload.password, customer.botvnPassword);
+
+      const isValidPassword = await verifyPassword(
+        payload.password,
+        customer.botvnPassword,
+      );
       if (!isValidPassword) {
         const error = new Error('Mật khẩu không chính xác.');
         error.status = 401;
@@ -753,7 +922,7 @@ class BotvnAuthService {
 
     customer.isActive = false;
     await customer.save();
-    
+
     if (typeof customer.delete === 'function') {
       await customer.delete();
     }
@@ -1144,9 +1313,7 @@ class BotvnAuthService {
   async resetPassword(payload) {
     const email = this._normalizeEmail(payload?.email);
     const resetToken =
-      typeof payload?.resetToken === 'string'
-        ? payload.resetToken.trim()
-        : '';
+      typeof payload?.resetToken === 'string' ? payload.resetToken.trim() : '';
     const newPassword =
       typeof payload?.newPassword === 'string' ? payload.newPassword : '';
     const cacheKey = `${PWD_RESET_TOKEN_PREFIX}:${email}`;

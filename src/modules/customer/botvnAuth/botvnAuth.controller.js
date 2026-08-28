@@ -3,6 +3,7 @@ const { sendSuccess } = require('../../../core/utils/http');
 const SystemLogService = require('../../system/log/systemLog.service');
 const { RESOURCES } = require('../../../core/constants/rbac');
 const { QR_SESSION_STATUS } = require('../../../core/constants/appData');
+const { getClientIp } = require('../../../core/utils/request');
 
 class BotvnAuthController {
   /**
@@ -12,7 +13,10 @@ class BotvnAuthController {
    * - No system log is recorded here to optimize performance and keep separation.
    */
   async login(req, res) {
-    const { customer, tokens, hasPassword } = await BotvnAuthService.login(req.body, req);
+    const { customer, tokens, hasPassword } = await BotvnAuthService.login(
+      req.body,
+      req,
+    );
 
     const payload = {
       customer: {
@@ -43,8 +47,55 @@ class BotvnAuthController {
   }
 
   async logout(req, res) {
-    await BotvnAuthService.logout(req.body);
+    const sessionId = req.session?.sessionId || req.body?.sessionId;
+    if (sessionId) {
+      await BotvnAuthService.logout({ sessionId });
+    }
     return sendSuccess(res, 200, 'Logout success', null);
+  }
+
+  async zaloMiniAppLogin(req, res) {
+    const { customer, tokens, hasPassword } =
+      await BotvnAuthService.zaloMiniAppLogin(req.body, req);
+
+    SystemLogService.log({
+      action: 'login',
+      resource: RESOURCES.CUSTOMERS,
+      resourceId: customer.id,
+      resourceName: customer.name,
+      description: 'Bot.vn user login via Zalo Mini App',
+      performedBy: {
+        userId: customer.id,
+        userName: customer.name,
+        userAvatar: customer.avatar || '',
+      },
+      status: 'success',
+      ipAddress: getClientIp(req) || 'unknown',
+    });
+
+    const payload = {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        avatar: customer.avatar,
+        bio: customer.bio,
+        jobTitle: customer.jobTitle,
+        isActive: customer.isActive,
+        botvnRole: customer.botvnRole,
+        rewardCredit: customer.rewardCredit || 0,
+        mainCredit: customer.mainCredit || 0,
+        eduCredit: customer.eduCredit || 0,
+        isEduAccount: customer.isEduAccount || false,
+        platforms: customer.platforms || [],
+        hasPassword,
+      },
+      sessionId: tokens.sessionId,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: tokens.session.accessTokenExpiresAt,
+    };
+
+    return sendSuccess(res, 200, 'Zalo Mini App login success', payload);
   }
 
   async register(req, res) {
@@ -65,7 +116,7 @@ class BotvnAuthController {
         userAvatar: '',
       },
       status: 'success',
-      ipAddress: req.ip || 'unknown',
+      ipAddress: getClientIp(req) || 'unknown',
     });
 
     // Trigger internal Webhook integration
@@ -79,7 +130,7 @@ class BotvnAuthController {
       SYSTEM_EVENT_TYPES.BOTVN_DANG_KY,
       {
         ...(customer.toJSON?.() || customer), // Pass customer object as payload
-        registrationIp: req.ip,
+        registrationIp: getClientIp(req),
         registeredAt: new Date().toISOString(),
       },
     );
@@ -103,8 +154,6 @@ class BotvnAuthController {
     return sendSuccess(res, 201, 'Registration success', payload);
   }
 
-
-
   // ==========================================
   // OTP VERIFICATION
   // ==========================================
@@ -127,7 +176,7 @@ class BotvnAuthController {
         userAvatar: customer.avatar || '',
       },
       status: 'success',
-      ipAddress: req.ip || 'unknown',
+      ipAddress: getClientIp(req) || 'unknown',
     });
 
     const payload = {
@@ -188,11 +237,8 @@ class BotvnAuthController {
 
   async googleLogin(req, res) {
     const { idToken, accessToken } = req.body;
-    const { customer, tokens, hasPassword } = await BotvnAuthService.googleLogin(
-      { idToken, accessToken },
-      req,
-    );
-
+    const { customer, tokens, hasPassword } =
+      await BotvnAuthService.googleLogin({ idToken, accessToken }, req);
     const payload = {
       customer: {
         id: customer.id,
@@ -368,7 +414,7 @@ class BotvnAuthController {
               userAvatar: customer.avatar,
             },
             status: 'success',
-            ipAddress: req.ip || 'unknown',
+            ipAddress: getClientIp(req) || 'unknown',
           });
 
           return sendSuccess(res, 200, 'QR Authenticated', payload);

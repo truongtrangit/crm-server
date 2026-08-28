@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const env = require('../config/env');
+const { getClientIp } = require('../utils/request');
 const { sendAcbError, sendAcbSuccess } = require('../utils/http');
 const { ACB_RESPONSE_CODES } = require('../constants/bankLog');
 const logger = require('../utils/logger');
@@ -32,15 +33,7 @@ const AUTH_TRACKER_MAX_SIZE = 10_000; // Hard cap — evict oldest when exceeded
 // ip → { failures: [timestamps], blockedUntil: timestamp | null }
 const _authTracker = new Map();
 
-function _getClientIp(req) {
-  return (
-    req.headers['cf-connecting-ip'] ||
-    (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-    req.ip ||
-    req.socket?.remoteAddress ||
-    ''
-  );
-}
+
 
 function _recordAuthFailure(ip) {
   if (!_authTracker.has(ip)) {
@@ -154,7 +147,7 @@ function enforceJsonContentType(req, res, next) {
   const contentType = req.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     logger.warn('ACB Webhook: Invalid Content-Type', {
-      ip: _getClientIp(req),
+      ip: getClientIp(req),
       contentType,
     });
     return sendAcbError(
@@ -204,7 +197,7 @@ function checkAcbIpAllowlist(req, res, next) {
     return next();
   }
 
-  const clientIp = _getClientIp(req);
+  const clientIp = getClientIp(req);
 
   // Empty whitelist = block all (secure by default)
   if (entries.length === 0) {
@@ -246,7 +239,7 @@ function checkAcbIpAllowlist(req, res, next) {
  * Auto-block: 5 auth failures within 10 minutes → block IP for 30 minutes.
  */
 function checkAcbBruteForce(req, res, next) {
-  const clientIp = _getClientIp(req);
+  const clientIp = getClientIp(req);
 
   if (_isIpBlocked(clientIp)) {
     logger.warn('ACB Webhook: Request from blocked IP', { ip: clientIp });
@@ -272,7 +265,7 @@ function checkAcbBruteForce(req, res, next) {
  * Uses timing-safe comparison to prevent timing attacks on the key.
  */
 function verifyAcbApiKey(req, res, next) {
-  const clientIp = _getClientIp(req);
+  const clientIp = getClientIp(req);
   const apiKey = req.header('X-API-Key') || '';
   const expected = env.acbWebhookApiKey;
 
@@ -311,7 +304,7 @@ function verifyAcbApiKey(req, res, next) {
  * So sánh bằng timing-safe comparison.
  */
 function verifyAcbChecksum(req, res, next) {
-  const clientIp = _getClientIp(req);
+  const clientIp = getClientIp(req);
   const checksumHeader = env.acbWebhookChecksumHeader || 'signature';
   const receivedChecksum = req.get(checksumHeader) || '';
   if (!receivedChecksum) {
@@ -417,7 +410,7 @@ function checkAcbRequestIdDedup(req, res, next) {
     } else {
       logger.info('ACB Webhook: Duplicate clientRequestId detected', {
         clientRequestId,
-        ip: _getClientIp(req),
+        ip: getClientIp(req),
       });
       // Return ACB-format success response (idempotent — not an error)
       return sendAcbSuccess(res, clientRequestId, 1);
