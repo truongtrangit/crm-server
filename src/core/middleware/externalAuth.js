@@ -1,9 +1,13 @@
-const { readBearerToken, hashToken } = require("../utils/auth");
-const BotvnUserSession = require("../../modules/customer/botvnAuth/botvnUserSession.model");
-const Customer = require("../../modules/customer/customer/customer.model");
-const env = require("../config/env");
-const { EXTERNAL_SYSTEMS } = require("../constants/externalSystems");
-const { sendError } = require("../utils/http");
+const crypto = require('crypto');
+const stringify = require('fast-json-stable-stringify');
+const { readBearerToken, hashToken } = require('../utils/auth');
+const BotvnUserSession = require('../../modules/customer/botvnAuth/botvnUserSession.model');
+const Customer = require('../../modules/customer/customer/customer.model');
+const env = require('../config/env');
+const { EXTERNAL_SYSTEMS } = require('../constants/externalSystems');
+const { sendError } = require('../utils/http');
+const logger = require('../utils/logger');
+const { getClientIp } = require('../utils/request');
 
 /**
  * Factory function to create a middleware that verifies X-API-Key header.
@@ -12,11 +16,12 @@ const { sendError } = require("../utils/http");
  */
 function requireApiKey(expectedKey, systemName = 'EXTERNAL') {
   return function (req, res, next) {
-    const apiKey = req.header("X-API-Key");
+    const apiKey = req.header('X-API-Key');
     if (!apiKey || apiKey !== expectedKey) {
-      const logger = require("../utils/logger");
-      logger.warn(`${systemName}: Invalid or missing API key`, { ip: req.ip });
-      return sendError(res, 401, "Invalid or missing X-API-Key", {
+      logger.warn(`${systemName}: Invalid or missing API key`, {
+        ip: getClientIp(req),
+      });
+      return sendError(res, 401, 'Invalid or missing X-API-Key', {
         code: `${systemName.toUpperCase()}_INVALID_API_KEY`,
       });
     }
@@ -24,15 +29,69 @@ function requireApiKey(expectedKey, systemName = 'EXTERNAL') {
   };
 }
 
-const requireExternalApiKey = requireApiKey(env.externalApiKey, EXTERNAL_SYSTEMS.BOTVN);
+function requireZaloMiniAppHmacSignature(req, res, next) {
+  const timestamp = req.header('X-Timestamp');
+  const signature = req.header('X-Signature');
+  const systemName = EXTERNAL_SYSTEMS.BOTVN_ZALO_MINI_APP;
+
+  if (!timestamp || !signature) {
+    logger.warn(`${systemName}: Missing signature headers`, {
+      ip: getClientIp(req),
+    });
+    return sendError(res, 401, 'Missing X-Timestamp or X-Signature', {
+      code: `${systemName}_MISSING_SIGNATURE`,
+    });
+  }
+
+  // Verify timestamp window (60 seconds)
+  const now = Date.now();
+  const requestTime = parseInt(timestamp, 10);
+
+  if (isNaN(requestTime) || Math.abs(now - requestTime) > 30000) {
+    logger.warn(`${systemName}: Invalid or expired timestamp`, {
+      ip: getClientIp(req),
+      timestamp,
+    });
+    return sendError(res, 401, 'Request expired or invalid timestamp', {
+      code: `${systemName}_EXPIRED_TIMESTAMP`,
+    });
+  }
+
+  // Calculate signature
+  const secretKey = env.botvnZaloMiniAppApiKey;
+  const payloadStr = req.body ? stringify(req.body) : '';
+  const message = `${timestamp}.${payloadStr}`;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', secretKey)
+    .update(message)
+    .digest('hex');
+
+  // Compare signatures securely
+  const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+  const actualBuffer = Buffer.from(signature, 'hex');
+
+  // Ensure lengths are equal before calling timingSafeEqual
+  if (
+    expectedBuffer.length !== actualBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, actualBuffer)
+  ) {
+    logger.warn(`${systemName}: Invalid signature`, { ip: getClientIp(req) });
+    return sendError(res, 401, 'Invalid signature', {
+      code: `${systemName}_INVALID_SIGNATURE`,
+    });
+  }
+
+  return next();
+}
 
 async function botvnAuthenticateRequest(req, res, next) {
   try {
     const accessToken = readBearerToken(req);
 
     if (!accessToken) {
-      return sendError(res, 401, "Authentication required", {
-        code: "AUTHENTICATION_REQUIRED",
+      return sendError(res, 401, 'Authentication required', {
+        code: 'AUTHENTICATION_REQUIRED',
       });
     }
 
@@ -41,22 +100,22 @@ async function botvnAuthenticateRequest(req, res, next) {
     });
 
     if (!session) {
-      return sendError(res, 401, "Invalid or expired access token", {
-        code: "INVALID_ACCESS_TOKEN",
+      return sendError(res, 401, 'Invalid or expired access token', {
+        code: 'INVALID_ACCESS_TOKEN',
       });
     }
 
     if (new Date(session.accessTokenExpiresAt).getTime() <= Date.now()) {
       await BotvnUserSession.deleteOne({ _id: session._id });
-      return sendError(res, 401, "Access token has expired", {
-        code: "ACCESS_TOKEN_EXPIRED",
+      return sendError(res, 401, 'Access token has expired', {
+        code: 'ACCESS_TOKEN_EXPIRED',
       });
     }
 
     const customer = await Customer.findById(session.customerId);
     if (!customer) {
-      return sendError(res, 401, "User not found", {
-        code: "USER_NOT_FOUND",
+      return sendError(res, 401, 'User not found', {
+        code: 'USER_NOT_FOUND',
       });
     }
 
@@ -66,8 +125,8 @@ async function botvnAuthenticateRequest(req, res, next) {
 
     return next();
   } catch (error) {
-    return sendError(res, 500, "Authentication error", {
-      code: "AUTH_ERROR",
+    return sendError(res, 500, 'Authentication error', {
+      code: 'AUTH_ERROR',
       details: error.message,
     });
   }
@@ -110,7 +169,7 @@ async function optionalBotvnAuthenticateRequest(req, res, next) {
 
 module.exports = {
   requireApiKey,
-  requireExternalApiKey,
+  requireZaloMiniAppHmacSignature,
   botvnAuthenticateRequest,
   optionalBotvnAuthenticateRequest,
 };

@@ -2,9 +2,7 @@ const { Router } = require('express');
 const onlineCoursesRouter = require('./onlineCourses.routes');
 const challengesRouter = require('./challenges.routes');
 const {
-  requireExternalApiKey,
-} = require('../../../core/middleware/externalAuth');
-const {
+
   checkBotvnMaintenance,
   checkBotvnMenu,
 } = require('../../../core/middleware/botvnConfigAccess');
@@ -14,8 +12,7 @@ const externalV1Router = Router();
 // Các router sử dụng key riêng sẽ được khai báo trước middleware này
 externalV1Router.use('/zcodes', require('./zcodes.routes'));
 
-// Áp dụng middleware kiểm tra API Key cho các endpoint còn lại (BotVN)
-externalV1Router.use(requireExternalApiKey);
+
 
 // Các external endpoints không bị chặn bởi maintenance
 externalV1Router.use('/config', require('./config.routes'));

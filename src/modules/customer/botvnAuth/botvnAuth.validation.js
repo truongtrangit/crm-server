@@ -12,6 +12,19 @@ const loginSchema = Joi.object({
   }),
 });
 
+const zaloMiniAppLoginSchema = Joi.object({
+  zalo_id: Joi.string().required().messages({
+    'string.empty': 'zalo_id is required',
+    'any.required': 'zalo_id is required',
+  }),
+  phone: Joi.string().required().messages({
+    'string.empty': 'phone is required',
+    'any.required': 'phone is required',
+  }),
+  name: Joi.string().allow('').optional(),
+  avatar: Joi.string().allow('').optional(),
+});
+
 const registerSchema = Joi.object({
   name: Joi.string().trim().required().messages({
     'string.empty': 'Name is required',
@@ -158,4 +171,5 @@ module.exports = {
   updateProfileSchema,
   changePasswordSchema,
   deleteAccountSchema,
+  zaloMiniAppLoginSchema,
 };

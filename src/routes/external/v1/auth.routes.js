@@ -23,10 +23,13 @@ const {
   updateProfileSchema,
   changePasswordSchema,
   deleteAccountSchema,
+  zaloMiniAppLoginSchema,
 } = require('../../../modules/customer/botvnAuth/botvnAuth.validation');
 
 const {
   botvnAuthenticateRequest,
+  optionalBotvnAuthenticateRequest,
+  requireZaloMiniAppHmacSignature,
 } = require('../../../core/middleware/externalAuth');
 
 const {
@@ -41,7 +44,19 @@ router.post(
   validate(registerSchema),
   BotvnAuthController.register,
 );
-router.post('/logout', BotvnAuthController.logout);
+router.post(
+  '/logout',
+  optionalBotvnAuthenticateRequest,
+  BotvnAuthController.logout,
+);
+
+// Zalo Mini App
+router.post(
+  '/zalo-mini-app/login',
+  requireZaloMiniAppHmacSignature,
+  validate(zaloMiniAppLoginSchema),
+  BotvnAuthController.zaloMiniAppLogin,
+);
 
 // Profile
 router.put(
