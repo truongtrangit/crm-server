@@ -244,29 +244,52 @@ class BankLogService {
       };
     });
 
-    // 1 DB call: bulk insert, ordered:false → skip duplicates, don't fail batch
-    let insertedDocs = [];
-    try {
-      const result = await BankLogTransaction.insertMany(docs, {
-        ordered: false,
-      });
-      insertedDocs = result;
-    } catch (err) {
-      // BulkWriteError: some inserts succeeded, some were duplicates
-      if (err.code === 11000 || err.name === 'MongoBulkWriteError') {
-        // insertedDocs = successfully written documents
-        insertedDocs = err.insertedDocs || [];
-        const dupCount = count - insertedDocs.length;
-        if (dupCount > 0) {
-          logger.info('Bank Log: ACB batch duplicates skipped', {
-            total: count,
-            inserted: insertedDocs.length,
-            duplicates: dupCount,
-            clientRequestId,
-          });
-        }
+    // Pre-validate documents before insert to catch Mongoose schema errors
+    // (insertMany with ordered:false silently drops invalid docs in Mongoose 7+)
+    const validDocs = [];
+    for (const doc of docs) {
+      const instance = new BankLogTransaction(doc);
+      const validationError = instance.validateSync();
+      if (validationError) {
+        logger.error('Bank Log: Document failed Mongoose validation — will not be saved', {
+          clientRequestId,
+          txId: doc.txId,
+          error: validationError.message,
+          invalidFields: Object.keys(validationError.errors).map((field) => ({
+            field,
+            value: doc[field],
+            message: validationError.errors[field].message,
+          })),
+        });
       } else {
-        throw err;
+        validDocs.push(doc);
+      }
+    }
+
+    // Bulk insert valid docs only, ordered:false → skip duplicates, don't fail batch
+    let insertedDocs = [];
+    if (validDocs.length > 0) {
+      try {
+        const result = await BankLogTransaction.insertMany(validDocs, {
+          ordered: false,
+        });
+        insertedDocs = result;
+      } catch (err) {
+        // BulkWriteError: some inserts succeeded, some were duplicates
+        if (err.code === 11000 || err.name === 'MongoBulkWriteError') {
+          insertedDocs = err.insertedDocs || [];
+          const dupCount = validDocs.length - insertedDocs.length;
+          if (dupCount > 0) {
+            logger.info('Bank Log: ACB batch duplicates skipped', {
+              total: count,
+              inserted: insertedDocs.length,
+              duplicates: dupCount,
+              clientRequestId,
+            });
+          }
+        } else {
+          throw err;
+        }
       }
     }
 
