@@ -181,14 +181,18 @@ async function getUserPermissions(user) {
  * STAFF -> true cho customers, operations, meta
  */
 async function hasModuleAccess(user, moduleId) {
-  if (!user) return false;
+  if (!user || !moduleId) return false;
+
+  const rootModule = moduleId.split(".")[0];
+  const ModuleConfigService = require('../../modules/system/moduleConfig/moduleConfig.service');
+  const isSystemEnabled = await ModuleConfigService.isModuleEnabled(rootModule);
+  if (!isSystemEnabled) return false;
 
   if (isOwnerOrAdmin(user)) return true;
 
   const role = await getUserRoleName(user);
   const roleUpper = (role || "").toUpperCase();
 
-  const rootModule = moduleId.split(".")[0];
   let defaultAllowed = false;
 
   switch (roleUpper) {

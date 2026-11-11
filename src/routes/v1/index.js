@@ -49,8 +49,10 @@ const invoicesRouter = require('./invoices.routes');
 const eventGroupsRouter = require('./eventGroups.routes');
 const integrationConfigsRouter = require('./integrationConfigs.routes');
 const integrationLogsRouter = require('./integrationLog.routes');
+const moduleConfigsRouter = require('./moduleConfigs.routes');
 
 const { authenticateRequest } = require('../../core/middleware/auth');
+const { requireActiveModule } = require('../../core/middleware/moduleAccess');
 const { sendSuccess } = require('../../core/utils/http');
 
 const v1Router = Router();
@@ -110,61 +112,62 @@ v1Router.use('/integration-webhook', integrationWebhookRouter);
 v1Router.use(authenticateRequest);
 
 // ─── Module APIs (RBAC applied in individual routers) ────────────────────────
-v1Router.use('/customers', customersRouter);
+v1Router.use('/customers', requireActiveModule('customers'), customersRouter);
 v1Router.use('/users', usersRouter);
-v1Router.use('/events', eventsRouter);
-v1Router.use('/meta', metaRouter);
-v1Router.use('/lead-config', leadConfigRouter);
-v1Router.use('/leads', leadRouter);
-v1Router.use('/tasks', taskRouter);
-v1Router.use('/logs', logsRouter);
+v1Router.use('/events', requireActiveModule('operations'), eventsRouter);
+v1Router.use('/meta', requireActiveModule('meta'), metaRouter);
+v1Router.use('/lead-config', requireActiveModule('operations'), leadConfigRouter);
+v1Router.use('/leads', requireActiveModule('operations'), leadRouter);
+v1Router.use('/tasks', requireActiveModule('operations'), taskRouter);
+v1Router.use('/logs', requireActiveModule('logs'), logsRouter);
 
 // --- IMPORTANT
-v1Router.use('/staffs', staffRouter);
-v1Router.use('/salaries', salaryRouter);
-v1Router.use('/salary-configs', salaryConfigRouter);
-v1Router.use('/revenues', revenueRouter);
-v1Router.use('/expenses', expenseRouter);
-v1Router.use('/finance', financeRouter);
-v1Router.use('/policy', policyRouter);
+v1Router.use('/staffs', requireActiveModule('finance'), staffRouter);
+v1Router.use('/salaries', requireActiveModule('finance'), salaryRouter);
+v1Router.use('/salary-configs', requireActiveModule('finance'), salaryConfigRouter);
+v1Router.use('/revenues', requireActiveModule('finance'), revenueRouter);
+v1Router.use('/expenses', requireActiveModule('finance'), expenseRouter);
+v1Router.use('/finance', requireActiveModule('finance'), financeRouter);
+v1Router.use('/policy', requireActiveModule('finance'), policyRouter);
 // --- IMPORTANT
 
 v1Router.use('/companies', companiesRouter);
-v1Router.use('/job-hub/configs', jobConfigRouter);
-v1Router.use('/job-hub/work', jobWorkRouter);
-v1Router.use('/courses/configs', courseConfigRouter);
-v1Router.use('/courses/lecturers', courseLecturersRouter);
-v1Router.use('/courses/online', coursesOnlineRouter);
-v1Router.use('/courses/offline', coursesOfflineRouter);
-v1Router.use('/courses/enrollments', courseEnrollmentsRouter);
-v1Router.use('/courses/vouchers', courseVouchersRouter);
-v1Router.use('/courses/challenges', courseChallengesRouter);
-v1Router.use('/courses/knowledge', coursesKnowledgeRouter);
-v1Router.use('/courses/submissions', courseSubmissionsRouter);
-v1Router.use('/courses/credits', courseCreditsRouter);
-v1Router.use('/courses/favorites', courseFavoritesRouter);
-v1Router.use('/courses/order-webhooks', orderWebhooksRouter);
-v1Router.use('/zcodes', zcodesRouter);
-v1Router.use('/bank-logs', bankLogsRouter);
-v1Router.use('/invoices', invoicesRouter);
-v1Router.use('/event-groups', eventGroupsRouter);
-v1Router.use('/integration-configs', integrationConfigsRouter);
-v1Router.use('/integration-logs', integrationLogsRouter);
+v1Router.use('/job-hub/configs', requireActiveModule('jobhub'), jobConfigRouter);
+v1Router.use('/job-hub/work', requireActiveModule('jobhub'), jobWorkRouter);
+v1Router.use('/courses/configs', requireActiveModule('courses'), courseConfigRouter);
+v1Router.use('/courses/lecturers', requireActiveModule('courses'), courseLecturersRouter);
+v1Router.use('/courses/online', requireActiveModule('courses'), coursesOnlineRouter);
+v1Router.use('/courses/offline', requireActiveModule('courses'), coursesOfflineRouter);
+v1Router.use('/courses/enrollments', requireActiveModule('courses'), courseEnrollmentsRouter);
+v1Router.use('/courses/vouchers', requireActiveModule('courses'), courseVouchersRouter);
+v1Router.use('/courses/challenges', requireActiveModule('courses'), courseChallengesRouter);
+v1Router.use('/courses/knowledge', requireActiveModule('courses'), coursesKnowledgeRouter);
+v1Router.use('/courses/submissions', requireActiveModule('courses'), courseSubmissionsRouter);
+v1Router.use('/courses/credits', requireActiveModule('courses'), courseCreditsRouter);
+v1Router.use('/courses/favorites', requireActiveModule('courses'), courseFavoritesRouter);
+v1Router.use('/courses/order-webhooks', requireActiveModule('courses'), orderWebhooksRouter);
+v1Router.use('/zcodes', requireActiveModule('zcode'), zcodesRouter);
+v1Router.use('/bank-logs', requireActiveModule('bankLog'), bankLogsRouter);
+v1Router.use('/invoices', requireActiveModule('invoice'), invoicesRouter);
+v1Router.use('/event-groups', requireActiveModule('integration'), eventGroupsRouter);
+v1Router.use('/integration-configs', requireActiveModule('integration'), integrationConfigsRouter);
+v1Router.use('/integration-logs', requireActiveModule('integration'), integrationLogsRouter);
 
 // ─── Shared / Lookup APIs — no MLAC, only auth login required ───────────────
+v1Router.use('/module-configs', moduleConfigsRouter);
 v1Router.use('/organization', organizationRouter);
 v1Router.use('/metadata', metadataRouter);
 v1Router.use('/functions', functionsRouter);
 v1Router.use('/functional-groups', functionalGroupsRouter);
 v1Router.use('/rbac', rbacRouter);
-v1Router.use('/action-config', actionConfigRouter);
-v1Router.use('/funnels', funnelsRouter);
-v1Router.use('/event-chains', globalEventChainsRouter);
+v1Router.use('/action-config', requireActiveModule('operations'), actionConfigRouter);
+v1Router.use('/funnels', requireActiveModule('operations'), funnelsRouter);
+v1Router.use('/event-chains', requireActiveModule('operations'), globalEventChainsRouter);
 
 // Nested: chuỗi hành động trong sự kiện
-v1Router.use('/events/:eventId/chains', eventChainsRouter);
+v1Router.use('/events/:eventId/chains', requireActiveModule('operations'), eventChainsRouter);
 
 // Nested: chuỗi hành động trong tác vụ
-v1Router.use('/tasks/:taskId/chains', taskChainsRouter);
+v1Router.use('/tasks/:taskId/chains', requireActiveModule('operations'), taskChainsRouter);
 
 module.exports = v1Router;

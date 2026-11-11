@@ -163,3 +163,7 @@ Cấu trúc BE đã được cấu trúc hóa theo dạng Domain-Driven Design (
 18. **No Magic Strings (Constant Extraction Rule)**:
     - **BẮT BUỘC** phải đưa tất cả các giá trị trạng thái (status), loại (type), hoặc các giá trị enum đang bị hard-code (magic string) vào định nghĩa hằng số (constants) và sử dụng biến hằng số đó ở mọi nơi để tránh sai sót chính tả.
     - Ví dụ: Thay vì dùng `enrollment.status === 'ACTIVE'`, hãy import và dùng `COURSE_ENROLLMENT_STATUS.ACTIVE` từ `src/core/constants/appData.js`.
+19. **Global Sidebar Module Toggle (`ModuleConfig` & `requireActiveModule`)**:
+    - Cho phép `OWNER` và `ADMIN` bật/tắt các phân hệ gốc trên Sidebar cho toàn bộ người dùng thông qua API `/api/v1/module-configs` (`src/modules/system/moduleConfig/`).
+    - Danh sách phân hệ gốc được định nghĩa tại `SIDEBAR_SYSTEM_MODULES` (`src/core/constants/rbac.js`), trong đó phân hệ `staff` (`isCore: true`) luôn khóa ở trạng thái bật (`true`) để tránh khóa quyền quản trị.
+    - Mọi route nội bộ thuộc các phân hệ trong `src/routes/v1/index.js` được bảo vệ bởi middleware `requireActiveModule(moduleKey)` (`src/core/middleware/moduleAccess.js`), trả về HTTP `403` với `code: 'MODULE_DISABLED'` khi phân hệ đang tắt (không chặn webhook công khai hoặc external API `/api/external/v1/*`).
