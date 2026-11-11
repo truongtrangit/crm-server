@@ -48,6 +48,7 @@ const RESOURCES = {
   INTEGRATION: 'integration', // Cấu hình tích hợp đa module (Event Groups, Integration Config)
   COURSES_ORDER_WEBHOOKS: 'courses_order_webhooks', // Webhook trigger đơn hàng
   TOPUP_REQUESTS: 'topup_requests', // Yêu cầu nạp tiền
+  SYSTEM_MODULES: 'system_modules', // Cấu hình bật/tắt phân hệ Sidebar
 };
 
 // Actions
@@ -1320,6 +1321,21 @@ const MODULE_TO_PERMISSIONS_MAP = {
   },
 };
 
+const SIDEBAR_SYSTEM_MODULES = {
+  customers: { key: 'customers', label: 'Khách hàng', isCore: false },
+  operations: { key: 'operations', label: 'Quản lý', isCore: false },
+  meta: { key: 'meta', label: 'Meta', isCore: false },
+  finance: { key: 'finance', label: 'Tài chính', isCore: false },
+  zcode: { key: 'zcode', label: 'ZCode', isCore: false },
+  bankLog: { key: 'bankLog', label: 'Bank Log', isCore: false },
+  integration: { key: 'integration', label: 'Tích hợp', isCore: false },
+  invoice: { key: 'invoice', label: 'Hoá Đơn', isCore: false },
+  jobhub: { key: 'jobhub', label: 'Job Hub', isCore: false },
+  courses: { key: 'courses', label: 'Khóa học', isCore: false },
+  staff: { key: 'staff', label: 'Nhân viên', isCore: true },
+  logs: { key: 'logs', label: 'Logs', isCore: false },
+};
+
 const VALID_ASSIGNABLE_PERMISSIONS = Array.from(
   new Set(
     Object.values(MODULE_TO_PERMISSIONS_MAP).flatMap((actionMap) =>
@@ -1338,4 +1354,5 @@ module.exports = {
   VALID_ASSIGNABLE_PERMISSIONS,
   ACTION_IMPLICATIONS,
   IMPLICIT_SHARED_PERMISSIONS,
+  SIDEBAR_SYSTEM_MODULES,
 };
