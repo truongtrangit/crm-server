@@ -1,26 +1,26 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const env = require("./core/config/env");
-const requestLogger = require("./core/middleware/requestLogger");
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const env = require('./core/config/env');
+const requestLogger = require('./core/middleware/requestLogger');
 const {
   createHttpError,
   sendError,
   sendSuccess,
-} = require("./core/utils/http");
-const logger = require("./core/utils/logger");
-const { extractRequestMeta } = require("./core/utils/request");
-const traceMiddleware = require("./core/middleware/traceMiddleware");
+} = require('./core/utils/http');
+const logger = require('./core/utils/logger');
+const { extractRequestMeta } = require('./core/utils/request');
+const traceMiddleware = require('./core/middleware/traceMiddleware');
 
 // ─── Versioned Routers ────────────────────────────────────────────────────────
-const v1Router = require("./routes/v1");
-const externalV1Router = require("./routes/external/v1");
+const v1Router = require('./routes/v1');
+const externalV1Router = require('./routes/external/v1');
 
 const app = express();
-app.set("trust proxy", "loopback");
+app.set('trust proxy', 'loopback');
 const allowedOrigins = env.clientUrl
-  .split(",")
+  .split(',')
   .map((item) => item.trim())
   .filter(Boolean);
 
@@ -32,14 +32,14 @@ app.use(helmet());
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 60 giây
   max: 30, // tối đa 30 requests / 60 giây / IP
-  standardHeaders: "draft-8",
+  standardHeaders: 'draft-8',
   legacyHeaders: false,
-  skip: () => env.nodeEnv === "test",
+  skip: () => env.nodeEnv === 'test',
   message: {
     success: false,
     message:
-      "Too many requests from this IP, please try again after 60 seconds.",
-    code: "TOO_MANY_REQUESTS",
+      'Too many requests from this IP, please try again after 60 seconds.',
+    code: 'TOO_MANY_REQUESTS',
   },
 });
 
@@ -47,27 +47,27 @@ const authLimiter = rateLimit({
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 phút
   max: 100, // tối đa 100 requests / 1 phút / IP
-  standardHeaders: "draft-8",
+  standardHeaders: 'draft-8',
   legacyHeaders: false,
-  skip: () => env.nodeEnv === "test",
+  skip: () => env.nodeEnv === 'test',
   message: {
     success: false,
     message:
-      "Too many requests from this IP, please try again after 15 minutes.",
-    code: "TOO_MANY_REQUESTS",
+      'Too many requests from this IP, please try again after 15 minutes.',
+    code: 'TOO_MANY_REQUESTS',
   },
 });
 
 const webhookLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 phút
   max: 200, // tối đa 100 webhook requests / phút / IP
-  standardHeaders: "draft-8",
+  standardHeaders: 'draft-8',
   legacyHeaders: false,
-  skip: () => env.nodeEnv === "test",
+  skip: () => env.nodeEnv === 'test',
   message: {
     success: false,
-    message: "Too many webhook requests, please try again later.",
-    code: "TOO_MANY_REQUESTS",
+    message: 'Too many webhook requests, please try again later.',
+    code: 'TOO_MANY_REQUESTS',
   },
 });
 
@@ -78,15 +78,15 @@ app.use(
       if (
         !origin ||
         allowedOrigins.length === 0 ||
-        allowedOrigins.includes("*") ||
+        allowedOrigins.includes('*') ||
         allowedOrigins.includes(origin)
       ) {
         return callback(null, true);
       }
 
       return callback(
-        createHttpError(403, "Origin not allowed by CORS", {
-          code: "CORS_ORIGIN_FORBIDDEN",
+        createHttpError(403, 'Origin not allowed by CORS', {
+          code: 'CORS_ORIGIN_FORBIDDEN',
         }),
       );
     },
@@ -95,52 +95,57 @@ app.use(
 );
 
 // ACB webhook cần raw body để verify HMAC signature — mount trước express.json() global
-app.use('/api/v1/webhooks/acb', express.json({
-  limit: '100kb',
-  verify: (req, _res, buf) => { req.rawBody = buf; },
-}));
+app.use(
+  '/api/v1/webhooks/acb',
+  express.json({
+    limit: '100kb',
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
 // ─── Utility Routes (before logging to avoid noise) ──────────────────────────
-app.get("/health", (_req, res) =>
-  sendSuccess(res, 200, "Health check success", {
-    status: "ok",
-    service: "crm-server",
+app.get('/health', (_req, res) =>
+  sendSuccess(res, 200, 'Health check success', {
+    status: 'ok',
+    service: 'crm-server',
   }),
 );
 
 app.use(traceMiddleware);
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
 
 /** API root: thông tin các versions hiện có */
-app.get("/api", (_req, res) =>
-  sendSuccess(res, 200, "CRM server API", {
+app.get('/api', (_req, res) =>
+  sendSuccess(res, 200, 'CRM server API', {
     versions: {
-      v1: "/api/v1",
+      v1: '/api/v1',
     },
-    latest: "v1",
+    latest: 'v1',
   }),
 );
 
 // ─── API Versioning ───────────────────────────────────────────────────────────
 
 // Auth limiter cho riêng /api/v1/auth
-app.use("/api/v1/auth", authLimiter);
+app.use('/api/v1/auth', authLimiter);
 
 // Webhook limiter — tách riêng cho webhook endpoint
-app.use("/api/v1/webhooks", webhookLimiter);
+app.use('/api/v1/webhooks', webhookLimiter);
 
 // Áp dụng rate limiter chung cho toàn bộ /api/v1
-app.use("/api/v1", apiLimiter);
+app.use('/api/v1', apiLimiter);
 
 // Mount versioned router
-app.use("/api/v1", v1Router);
-app.use("/api/external/v1", externalV1Router);
+app.use('/api/v1', v1Router);
+app.use('/api/external/v1', externalV1Router);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) =>
   sendError(res, 404, `Route not found: ${req.method} ${req.originalUrl}`, {
-    code: "ROUTE_NOT_FOUND",
+    code: 'ROUTE_NOT_FOUND',
   }),
 );
 
@@ -148,7 +153,7 @@ app.use((req, res) =>
 app.use((error, req, res, _next) => {
   const requestInfo = extractRequestMeta(req);
 
-  logger.error("Unhandled error", {
+  logger.error('Unhandled error', {
     message: error.message,
     code: error.code,
     status: error.status,
@@ -157,22 +162,22 @@ app.use((error, req, res, _next) => {
   });
 
   if (error?.code === 11000) {
-    return sendError(res, 409, "Duplicate value detected", {
-      code: "DUPLICATE_VALUE",
+    return sendError(res, 409, 'Duplicate value detected', {
+      code: 'DUPLICATE_VALUE',
       details: error.keyValue,
     });
   }
 
-  if (error?.type === "entity.parse.failed") {
-    return sendError(res, 400, "Invalid JSON payload", {
-      code: "INVALID_JSON_PAYLOAD",
+  if (error?.type === 'entity.parse.failed') {
+    return sendError(res, 400, 'Invalid JSON payload', {
+      code: 'INVALID_JSON_PAYLOAD',
     });
   }
 
   return sendError(
     res,
     error.status || 500,
-    error.message || "Internal server error",
+    error.message || 'Internal server error',
     {
       code: error.code,
       details: error.details,
