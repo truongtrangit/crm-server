@@ -24,7 +24,7 @@ const env = {
   webhookAllowedIps: process.env.WEBHOOK_ALLOWED_IPS || '', // comma-separated, empty = allow all
 
   // ─── External API ────────────────────────────────────────────────────────────
-  externalApiKey: process.env.EXTERNAL_API_KEY || 'botvn_key_123',
+  botvnZaloMiniAppApiKey: process.env.BOTVN_ZALO_MINI_APP_API_KEY || 'botvn_zalo_mini_app_secret_key',
   integrationWebhookApiKey: process.env.INTEGRATION_WEBHOOK_API_KEY || '',
 
   // ─── Video Encryption ─────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ const ZCODE_STATUSES = Object.freeze({
 /**
  * ─── ZCode Limits ────────────────────────────────────────────────────────────
  */
-const ZCODE_MAX_CODES_PER_REQUEST = 500;
+const ZCODE_MAX_CODES_PER_REQUEST = 5000;
 
 /**
  * ─── ZCode Error Reason Definitions ──────────────────────────────────────────

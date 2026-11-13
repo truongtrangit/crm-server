@@ -1,3 +1,13 @@
+function getClientIp(req) {
+  return (
+    req?.headers?.['cf-connecting-ip'] ||
+    (req?.headers?.['x-forwarded-for'] || '').split(',')[0].trim() ||
+    req?.ip ||
+    req?.socket?.remoteAddress ||
+    ''
+  );
+}
+
 /**
  * Extracts and sanitizes request metadata (IP, user agent, sanitized body).
  * Useful for logging and error reporting.
@@ -5,12 +15,7 @@
  * @returns {Object} Extracted request metadata
  */
 function extractRequestMeta(req) {
-  const ipAddress =
-    req?.headers?.['cf-connecting-ip'] ||
-    (req?.headers?.['x-forwarded-for'] || '').split(',')[0].trim() ||
-    req?.ip ||
-    req?.socket?.remoteAddress ||
-    '';
+  const ipAddress = getClientIp(req);
 
   const meta = {
     method: req?.method,
@@ -52,5 +57,6 @@ function extractRequestMeta(req) {
 }
 
 module.exports = {
+  getClientIp,
   extractRequestMeta,
 };

@@ -29,40 +29,48 @@ function externalApiLogger(systemName = 'ZCODE') {
       const clientIp =
         req.headers['cf-connecting-ip'] ||
         (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-        req.ip || '';
+        req.ip ||
+        '';
 
       // Fire-and-forget — don't await
-        // Customize request body logging per system to prevent saving PII/secrets or huge payloads unnecessarily
-        let loggedBody = null;
-        if (req.body) {
-          switch (systemName) {
-            case 'ZCODE':
-              loggedBody = { sku: req.body.sku, partialCode: req.body.partialCode ? '***' : undefined };
-              break;
-            case 'ACB':
-              // Log the full ACB payload to debug Checksum/Signature mismatches
-              loggedBody = req.body;
-              break;
-            default:
-              loggedBody = req.body;
-          }
+      // Customize request body logging per system to prevent saving PII/secrets or huge payloads unnecessarily
+      let loggedBody = null;
+      if (req.body) {
+        switch (systemName) {
+          case 'ZCODE':
+            // Mask partialCode only on success (valid code). On failure, keep the raw
+            // value (truncated) so admins can debug why the redeem was rejected.
+            loggedBody = {
+              sku: req.body.sku,
+              partialCode: req.body.partialCode,
+            };
+            break;
+          case 'ACB':
+            // Log the full ACB payload to debug Checksum/Signature mismatches
+            loggedBody = req.body;
+            break;
+          default:
+            loggedBody = req.body;
         }
+      }
 
-        ExternalApiLog.create({
-          method: req.method,
-          path: req.originalUrl,
-          system: systemName,
-          callerIp: clientIp,
-          apiKeyValid: secCtx.apiKeyValid !== false,
-          idempotencyKey: secCtx.idempotencyKey || null,
-          idempotentHit: secCtx.idempotentHit || false,
-          requestBody: loggedBody,
-          responseStatus: res.statusCode,
+      ExternalApiLog.create({
+        method: req.method,
+        path: req.originalUrl,
+        system: systemName,
+        callerIp: clientIp,
+        apiKeyValid: secCtx.apiKeyValid !== false,
+        idempotencyKey: secCtx.idempotencyKey || null,
+        idempotentHit: secCtx.idempotentHit || false,
+        requestBody: loggedBody,
+        responseStatus: res.statusCode,
         responseCode: capturedBody?.code || capturedBody?.data?.code || null,
         durationMs,
-        error: res.statusCode >= 400 ? (capturedBody?.message || null) : null,
+        error: res.statusCode >= 400 ? capturedBody?.message || null : null,
       }).catch((err) => {
-        logger.error('ExternalApiLog: Failed to write audit log', { error: err.message });
+        logger.error('ExternalApiLog: Failed to write audit log', {
+          error: err.message,
+        });
       });
     });
 

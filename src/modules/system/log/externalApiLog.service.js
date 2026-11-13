@@ -2,6 +2,7 @@ const ExternalApiLog = require('../../../core/models/externalApiLog.model');
 const logger = require('../../../core/utils/logger');
 const { resolvePagination, buildPaginatedResponse, resolveSort } = require('../../../core/utils/pagination');
 const { createHttpError } = require('../../../core/utils/http');
+const { escapeRegex } = require('../../../core/utils/query');
 const SystemLogService = require('./systemLog.service');
 const { RESOURCES } = require('../../../core/constants/rbac');
 const BankLogController = require('../../bankLog/bankLog.controller');
@@ -14,14 +15,19 @@ class ExternalApiLogService {
    * @returns {Promise<object>} Paginated response
    */
   static async getLogs(queryParams) {
-    const { system, method, path, responseStatus, callerIp } = queryParams;
+    const { system, method, path, responseStatus, callerIp, status } = queryParams;
     const { page, limit, skip } = resolvePagination(queryParams);
     const sort = resolveSort(queryParams, ["createdAt"], { createdAt: -1 });
     const query = {};
 
+    // status: success = HTTP 2xx, failed = anything else (incl. missing status).
+    // An explicit responseStatus filter below takes precedence.
+    if (status === 'success') query.responseStatus = { $gte: 200, $lt: 300 };
+    if (status === 'failed') query.responseStatus = { $not: { $gte: 200, $lt: 300 } };
+
     if (system) query.system = system;
     if (method) query.method = method;
-    if (path) query.path = new RegExp(path, 'i');
+    if (path) query.path = new RegExp(escapeRegex(String(path)), 'i');
     if (responseStatus) query.responseStatus = responseStatus;
     if (callerIp) query.callerIp = callerIp;
 

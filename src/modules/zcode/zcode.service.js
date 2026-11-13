@@ -470,30 +470,45 @@ class ZCodeService {
         `Tổng số mã không được vượt quá ${ZCODE_MAX_CODES_PER_REQUEST} mã mỗi lần nhập (bạn đã nhập ${allKeyCodes.length} mã)`,
       );
     }
-
     // Check for duplicates within the input itself
-    const uniqueKeys = [...new Set(allKeyCodes)];
-    if (uniqueKeys.length !== allKeyCodes.length) {
-      const dupsInInput = allKeyCodes.filter(
-        (k, i) => allKeyCodes.indexOf(k) !== i,
-      );
+    const seenInput = new Set();
+    const dupsInInput = new Set();
+    for (const k of allKeyCodes) {
+      if (seenInput.has(k)) {
+        dupsInInput.add(k);
+      } else {
+        seenInput.add(k);
+      }
+    }
+    if (dupsInInput.size > 0) {
       throw createHttpError(400, 'Danh sách mã Key chứa mã trùng lặp', {
         code: 'DUPLICATE_IN_INPUT',
-        duplicates: [...new Set(dupsInInput)],
+        duplicates: Array.from(dupsInInput),
       });
     }
+    const uniqueKeys = Array.from(seenInput);
 
-    // Check for duplicates against DB
-    const existing = await ZCode.find({
-      keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
-    })
-      .select('keyCode')
-      .lean();
+    // Check for duplicates against DB in chunks of 1000
+    const CHUNK_SIZE = 1000;
+    const existingDuplicates = [];
+    for (let i = 0; i < uniqueKeys.length; i += CHUNK_SIZE) {
+      const chunk = uniqueKeys.slice(i, i + CHUNK_SIZE);
+      const chunkExisting = await ZCode.find({
+        keyCode: { $in: chunk.map(encryptZCodeField) },
+      })
+        .select('keyCode')
+        .lean();
+      if (chunkExisting.length > 0) {
+        existingDuplicates.push(
+          ...chunkExisting.map((e) => decryptZCodeField(e.keyCode)),
+        );
+      }
+    }
 
-    if (existing.length > 0) {
+    if (existingDuplicates.length > 0) {
       throw createHttpError(400, 'Một số mã Key đã tồn tại trong hệ thống', {
         code: 'DUPLICATE_IN_DB',
-        duplicates: existing.map((e) => decryptZCodeField(e.keyCode)),
+        duplicates: existingDuplicates,
       });
     }
 
@@ -530,10 +545,14 @@ class ZCodeService {
       }
     }
 
-    const result = await ZCode.insertMany(docs);
+    const INSERT_BATCH_SIZE = 1000;
+    for (let i = 0; i < docs.length; i += INSERT_BATCH_SIZE) {
+      const chunk = docs.slice(i, i + INSERT_BATCH_SIZE);
+      await ZCode.insertMany(chunk, { ordered: false });
+    }
+
     return {
-      count: result.length,
-      items: result,
+      count: docs.length,
       skus: [...new Set(data.items.map((i) => i.sku))],
     };
   }
@@ -541,11 +560,19 @@ class ZCodeService {
   // ─── Check Duplicates ──────────────────────────────────────────────────────
 
   async checkDuplicates(keys) {
-    const existing = await ZCode.find({
-      keyCode: { $in: keys.map(encryptZCodeField) },
-    })
-      .select('keyCode sku status')
-      .lean();
+    const CHUNK_SIZE = 1000;
+    const existing = [];
+    for (let i = 0; i < keys.length; i += CHUNK_SIZE) {
+      const chunk = keys.slice(i, i + CHUNK_SIZE);
+      const chunkExisting = await ZCode.find({
+        keyCode: { $in: chunk.map(encryptZCodeField) },
+      })
+        .select('keyCode sku status')
+        .lean();
+      if (chunkExisting.length > 0) {
+        existing.push(...chunkExisting);
+      }
+    }
     return {
       total: keys.length,
       duplicateCount: existing.length,
@@ -612,20 +639,34 @@ class ZCodeService {
       );
     }
 
-    const uniqueKeys = [...new Set(keyCodes)];
-    const duplicatesInInput = keyCodes.filter(
-      (k, i) => keyCodes.indexOf(k) !== i,
-    );
-    const uniqueDuplicates = [...new Set(duplicatesInInput)];
+    const seen = new Set();
+    const dups = new Set();
+    for (const k of keyCodes) {
+      if (seen.has(k)) {
+        dups.add(k);
+      } else {
+        seen.add(k);
+      }
+    }
+    const uniqueKeys = Array.from(seen);
+    const uniqueDuplicates = Array.from(dups);
 
-    const existingCodes = await ZCode.find({
-      keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
-    }).lean();
+    const CHUNK_SIZE = 1000;
+    const existingCodes = [];
+    for (let i = 0; i < uniqueKeys.length; i += CHUNK_SIZE) {
+      const chunk = uniqueKeys.slice(i, i + CHUNK_SIZE);
+      const chunkExisting = await ZCode.find({
+        keyCode: { $in: chunk.map(encryptZCodeField) },
+      }).lean();
+      if (chunkExisting.length > 0) {
+        existingCodes.push(...chunkExisting);
+      }
+    }
 
-    const existingKeyCodes = existingCodes.map((c) =>
-      decryptZCodeField(c.keyCode),
+    const existingKeyCodesSet = new Set(
+      existingCodes.map((c) => decryptZCodeField(c.keyCode)),
     );
-    const notFound = uniqueKeys.filter((k) => !existingKeyCodes.includes(k));
+    const notFound = uniqueKeys.filter((k) => !existingKeyCodesSet.has(k));
 
     const validCodes = [];
     const invalidCodes = [];
@@ -1110,20 +1151,34 @@ class ZCodeService {
       );
     }
 
-    const uniqueKeys = [...new Set(keyCodes)];
-    const duplicatesInInput = keyCodes.filter(
-      (k, i) => keyCodes.indexOf(k) !== i,
-    );
-    const uniqueDuplicates = [...new Set(duplicatesInInput)];
+    const seen = new Set();
+    const dups = new Set();
+    for (const k of keyCodes) {
+      if (seen.has(k)) {
+        dups.add(k);
+      } else {
+        seen.add(k);
+      }
+    }
+    const uniqueKeys = Array.from(seen);
+    const uniqueDuplicates = Array.from(dups);
 
-    const existingCodes = await ZCode.find({
-      keyCode: { $in: uniqueKeys.map(encryptZCodeField) },
-    }).lean();
+    const CHUNK_SIZE = 1000;
+    const existingCodes = [];
+    for (let i = 0; i < uniqueKeys.length; i += CHUNK_SIZE) {
+      const chunk = uniqueKeys.slice(i, i + CHUNK_SIZE);
+      const chunkExisting = await ZCode.find({
+        keyCode: { $in: chunk.map(encryptZCodeField) },
+      }).lean();
+      if (chunkExisting.length > 0) {
+        existingCodes.push(...chunkExisting);
+      }
+    }
 
-    const existingKeyCodes = existingCodes.map((c) =>
-      decryptZCodeField(c.keyCode),
+    const existingKeyCodesSet = new Set(
+      existingCodes.map((c) => decryptZCodeField(c.keyCode)),
     );
-    const notFound = uniqueKeys.filter((k) => !existingKeyCodes.includes(k));
+    const notFound = uniqueKeys.filter((k) => !existingKeyCodesSet.has(k));
 
     const validCodes = [];
     const invalidCodes = [];

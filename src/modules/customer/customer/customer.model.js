@@ -36,6 +36,7 @@ const customerSchema = new mongoose.Schema(
     type: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true },
     phone: { type: String },
+    oldPhones: { type: [String], default: [] },
     biz: { type: [String], default: [] },
     bizDetails: {
       type: [
