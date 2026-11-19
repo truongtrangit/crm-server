@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 /**
  * SystemLog — Records all CRUD and system-level operations.
@@ -8,12 +8,20 @@ const mongoose = require("mongoose");
  */
 
 const SYSTEM_LOG_ACTIONS = [
-  "create", "update", "delete", "restore",
-  "login", "logout",
-  "force_delete", "assign", "unassign",
-  "activate", "deactivate",
-  "redeem",
-  "other",
+  'create',
+  'update',
+  'delete',
+  'restore',
+  'login',
+  'logout',
+  'force_delete',
+  'assign',
+  'unassign',
+  'activate',
+  'deactivate',
+  'redeem',
+  'other',
+  'action',
 ];
 
 const { RESOURCES } = require('../../../core/constants/rbac');
@@ -22,7 +30,7 @@ const { RESOURCES } = require('../../../core/constants/rbac');
  * Valid resource values — derived from RBAC RESOURCES constant.
  * "other" is added as a catch-all for edge cases.
  */
-const SYSTEM_LOG_RESOURCES = [...Object.values(RESOURCES), "other"];
+const SYSTEM_LOG_RESOURCES = [...Object.values(RESOURCES), 'other'];
 
 const systemLogSchema = new mongoose.Schema(
   {
@@ -44,23 +52,23 @@ const systemLogSchema = new mongoose.Schema(
     resourceId: { type: String, default: null },
 
     /** Human-readable name snapshot of the resource at time of action */
-    resourceName: { type: String, default: "" },
+    resourceName: { type: String, default: '' },
 
     /** Human-readable description of what happened */
-    description: { type: String, default: "" },
+    description: { type: String, default: '' },
 
     /** Who performed the action */
     performedBy: {
       userId: { type: String, default: null },
-      userName: { type: String, default: "System" },
-      userAvatar: { type: String, default: "" },
+      userName: { type: String, default: 'System' },
+      userAvatar: { type: String, default: '' },
     },
 
     /** Outcome */
     status: {
       type: String,
-      enum: ["success", "failed"],
-      default: "success",
+      enum: ['success', 'failed'],
+      default: 'success',
     },
 
     /** Error message if failed */
@@ -70,7 +78,7 @@ const systemLogSchema = new mongoose.Schema(
     metadata: { type: mongoose.Schema.Types.Mixed, default: null },
 
     /** IP address of the requester */
-    ipAddress: { type: String, default: "" },
+    ipAddress: { type: String, default: '' },
   },
   {
     timestamps: true,
@@ -82,7 +90,7 @@ const systemLogSchema = new mongoose.Schema(
 systemLogSchema.index({ createdAt: -1 });
 systemLogSchema.index({ resource: 1, createdAt: -1 });
 systemLogSchema.index({ action: 1, createdAt: -1 });
-systemLogSchema.index({ "performedBy.userId": 1, createdAt: -1 });
+systemLogSchema.index({ 'performedBy.userId': 1, createdAt: -1 });
 systemLogSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.model("SystemLog", systemLogSchema);
+module.exports = mongoose.model('SystemLog', systemLogSchema);

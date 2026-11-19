@@ -10,6 +10,8 @@ const {
   replaceAdjustInvoiceSchema,
   createProviderSchema,
   updateProviderSchema,
+  createInvoiceProductSchema,
+  updateInvoiceProductSchema,
 } = require('./invoice.validation');
 
 class InvoiceController {
@@ -137,12 +139,16 @@ class InvoiceController {
       resource: RESOURCES.INVOICES,
       resourceId: req.params.id,
       resourceName: `Hoá đơn ${req.params.id}`,
-      description: `Cập nhật hoá đơn nháp ${req.params.id}`,
-      metadata: { invoiceId: req.params.id },
+      description: `Cập nhật hoá đơn ${value.isDraft === false ? 'và phát hành' : 'nháp'} ${req.params.id}`,
+      metadata: { invoiceId: req.params.id, status: invoice.status },
       req,
     });
 
-    return sendSuccess(res, 200, 'Cập nhật hoá đơn thành công', invoice);
+    const successMessage =
+      value.isDraft === false
+        ? 'Cập nhật và phát hành hoá đơn thành công'
+        : 'Cập nhật hoá đơn thành công';
+    return sendSuccess(res, 200, successMessage, invoice);
   }
 
   async deleteInvoice(req, res) {
@@ -160,31 +166,11 @@ class InvoiceController {
     return sendSuccess(res, 200, 'Xoá hoá đơn thành công', result);
   }
 
-  async syncTaxStatus(req, res) {
-    const result = await invoiceService.syncTaxStatus(req.params.id);
-
-    SystemLogService.log({
-      action: 'sync',
-      resource: RESOURCES.INVOICES,
-      resourceId: req.params.id,
-      resourceName: `Hoá đơn ${req.params.id}`,
-      description: `Đồng bộ trạng thái CQT hoá đơn ${req.params.id}`,
-      req,
-    });
-
-    return sendSuccess(
-      res,
-      200,
-      'Đồng bộ trạng thái thuế thành công',
-      result.data,
-    );
-  }
-
   async syncFromProvider(req, res) {
     const invoice = await invoiceService.syncFromProvider(req.params.id);
 
     SystemLogService.log({
-      action: 'sync',
+      action: 'update',
       resource: RESOURCES.INVOICES,
       resourceId: req.params.id,
       resourceName: `Hoá đơn ${req.params.id}`,
@@ -195,19 +181,33 @@ class InvoiceController {
     return sendSuccess(res, 200, 'Đồng bộ dữ liệu từ nhà cung cấp thành công', invoice);
   }
 
-  async resendEmail(req, res) {
-    await invoiceService.resendEmail(req.params.id);
+  async downloadInvoice(req, res) {
+    const format = req.query.format === 'xml' ? 'xml' : 'pdf';
+    const file = await invoiceService.downloadInvoiceFile(req.params.id, format);
+    res.setHeader('Content-Type', format === 'xml' ? 'application/xml' : 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+    return res.send(file.buffer);
+  }
+
+  async cancelInvoice(req, res) {
+    const reason = req.body?.reason?.trim();
+    if (!reason) throw createHttpError(400, 'Lý do huỷ hoá đơn là bắt buộc');
+    const invoice = await invoiceService.cancelInvoice(
+      req.params.id,
+      reason,
+      req.user?.id,
+    );
 
     SystemLogService.log({
-      action: 'email',
+      action: 'update',
       resource: RESOURCES.INVOICES,
       resourceId: req.params.id,
       resourceName: `Hoá đơn ${req.params.id}`,
-      description: `Gửi lại email hoá đơn ${req.params.id}`,
+      description: `Huỷ hoá đơn ${req.params.id}`,
       req,
     });
 
-    return sendSuccess(res, 200, 'Gửi lại email thành công');
+    return sendSuccess(res, 200, 'Huỷ hoá đơn thành công', invoice);
   }
 
   async issueInvoice(req, res) {
@@ -479,6 +479,77 @@ class InvoiceController {
   async testProviderConnection(req, res) {
     const result = await invoiceService.testProviderConnection(req.params.id);
     return sendSuccess(res, 200, 'Kết quả test kết nối', result);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Product / Catalog Endpoints
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getProducts(req, res) {
+    const result = await invoiceService.getProducts(req.query);
+    return sendSuccess(res, 200, 'Lấy danh sách sản phẩm thành công', result);
+  }
+
+  async getProductById(req, res) {
+    const product = await invoiceService.getProductById(req.params.id);
+    return sendSuccess(res, 200, 'Lấy chi tiết sản phẩm thành công', product);
+  }
+
+  async createProduct(req, res) {
+    const { error, value } = createInvoiceProductSchema.validate(req.body);
+    if (error) throw createHttpError(400, error.details[0].message);
+
+    const product = await invoiceService.createProduct(value, req.user?.id);
+
+    SystemLogService.log({
+      action: 'create',
+      resource: RESOURCES.INVOICES,
+      resourceId: product.id,
+      resourceName: `Sản phẩm hoá đơn "${product.name}"`,
+      description: `Tạo sản phẩm hoá đơn "${product.name}" (${product.code})`,
+      metadata: { productId: product.id, code: product.code },
+      req,
+    });
+
+    return sendSuccess(res, 201, 'Tạo sản phẩm thành công', product);
+  }
+
+  async updateProduct(req, res) {
+    const { error, value } = updateInvoiceProductSchema.validate(req.body);
+    if (error) throw createHttpError(400, error.details[0].message);
+
+    const product = await invoiceService.updateProduct(
+      req.params.id,
+      value,
+      req.user?.id,
+    );
+
+    SystemLogService.log({
+      action: 'update',
+      resource: RESOURCES.INVOICES,
+      resourceId: req.params.id,
+      resourceName: `Sản phẩm hoá đơn "${product.name}"`,
+      description: `Cập nhật sản phẩm hoá đơn "${product.name}" (${product.code})`,
+      metadata: { productId: req.params.id, code: product.code },
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Cập nhật sản phẩm thành công', product);
+  }
+
+  async deleteProduct(req, res) {
+    const result = await invoiceService.deleteProduct(req.params.id, req.user?.id);
+
+    SystemLogService.log({
+      action: 'delete',
+      resource: RESOURCES.INVOICES,
+      resourceId: req.params.id,
+      resourceName: `Sản phẩm hoá đơn ${req.params.id}`,
+      description: `Xoá sản phẩm hoá đơn ${req.params.id}`,
+      req,
+    });
+
+    return sendSuccess(res, 200, 'Xoá sản phẩm thành công', result);
   }
 }
 
