@@ -24,7 +24,8 @@ const env = {
   webhookAllowedIps: process.env.WEBHOOK_ALLOWED_IPS || '', // comma-separated, empty = allow all
 
   // ─── External API ────────────────────────────────────────────────────────────
-  botvnZaloMiniAppApiKey: process.env.BOTVN_ZALO_MINI_APP_API_KEY || 'botvn_zalo_mini_app_secret_key',
+  botvnZaloMiniAppApiKey:
+    process.env.BOTVN_ZALO_MINI_APP_API_KEY || 'botvn_zalo_mini_app_secret_key',
   integrationWebhookApiKey: process.env.INTEGRATION_WEBHOOK_API_KEY || '',
 
   // ─── Video Encryption ─────────────────────────────────────────────────────────
@@ -85,13 +86,13 @@ const env = {
 
   // ─── eInvoice (BKAV eHoaDon) ──────────────────────────────────────────────
   // Endpoint WebService: Dev=wsdemo.ehoadon.vn, Prod=ws.ehoadon.vn
-  bkavInvoiceEndpoint:
-    process.env.BKAV_INVOICE_ENDPOINT ||
-    'https://wsdemo.ehoadon.vn/WSPublicEHoaDon.asmx',
-  bkavInvoicePartnerGUID: process.env.BKAV_INVOICE_PARTNER_GUID || '',
-  bkavInvoicePartnerToken: process.env.BKAV_INVOICE_PARTNER_TOKEN || '',
-  bkavInvoiceCmdType: Number(process.env.BKAV_INVOICE_CMD_TYPE) || 111,
-  bkavInvoiceSerial: process.env.BKAV_INVOICE_SERIAL || '', // Ký hiệu HĐ: MAA, MVK
+  // bkavInvoiceEndpoint:
+  //   process.env.BKAV_INVOICE_ENDPOINT ||
+  //   'https://wsdemo.ehoadon.vn/WSPublicEHoaDon.asmx',
+  // bkavInvoicePartnerGUID: process.env.BKAV_INVOICE_PARTNER_GUID || '',
+  // bkavInvoicePartnerToken: process.env.BKAV_INVOICE_PARTNER_TOKEN || '',
+  // bkavInvoiceCmdType: Number(process.env.BKAV_INVOICE_CMD_TYPE) || 111,
+  // bkavInvoiceSerial: process.env.BKAV_INVOICE_SERIAL || '', // Ký hiệu HĐ: MAA, MVK
 };
 
 Object.freeze(env);

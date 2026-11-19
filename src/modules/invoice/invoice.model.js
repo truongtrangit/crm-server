@@ -4,6 +4,8 @@ const { INVOICE_STATUSES, INVOICE_PROVIDER_TYPES, INVOICE_RELATION_TYPES, INVOIC
 
 const invoiceItemSchema = new mongoose.Schema(
   {
+    productId: { type: String, default: null, trim: true },
+    itemCode: { type: String, default: '', trim: true },
     itemName: { type: String, required: true, trim: true },
     unitName: { type: String, default: '', trim: true },
     quantity: { type: Number, default: 0 },
@@ -42,6 +44,7 @@ const invoiceSchema = new mongoose.Schema(
     buyer: {
       type: { type: String, enum: ['company', 'personal'], default: 'company' },
       name: { type: String, default: '', trim: true },
+      code: { type: String, default: '', trim: true },           // Mã khách hàng (BuyerCode)
       taxCode: { type: String, default: '', trim: true },
       unitName: { type: String, default: '', trim: true },
       address: { type: String, default: '', trim: true },
@@ -65,6 +68,9 @@ const invoiceSchema = new mongoose.Schema(
 
     // ─── Chi tiết hàng hoá ──────────────────────────────────────────────
     items: [invoiceItemSchema],
+    maCuaCQT: { type: String, default: '', trim: true },           // Mã của cơ quan thuế
+    cancelReason: { type: String, default: '', trim: true },
+    attachFiles: { type: [mongoose.Schema.Types.Mixed], default: [] },
 
     // ─── Tổng hợp ───────────────────────────────────────────────────────
     totalAmountBeforeTax: { type: Number, default: 0 },
@@ -86,8 +92,22 @@ const invoiceSchema = new mongoose.Schema(
     providerErrorCode: { type: String, default: null },
     providerErrorMessage: { type: String, default: null },
     lookupCode: { type: String, default: null },                  // MTC — Mã tra cứu
-    pdfUrl: { type: String, default: null },
-    xmlUrl: { type: String, default: null },
+
+    // ─── Lịch sử gọi Provider (error log) ──────────────────────────────
+    // Lưu tối đa 50 bản ghi gần nhất để tránh document quá lớn
+    providerCallLogs: {
+      type: [
+        {
+          calledAt: { type: Date, required: true },   // Thời điểm gọi
+          action: { type: String, required: true },   // 'issue', 'sign_hsm', 'cancel', 'delete_draft', 'sync', 'update_draft', 'adjust', 'replace'
+          cmdType: { type: Number, default: null },   // BKAV CmdType
+          success: { type: Boolean, required: true }, // true/false
+          errorCode: { type: String, default: null },
+          errorMessage: { type: String, default: null },
+        },
+      ],
+      default: [],
+    },
 
     // ─── Liên kết (thay thế / điều chỉnh) ───────────────────────────────
     relatedInvoiceId: { type: String, default: null },            // HĐ gốc
@@ -125,5 +145,6 @@ invoiceSchema.index({ providerInvoiceGUID: 1 }, { sparse: true });
 invoiceSchema.index({ 'buyer.taxCode': 1 }, { sparse: true });
 invoiceSchema.index({ billCode: 1 }, { sparse: true });
 invoiceSchema.index({ relatedInvoiceId: 1 }, { sparse: true });
+invoiceSchema.index({ invoiceNo: 1 }, { sparse: true });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

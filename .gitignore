@@ -37,3 +37,5 @@ deploy/*.env
 backup
 Final_3*
 FAQ_*
+
+documents/

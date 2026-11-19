@@ -10,6 +10,7 @@ const {
   BKAV_RECEIVE_TYPES,
   BKAV_INVOICE_TYPES,
   INVOICE_STATUSES,
+  INVOICE_RELATION_TYPES,
 } = require('../../../core/constants/invoice');
 
 /**
@@ -32,7 +33,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
     }
     this.partnerGUID = bkav.partnerGUID;
     this.endpoint = bkav.endpoint;
-    this.cmdType = bkav.cmdType || BKAV_CMD_TYPES.CREATE_111;
+    this.cmdType = bkav.cmdType || BKAV_CMD_TYPES.CREATE_112;
     this.invoiceTypeId = bkav.invoiceTypeId || BKAV_INVOICE_TYPES.GTGT;
     this.receiveTypeId = bkav.receiveTypeId || BKAV_RECEIVE_TYPES.EMAIL_SMS;
 
@@ -86,6 +87,10 @@ class BkavAdapter extends BaseInvoiceAdapter {
 
       logger.info(
         `[BkavAdapter] Issuing invoice ${invoice.id} with CmdType ${effectiveCmdType} (relationType: ${invoice.relationType || 'none'})`,
+      );
+
+      logger.debug(
+        `[BkavAdapter] CommandData: ${JSON.stringify(commandData, null, 2)}`,
       );
 
       const result = await this._execCommand(commandData);
@@ -217,7 +222,10 @@ class BkavAdapter extends BaseInvoiceAdapter {
         rawResponse: result.rawResponse,
       };
     } catch (err) {
-      logger.error(`[BkavAdapter] Update draft error for ${invoice.id}:`, err.message);
+      logger.error(
+        `[BkavAdapter] Update draft error for ${invoice.id}:`,
+        err.message,
+      );
       return {
         success: false,
         error: err.message,
@@ -227,19 +235,23 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
-   * Huỷ bỏ hoá đơn đã phát hành trên BKAV (CmdType 201 — bằng InvoiceGUID).
-   * Ref: FAQ mục C.5 — Mã lệnh 201/202
+   * Huỷ bỏ hoá đơn đã phát hành trên BKAV (CmdType 202 — bằng PartnerInvoiceID/GUID).
+   * Ref: eHoaDon_WebService_Interface.docx — Mã lệnh 202
    */
   async cancel(invoice, reason = 'Hủy do sai sót') {
     try {
       const commandData = {
-        CmdType: BKAV_CMD_TYPES.CANCEL_201,
+        CmdType: BKAV_CMD_TYPES.CANCEL_202,
         CommandObject: JSON.stringify([
           {
             Invoice: {
+              InvoiceTypeID: this.invoiceTypeId || 1,
               InvoiceGUID: invoice.providerInvoiceGUID,
               Reason: reason || '',
             },
+            // Ref: eHoaDon_WebService_Interface.docx — CommandObject wraps InvoiceDataWS
+            PartnerInvoiceID: 0,
+            PartnerInvoiceStringID: invoice.id || '',
           },
         ]),
       };
@@ -273,7 +285,8 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
-   * Xoá bỏ hoá đơn nháp trên BKAV (CmdType 303).
+   * Xoá bỏ hoá đơn nháp trên BKAV (CmdType 301 — bằng PartnerInvoiceID/GUID).
+   * Ref: eHoaDon_WebService_Interface.docx — Mã lệnh 301
    */
   async deleteDraft(invoice) {
     if (!invoice.providerInvoiceGUID) {
@@ -282,18 +295,22 @@ class BkavAdapter extends BaseInvoiceAdapter {
 
     try {
       const commandData = {
-        CmdType: BKAV_CMD_TYPES.DELETE_DRAFT_303,
+        CmdType: BKAV_CMD_TYPES.DELETE_DRAFT_301,
         CommandObject: JSON.stringify([
           {
             Invoice: {
+              InvoiceTypeID: this.invoiceTypeId || 1,
               InvoiceGUID: invoice.providerInvoiceGUID,
             },
+            // Ref: eHoaDon_WebService_Interface.docx — CommandObject wraps InvoiceDataWS
+            PartnerInvoiceID: 0,
+            PartnerInvoiceStringID: invoice.id || '',
           },
         ]),
       };
 
       logger.info(
-        `[BkavAdapter] Deleting draft invoice ${invoice.id} with CmdType ${BKAV_CMD_TYPES.DELETE_DRAFT_303} (GUID: ${invoice.providerInvoiceGUID})`,
+        `[BkavAdapter] Deleting draft invoice ${invoice.id} with CmdType ${BKAV_CMD_TYPES.DELETE_DRAFT_301} (GUID: ${invoice.providerInvoiceGUID})`,
       );
 
       const result = await this._execCommand(commandData);
@@ -303,7 +320,8 @@ class BkavAdapter extends BaseInvoiceAdapter {
       if (item && item.Status !== undefined && item.Status !== 0) {
         return {
           success: false,
-          error: item.MessLog || item.messLog || 'Lỗi xoá hoá đơn nháp trên BKAV',
+          error:
+            item.MessLog || item.messLog || 'Lỗi xoá hoá đơn nháp trên BKAV',
           rawResponse: result.rawResponse,
         };
       }
@@ -330,7 +348,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
   }
 
   /**
-   * Tra cứu thông tin Doanh nghiệp theo MST (CmdType 114).
+   * Tra cứu thông tin Doanh nghiệp theo MST (CmdType 904).
    */
   async lookupTaxCode(code) {
     try {
@@ -439,18 +457,52 @@ class BkavAdapter extends BaseInvoiceAdapter {
    * Cần dùng BKAV Portal hoặc custom CmdType.
    */
   async download(invoice, format = 'pdf') {
-    // BKAV không có API download riêng qua ExecCommand.
-    // PDF/XML thường lấy qua portal link hoặc lookup code.
-    // Trả về lookup link nếu có.
-    const lookupCode = invoice.lookupCode;
-    if (lookupCode) {
-      return {
-        success: true,
-        url: `https://tracuu.ehoadon.vn/?mtc=${lookupCode}`,
-        format,
-      };
+    const isXml = format === 'xml';
+    // Ưu tiên theo PartnerInvoiceStringID (808/809), fallback theo Mã tra cứu (811/813)
+    const attempts = [
+      {
+        cmd: isXml ? BKAV_CMD_TYPES.GET_XML_809 : BKAV_CMD_TYPES.GET_PDF_808,
+        obj: invoice.id,
+      },
+    ];
+    if (invoice.lookupCode) {
+      attempts.push({
+        cmd: isXml
+          ? BKAV_CMD_TYPES.GET_XML_BY_MTC_813
+          : BKAV_CMD_TYPES.GET_PDF_BY_MTC_811,
+        obj: invoice.lookupCode,
+      });
     }
-    return { success: false, error: 'Không có mã tra cứu (MTC)' };
+
+    let lastError = 'Không lấy được file từ BKAV';
+    for (const { cmd, obj } of attempts) {
+      try {
+        const result = await this._execCommand({
+          CmdType: cmd,
+          CommandObject: obj,
+        });
+        if (!result.success) {
+          lastError = result.error || lastError;
+          continue;
+        }
+        let data = result.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            /* keep string */
+          }
+        }
+        const item = Array.isArray(data) ? data[0] : data;
+        const base64 = isXml ? item?.XML : item?.PDF;
+        if (base64) {
+          return { success: true, format, base64 };
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+    }
+    return { success: false, error: lastError };
   }
 
   /**
@@ -493,7 +545,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
         rawResponse: result.rawResponse,
         error: result.error || null,
         invoiceNo: item?.InvoiceNo || null,
-        lookupCode: item?.PartnerInvoiceID || null,
+        lookupCode: item?.MTC || null,
       };
     } catch (err) {
       logger.error(
@@ -858,29 +910,38 @@ class BkavAdapter extends BaseInvoiceAdapter {
   /**
    * Tự động xác định CmdType dựa trên relationType (tạo mới vs thay thế vs điều chỉnh).
    *
-   * Theo BKAV FAQ:
-   * - Thay thế (replacement): CmdType 120 (Bkav quản lý) / 123 (PMKT quản lý)
-   * - Điều chỉnh (adjustment): CmdType 124 (Bkav quản lý) / 121 (PMKT quản lý)
+   * Theo eHoaDon_WebService_Interface.docx:
+   * - Thay thế (replacement): CmdType 120 (InvoiceNo=0) / 123 (Bkav cấp InvoiceNo)
+   * - Điều chỉnh (adjustment): CmdType 121 (InvoiceNo=0) / 124 (Bkav cấp InvoiceNo)
+   * - Điều chỉnh chiết khấu (adjustment_discount): CmdType 122 (InvoiceNo=0) / 126 (Bkav cấp InvoiceNo)
+   *   → Chưa implement vì CRM chưa có flow "điều chỉnh chiết khấu" trên UI
    */
   _determineCmdType(invoice) {
-    const pmktManaged = [
-      BKAV_CMD_TYPES.CREATE_110,
-      BKAV_CMD_TYPES.CREATE_111,
+    // Chuẩn BKAV: 120/121 → InvoiceNo=0 ; 123/124 → BKAV cấp InvoiceNo
+    // (thay thế: 120/123, điều chỉnh: 121/124)
+    const bkavAssignsNo = [
+      BKAV_CMD_TYPES.CREATE_101,
       BKAV_CMD_TYPES.CREATE_112,
+      BKAV_CMD_TYPES.CREATE_111,
     ].includes(this.cmdType);
 
     if (invoice.relationType === 'replacement') {
-      return pmktManaged
+      return bkavAssignsNo
         ? BKAV_CMD_TYPES.REPLACE_123
         : BKAV_CMD_TYPES.REPLACE_120;
     }
     if (invoice.relationType === 'adjustment') {
-      return pmktManaged
-        ? BKAV_CMD_TYPES.ADJUST_121
-        : BKAV_CMD_TYPES.ADJUST_124;
+      return bkavAssignsNo
+        ? BKAV_CMD_TYPES.ADJUST_124
+        : BKAV_CMD_TYPES.ADJUST_121;
     }
 
-    // Normal creation — use provider configured CmdType (e.g. 112, 111, 110, 101, 100)
+    // CmdType 111 = "PMKT tự cấp InvoiceNo" (CreateInvoiceWithFormSerialNo).
+    // CRM luôn gửi InvoiceNo=0 vì không hỗ trợ user nhập số HĐ thủ công.
+    // → Tự động chuyển sang 112 (PMKT cấp Form/Serial, Bkav cấp số HĐ).
+    // Ref: Bkav_eHoadon_Layer.cs — CommandType.CreateInvoiceWithFormSerialNo = 111
+    if (this.cmdType === BKAV_CMD_TYPES.CREATE_111)
+      return BKAV_CMD_TYPES.CREATE_112;
     return this.cmdType;
   }
 
@@ -908,13 +969,45 @@ class BkavAdapter extends BaseInvoiceAdapter {
   /**
    * Build CommandObject từ Invoice model.
    * Ref: FAQ mục B.2a — Cấu trúc các trường thông tin chuẩn
+   * Ref: Bkav_eHoadon_Layer.cs — InvoiceWS class
+   * Ref: Invoice-Schema.xsd — required fields và valid ranges
    */
   _buildCommandObject(invoice) {
+    // InvoiceStatusID: trạng thái loại HĐ theo XSD (minInclusive=1, maxInclusive=4)
+    // 1=Tạo mới, 2=Thay thế, 3=Điều chỉnh, 4=Huỷ bỏ
+    const invoiceStatusId =
+      invoice.relationType === INVOICE_RELATION_TYPES.REPLACEMENT
+        ? 2
+        : invoice.relationType === INVOICE_RELATION_TYPES.ADJUSTMENT
+          ? 3
+          : 1;
+
+    // TypeCreateInvoice: 0=Tạo HĐ, 1=Thay thế, 2=Điều chỉnh thông tin,
+    //                    3=Điều chỉnh tăng, 4=Điều chỉnh giảm
+    // Ref: Bkav_eHoadon_Layer.cs — InvoiceWS.TypeCreateInvoice
+    const typeCreateInvoice =
+      invoice.relationType === INVOICE_RELATION_TYPES.REPLACEMENT
+        ? 1
+        : invoice.relationType === INVOICE_RELATION_TYPES.ADJUSTMENT
+          ? invoice.isIncrease
+            ? 3
+            : 4
+          : 0;
+
     const cmd = {
       // ─── Thông tin cơ bản ─────────────────────────────────────────────
       Invoice: {
         InvoiceTypeID: this.invoiceTypeId,
         InvoiceDate: this._formatDate(invoice.invoiceDate),
+        // InvoiceStatusID: required field (XSD minInclusive=1, maxInclusive=4)
+        // Ref: Invoice-Schema.xsd line 128-134
+        InvoiceStatusID: invoiceStatusId,
+        // TypeCreateInvoice: phân loại mục đích tạo HĐ
+        // Ref: Bkav_eHoadon_Layer.cs — InvoiceWS.TypeCreateInvoice
+        TypeCreateInvoice: typeCreateInvoice,
+        // SellerTaxCode: MST người bán (optional, maxLength=14)
+        // Ref: ListInvoice_EN.xml, Invoice-Schema.xsd
+        SellerTaxCode: this.config.sellerTaxCode || '',
         BuyerCode: invoice.buyer?.code || '',
         BuyerName: invoice.buyer?.name || '',
         BuyerTaxCode: invoice.buyer?.taxCode || '',
@@ -992,21 +1085,23 @@ class BkavAdapter extends BaseInvoiceAdapter {
         }
       }
 
-      let finalTaxRateId = item.taxRateId || BKAV_TAX_RATE_IDS.TAX_10;
-      let finalTaxRate = item.taxRate !== undefined ? item.taxRate : 10;
-      let finalTaxAmount = item.taxAmount || 0;
-
-      // Handle specific tax rates
-      const SPECIAL_TAX_RATES = {
-        [BKAV_TAX_RATE_IDS.TAX_0]: 0,
-        [BKAV_TAX_RATE_IDS.TAX_KCT]: -1,
-        [BKAV_TAX_RATE_IDS.TAX_KKK]: -2,
+      // TaxRate (%) là nguồn sự thật → suy ra TaxRateID chuẩn BKAV (1..6, 9)
+      const finalTaxRate =
+        item.taxRate !== undefined && item.taxRate !== null
+          ? Number(item.taxRate)
+          : 10;
+      const TAX_RATE_TO_ID = {
+        0: BKAV_TAX_RATE_IDS.TAX_0,
+        5: BKAV_TAX_RATE_IDS.TAX_5,
+        8: BKAV_TAX_RATE_IDS.TAX_8,
+        10: BKAV_TAX_RATE_IDS.TAX_10,
+        [-1]: BKAV_TAX_RATE_IDS.TAX_KCT,
+        [-2]: BKAV_TAX_RATE_IDS.TAX_KKK,
       };
-
-      if (finalTaxRateId in SPECIAL_TAX_RATES) {
-        finalTaxAmount = 0;
-        finalTaxRate = SPECIAL_TAX_RATES[finalTaxRateId];
-      }
+      const finalTaxRateId =
+        TAX_RATE_TO_ID[finalTaxRate] || BKAV_TAX_RATE_IDS.TAX_OTHER;
+      // Thuế 0% / KCT / KKK → không có tiền thuế
+      const finalTaxAmount = finalTaxRate <= 0 ? 0 : item.taxAmount || 0;
 
       return {
         ItemName: item.itemName || '',
@@ -1019,8 +1114,10 @@ class BkavAdapter extends BaseInvoiceAdapter {
         TaxAmount: finalTaxAmount,
         DiscountRate: item.discountRate || 0,
         DiscountAmount: item.discountAmount || 0,
-        IsDiscount: item.isDiscount || false,
-        ItemTypeID: item.itemTypeId || 0,
+        IsDiscount: item.isDiscount || item.itemTypeId === 30 || false,
+        // Ref: FAQ Phụ lục 6 (trang 72-73): 15=Khuyến mãi, 21=Xe ô tô/mô tô là mã chuẩn BKAV;
+        // 30 là mã UI nội bộ cho dòng chiết khấu → gửi ItemTypeID=0 kèm IsDiscount=true (FAQ Câu 6)
+        ItemTypeID: item.itemTypeId === 30 ? 0 : item.itemTypeId || 0,
         ItemCode: item.itemCode || '',
         UserDefineDetails: userDefineDetails,
         IsIncrease: item.isIncrease,
@@ -1029,13 +1126,17 @@ class BkavAdapter extends BaseInvoiceAdapter {
     });
 
     // Handle Total Discount (Chiết khấu tổng)
-    if (invoice.totalDiscount > 0) {
+    const hasDiscountRow = (invoice.items || []).some(
+      (it) => it.isDiscount || it.itemTypeId === 30,
+    );
+    const totalDiscount = invoice.totalDiscountAmount || 0;
+    if (totalDiscount > 0 && !hasDiscountRow) {
       bkavItems.push({
         ItemName: 'Chiết khấu thương mại',
         UnitName: '',
         Qty: 0,
         Price: 0,
-        Amount: invoice.totalDiscount,
+        Amount: totalDiscount,
         TaxRateID: BKAV_TAX_RATE_IDS.TAX_10,
         TaxRate: 10,
         TaxAmount: 0,
@@ -1087,7 +1188,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yyyy = d.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
+    return `${yyyy}-${mm}-${dd}`;
   }
 }
 
