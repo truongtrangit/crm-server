@@ -73,31 +73,31 @@ router.post(
 
 router.get(
   '/products',
-  requirePermission([PERMISSIONS.INVOICES_READ, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
+  requirePermission([PERMISSIONS.INVOICE_PRODUCTS_READ, PERMISSIONS.INVOICES_READ], 'any'),
   InvoiceController.getProducts,
 );
 
 router.get(
   '/products/:id',
-  requirePermission([PERMISSIONS.INVOICES_READ, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
+  requirePermission([PERMISSIONS.INVOICE_PRODUCTS_READ, PERMISSIONS.INVOICES_READ], 'any'),
   InvoiceController.getProductById,
 );
 
 router.post(
   '/products',
-  requirePermission([PERMISSIONS.INVOICES_CREATE, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
+  requirePermission(PERMISSIONS.INVOICE_PRODUCTS_CREATE),
   InvoiceController.createProduct,
 );
 
 router.put(
   '/products/:id',
-  requirePermission([PERMISSIONS.INVOICES_UPDATE, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
+  requirePermission(PERMISSIONS.INVOICE_PRODUCTS_UPDATE),
   InvoiceController.updateProduct,
 );
 
 router.delete(
   '/products/:id',
-  requirePermission([PERMISSIONS.INVOICES_DELETE, PERMISSIONS.INVOICE_PROVIDERS_CONFIG], 'any'),
+  requirePermission(PERMISSIONS.INVOICE_PRODUCTS_DELETE),
   InvoiceController.deleteProduct,
 );
 
