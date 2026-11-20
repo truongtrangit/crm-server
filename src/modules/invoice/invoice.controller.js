@@ -503,7 +503,7 @@ class InvoiceController {
 
     SystemLogService.log({
       action: 'create',
-      resource: RESOURCES.INVOICES,
+      resource: RESOURCES.INVOICE_PRODUCTS,
       resourceId: product.id,
       resourceName: `Sản phẩm hoá đơn "${product.name}"`,
       description: `Tạo sản phẩm hoá đơn "${product.name}" (${product.code})`,
@@ -526,7 +526,7 @@ class InvoiceController {
 
     SystemLogService.log({
       action: 'update',
-      resource: RESOURCES.INVOICES,
+      resource: RESOURCES.INVOICE_PRODUCTS,
       resourceId: req.params.id,
       resourceName: `Sản phẩm hoá đơn "${product.name}"`,
       description: `Cập nhật sản phẩm hoá đơn "${product.name}" (${product.code})`,
@@ -542,7 +542,7 @@ class InvoiceController {
 
     SystemLogService.log({
       action: 'delete',
-      resource: RESOURCES.INVOICES,
+      resource: RESOURCES.INVOICE_PRODUCTS,
       resourceId: req.params.id,
       resourceName: `Sản phẩm hoá đơn ${req.params.id}`,
       description: `Xoá sản phẩm hoá đơn ${req.params.id}`,
