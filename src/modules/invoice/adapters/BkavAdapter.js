@@ -458,7 +458,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
    */
   async download(invoice, format = 'pdf') {
     const isXml = format === 'xml';
-    // Ưu tiên theo PartnerInvoiceStringID (808/809), fallback theo Mã tra cứu (811/813)
+    // Ưu tiên theo PartnerInvoiceStringID (808/809), fallback theo Mã tra cứu (811/813) và InvoiceGUID (803/805)
     const attempts = [
       {
         cmd: isXml ? BKAV_CMD_TYPES.GET_XML_809 : BKAV_CMD_TYPES.GET_PDF_808,
@@ -471,6 +471,12 @@ class BkavAdapter extends BaseInvoiceAdapter {
           ? BKAV_CMD_TYPES.GET_XML_BY_MTC_813
           : BKAV_CMD_TYPES.GET_PDF_BY_MTC_811,
         obj: invoice.lookupCode,
+      });
+    }
+    if (invoice.providerInvoiceGUID) {
+      attempts.push({
+        cmd: isXml ? BKAV_CMD_TYPES.GET_XML_805 : BKAV_CMD_TYPES.GET_PDF_803,
+        obj: invoice.providerInvoiceGUID,
       });
     }
 
@@ -494,7 +500,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
           }
         }
         const item = Array.isArray(data) ? data[0] : data;
-        const base64 = isXml ? item?.XML : item?.PDF;
+        const base64 = isXml ? (item?.XML || item?.xml) : (item?.PDF || item?.pdf);
         if (base64) {
           return { success: true, format, base64 };
         }

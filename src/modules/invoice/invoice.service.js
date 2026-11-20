@@ -536,7 +536,7 @@ class InvoiceService {
       isDeleted: { $ne: true },
     }).lean();
     if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
-    if (!invoice.providerInvoiceGUID) {
+    if (!invoice.providerInvoiceGUID && !invoice.lookupCode) {
       throw createHttpError(400, 'Hoá đơn chưa được tạo trên nhà cung cấp');
     }
     const provider = await InvoiceProvider.findOne({

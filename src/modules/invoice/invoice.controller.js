@@ -183,9 +183,10 @@ class InvoiceController {
 
   async downloadInvoice(req, res) {
     const format = req.query.format === 'xml' ? 'xml' : 'pdf';
+    const disposition = req.query.inline === 'true' ? 'inline' : 'attachment';
     const file = await invoiceService.downloadInvoiceFile(req.params.id, format);
     res.setHeader('Content-Type', format === 'xml' ? 'application/xml' : 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+    res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.filename)}"`);
     return res.send(file.buffer);
   }
 

@@ -107,6 +107,18 @@ describe('BkavAdapter (offline)', () => {
       expect(res.base64).toBe('PHhtbC8+');
     });
 
+    test('fallback sang 803 theo InvoiceGUID khi 808 và 811 không có dữ liệu', async () => {
+      const a = makeAdapter(112);
+      a._execCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ success: true, data: [{ PDF: null }] })
+        .mockResolvedValueOnce({ success: true, data: [{ PDF: null }] })
+        .mockResolvedValueOnce({ success: true, data: [{ PDF: 'UERGX0dVSUQ=' }] });
+      const res = await a.download({ id: 'INV1', lookupCode: 'MTC1', providerInvoiceGUID: 'GUID-123' }, 'pdf');
+      expect(a._execCommand).toHaveBeenLastCalledWith({ CmdType: 803, CommandObject: 'GUID-123' });
+      expect(res).toEqual({ success: true, format: 'pdf', base64: 'UERGX0dVSUQ=' });
+    });
+
     test('thất bại khi BKAV không trả file', async () => {
       const a = makeAdapter(112);
       a._execCommand = jest.fn().mockResolvedValue({ success: false, error: 'boom' });
