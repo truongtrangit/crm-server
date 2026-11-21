@@ -132,18 +132,24 @@ Mỗi đối tác tích hợp được CRM cấp **API Key riêng** và **IP All
 
 ### 4.2. Thông tin Người Mua (`buyer`)
 
-| Field | Kiểu | Mặc định | Chú thích chi tiết |
-| --- | --- | --- | --- |
-| `type` | `string` | `"company"` | `"company"` (Doanh nghiệp) hoặc `"personal"` (Cá nhân / Khách lẻ). |
-| `code` | `string` | `""` | Mã khách hàng (`BuyerCode` trên BKAV). |
-| `name` | `string` | `""` | Họ tên người mua hàng (nếu cả `name` và `unitName` đều trống → CRM tự gán `"Khách lẻ"`). |
-| `unitName` | `string` | `""` | Tên đơn vị / doanh nghiệp mua hàng (nên có khi `type = "company"`). |
-| `taxCode` | `string` | `""` | Mã số thuế doanh nghiệp (10 hoặc 14 ký tự). |
-| `address` | `string` | `""` | Địa chỉ người mua. |
-| `email` | `string` | `""` | Email nhận thông báo & bản thể hiện hoá đơn điện tử. |
-| `phone` | `string` | `""` | Số điện thoại người mua. |
-| `bankAccount` | `string` | `""` | Số tài khoản ngân hàng người mua. |
-| `cccd` | `string` | `""` | Số Căn cước công dân (nếu xuất cho cá nhân có CCCD). |
+Hệ thống tự động chuẩn hoá dữ liệu người mua gửi sang BKAV theo `buyer.type` (chuẩn Nghị định 123/2020/NĐ-CP & 70/2025/NĐ-CP):
+
+| Field | Kiểu | Doanh nghiệp (`company`) | Cá nhân (`personal`) | Mặc định | Chú thích chi tiết |
+| --- | --- | --- | --- | --- | --- |
+| `type` | `string` | `"company"` | `"personal"` | `"company"` | Phân loại người mua: `"company"` (Doanh nghiệp / Tổ chức / Hộ KD) hoặc `"personal"` (Cá nhân / Khách lẻ). |
+| `taxCode` | `string` | **Nên có (bắt buộc theo CQT)** | Tuỳ chọn | `""` | Mã số thuế (10 hoặc 14 số). Nếu Hộ KD/cá nhân dùng CCCD 12 số truyền vào `taxCode`, CRM tự đồng bộ sang trường `CCCD` khi gửi BKAV. |
+| `unitName` | `string` | **Nên có (bắt buộc theo CQT)** | **Không cần** *(tự bỏ trống)* | `""` | Tên đơn vị / doanh nghiệp (`BuyerUnitName`). Với `personal`, CRM luôn gửi `BuyerUnitName = ""` để không in dòng Đơn vị lên hoá đơn cá nhân. Với `company`, nếu `unitName` trống nhưng có `name`, CRM fallback sang `name`. |
+| `address` | `string` | **Nên có (bắt buộc theo CQT)** | Tuỳ chọn | `""` | Địa chỉ trụ sở (doanh nghiệp) hoặc địa chỉ liên hệ (cá nhân). |
+| `name` | `string` | Tuỳ chọn *(người mua hàng)* | **Nên có** *(Họ và tên)* | `""` | Họ tên người mua hàng (`BuyerName`). Nếu cả `name` và `unitName` đều trống → CRM tự gán `"Khách lẻ"`. |
+| `cccd` | `string` | Tuỳ chọn | Tuỳ chọn *(nên truyền nếu có)* | `""` | Số Căn cước công dân / Định danh cá nhân 12 chữ số (map sang trường `CCCD` của BKAV). |
+| `email` | `string` | Tuỳ chọn *(khuyến nghị)* | Tuỳ chọn *(khuyến nghị)* | `""` | Email nhận thông báo & bản thể hiện hoá đơn điện tử (phải đúng định dạng email hợp lệ nếu truyền, hoặc `""`). |
+| `phone` | `string` | Tuỳ chọn | Tuỳ chọn | `""` | Số điện thoại người mua. |
+| `code` | `string` | Tuỳ chọn | Tuỳ chọn | `""` | Mã khách hàng (`BuyerCode` trên BKAV). |
+| `bankAccount` | `string` | Tuỳ chọn | Tuỳ chọn | `""` | Số tài khoản ngân hàng người mua. |
+
+> **Lưu ý quy đổi sang BKAV (`_buildBkavBuyerFields`):**
+> - Khi `buyer.type = "company"`: `BuyerUnitName = unitName || name`, `BuyerName = name`, `BuyerTaxCode = taxCode`, `CCCD = cccd` (hoặc tự lấy từ `taxCode` nếu dài 12 chữ số).
+> - Khi `buyer.type = "personal"`: `BuyerUnitName = ""` (luôn trống), `BuyerName = name`, mã 12 chữ số được đưa vào trường `CCCD`, MST 10/14 số đưa vào `BuyerTaxCode`.
 
 ### 4.3. Chi tiết Hàng hoá / Dịch vụ (`items[]`) — 2 Nhánh
 
