@@ -69,6 +69,38 @@ router.post(
   InvoiceController.testProviderConnection,
 );
 
+// ─── Products / Items Catalog (MUST be before /:id to avoid route conflict) ─
+
+router.get(
+  '/products',
+  requirePermission([PERMISSIONS.INVOICE_PRODUCTS_READ, PERMISSIONS.INVOICES_READ], 'any'),
+  InvoiceController.getProducts,
+);
+
+router.get(
+  '/products/:id',
+  requirePermission([PERMISSIONS.INVOICE_PRODUCTS_READ, PERMISSIONS.INVOICES_READ], 'any'),
+  InvoiceController.getProductById,
+);
+
+router.post(
+  '/products',
+  requirePermission(PERMISSIONS.INVOICE_PRODUCTS_CREATE),
+  InvoiceController.createProduct,
+);
+
+router.put(
+  '/products/:id',
+  requirePermission(PERMISSIONS.INVOICE_PRODUCTS_UPDATE),
+  InvoiceController.updateProduct,
+);
+
+router.delete(
+  '/products/:id',
+  requirePermission(PERMISSIONS.INVOICE_PRODUCTS_DELETE),
+  InvoiceController.deleteProduct,
+);
+
 // ─── Invoices ───────────────────────────────────────────────────────────────
 
 router.get(
@@ -117,23 +149,22 @@ router.delete(
   InvoiceController.deleteInvoice,
 );
 
-// TODO: Implement later
-router.post(
-  '/:id/sync-tax-status',
-  requirePermission(PERMISSIONS.INVOICES_UPDATE),
-  InvoiceController.syncTaxStatus,
-);
-
 router.post(
   '/:id/sync-from-provider',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
   InvoiceController.syncFromProvider,
 );
 
+router.get(
+  '/:id/download',
+  requirePermission(PERMISSIONS.INVOICES_READ),
+  InvoiceController.downloadInvoice,
+);
+
 router.post(
-  '/:id/resend-email',
+  '/:id/cancel',
   requirePermission(PERMISSIONS.INVOICES_UPDATE),
-  InvoiceController.resendEmail,
+  InvoiceController.cancelInvoice,
 );
 router.post(
   '/:id/issue',

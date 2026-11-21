@@ -44,6 +44,7 @@ const RESOURCES = {
   BANK_LOGS: 'bank_logs', // Bank Log transactions
   BANK_LOG_RULES: 'bank_log_rules', // Bank Log routing rules
   INVOICES: 'invoices', // Hoá đơn điện tử
+  INVOICE_PRODUCTS: 'invoice_products', // Danh mục sản phẩm / dịch vụ HĐĐT
   INVOICE_PROVIDERS: 'invoice_providers', // Cấu hình nhà cung cấp HĐĐT
   INTEGRATION: 'integration', // Cấu hình tích hợp đa module (Event Groups, Integration Config)
   COURSES_ORDER_WEBHOOKS: 'courses_order_webhooks', // Webhook trigger đơn hàng
@@ -352,6 +353,11 @@ const PERMISSIONS = {
   INVOICES_UPDATE: `${RESOURCES.INVOICES}_${ACTIONS.UPDATE}`,
   INVOICES_DELETE: `${RESOURCES.INVOICES}_${ACTIONS.DELETE}`,
   INVOICES_MANAGE: `${RESOURCES.INVOICES}_${ACTIONS.MANAGE}`,
+  INVOICE_PRODUCTS_READ: `${RESOURCES.INVOICE_PRODUCTS}_${ACTIONS.READ}`,
+  INVOICE_PRODUCTS_CREATE: `${RESOURCES.INVOICE_PRODUCTS}_${ACTIONS.CREATE}`,
+  INVOICE_PRODUCTS_UPDATE: `${RESOURCES.INVOICE_PRODUCTS}_${ACTIONS.UPDATE}`,
+  INVOICE_PRODUCTS_DELETE: `${RESOURCES.INVOICE_PRODUCTS}_${ACTIONS.DELETE}`,
+  INVOICE_PRODUCTS_MANAGE: `${RESOURCES.INVOICE_PRODUCTS}_${ACTIONS.MANAGE}`,
   INVOICE_PROVIDERS_CONFIG: `${RESOURCES.INVOICE_PROVIDERS}_${ACTIONS.CONFIG}`,
 
   // Integration Config (Event Groups + Integration Config)
@@ -546,6 +552,7 @@ const ADMIN_PERMISSIONS = Array.from(
     PERMISSIONS.BANK_LOGS_MANAGE,
     PERMISSIONS.BANK_LOG_RULES_CONFIG,
     PERMISSIONS.INVOICES_MANAGE,
+    PERMISSIONS.INVOICE_PRODUCTS_MANAGE,
     PERMISSIONS.INVOICE_PROVIDERS_CONFIG,
     PERMISSIONS.INTEGRATION_CONFIG,
   ]),
@@ -949,6 +956,13 @@ const MODULE_DEFINITIONS = {
     parentKey: 'invoice',
     actions: ['view', 'create', 'edit', 'delete'],
   },
+  'invoice.products': {
+    key: 'invoice.products',
+    label: 'Danh mục sản phẩm',
+    type: 'sub',
+    parentKey: 'invoice',
+    actions: ['view', 'create', 'edit', 'delete'],
+  },
   'invoice.config': {
     key: 'invoice.config',
     label: 'Cấu hình nhà cung cấp',
@@ -1295,6 +1309,12 @@ const MODULE_TO_PERMISSIONS_MAP = {
     create: [PERMISSIONS.INVOICES_CREATE],
     edit: [PERMISSIONS.INVOICES_UPDATE],
     delete: [PERMISSIONS.INVOICES_DELETE],
+  },
+  'invoice.products': {
+    view: [PERMISSIONS.INVOICE_PRODUCTS_READ],
+    create: [PERMISSIONS.INVOICE_PRODUCTS_CREATE],
+    edit: [PERMISSIONS.INVOICE_PRODUCTS_UPDATE],
+    delete: [PERMISSIONS.INVOICE_PRODUCTS_DELETE],
   },
   'invoice.config': {
     view: [PERMISSIONS.INVOICE_PROVIDERS_CONFIG],

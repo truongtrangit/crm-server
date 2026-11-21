@@ -13,6 +13,7 @@ const invoiceProviderSchema = new mongoose.Schema(
     },
     invoiceForm: { type: String, default: null, trim: true },     // Mẫu số: "1"
     invoiceSerial: { type: String, default: null, trim: true },   // Ký hiệu: "K26MAA"
+    sellerTaxCode: { type: String, default: null, trim: true },   // MST người bán (gửi lên BKAV SellerTaxCode)
     isActive: { type: Boolean, default: true },
     isDefault: { type: Boolean, default: false },                 // Provider mặc định
 
@@ -27,7 +28,7 @@ const invoiceProviderSchema = new mongoose.Schema(
       partnerGUID: { type: String, default: null, trim: true },
       // PartnerToken lưu encrypted — Key:IV format (AES-256)
       partnerToken: { type: String, default: null, trim: true },
-      cmdType: { type: Number, default: 111 },                   // CmdType mặc định: 111
+      cmdType: { type: Number, default: 112 },                   // CmdType mặc định: 112 (PMKT chỉ định mẫu/ký hiệu, BKAV cấp số)
       endpoint: {
         type: String,
         default: null,

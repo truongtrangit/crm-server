@@ -1,20 +1,22 @@
 const Joi = require('joi');
 
-const { INVOICE_PROVIDER_TYPES, BKAV_CMD_TYPES } = require('../../core/constants/invoice');
+const {
+  INVOICE_PROVIDER_TYPES,
+  BKAV_CMD_TYPES,
+} = require('../../core/constants/invoice');
 
 // ─── Invoice Item sub-schema ────────────────────────────────────────────────
 
 const invoiceItemSchema = Joi.object({
-  itemName: Joi.string().trim().required().messages({
-    'string.empty': 'Tên hàng hoá không được để trống',
-    'any.required': 'Tên hàng hoá là bắt buộc',
-  }),
+  productId: Joi.string().trim().allow(null, '').default(null),
+  itemCode: Joi.string().trim().allow('').default(''),
+  itemName: Joi.string().trim().allow('').default(''),
   unitName: Joi.string().trim().allow('').default(''),
-  quantity: Joi.number().min(0).default(0),
-  unitPrice: Joi.number().min(0).default(0),
+  quantity: Joi.number().default(0),
+  unitPrice: Joi.number().default(0),
   amount: Joi.number().default(0),
-  taxRateId: Joi.number().integer().min(0).default(3),
-  taxRate: Joi.number().min(-2).max(100).default(10),
+  taxRateId: Joi.number().integer().min(1).default(3),
+  taxRate: Joi.number().min(-4).max(100).default(10),
   taxAmount: Joi.number().default(0),
   discountRate: Joi.number().min(0).max(100).default(0),
   discountAmount: Joi.number().min(0).default(0),
@@ -22,12 +24,13 @@ const invoiceItemSchema = Joi.object({
   itemTypeId: Joi.number().integer().min(0).default(0),
   userDefineDetails: Joi.string().allow('').default(''),
   isIncrease: Joi.boolean().allow(null).default(null),
-});
+}).unknown(true);
 
 // ─── Buyer sub-schema ───────────────────────────────────────────────────────
 
 const buyerSchema = Joi.object({
   type: Joi.string().valid('company', 'personal').default('company'),
+  code: Joi.string().trim().allow('').default(''),
   name: Joi.string().trim().allow('').default(''),
   taxCode: Joi.string().trim().allow('').default(''),
   unitName: Joi.string().trim().allow('').default(''),
@@ -45,7 +48,7 @@ const createInvoiceSchema = Joi.object({
     'string.empty': 'Nhà cung cấp không được để trống',
     'any.required': 'Nhà cung cấp là bắt buộc',
   }),
-  isDraft: Joi.boolean().default(true),                // true = lưu nháp, false = phát hành ngay
+  isDraft: Joi.boolean().default(true), // true = lưu nháp, false = phát hành ngay
   invoiceForm: Joi.string().trim().allow('', null).default(null),
   invoiceSerial: Joi.string().trim().allow('', null).default(null),
   invoiceNo: Joi.number().integer().min(0).default(0),
@@ -63,7 +66,9 @@ const createInvoiceSchema = Joi.object({
   }),
   // Cho HĐ thay thế / điều chỉnh
   relatedInvoiceId: Joi.string().trim().allow(null, '').default(null),
-  relationType: Joi.string().valid('replacement', 'adjustment', null).default(null),
+  relationType: Joi.string()
+    .valid('replacement', 'adjustment', 'adjustment_discount', null)
+    .default(null),
   // Nguồn gốc dữ liệu
   sourceModule: Joi.string().trim().allow(null, '').default(null),
   sourceId: Joi.string().trim().allow(null, '').default(null),
@@ -88,6 +93,7 @@ const updateInvoiceSchema = Joi.object({
   items: Joi.array().items(invoiceItemSchema).min(1).messages({
     'array.min': 'Phải có ít nhất 1 hàng hoá / dịch vụ',
   }),
+  isDraft: Joi.boolean(),
 }).min(1);
 
 // ─── Create Provider ────────────────────────────────────────────────────────
@@ -103,12 +109,12 @@ const bkavConfigSchema = Joi.object({
   }),
   cmdType: Joi.number()
     .valid(...Object.values(BKAV_CMD_TYPES))
-    .default(BKAV_CMD_TYPES.CREATE_111),
+    .default(BKAV_CMD_TYPES.CREATE_112),
   endpoint: Joi.string().uri().required().messages({
     'string.uri': 'Endpoint phải là URL hợp lệ',
     'any.required': 'Endpoint là bắt buộc',
   }),
-  invoiceTypeId: Joi.number().integer().min(1).max(5).default(1),
+  invoiceTypeId: Joi.number().integer().min(1).max(11).default(1),
   receiveTypeId: Joi.number().integer().min(1).max(4).default(3),
   autoSign: Joi.boolean().default(false),
 });
@@ -140,6 +146,7 @@ const createProviderSchema = Joi.object({
     }),
   invoiceForm: Joi.string().trim().allow('', null).default(null),
   invoiceSerial: Joi.string().trim().allow('', null).default(null),
+  sellerTaxCode: Joi.string().trim().max(14).allow('', null).default(null),
   isActive: Joi.boolean().default(true),
   isDefault: Joi.boolean().default(false),
   emailNotification: Joi.object({
@@ -163,6 +170,7 @@ const updateProviderSchema = Joi.object({
   name: Joi.string().trim(),
   invoiceForm: Joi.string().trim().allow('', null),
   invoiceSerial: Joi.string().trim().allow('', null),
+  sellerTaxCode: Joi.string().trim().max(14).allow('', null),
   isActive: Joi.boolean(),
   isDefault: Joi.boolean(),
   emailNotification: Joi.object({
@@ -173,7 +181,7 @@ const updateProviderSchema = Joi.object({
     partnerToken: Joi.string().trim(),
     cmdType: Joi.number().valid(...Object.values(BKAV_CMD_TYPES)),
     endpoint: Joi.string().uri(),
-    invoiceTypeId: Joi.number().integer().min(1).max(5),
+    invoiceTypeId: Joi.number().integer().min(1).max(11),
     receiveTypeId: Joi.number().integer().min(1).max(4),
     autoSign: Joi.boolean(),
   }).allow(null),
@@ -205,10 +213,46 @@ const replaceAdjustInvoiceSchema = Joi.object({
   }),
 });
 
+// ─── Invoice Product / Catalog ──────────────────────────────────────────────
+
+const createInvoiceProductSchema = Joi.object({
+  code: Joi.string().trim().uppercase().required().messages({
+    'string.empty': 'Mã sản phẩm (SKU) không được để trống',
+    'any.required': 'Mã sản phẩm (SKU) là bắt buộc',
+  }),
+  name: Joi.string().trim().required().messages({
+    'string.empty': 'Tên hàng hoá / dịch vụ không được để trống',
+    'any.required': 'Tên hàng hoá / dịch vụ là bắt buộc',
+  }),
+  unitName: Joi.string().trim().allow('').default('Lần'),
+  unitPrice: Joi.number().min(0).default(0),
+  taxRateId: Joi.number().integer().min(1).default(3),
+  taxRate: Joi.number().min(-2).max(100).default(10),
+  itemTypeId: Joi.number().integer().min(0).default(0),
+  description: Joi.string().trim().allow('').default(''),
+  userDefineDetails: Joi.string().allow('').default(''),
+  isActive: Joi.boolean().default(true),
+});
+
+const updateInvoiceProductSchema = Joi.object({
+  code: Joi.string().trim().uppercase(),
+  name: Joi.string().trim(),
+  unitName: Joi.string().trim().allow(''),
+  unitPrice: Joi.number().min(0),
+  taxRateId: Joi.number().integer().min(1),
+  taxRate: Joi.number().min(-2).max(100),
+  itemTypeId: Joi.number().integer().min(0),
+  description: Joi.string().trim().allow(''),
+  userDefineDetails: Joi.string().allow(''),
+  isActive: Joi.boolean(),
+}).min(1);
+
 module.exports = {
   createInvoiceSchema,
   updateInvoiceSchema,
   replaceAdjustInvoiceSchema,
   createProviderSchema,
   updateProviderSchema,
+  createInvoiceProductSchema,
+  updateInvoiceProductSchema,
 };
