@@ -36,7 +36,76 @@ X-Idempotency-Key: <ma_duy_nhat_moi_request> # Khuyến nghị khi gọi POST (c
 
 ---
 
-## 3. Hai Cách Gửi Hàng Hoá Khi Tạo Hoá Đơn (`items[]`)
+## 3. Thông Tin Người Mua (`buyer`) & Các Trường Chung Của Hoá Đơn
+
+Khi gọi `POST /api/external/v1/invoices`, ngoài danh sách hàng hoá `items[]`, bạn cần truyền object `buyer` theo đúng loại khách hàng (**Doanh nghiệp** hoặc **Cá nhân**) chuẩn Nghị định 123/2020/NĐ-CP & 70/2025/NĐ-CP.
+
+### 3.1. Bảng Chi Tiết Các Trường Trong `buyer`
+
+| Trường (`buyer.*`) | Kiểu | Doanh nghiệp (`type: "company"`) | Cá nhân (`type: "personal"`) | Mô tả & Quy tắc xử lý trên CRM / BKAV |
+| --- | --- | --- | --- | --- |
+| `type` | `string` | `"company"` *(mặc định)* | `"personal"` | Phân loại người mua. Chỉ nhận `"company"` hoặc `"personal"`. |
+| `unitName` | `string` | **Nên có (bắt buộc theo CQT)** | **Không cần** *(CRM tự bỏ trống)* | Tên công ty / đơn vị trên GPKD (map sang `BuyerUnitName`). Với `personal`, CRM luôn gửi `BuyerUnitName = ""` để không in thừa dòng đơn vị. |
+| `taxCode` | `string` | **Nên có (bắt buộc theo CQT)** | Tuỳ chọn | Mã số thuế (10 hoặc 14 số). Với Hộ kinh doanh dùng CCCD 12 số cũng có thể truyền vào `taxCode` (CRM tự đồng bộ sang trường `CCCD` của BKAV). |
+| `cccd` | `string` | Tuỳ chọn | Tuỳ chọn *(khuyến nghị nếu khách cung cấp)* | Số CCCD / Mã định danh cá nhân (12 chữ số, map sang trường `CCCD` của BKAV). |
+| `name` | `string` | Tuỳ chọn *(người mua hàng / đại diện)* | **Nên có** *(Họ và tên)* | Họ và tên người mua hàng (map sang `BuyerName`). Nếu cả `name` và `unitName` đều trống, CRM tự điền `"Khách lẻ"`. |
+| `address` | `string` | **Nên có (bắt buộc theo CQT)** | Tuỳ chọn | Địa chỉ trụ sở (với doanh nghiệp) hoặc địa chỉ liên hệ (với cá nhân). |
+| `email` | `string` | Tuỳ chọn *(khuyến nghị)* | Tuỳ chọn *(khuyến nghị)* | Email nhận thông báo & file hoá đơn điện tử. **Lưu ý:** Nếu có truyền thì phải đúng định dạng email (nếu sai trả `400`); không có thì bỏ qua hoặc truyền `""`. |
+| `phone` | `string` | Tuỳ chọn | Tuỳ chọn | Số điện thoại người mua. |
+| `code` | `string` | Tuỳ chọn | Tuỳ chọn | Mã khách hàng bên hệ thống đối tác (map sang `BuyerCode` trên BKAV). |
+| `bankAccount` | `string` | Tuỳ chọn | Tuỳ chọn | Số tài khoản ngân hàng của người mua (nếu khách yêu cầu in lên hoá đơn). |
+
+### 3.2. Mẫu `buyer` Chuẩn Cho 3 Trường Hợp Thực Tế
+
+- **Trường hợp 1 — Khách Doanh nghiệp / Tổ chức (`"type": "company"`):** *(Đủ `taxCode`, `unitName`, `address`; `name` có thể bỏ trống)*
+```json
+"buyer": {
+  "type": "company",
+  "taxCode": "0101234567",
+  "unitName": "CÔNG TY TNHH GIẢI PHÁP SỐ ABC",
+  "address": "123 Cầu Giấy, Hà Nội",
+  "name": "Nguyễn Văn A",
+  "email": "ketoan@abc.vn",
+  "phone": "0901234567"
+}
+```
+
+- **Trường hợp 2 — Khách Cá nhân có định danh (`"type": "personal"`):** *(Không cần `unitName`; truyền `cccd` 12 số nếu khách cung cấp)*
+```json
+"buyer": {
+  "type": "personal",
+  "name": "Trần Thị B",
+  "cccd": "079095123456",
+  "address": "45 Lê Lợi, Quận 1, TP.HCM",
+  "email": "tranthib@gmail.com",
+  "phone": "0988888888"
+}
+```
+
+- **Trường hợp 3 — Khách lẻ không lấy thông tin chi tiết:** *(Hoặc bỏ hẳn object `buyer`, CRM tự gán `"Khách lẻ"`)*
+```json
+"buyer": {
+  "type": "personal",
+  "name": "Khách lẻ"
+}
+```
+
+### 3.3. Các Trường Cấp Hoá Đơn (Top-Level Fields) Thường Dùng
+
+| Trường | Kiểu | Bắt buộc | Mặc định | Ghi chú |
+| --- | --- | --- | --- | --- |
+| `sourceId` | `string` | **Khuyến nghị** | `null` | Mã đơn hàng duy nhất bên hệ thống đối tác (dùng chống xuất trùng & tra cứu qua `GET /:id`). |
+| `billCode` | `string` | Không | `= sourceId` | Mã chứng từ/đơn hàng in trên hoá đơn. |
+| `paymentMethod` | `string` | Không | `"TM/CK"` | Hình thức thanh toán: `"TM"` (Tiền mặt), `"CK"` (Chuyển khoản), `"TM/CK"` (Tiền mặt / Chuyển khoản). |
+| `isDraft` | `boolean` | Không | `false` | `false` = đẩy sang BKAV ngay; `true` = chỉ lưu nháp trên CRM (dùng khi test UAT). |
+| `invoiceDate` | `string (ISO)` | Không | Hiện tại | Ngày lập hoá đơn (VD: `"2026-11-20T04:00:00.000Z"`). |
+| `note` | `string` | Không | `""` | Ghi chú chung cho hoá đơn. |
+| `buyer` | `object` | Khuyến nghị | `{ name: "Khách lẻ" }` | Thông tin người mua (xem mục 3.1). |
+| `items` | `array` | **Bắt buộc (≥ 1)** | — | Danh sách dòng hàng hoá / dịch vụ (xem mục 4). |
+
+---
+
+## 4. Hai Cách Gửi Hàng Hoá Khi Tạo Hoá Đơn (`items[]`)
 
 Khi gọi `POST /api/external/v1/invoices`, hệ thống hỗ trợ **2 cách truyền danh sách hàng hoá (`items[]`)** cực kỳ rõ ràng:
 
@@ -91,9 +160,9 @@ Khi gọi `POST /api/external/v1/invoices`, hệ thống hỗ trợ **2 cách tr
 
 ---
 
-## 4. Ví Dụ Copy-Paste Chạy Ngay
+## 5. Ví Dụ Copy-Paste Chạy Ngay
 
-### 4.1. Xuất 1 Hoá đơn theo Mã Sản phẩm (SKU)
+### 5.1. Xuất 1 Hoá đơn theo Mã Sản phẩm (SKU)
 
 ```bash
 curl -X POST "https://final.vn/api/external/v1/invoices" \
@@ -156,7 +225,7 @@ curl -X POST "https://final.vn/api/external/v1/invoices" \
 
 ---
 
-### 4.2. Gửi 1 Mảng để Xuất Nhiều Hoá đơn Riêng Biệt (Tối đa 30 hoá đơn / lần)
+### 5.2. Gửi 1 Mảng để Xuất Nhiều Hoá đơn Riêng Biệt (Tối đa 30 hoá đơn / lần)
 
 Nếu cần xuất nhiều đơn hàng cùng lúc, gửi trực tiếp **một mảng JSON `[ {...}, {...} ]`**. **Mỗi phần tử trong mảng sẽ xuất ra 1 hoá đơn riêng biệt** (đơn nào lỗi chỉ báo lỗi đơn đó, các đơn còn lại vẫn xuất bình thường):
 
@@ -198,7 +267,7 @@ curl -X POST "https://final.vn/api/external/v1/invoices" \
 
 ---
 
-### 4.3. Tra cứu lại Hoá đơn theo Mã đơn hàng (`sourceId`)
+### 5.3. Tra cứu lại Hoá đơn theo Mã đơn hàng (`sourceId`)
 
 ```bash
 curl -X GET "https://final.vn/api/external/v1/invoices/ORD-20261120-001" \
@@ -208,7 +277,7 @@ curl -X GET "https://final.vn/api/external/v1/invoices/ORD-20261120-001" \
 
 ---
 
-## 5. Giải Thích Nhanh Trạng Thái Hoá Đơn (`data.status`) & Mã Lỗi
+## 6. Giải Thích Nhanh Trạng Thái Hoá Đơn (`data.status`) & Mã Lỗi
 
 ### Trạng thái Hoá đơn (`data.status`)
 - `"issued"`: Đã phát hành & ký số thành công trên BKAV.

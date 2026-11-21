@@ -2640,6 +2640,24 @@ class InvoiceService {
         branch2_customTemplate:
           'Không truyền productId/itemCode → bắt buộc truyền đầy đủ các trường hợp lệ theo itemType: goods (itemName, unitName, quantity > 0, unitPrice >= 0, taxRate), vehicle (như goods + userDefineDetails), promotion (itemName, unitName, quantity > 0), discount (itemName + amount > 0), note (itemName).',
       },
+      buyerRules: {
+        company:
+          'type="company": Nên truyền đủ taxCode (MST 10/14 số hoặc CCCD 12 số với hộ KD), unitName (Tên đơn vị) và address (Địa chỉ trụ sở). Trường name (Người mua hàng), email, phone, code, bankAccount là tuỳ chọn.',
+        personal:
+          'type="personal": Truyền name (Họ và tên; nếu bỏ trống CRM tự điền "Khách lẻ"). KHÔNG cần truyền unitName (CRM luôn gửi BuyerUnitName="" sang BKAV). Tuỳ chọn truyền cccd (12 chữ số), taxCode (MST cá nhân), address, email, phone.',
+        fields: [
+          { field: 'type', type: 'string', default: 'company', description: '"company" | "personal"' },
+          { field: 'unitName', type: 'string', default: '', description: 'Tên đơn vị / doanh nghiệp (chỉ dùng cho company; personal tự để trống)' },
+          { field: 'taxCode', type: 'string', default: '', description: 'Mã số thuế 10/14 số (hoặc CCCD 12 số với hộ KD)' },
+          { field: 'cccd', type: 'string', default: '', description: 'Số CCCD / định danh cá nhân 12 số (map sang trường CCCD trên BKAV)' },
+          { field: 'name', type: 'string', default: '', description: 'Họ và tên người mua (mặc định "Khách lẻ" nếu cả name & unitName đều trống)' },
+          { field: 'address', type: 'string', default: '', description: 'Địa chỉ trụ sở / địa chỉ liên hệ' },
+          { field: 'email', type: 'string', default: '', description: 'Email nhận hoá đơn điện tử (đúng định dạng email nếu truyền)' },
+          { field: 'phone', type: 'string', default: '', description: 'Số điện thoại người mua' },
+          { field: 'code', type: 'string', default: '', description: 'Mã khách hàng đối tác (BuyerCode)' },
+          { field: 'bankAccount', type: 'string', default: '', description: 'Số tài khoản ngân hàng người mua' },
+        ],
+      },
       enums: {
         itemType: [
           {
