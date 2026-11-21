@@ -141,9 +141,13 @@ const invoiceSchema = new mongoose.Schema(
 invoiceSchema.index({ status: 1 });
 invoiceSchema.index({ providerId: 1, status: 1 });
 invoiceSchema.index({ invoiceDate: -1, createdAt: -1 });
+invoiceSchema.index({ isDeleted: 1, createdAt: -1 });
 invoiceSchema.index({ providerInvoiceGUID: 1 }, { sparse: true });
 invoiceSchema.index({ 'buyer.taxCode': 1 }, { sparse: true });
 invoiceSchema.index({ billCode: 1 }, { sparse: true });
+invoiceSchema.index({ sourceModule: 1, sourceId: 1 }, { sparse: true });
+invoiceSchema.index({ sourceModule: 1, billCode: 1 }, { sparse: true });
+invoiceSchema.index({ lookupCode: 1 }, { sparse: true });
 invoiceSchema.index({ relatedInvoiceId: 1 }, { sparse: true });
 invoiceSchema.index({ invoiceNo: 1 }, { sparse: true });
 

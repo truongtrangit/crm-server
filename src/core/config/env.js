@@ -1,8 +1,31 @@
+function normalizeBaseUrl(raw) {
+  const trimmed = String(raw || '').trim().replace(/\/+$/, '');
+  if (!trimmed || trimmed === '*' || !/^https?:\/\/.+/i.test(trimmed)) {
+    return '';
+  }
+  return trimmed;
+}
+
+function resolvePublicAppUrl(rawEnv = process.env) {
+  const configured = normalizeBaseUrl(rawEnv.PUBLIC_APP_URL);
+  if (configured) return configured;
+  return rawEnv.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+}
+
+function resolveInvoicePublicBaseUrl(rawEnv = process.env) {
+  return (
+    normalizeBaseUrl(rawEnv.INVOICE_PUBLIC_URL) ||
+    resolvePublicAppUrl(rawEnv)
+  );
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017',
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:3001', // CORS allowlist only (comma-separated origins or '*')
+  publicAppUrl: resolvePublicAppUrl(process.env), // Canonical public web URL for customer-facing links
+  invoicePublicUrl: normalizeBaseUrl(process.env.INVOICE_PUBLIC_URL), // Optional dedicated domain override for invoice lookup portal
   accessTokenTtlMinutes: Number(process.env.ACCESS_TOKEN_TTL_MINUTES) || 15,
   refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS) || 30,
   passwordResetTokenTtlMinutes:
@@ -84,18 +107,146 @@ const env = {
     'https://dev.smax.ai/api/backdoors/botvn/billing',
   smaxCreditValidationToken: process.env.SMAX_CREDIT_VALIDATION_TOKEN || '',
 
-  // ─── eInvoice (BKAV eHoaDon) ──────────────────────────────────────────────
-  // Endpoint WebService: Dev=wsdemo.ehoadon.vn, Prod=ws.ehoadon.vn
-  // bkavInvoiceEndpoint:
-  //   process.env.BKAV_INVOICE_ENDPOINT ||
-  //   'https://wsdemo.ehoadon.vn/WSPublicEHoaDon.asmx',
-  // bkavInvoicePartnerGUID: process.env.BKAV_INVOICE_PARTNER_GUID || '',
-  // bkavInvoicePartnerToken: process.env.BKAV_INVOICE_PARTNER_TOKEN || '',
-  // bkavInvoiceCmdType: Number(process.env.BKAV_INVOICE_CMD_TYPE) || 111,
-  // bkavInvoiceSerial: process.env.BKAV_INVOICE_SERIAL || '', // Ký hiệu HĐ: MAA, MVK
+  // ─── Multi-Partner External Invoice Registry (Key.vn & 3rd-party Partners) ──
+  // Mỗi đối tác có cấu hình apiKey & allowedIps hoàn toàn tách biệt.
+  // - Đối tác hiện tại: keyvn (KEYVN_API_KEY / ZCODE_API_KEY & KEYVN_ALLOWED_IPS / ZCODE_ALLOWED_IPS)
+  // - Thêm đối tác mới (không cần sửa code), xem docs/INVOICE_EXTERNAL_PARTNER_ONBOARDING.md:
+  //   INVOICE_PARTNER_<NAME>_API_KEY=...
+  //   INVOICE_PARTNER_<NAME>_ALLOWED_IPS=...
+  //   (tuỳ chọn) INVOICE_PARTNER_<NAME>_SOURCE_MODULE=...
+  //   (tuỳ chọn) INVOICE_PARTNER_<NAME>_SYSTEM=...
+  // hoặc JSON: INVOICE_EXTERNAL_PARTNERS='{"partnerX":{"apiKey":"...","allowedIps":"1.2.3.4"}}'
+  invoiceExternalPartners: buildInvoiceExternalPartners(process.env),
 };
 
+function buildInvoiceExternalPartners(rawEnv = process.env) {
+  const partners = {
+    keyvn: {
+      id: 'keyvn',
+      name: 'Key.vn (ZCode)',
+      aliases: ['keyvn', 'key.vn', 'zcode'],
+      sourceModule: 'zcode',
+      system: 'ZCODE',
+      apiKey:
+        rawEnv.KEYVN_API_KEY ||
+        rawEnv.ZCODE_API_KEY ||
+        'zcode_secret_key_change_in_production',
+      allowedIps: rawEnv.KEYVN_ALLOWED_IPS || rawEnv.ZCODE_ALLOWED_IPS || '',
+    },
+  };
+
+  // Auto-discover INVOICE_PARTNER_<NAME>_API_KEY & INVOICE_PARTNER_<NAME>_ALLOWED_IPS
+  const prefix = 'INVOICE_PARTNER_';
+  const apiKeySuffix = '_API_KEY';
+  for (const [envKey, envVal] of Object.entries(rawEnv)) {
+    if (envKey.startsWith(prefix) && envKey.endsWith(apiKeySuffix) && envVal) {
+      const rawName = envKey.slice(prefix.length, -apiKeySuffix.length);
+      const id = rawName.toLowerCase();
+      if (!id) continue;
+      const allowedIpsKey = `${prefix}${rawName}_ALLOWED_IPS`;
+      const sourceModuleKey = `${prefix}${rawName}_SOURCE_MODULE`;
+      const systemKey = `${prefix}${rawName}_SYSTEM`;
+      const existing = partners[id] || {};
+      partners[id] = {
+        id,
+        name: existing.name || rawName,
+        aliases: Array.from(
+          new Set([...(existing.aliases || []), id, `${id}.vn`]),
+        ),
+        sourceModule:
+          (rawEnv[sourceModuleKey] && String(rawEnv[sourceModuleKey]).trim()) ||
+          existing.sourceModule ||
+          id,
+        system:
+          (rawEnv[systemKey] &&
+            String(rawEnv[systemKey]).trim().toUpperCase()) ||
+          existing.system ||
+          rawName.toUpperCase(),
+        apiKey: String(envVal).trim(),
+        allowedIps:
+          rawEnv[allowedIpsKey] !== undefined
+            ? String(rawEnv[allowedIpsKey]).trim()
+            : existing.allowedIps || '',
+      };
+    }
+  }
+
+  // Optional JSON override: INVOICE_EXTERNAL_PARTNERS
+  if (rawEnv.INVOICE_EXTERNAL_PARTNERS) {
+    try {
+      const parsed = JSON.parse(rawEnv.INVOICE_EXTERNAL_PARTNERS);
+      if (parsed && typeof parsed === 'object') {
+        for (const [rawId, cfg] of Object.entries(parsed)) {
+          if (!cfg || typeof cfg !== 'object') continue;
+          const id = rawId.toLowerCase().replace(/\.vn$/, '');
+          const existing = partners[id] || {};
+          partners[id] = {
+            id,
+            name: cfg.name || existing.name || rawId,
+            aliases: Array.from(
+              new Set([
+                ...(existing.aliases || []),
+                ...(Array.isArray(cfg.aliases) ? cfg.aliases : []),
+                id,
+                rawId.toLowerCase(),
+                `${id}.vn`,
+              ]),
+            ),
+            sourceModule: cfg.sourceModule || existing.sourceModule || id,
+            system: cfg.system || existing.system || id.toUpperCase(),
+            apiKey:
+              cfg.apiKey !== undefined
+                ? String(cfg.apiKey).trim()
+                : existing.apiKey || '',
+            allowedIps:
+              cfg.allowedIps !== undefined
+                ? Array.isArray(cfg.allowedIps)
+                  ? cfg.allowedIps.join(',')
+                  : String(cfg.allowedIps).trim()
+                : existing.allowedIps || '',
+          };
+        }
+      }
+    } catch {
+      // Ignore malformed JSON in env
+    }
+  }
+
+  return partners;
+}
+
+function maskEnvForLog(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map((v) => maskEnvForLog(v));
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (
+      /(key|secret|token|password|uri)/i.test(k) &&
+      typeof v === 'string' &&
+      v
+    ) {
+      out[k] = '***';
+    } else if (v && typeof v === 'object') {
+      out[k] = maskEnvForLog(v);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+Object.defineProperty(env, 'buildInvoiceExternalPartners', {
+  value: buildInvoiceExternalPartners,
+  enumerable: false,
+});
+Object.defineProperty(env, 'resolveInvoicePublicBaseUrl', {
+  value: resolveInvoicePublicBaseUrl,
+  enumerable: false,
+});
+
 Object.freeze(env);
-console.log('🚀 ~ env:', JSON.stringify(env, null, 2));
+if (env.nodeEnv !== 'test') {
+  console.log('🚀 ~ env:', JSON.stringify(maskEnvForLog(env), null, 2));
+}
 
 module.exports = env;

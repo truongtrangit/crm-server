@@ -1,8 +1,9 @@
 const EXTERNAL_SYSTEMS = Object.freeze({
   BOTVN: 'BOTVN',
-  ZCODE: 'ZCODE',
+  ZCODE: 'ZCODE', // Key.vn / ZCode
   ACB: 'ACB',
   BOTVN_ZALO_MINI_APP: 'BOTVN_ZALO_MINI_APP',
+  INVOICE_EXTERNAL: 'INVOICE_EXTERNAL',
 });
 
 module.exports = {

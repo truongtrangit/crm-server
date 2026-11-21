@@ -1,4 +1,6 @@
 const rateLimit = require('express-rate-limit');
+const env = require('../config/env');
+const { getClientIp } = require('../utils/request');
 
 /**
  * Limit requests to endpoints to prevent brute-force and DDoS
@@ -97,6 +99,36 @@ const otpResendLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const externalInvoiceLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // Max 60 external invoice API requests per minute per real client IP
+  keyGenerator: (req) => getClientIp(req) || req.ip,
+  validate: { keyGeneratorIpFallback: false },
+  skip: () => env.nodeEnv === 'test',
+  message: {
+    success: false,
+    message: 'Too many invoice requests. Please try again after 1 minute.',
+    code: 'INVOICE_EXTERNAL_RATE_LIMITED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const publicInvoiceLookupLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Max 30 public invoice lookup/download requests per minute per client IP
+  keyGenerator: (req) => getClientIp(req) || req.ip,
+  validate: { keyGeneratorIpFallback: false },
+  skip: () => env.nodeEnv === 'test',
+  message: {
+    success: false,
+    message: 'Quá nhiều yêu cầu tra cứu hoá đơn. Vui lòng thử lại sau 1 phút.',
+    code: 'INVOICE_PUBLIC_LOOKUP_RATE_LIMITED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   voucherRedeemLimiter,
   qrGenerateLimiter,
@@ -106,4 +138,6 @@ module.exports = {
   acbWebhookLimiter,
   otpVerifyLimiter,
   otpResendLimiter,
+  externalInvoiceLimiter,
+  publicInvoiceLookupLimiter,
 };

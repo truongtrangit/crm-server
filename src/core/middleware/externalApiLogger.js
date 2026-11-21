@@ -54,10 +54,12 @@ function externalApiLogger(systemName = 'ZCODE') {
         }
       }
 
+      const resolvedSystem = req.externalPartner?.system || systemName;
+
       ExternalApiLog.create({
         method: req.method,
         path: req.originalUrl,
-        system: systemName,
+        system: resolvedSystem,
         callerIp: clientIp,
         apiKeyValid: secCtx.apiKeyValid !== false,
         idempotencyKey: secCtx.idempotencyKey || null,

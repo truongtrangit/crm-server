@@ -1,0 +1,643 @@
+{
+  "info": {
+    "name": "Invoice External API (Key.vn & 3rd-Party Integration)",
+    "description": "Bộ tài liệu Postman chuẩn v2.1 dành cho **Key.vn (ZCode)** và các đối tác bên thứ 3 tích hợp tự động tạo & phát hành **Hoá đơn Điện tử (BKAV eHoaDon)** qua CRM Server.\n\n---\n\n## 1. Xác Thực Đa Đối Tác (Multi-Partner Auth)\nMỗi đối tác được CRM cấp **API Key riêng** và **IP Allowlist riêng** (xem hướng dẫn thêm đối tác mới tại `docs/INVOICE_EXTERNAL_PARTNER_ONBOARDING.md`):\n- Header bắt buộc: `X-API-Key: {{api_key}}`\n- Header khuyến nghị: `X-Partner-Id: {{partner_id}}` (vd: `keyvn` cho Key.vn; khi gửi kèm header này, server bắt buộc `X-API-Key` phải khớp đúng của đối tác đó)\n- Header chống trùng lặp: `X-Idempotency-Key` (TTL 24h, cô lập namespace riêng theo từng đối tác)\n\n---\n\n## 2. Quy Tắc Xử Lý Dòng Hàng Hoá (`items[]`) — 2 Nhánh Độc Lập\n- **Nhánh 1 — Có gửi ID / Mã Sản phẩm (`productId`, `id`, `itemCode`, hoặc `productCode`)**:\n  - Tra cứu sản phẩm đang hoạt động (`isActive = true`) trong tab **Hoá đơn → Sản phẩm** trên CRM.\n  - Dùng **100% thông tin cấu hình sẵn của sản phẩm trong DB** (`itemName`, `unitName`, `unitPrice`, `taxRate`, `taxRateId`, `itemTypeId`) + `quantity` (`> 0`).\n  - Nếu sản phẩm không tồn tại hoặc đang bị tắt → trả `400 Bad Request`.\n- **Nhánh 2 — Không gửi ID / Mã Sản phẩm (Tự định nghĩa theo Template)**:\n  - Kiểm tra chặt chẽ toàn bộ trường bắt buộc theo từng loại dòng (`goods`, `vehicle`, `promotion`, `discount`, `note`).\n  - Hợp lệ mới điền vào từng mục của dòng hoá đơn; thiếu bất kỳ trường bắt buộc nào → trả `400` liệt kê rõ các trường thiếu.\n\n---\n\n## 3. Hỗ Trợ Đơn Lẻ & Mảng Hàng Loạt (Batch Array)\n- Gửi **1 JSON Object `{ ... }`** → Tạo & phát hành 1 hoá đơn (`201 Created`).\n- Gửi **1 JSON Array `[ {...}, {...} ]`** (tối đa **30 hoá đơn / request**) → Mỗi phần tử trong mảng xuất ra **1 hoá đơn riêng biệt** (`200 OK` kèm mảng `results[]`, lỗi ở 1 phần tử không làm hỏng các phần tử còn lại).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4000/api/external/v1/invoices",
+      "type": "string"
+    },
+    {
+      "key": "partner_id",
+      "value": "keyvn",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "zcode_secret_key_change_in_production",
+      "type": "string"
+    },
+    {
+      "key": "sku",
+      "value": "ZB5000",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "IVP-20261118-0001",
+      "type": "string"
+    },
+    {
+      "key": "last_invoice_id",
+      "value": "INV-20261120-0001",
+      "type": "string"
+    },
+    {
+      "key": "last_source_id",
+      "value": "KEYVN-ORD-20261120-001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. [Discovery] GET /template — Lấy Template chuẩn, Bảng Enum & Ví dụ mẫu",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}",
+            "description": "Mã định danh đối tác do CRM cấp (vd: keyvn)"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "description": "API Key riêng của đối tác"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/template",
+          "host": ["{{base_url}}"],
+          "path": ["template"]
+        },
+        "description": "**Lấy Template tích hợp chuẩn, bảng Enum quy ước và 3 ví dụ mẫu**\n\nEndpoint trả về:\n- `maxInvoicesPerRequest`: Giới hạn tối đa hoá đơn trong 1 mảng batch (`30`).\n- `enums.itemType`: 5 loại dòng (`goods` [0], `promotion` [15], `discount` [30], `note` [4], `vehicle` [21]).\n- `enums.taxRates`: 7 mức thuế suất chuẩn BKAV (`10`, `8`, `5`, `0`, `-1` [KCT], `-2` [KKK], `-4` [Khác]).\n- `enums.paymentMethods`: `TM`, `CK`, `TM/CK`.\n- `enums.buyerTypes`: `company`, `personal`.\n- `activeProductsPreview`: Danh sách preview 20 sản phẩm (SKU) đang hoạt động.\n- `examples`: 3 payload mẫu (`singleBySku`, `singleCustomTemplate`, `batchArray`)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Template contains enums and examples', function () {",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data).to.have.property('maxInvoicesPerRequest', 30);",
+              "    pm.expect(res.data).to.have.property('enums');",
+              "    pm.expect(res.data).to.have.property('examples');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. [Discovery] GET /products — Lấy Danh mục Sản phẩm (SKU) đang kích hoạt",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/products",
+          "host": ["{{base_url}}"],
+          "path": ["products"]
+        },
+        "description": "**Lấy toàn bộ danh mục Sản phẩm (SKU) đang kích hoạt (`isActive = true`)**\n\nDùng để đồng bộ `id` (`productId`) và `code` (`itemCode`) đã cấu hình sẵn trong tab **Hoá đơn → Sản phẩm** trên CRM. Test script sẽ tự động lưu SKU & `product_id` đầu tiên vào biến collection để chạy các request tiếp theo."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Data is an array of active products', function () {",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data).to.be.an('array');",
+              "    if (res.data.length > 0) {",
+              "        pm.collectionVariables.set('sku', res.data[0].code);",
+              "        pm.collectionVariables.set('product_id', res.data[0].id);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. [Nhánh 1 - Theo SKU] POST / — Tạo 1 Hoá đơn bằng itemCode (Key.vn)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "ext_sku_{{$timestamp}}",
+            "description": "Khoá chống trùng lặp cấp request (TTL 24h, cô lập theo đối tác)"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"KEYVN-ORD-{{$timestamp}}\",\n  \"billCode\": \"KEYVN-ORD-{{$timestamp}}\",\n  \"isDraft\": false,\n  \"paymentMethod\": \"CK\",\n  \"note\": \"Hoá đơn tự động theo mã SKU\",\n  \"buyer\": {\n    \"type\": \"company\",\n    \"code\": \"KH-001\",\n    \"name\": \"Nguyễn Văn A\",\n    \"unitName\": \"CÔNG TY TNHH GIẢI PHÁP CÔNG NGHỆ ABC\",\n    \"taxCode\": \"0101234567\",\n    \"address\": \"Số 123 Cầu Giấy, Phường Dịch Vọng, Quận Cầu Giấy, TP. Hà Nội\",\n    \"email\": \"ketoan@abc.vn\",\n    \"phone\": \"0901234567\"\n  },\n  \"items\": [\n    {\n      \"itemCode\": \"{{sku}}\",\n      \"quantity\": 2\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Tạo & Phát hành 1 Hoá đơn theo mã SKU (`itemCode`) — Nhánh 1**\n\n1. Vì `items[0]` có `itemCode: \"{{sku}}\"`, CRM tự tra cứu sản phẩm đang hoạt động trong DB.\n2. Tự động điền toàn bộ `productId`, `itemName`, `unitName`, `unitPrice`, `taxRate`, `taxRateId`, `itemTypeId` từ cấu hình sản phẩm + nhân với `quantity: 2`.\n3. Tự động chọn Nhà cung cấp BKAV mặc định và phát hành (`isDraft: false`)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Save created invoice id & sourceId', function () {",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data).to.have.property('id');",
+              "    pm.collectionVariables.set('last_invoice_id', res.data.id);",
+              "    if (res.data.sourceId) {",
+              "        pm.collectionVariables.set('last_source_id', res.data.sourceId);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. [Nhánh 1 - Theo Product ID] POST / — Tạo 1 Hoá đơn bằng productId",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "ext_pid_{{$timestamp}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"ORD-PID-{{$timestamp}}\",\n  \"paymentMethod\": \"TM/CK\",\n  \"buyer\": {\n    \"type\": \"personal\",\n    \"name\": \"Phạm Minh Tuấn\",\n    \"email\": \"tuanpm@gmail.com\",\n    \"phone\": \"0912345678\"\n  },\n  \"items\": [\n    {\n      \"productId\": \"{{product_id}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Tạo & Phát hành 1 Hoá đơn bằng `productId` (hoặc `id`) — Nhánh 1**\n\nĐối tác có thể truyền `productId` (vd: `\"IVP-20261118-0001\"`) thay cho `itemCode`. Hệ thống tự động lấy toàn bộ thông tin cấu hình sẵn của sản phẩm trong DB."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. [Nhánh 2 - Template Tuỳ Chỉnh] POST / — Goods + Promotion + Discount + Note",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "ext_custom_{{$timestamp}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"ORD-CUSTOM-{{$timestamp}}\",\n  \"billCode\": \"ORD-CUSTOM-{{$timestamp}}\",\n  \"isDraft\": false,\n  \"paymentMethod\": \"CK\",\n  \"note\": \"Hoá đơn sử dụng Template tuỳ chỉnh (không dùng SKU)\",\n  \"buyer\": {\n    \"type\": \"company\",\n    \"name\": \"Trần Thị B\",\n    \"unitName\": \"CÔNG TY CỔ PHẦN THƯƠNG MẠI ĐIỆN TỬ XYZ\",\n    \"taxCode\": \"0312345678\",\n    \"address\": \"Quận 1, TP. Hồ Chí Minh\",\n    \"email\": \"billing@xyz.vn\",\n    \"phone\": \"0988888888\"\n  },\n  \"items\": [\n    {\n      \"itemType\": \"goods\",\n      \"itemName\": \"Gói phần mềm doanh nghiệp (12 tháng)\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 1,\n      \"unitPrice\": 2000000,\n      \"taxRate\": 8\n    },\n    {\n      \"itemType\": \"promotion\",\n      \"itemName\": \"Tặng kèm 1 tháng sử dụng miễn phí\",\n      \"unitName\": \"Tháng\",\n      \"quantity\": 1\n    },\n    {\n      \"itemType\": \"discount\",\n      \"itemName\": \"Chiết khấu thanh toán sớm 10%\",\n      \"amount\": 200000\n    },\n    {\n      \"itemType\": \"note\",\n      \"itemName\": \"Thanh toán theo hợp đồng số HD-2026\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Gửi Hoá đơn theo Template tuỳ chỉnh (Nhánh 2 — không cần tạo SKU trước)**\n\n### Chi tiết kiểm tra & tự động tính:\n- `goods`: Bắt buộc đủ `itemName`, `unitName`, `quantity > 0`, `unitPrice >= 0`, `taxRate` (`8%` → tự suy `taxRateId = 9`, `taxAmount = 160,000`).\n- `promotion`: Bắt buộc đủ `itemName`, `unitName`, `quantity > 0` → tự ép `itemTypeId = 15`, `unitPrice = 0`, `amount = 0`, `taxAmount = 0`.\n- `discount`: Bắt buộc đủ `itemName` + `amount > 0` → tự ép `itemTypeId = 30`, `isDiscount = true`, giảm trừ `200,000` vào tổng tiền trước thuế.\n- `note`: Bắt buộc có `itemName` → tự ép `itemTypeId = 4`, `quantity = 0`, `unitPrice = 0`, `amount = 0`.\n- Tổng kiểm chứng: `totalAmountBeforeTax = 1,800,000`, `totalDiscountAmount = 200,000`, `totalTaxAmount = 160,000`, `totalAmount = 1,960,000`."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 Created with accurate totals', function () {",
+              "    pm.response.to.have.status(201);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data.totalAmountBeforeTax).to.eql(1800000);",
+              "    pm.expect(res.data.totalDiscountAmount).to.eql(200000);",
+              "    pm.expect(res.data.totalTaxAmount).to.eql(160000);",
+              "    pm.expect(res.data.totalAmount).to.eql(1960000);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. [Draft Mode] POST / — Lưu Nháp trên CRM (isDraft = true, chưa đẩy BKAV)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"ORD-DRAFT-{{$timestamp}}\",\n  \"isDraft\": true,\n  \"paymentMethod\": \"TM/CK\",\n  \"note\": \"Lưu nháp để kế toán kiểm tra trước khi phát hành\",\n  \"buyer\": {\n    \"type\": \"personal\",\n    \"name\": \"Khách lẻ kiểm tra nháp\"\n  },\n  \"items\": [\n    {\n      \"itemType\": \"goods\",\n      \"itemName\": \"Gói dịch vụ kiểm thử lưu nháp\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 1,\n      \"unitPrice\": 500000,\n      \"taxRate\": 10\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Tạo Hoá đơn ở chế độ Lưu Nháp (`isDraft: true`)**\n\nCRM kiểm tra dữ liệu, tính tổng tiền/thuế và lưu hoá đơn với `status = \"draft\"`, chưa gọi sang BKAV. Phù hợp dùng để test tích hợp UAT mà không tiêu tốn số hoá đơn thật trên BKAV."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 Created and status is draft', function () {",
+              "    pm.response.to.have.status(201);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data.status).to.eql('draft');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. [Batch Array] POST / — Gửi Mảng xuất Nhiều Hoá đơn riêng biệt (Tối đa 30 HĐ/request)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "ext_batch_{{$timestamp}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "[\n  {\n    \"sourceId\": \"BATCH-1-{{$timestamp}}\",\n    \"paymentMethod\": \"CK\",\n    \"buyer\": {\n      \"type\": \"personal\",\n      \"name\": \"Khách hàng Batch 01\",\n      \"email\": \"batch01@example.com\"\n    },\n    \"items\": [\n      {\n        \"itemCode\": \"{{sku}}\",\n        \"quantity\": 1\n      }\n    ]\n  },\n  {\n    \"sourceId\": \"BATCH-2-{{$timestamp}}\",\n    \"paymentMethod\": \"TM/CK\",\n    \"buyer\": {\n      \"type\": \"company\",\n      \"name\": \"Lê Văn C\",\n      \"unitName\": \"CÔNG TY TNHH ĐỐI TÁC BATCH 02\",\n      \"taxCode\": \"0109876543\",\n      \"address\": \"Quận Cầu Giấy, Hà Nội\",\n      \"email\": \"batch02@example.com\"\n    },\n    \"items\": [\n      {\n        \"itemType\": \"goods\",\n        \"itemName\": \"Dịch vụ tuỳ chỉnh trong Batch\",\n        \"unitName\": \"Lần\",\n        \"quantity\": 2,\n        \"unitPrice\": 300000,\n        \"taxRate\": 10\n      },\n      {\n        \"itemType\": \"note\",\n        \"itemName\": \"Xuất từ mảng Batch Array\"\n      }\n    ]\n  }\n]"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Gửi 1 JSON Array — Mỗi phần tử xuất ra 1 Hoá đơn riêng biệt (tối đa 30 HĐ/request)**\n\n- Có thể trộn cả đơn Nhánh 1 (SKU) và đơn Nhánh 2 (Template tuỳ chỉnh) trong cùng 1 mảng.\n- Cô lập lỗi từng phần tử (partial-failure isolation): lỗi ở phần tử i không ảnh hưởng đến phần tử khác.\n- Trả về `total`, `successCount`, `failCount`, `duplicateCount` và `results[]`."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK with batch summary', function () {",
+              "    pm.response.to.have.status(200);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data).to.have.property('total', 2);",
+              "    pm.expect(res.data.results).to.be.an('array').with.lengthOf(2);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. [Idempotency Lớp 1] POST / — Gửi lại cùng X-Idempotency-Key (Trả kết quả cache)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "fixed_idempotency_test_key_001",
+            "description": "Gọi lần 1 tạo mới; gọi lần 2 với cùng key này trả kết quả cache kèm idempotent: true"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"IDEMP-HEADER-TEST-001\",\n  \"isDraft\": true,\n  \"buyer\": {\n    \"type\": \"personal\",\n    \"name\": \"Khách test X-Idempotency-Key\"\n  },\n  \"items\": [\n    {\n      \"itemType\": \"goods\",\n      \"itemName\": \"Gói test Idempotency Header\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 1,\n      \"unitPrice\": 100000,\n      \"taxRate\": 10\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Kiểm thử Chống trùng lặp Lớp 1 (`X-Idempotency-Key` header, TTL 24 giờ)**\n\nGọi request này 2 lần liên tiếp: lần 2 sẽ nhận lại nguyên vẹn kết quả lần 1 kèm `\"idempotent\": true` ở cấp root mà không tạo hoá đơn mới."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 or 201', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. [Idempotency Lớp 2] POST / — Gửi trùng sourceId (Trả lại HĐ cũ kèm duplicate: true)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"{{last_source_id}}\",\n  \"buyer\": {\n    \"type\": \"personal\",\n    \"name\": \"Khách gọi lại cùng sourceId\"\n  },\n  \"items\": [\n    {\n      \"itemCode\": \"{{sku}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Kiểm thử Chống trùng lặp Lớp 2 (Trùng `sourceId` / `billCode` của cùng đối tác)**\n\nNgay cả khi không gửi `X-Idempotency-Key`, CRM phát hiện `sourceId` đã tồn tại hoá đơn chưa huỷ của đối tác này → trả HTTP `200 OK` kèm `data.duplicate: true`."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK with duplicate = true', function () {",
+              "    pm.response.to.have.status(200);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data.duplicate).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. [Lookup] GET /:id — Tra cứu Hoá đơn theo ID CRM, sourceId hoặc billCode",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/{{last_source_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["{{last_source_id}}"]
+        },
+        "description": "**Tra cứu trạng thái, số hoá đơn, mã tra cứu (MTC) và mã CQT**\n\nTham số `:id` chấp nhận: `id` CRM (`INV-...`), `sourceId`, hoặc `billCode`."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.data).to.have.property('id');",
+              "    pm.expect(res.data).to.have.property('status');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. [Error 400 - Nhánh 2] POST / — Thiếu trường bắt buộc khi không truyền productId/itemCode",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"ERR-MISSING-FIELDS-001\",\n  \"items\": [\n    {\n      \"itemName\": \"Dịch vụ thiếu unitName, unitPrice và taxRate\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Kiểm thử lỗi 400 ở Nhánh 2 khi thiếu trường bắt buộc (`unitName`, `unitPrice`, `taxRate`)**\n\nResponse sẽ liệt kê rõ từng trường đang thiếu/không hợp lệ."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400 Bad Request listing missing fields', function () {",
+              "    pm.response.to.have.status(400);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.message).to.include('unitName');",
+              "    pm.expect(res.message).to.include('unitPrice');",
+              "    pm.expect(res.message).to.include('taxRate');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. [Error 400 - Nhánh 1] POST / — Gửi mã SKU không tồn tại",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "{{partner_id}}"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"ERR-BAD-SKU-001\",\n  \"items\": [\n    {\n      \"itemCode\": \"SKU_KHONG_TON_TAI_999\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Kiểm thử lỗi 400 ở Nhánh 1 khi `itemCode` không tồn tại hoặc đang bị tắt trên CRM**"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400 Bad Request for unknown SKU', function () {",
+              "    pm.response.to.have.status(400);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.message).to.include('SKU_KHONG_TON_TAI_999');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. [Error 401] POST / — Sai X-API-Key hoặc không khớp X-Partner-Id",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Partner-Id",
+            "value": "unknown_partner"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceId\": \"ERR-AUTH-001\",\n  \"items\": [\n    {\n      \"itemCode\": \"{{sku}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}",
+          "host": ["{{base_url}}"]
+        },
+        "description": "**Kiểm thử lỗi 401 khi `X-API-Key` sai hoặc không khớp với đối tác khai báo trong `X-Partner-Id`**"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "    var res = pm.response.json();",
+              "    pm.expect(res.code).to.eql('INVOICE_EXTERNAL_INVALID_API_KEY');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

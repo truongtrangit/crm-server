@@ -15,16 +15,23 @@ const zcodeIdempotencyKeySchema = new mongoose.Schema(
       unique: true,
     },
 
+    /** Processing state to prevent TOCTOU double-issuance on concurrent retries */
+    status: {
+      type: String,
+      enum: ['processing', 'completed'],
+      default: 'completed',
+    },
+
     /** Cached HTTP status code */
     responseStatus: {
       type: Number,
-      required: true,
+      default: 0,
     },
 
     /** Cached response body */
     responseBody: {
       type: mongoose.Schema.Types.Mixed,
-      required: true,
+      default: null,
     },
   },
   {

@@ -108,6 +108,10 @@ v1Router.use('/webhooks', webhooksRouter);
 const integrationWebhookRouter = require('./integrationWebhook.routes');
 v1Router.use('/integration-webhook', integrationWebhookRouter);
 
+// ─── Public Customer Invoice Lookup (no auth, rate-limited, lookup by MTC/GUID) ─
+const publicInvoicesRouter = require('./publicInvoices.routes');
+v1Router.use('/public/invoices', publicInvoicesRouter);
+
 // ─── Protected ───────────────────────────────────────────────────────────────
 v1Router.use(authenticateRequest);
 

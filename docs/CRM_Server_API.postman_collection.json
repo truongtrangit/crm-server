@@ -8318,6 +8318,742 @@
           ]
         }
       ]
+    },
+    {
+      "name": "29. 🧾 Invoices (Hoá Đơn Điện Tử)",
+      "description": "Quản lý toàn diện **Hoá đơn Điện tử (BKAV eHoaDon / SePay)**, bao gồm 4 nhóm API:\n1. **Invoices (Quản lý & Phát hành HĐĐT)** — CRUD, Phát hành, Ký HSM, Đồng bộ NCC, Xem/Tải PDF & XML, Huỷ, Thay thế, Điều chỉnh, Giải trình CQT, Thống kê, Hạn mức, Tra cứu MST, Xuất báo cáo.\n2. **Products (Danh mục Sản phẩm / SKU)** — Quản lý danh mục hàng hoá/dịch vụ chuẩn để tạo nhanh hoá đơn & tích hợp đối tác ngoài (`invoice.products`).\n3. **Providers (Cấu hình Nhà cung cấp)** — Quản lý kết nối BKAV / SePay, thiết lập NCC mặc định & kiểm tra kết nối (`invoice.config`).\n4. **External API (Đối tác Key.vn & 3rd-party)** — API đa đối tác xác thực bằng `X-API-Key` + `X-Partner-Id` (cô lập API Key & IP Allowlist từng đối tác).",
+      "item": [
+        {
+          "name": "1. Invoices — Quản lý & Phát hành HĐĐT",
+          "description": "Các endpoint quản trị hoá đơn nội bộ (`/api/v1/invoices`). Yêu cầu Bearer JWT Token (`{{accessToken}}`) và quyền `invoices:read` / `invoices:create` / `invoices:update` / `invoices:delete`.",
+          "item": [
+            {
+              "name": "GET /invoices — Danh sách hoá đơn (có phân trang & bộ lọc)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices?page=1&limit=20&status=&providerId=&sourceModule=&search=&startDate=&endDate=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices"],
+                  "query": [
+                    { "key": "page", "value": "1", "description": "Trang hiện tại (mặc định 1)" },
+                    { "key": "limit", "value": "20", "description": "Số bản ghi mỗi trang (mặc định 20)" },
+                    { "key": "status", "value": "", "description": "Lọc trạng thái: draft | pending_sign | pending | issued | error | cancelled | replaced | adjusted" },
+                    { "key": "providerId", "value": "", "description": "Lọc theo ID nhà cung cấp (vd: IPR-...)" },
+                    { "key": "sourceModule", "value": "", "description": "Lọc theo nguồn phát sinh: direct_sale | course_credit | zcode | external_api | <partner_id>" },
+                    { "key": "search", "value": "", "description": "Tìm kiếm theo mã HĐ, số HĐ, mã tra cứu, billCode, tên/MST người mua" },
+                    { "key": "startDate", "value": "", "description": "Ngày bắt đầu (ISO 8601, vd: 2026-11-01)" },
+                    { "key": "endDate", "value": "", "description": "Ngày kết thúc (ISO 8601, vd: 2026-11-30)" }
+                  ]
+                },
+                "description": "**Lấy danh sách hoá đơn có phân trang và bộ lọc**\n\n- **Quyền yêu cầu:** `invoices:read`"
+              }
+            },
+            {
+              "name": "GET /invoices/stats — Thống kê tổng quan hoá đơn",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/stats",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "stats"]
+                },
+                "description": "**Lấy thống kê tổng số hoá đơn theo từng trạng thái và tổng doanh thu**\n\n- **Quyền yêu cầu:** `invoices:read`"
+              }
+            },
+            {
+              "name": "GET /invoices/quota — Kiểm tra hạn mức số hoá đơn còn lại",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/quota",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "quota"]
+                },
+                "description": "**Lấy hạn mức số hoá đơn còn lại của các Nhà cung cấp đang kích hoạt**\n\n- **Quyền yêu cầu:** `invoices:read`"
+              }
+            },
+            {
+              "name": "GET /invoices/lookup-tax — Tra cứu thông tin doanh nghiệp theo Mã số thuế",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/lookup-tax?code=0108399220",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "lookup-tax"],
+                  "query": [
+                    { "key": "code", "value": "0108399220", "description": "Mã số thuế doanh nghiệp (bắt buộc >= 10 ký tự)" }
+                  ]
+                },
+                "description": "**Tra cứu nhanh tên công ty & địa chỉ theo MST**\n\nƯu tiên gọi lệnh BKAV `CmdType 904`; nếu BKAV chưa cấu hình hoặc không trả kết quả sẽ tự động fallback sang VietQR API.\n\n- **Quyền yêu cầu:** `invoices:read`"
+              }
+            },
+            {
+              "name": "GET /invoices/export — Xuất dữ liệu danh sách hoá đơn (báo cáo)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/export?status=&startDate=&endDate=&sourceModule=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "export"],
+                  "query": [
+                    { "key": "status", "value": "", "description": "Lọc trạng thái hoá đơn" },
+                    { "key": "startDate", "value": "", "description": "Từ ngày (YYYY-MM-DD)" },
+                    { "key": "endDate", "value": "", "description": "Đến ngày (YYYY-MM-DD)" },
+                    { "key": "sourceModule", "value": "", "description": "Lọc nguồn phát sinh" }
+                  ]
+                },
+                "description": "**Lấy toàn bộ danh sách hoá đơn theo bộ lọc để xuất Excel/CSV**\n\n- **Quyền yêu cầu:** `invoices:read`"
+              }
+            },
+            {
+              "name": "POST /invoices — Tạo hoá đơn mới (Lưu nháp hoặc Phát hành ngay)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"providerId\": \"IPR-20261110-0001\",\n  \"isDraft\": true,\n  \"paymentMethod\": \"TM/CK\",\n  \"currency\": \"VND\",\n  \"exchangeRate\": 1,\n  \"billCode\": \"DH-20261120-001\",\n  \"note\": \"Hoá đơn tạo từ trang quản trị CRM\",\n  \"sourceModule\": \"direct_sale\",\n  \"buyer\": {\n    \"type\": \"company\",\n    \"code\": \"KH-001\",\n    \"name\": \"Nguyễn Văn A\",\n    \"unitName\": \"CÔNG TY TNHH GIẢI PHÁP CÔNG NGHỆ ABC\",\n    \"taxCode\": \"0108399220\",\n    \"address\": \"Số 2 ngõ 102 Kim Giang, Định Công, Hoàng Mai, Hà Nội\",\n    \"email\": \"ketoan@abc.vn\",\n    \"phone\": \"0901234567\",\n    \"bankAccount\": \"\",\n    \"cccd\": \"\"\n  },\n  \"items\": [\n    {\n      \"itemCode\": \"ZB5000\",\n      \"itemName\": \"Gói dịch vụ ZCode ZB5000\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 2,\n      \"unitPrice\": 500000,\n      \"taxRate\": 10,\n      \"taxRateId\": 3,\n      \"discountRate\": 0,\n      \"discountAmount\": 0,\n      \"isDiscount\": false,\n      \"itemTypeId\": 0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices"]
+                },
+                "description": "**Tạo hoá đơn mới từ CRM**\n\n- **Quyền yêu cầu:** `invoices:create`\n- `providerId` *(bắt buộc)*: ID nhà cung cấp HĐĐT.\n- `isDraft`: `true` = chỉ lưu nháp trên CRM (`status: draft`); `false` = đẩy sang BKAV/NCC ngay lập tức.\n- `items[]`: Mảng tối thiểu 1 dòng hàng hoá. `itemTypeId`: `0` (HHDV), `4` (Ghi chú), `15` (Khuyến mãi), `21` (Xe cơ giới), `30` (Chiết khấu)."
+              }
+            },
+            {
+              "name": "GET /invoices/:id — Xem chi tiết 1 hoá đơn (kèm callLogs)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn trên CRM" }
+                  ]
+                },
+                "description": "**Xem toàn bộ thông tin chi tiết hoá đơn, danh sách dòng hàng hoá và lịch sử gọi API nhà cung cấp (`callLogs`)**\n\n- **Quyền yêu cầu:** `invoices:read`"
+              }
+            },
+            {
+              "name": "PUT /invoices/:id — Cập nhật hoá đơn nháp / chờ ký",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isDraft\": true,\n  \"note\": \"Cập nhật lại ghi chú và số lượng\",\n  \"paymentMethod\": \"CK\",\n  \"items\": [\n    {\n      \"itemCode\": \"ZB5000\",\n      \"itemName\": \"Gói dịch vụ ZCode ZB5000\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 3,\n      \"unitPrice\": 500000,\n      \"taxRate\": 10,\n      \"taxRateId\": 3,\n      \"itemTypeId\": 0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn cần cập nhật" }
+                  ]
+                },
+                "description": "**Cập nhật hoá đơn đang ở trạng thái Nháp / Chờ ký / Lỗi**\n\n- **Quyền yêu cầu:** `invoices:update`\n- Nếu truyền `isDraft: false`, hệ thống sẽ vừa lưu cập nhật vừa phát hành ngay sang BKAV."
+              }
+            },
+            {
+              "name": "DELETE /invoices/:id — Xoá hoá đơn nháp / chưa phát hành",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn cần xoá" }
+                  ]
+                },
+                "description": "**Xoá mềm hoá đơn nháp hoặc xoá bỏ hoá đơn chưa ký phát hành trên BKAV (`CmdType 301/303`)**\n\n- **Quyền yêu cầu:** `invoices:delete`\n- Không cho phép xoá hoá đơn đã phát hành (`issued`) — cần dùng `POST /invoices/:id/cancel`."
+              }
+            },
+            {
+              "name": "POST /invoices/:id/issue — Phát hành hoá đơn nháp lên NCC",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/issue",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "issue"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn nháp cần phát hành" }
+                  ]
+                },
+                "description": "**Đẩy hoá đơn nháp lên BKAV/NCC để cấp số (và ký HSM tự động nếu NCC bật `autoSign`)**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            },
+            {
+              "name": "POST /invoices/batch-issue — Phát hành hàng loạt nhiều hoá đơn nháp",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"INV-20261120-0001\",\n    \"INV-20261120-0002\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/batch-issue",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "batch-issue"]
+                },
+                "description": "**Phát hành đồng loạt danh sách hoá đơn nháp**\n\n- **Quyền yêu cầu:** `invoices:update`\n- Trả về `successCount`, `failCount` và chi tiết từng ID."
+              }
+            },
+            {
+              "name": "POST /invoices/:id/sign-hsm — Ký số HSM 1 hoá đơn chờ ký",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/sign-hsm",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "sign-hsm"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn đang ở trạng thái pending_sign" }
+                  ]
+                },
+                "description": "**Gọi lệnh BKAV `CmdType 205` để ký số HSM và phát hành hoá đơn chờ ký lên CQT**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            },
+            {
+              "name": "POST /invoices/batch-sign-hsm — Ký số HSM hàng loạt hoá đơn chờ ký",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"INV-20261120-0001\",\n    \"INV-20261120-0002\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/batch-sign-hsm",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "batch-sign-hsm"]
+                },
+                "description": "**Gọi lệnh BKAV `CmdType 206` để ký số HSM hàng loạt**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            },
+            {
+              "name": "POST /invoices/:id/retry — Thử phát hành lại hoá đơn bị lỗi (error)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/retry",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "retry"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn đang ở trạng thái error" }
+                  ]
+                },
+                "description": "**Gửi phát hành lại hoá đơn gặp lỗi kết nối/NCC và tăng biến đếm `retryCount`**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            },
+            {
+              "name": "POST /invoices/:id/sync-from-provider — Đồng bộ trạng thái, số HĐ & mã CQT từ BKAV",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/sync-from-provider",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "sync-from-provider"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn cần đồng bộ" }
+                  ]
+                },
+                "description": "**Đồng bộ lại trạng thái, số hoá đơn, mã tra cứu (MTC) và mã cơ quan thuế từ BKAV (`CmdType 800 / 801 / 850`)**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            },
+            {
+              "name": "GET /invoices/:id/download — Xem trước trực tiếp (inline) hoặc Tải xuống file PDF / XML",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/download?format=pdf&inline=true",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "download"],
+                  "query": [
+                    { "key": "format", "value": "pdf", "description": "Định dạng file: pdf (mặc định) hoặc xml" },
+                    { "key": "inline", "value": "true", "description": "true = trả header Content-Disposition: inline để hiển thị trực tiếp trong modal xem trước trên CRM; false/bỏ trống = attachment để tải về" }
+                  ],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn cần tải/xem" }
+                  ]
+                },
+                "description": "**Lấy file PDF hoặc XML bản thể hiện hoá đơn từ BKAV (`CmdType 808/803` cho PDF, `809/805` cho XML)**\n\n- **Quyền yêu cầu:** `invoices:read`\n- Dùng kèm `?format=pdf&inline=true` cho tính năng xem trước hoá đơn ngay trong CRM (`InvoicePreviewModal`)."
+              }
+            },
+            {
+              "name": "POST /invoices/:id/cancel — Huỷ bỏ hoá đơn đã phát hành",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Khách hàng huỷ đơn hàng và đề nghị huỷ hoá đơn theo biên bản thoả thuận\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/cancel",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "cancel"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn cần huỷ" }
+                  ]
+                },
+                "description": "**Huỷ hoá đơn đã phát hành trên BKAV (`CmdType 201/202`)**\n\n- **Quyền yêu cầu:** `invoices:update`\n- `reason` *(bắt buộc)*: Lý do huỷ hoá đơn."
+              }
+            },
+            {
+              "name": "POST /invoices/:id/replace — Lập hoá đơn THAY THẾ cho hoá đơn sai sót",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Sai mã số thuế và tên đơn vị người mua\",\n  \"paymentMethod\": \"CK\",\n  \"buyer\": {\n    \"type\": \"company\",\n    \"name\": \"Nguyễn Văn A\",\n    \"unitName\": \"CÔNG TY TNHH GIẢI PHÁP CÔNG NGHỆ ABC (ĐÚNG)\",\n    \"taxCode\": \"0108399220\",\n    \"address\": \"Hà Nội\",\n    \"email\": \"ketoan@abc.vn\"\n  },\n  \"items\": [\n    {\n      \"itemCode\": \"ZB5000\",\n      \"itemName\": \"Gói dịch vụ ZCode ZB5000\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 2,\n      \"unitPrice\": 500000,\n      \"taxRate\": 10,\n      \"taxRateId\": 3,\n      \"itemTypeId\": 0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/replace",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "replace"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn gốc bị thay thế" }
+                  ]
+                },
+                "description": "**Lập hoá đơn thay thế theo Nghị định 123 (`CmdType 120/123`)**\n\n- **Quyền yêu cầu:** `invoices:update`\n- Tự động ghi log vào `callLogs` của cả hoá đơn gốc và hoá đơn thay thế mới, đồng thời cập nhật trạng thái hoá đơn gốc sang `replaced`."
+              }
+            },
+            {
+              "name": "POST /invoices/:id/adjust — Lập hoá đơn ĐIỀU CHỈNH cho hoá đơn đã phát hành",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Điều chỉnh tăng số lượng hàng hoá theo phụ lục hợp đồng\",\n  \"paymentMethod\": \"CK\",\n  \"items\": [\n    {\n      \"itemCode\": \"ZB5000\",\n      \"itemName\": \"Điều chỉnh tăng gói dịch vụ ZCode ZB5000\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 1,\n      \"unitPrice\": 500000,\n      \"taxRate\": 10,\n      \"taxRateId\": 3,\n      \"itemTypeId\": 0,\n      \"isIncrease\": true\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/adjust",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "adjust"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn gốc cần điều chỉnh" }
+                  ]
+                },
+                "description": "**Lập hoá đơn điều chỉnh tăng/giảm/thông tin theo Nghị định 123 (`CmdType 121/124`)**\n\n- **Quyền yêu cầu:** `invoices:update`\n- `items[].isIncrease`: `true` = điều chỉnh tăng, `false` = điều chỉnh giảm, `null` = điều chỉnh thông tin.\n- Tự động ghi `callLogs` trên cả hoá đơn gốc và hoá đơn điều chỉnh mới."
+              }
+            },
+            {
+              "name": "POST /invoices/:id/explain-cqt — Gửi giải trình sai sót (Mẫu 04/SS) lên CQT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Sai sót tên địa chỉ người mua, không sai mã số thuế và số tiền\",\n  \"notify\": 1,\n  \"dateNotify\": \"2026-11-20\",\n  \"numberNotify\": \"TB-01/2026\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/explain-cqt",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "explain-cqt"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn cần giải trình" }
+                  ]
+                },
+                "description": "**Gửi thông báo giải trình hoá đơn sai sót lên CQT (`CmdType 300`)**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            },
+            {
+              "name": "POST /invoices/:id/explain-replaced-cqt — Gửi giải trình CQT cho HĐ bị thay thế / điều chỉnh",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Giải trình hoá đơn đã lập hoá đơn thay thế theo thoả thuận hai bên\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/:id/explain-replaced-cqt",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", ":id", "explain-replaced-cqt"],
+                  "variable": [
+                    { "key": "id", "value": "INV-20261120-0001", "description": "ID hoá đơn bị thay thế/điều chỉnh" }
+                  ]
+                },
+                "description": "**Gửi giải trình CQT cho hoá đơn bị thay thế hoặc bị điều chỉnh (`CmdType 304`)**\n\n- **Quyền yêu cầu:** `invoices:update`"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Products — Danh mục Sản phẩm / SKU",
+          "description": "Quản lý danh mục Sản phẩm hoá đơn (submodule `invoice.products`). Các sản phẩm ở đây được dùng chung cho màn hình tạo hoá đơn nội bộ và External Invoice API Nhánh 1.",
+          "item": [
+            {
+              "name": "GET /invoices/products — Danh sách sản phẩm hoá đơn",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/products?page=1&limit=20&search=&isActive=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "products"],
+                  "query": [
+                    { "key": "page", "value": "1", "description": "Trang hiện tại" },
+                    { "key": "limit", "value": "20", "description": "Số sản phẩm mỗi trang" },
+                    { "key": "search", "value": "", "description": "Tìm kiếm theo mã SKU hoặc tên sản phẩm" },
+                    { "key": "isActive", "value": "", "description": "Lọc trạng thái hoạt động: true | false" }
+                  ]
+                },
+                "description": "**Lấy danh sách sản phẩm hoá đơn (có phân trang & tìm kiếm)**\n\n- **Quyền yêu cầu:** `invoice_products:read` hoặc `invoices:read`"
+              }
+            },
+            {
+              "name": "GET /invoices/products/:id — Chi tiết 1 sản phẩm",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/products/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "products", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "IVP-20261118-0001", "description": "ID sản phẩm hoá đơn" }
+                  ]
+                },
+                "description": "**Xem chi tiết 1 sản phẩm trong danh mục**\n\n- **Quyền yêu cầu:** `invoice_products:read` hoặc `invoices:read`"
+              }
+            },
+            {
+              "name": "POST /invoices/products — Tạo mới sản phẩm (SKU)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"ZB5000\",\n  \"name\": \"Gói ZCode ZB5000\",\n  \"unitName\": \"Gói\",\n  \"unitPrice\": 500000,\n  \"taxRate\": 10,\n  \"taxRateId\": 3,\n  \"itemTypeId\": 0,\n  \"description\": \"Gói 5.000 mã ZCode tích hợp Key.vn\",\n  \"userDefineDetails\": \"\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "products"]
+                },
+                "description": "**Tạo mới sản phẩm (SKU) trong danh mục Hoá đơn**\n\n- **Quyền yêu cầu:** `invoice_products:create`\n- `code` *(bắt buộc, tự động viết hoa, duy nhất)*: Mã SKU dùng để đối tác gọi sang.\n- `taxRateId`: `1` (0%), `2` (5%), `3` (10%), `9` (8%), `4` (KCT: -1), `5` (KKK: -2), `6` (Khác: -4)."
+              }
+            },
+            {
+              "name": "PUT /invoices/products/:id — Cập nhật sản phẩm (SKU)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Gói ZCode ZB5000 (Cập nhật)\",\n  \"unitPrice\": 550000,\n  \"taxRate\": 8,\n  \"taxRateId\": 9,\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/products/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "products", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "IVP-20261118-0001", "description": "ID sản phẩm cần cập nhật" }
+                  ]
+                },
+                "description": "**Cập nhật thông tin giá, thuế suất hoặc trạng thái kích hoạt của sản phẩm**\n\n- **Quyền yêu cầu:** `invoice_products:update`"
+              }
+            },
+            {
+              "name": "DELETE /invoices/products/:id — Xoá sản phẩm (SKU)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/products/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "products", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "IVP-20261118-0001", "description": "ID sản phẩm cần xoá" }
+                  ]
+                },
+                "description": "**Xoá mềm sản phẩm khỏi danh mục**\n\n- **Quyền yêu cầu:** `invoice_products:delete`"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Providers — Cấu hình Nhà cung cấp (BKAV / SePay)",
+          "description": "Quản lý cấu hình kết nối nhà cung cấp hoá đơn điện tử (submodule `invoice.config`, quyền `invoice_providers:config`).",
+          "item": [
+            {
+              "name": "GET /invoices/providers — Danh sách nhà cung cấp",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/providers",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "providers"]
+                },
+                "description": "**Lấy danh sách nhà cung cấp HĐĐT (tự động che bớt token bảo mật)**\n\n- **Quyền yêu cầu:** `invoices:read` hoặc `invoice_providers:config`"
+              }
+            },
+            {
+              "name": "GET /invoices/providers/:id — Chi tiết 1 nhà cung cấp",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/providers/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "providers", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "IPR-20261110-0001", "description": "ID nhà cung cấp" }
+                  ]
+                },
+                "description": "**Xem chi tiết cấu hình 1 nhà cung cấp**\n\n- **Quyền yêu cầu:** `invoices:read` hoặc `invoice_providers:config`"
+              }
+            },
+            {
+              "name": "POST /invoices/providers — Thêm mới cấu hình nhà cung cấp BKAV",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"BKAV Demo VIK Solution\",\n  \"providerType\": \"bkav\",\n  \"invoiceForm\": \"1\",\n  \"invoiceSerial\": \"C26MVK\",\n  \"sellerTaxCode\": \"0108399220\",\n  \"isActive\": true,\n  \"isDefault\": true,\n  \"emailNotification\": {\n    \"enabled\": true\n  },\n  \"bkav\": {\n    \"partnerGUID\": \"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\",\n    \"partnerToken\": \"<KEY_BASE64>:<IV_BASE64>\",\n    \"cmdType\": 112,\n    \"endpoint\": \"https://wsdemo.ehoadon.vn/WSPublicEHoaDon.asmx\",\n    \"invoiceTypeId\": 1,\n    \"receiveTypeId\": 3,\n    \"autoSign\": false\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/providers",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "providers"]
+                },
+                "description": "**Tạo mới cấu hình nhà cung cấp HĐĐT (`bkav` hoặc `sepay`)**\n\n- **Quyền yêu cầu:** `invoice_providers:config`\n- `bkav.cmdType`: `112` (khuyến nghị — PMKT quản lý Mẫu/Ký hiệu, BKAV tự cấp số HĐ).\n- `bkav.autoSign`: `true` = tự động gọi `CmdType 205` ký số HSM ngay sau khi tạo; `false` = ở trạng thái `pending_sign` chờ ký USB Token."
+              }
+            },
+            {
+              "name": "PUT /invoices/providers/:id — Cập nhật cấu hình nhà cung cấp",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isDefault\": true,\n  \"bkav\": {\n    \"autoSign\": true\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/providers/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "providers", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "IPR-20261110-0001", "description": "ID nhà cung cấp cần cập nhật" }
+                  ]
+                },
+                "description": "**Cập nhật cấu hình nhà cung cấp (đặt mặc định, bật/tắt `autoSign`, đổi endpoint/token)**\n\n- **Quyền yêu cầu:** `invoice_providers:config`"
+              }
+            },
+            {
+              "name": "DELETE /invoices/providers/:id — Xoá cấu hình nhà cung cấp",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/providers/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "providers", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "IPR-20261110-0001", "description": "ID nhà cung cấp cần xoá" }
+                  ]
+                },
+                "description": "**Xoá nhà cung cấp HĐĐT (chặn xoá nếu đã có hoá đơn gắn với NCC này)**\n\n- **Quyền yêu cầu:** `invoice_providers:config`"
+              }
+            },
+            {
+              "name": "POST /invoices/providers/:id/test — Kiểm tra kết nối tới BKAV / SePay",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/invoices/providers/:id/test",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["invoices", "providers", ":id", "test"],
+                  "variable": [
+                    { "key": "id", "value": "IPR-20261110-0001", "description": "ID nhà cung cấp cần test kết nối" }
+                  ]
+                },
+                "description": "**Gọi thử tới WebService BKAV/SePay để xác minh PartnerGUID, PartnerToken và Endpoint hoạt động**\n\n- **Quyền yêu cầu:** `invoice_providers:config`"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. External API — Tích hợp Đối tác (Key.vn & 3rd-Party)",
+          "description": "Các endpoint `/api/external/v1/invoices` dành cho **Key.vn (ZCode)** và đối tác bên thứ 3. Xác thực bằng `X-API-Key` + `X-Partner-Id` (KHÔNG dùng Bearer JWT). Xem thêm tài liệu độc lập `docs/Invoice_External_API.postman_collection.json` và hướng dẫn thêm đối tác mới `docs/INVOICE_EXTERNAL_PARTNER_ONBOARDING.md`.",
+          "item": [
+            {
+              "name": "GET /external/v1/invoices/template — Lấy Template chuẩn & Bảng Enum",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "GET",
+                "header": [
+                  { "key": "X-Partner-Id", "value": "keyvn", "description": "Mã định danh đối tác (keyvn / zcode / <partner_id>)" },
+                  { "key": "X-API-Key", "value": "{{zcodeApiKey}}", "description": "API Key riêng của đối tác" }
+                ],
+                "url": {
+                  "raw": "{{externalBaseUrl}}/invoices/template",
+                  "host": ["{{externalBaseUrl}}"],
+                  "path": ["invoices", "template"]
+                },
+                "description": "**Trả về cấu trúc template chuẩn, danh sách Enum (`itemType`, `taxRates`, `paymentMethods`), preview SKU và 3 ví dụ payload mẫu cho dev đối tác**"
+              }
+            },
+            {
+              "name": "GET /external/v1/invoices/products — Lấy danh mục sản phẩm (SKU) đang kích hoạt",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "GET",
+                "header": [
+                  { "key": "X-Partner-Id", "value": "keyvn" },
+                  { "key": "X-API-Key", "value": "{{zcodeApiKey}}" }
+                ],
+                "url": {
+                  "raw": "{{externalBaseUrl}}/invoices/products",
+                  "host": ["{{externalBaseUrl}}"],
+                  "path": ["invoices", "products"]
+                },
+                "description": "**Lấy toàn bộ danh mục sản phẩm đang hoạt động (`isActive = true`) để đối tác gọi theo Nhánh 1 (`productId` hoặc `itemCode`)**"
+              }
+            },
+            {
+              "name": "POST /external/v1/invoices — Tạo 1 Hoá đơn theo SKU (Nhánh 1)",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Partner-Id", "value": "keyvn" },
+                  { "key": "X-API-Key", "value": "{{zcodeApiKey}}" },
+                  { "key": "X-Idempotency-Key", "value": "keyvn_sku_{{$timestamp}}", "description": "Khoá chống trùng lặp cấp request (TTL 24h, cô lập theo partner)" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sourceId\": \"KEYVN-ORD-{{$timestamp}}\",\n  \"billCode\": \"KEYVN-ORD-{{$timestamp}}\",\n  \"isDraft\": false,\n  \"paymentMethod\": \"CK\",\n  \"buyer\": {\n    \"type\": \"company\",\n    \"name\": \"Nguyễn Văn A\",\n    \"unitName\": \"CÔNG TY TNHH ABC\",\n    \"taxCode\": \"0101234567\",\n    \"address\": \"123 Cầu Giấy, Hà Nội\",\n    \"email\": \"ketoan@abc.vn\",\n    \"phone\": \"0901234567\"\n  },\n  \"items\": [\n    {\n      \"itemCode\": \"ZB5000\",\n      \"quantity\": 2\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/invoices",
+                  "host": ["{{externalBaseUrl}}"],
+                  "path": ["invoices"]
+                },
+                "description": "**Nhánh 1 — Truyền `itemCode` (hoặc `productId`) + `quantity`: CRM tự lấy toàn bộ thông tin sản phẩm cấu hình sẵn trong DB**"
+              }
+            },
+            {
+              "name": "POST /external/v1/invoices — Tạo 1 Hoá đơn theo Template tự định nghĩa (Nhánh 2)",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Partner-Id", "value": "keyvn" },
+                  { "key": "X-API-Key", "value": "{{zcodeApiKey}}" },
+                  { "key": "X-Idempotency-Key", "value": "ext_tpl_{{$timestamp}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sourceId\": \"EXT-TPL-{{$timestamp}}\",\n  \"isDraft\": true,\n  \"paymentMethod\": \"TM/CK\",\n  \"buyer\": {\n    \"type\": \"personal\",\n    \"name\": \"Trần Thị B\",\n    \"email\": \"tranthib@gmail.com\"\n  },\n  \"items\": [\n    {\n      \"itemType\": \"goods\",\n      \"itemName\": \"Gói phần mềm quản lý 12 tháng\",\n      \"unitName\": \"Gói\",\n      \"quantity\": 1,\n      \"unitPrice\": 2000000,\n      \"taxRate\": 8\n    },\n    {\n      \"itemType\": \"promotion\",\n      \"itemName\": \"Tặng thêm 1 tháng sử dụng\",\n      \"unitName\": \"Tháng\",\n      \"quantity\": 1\n    },\n    {\n      \"itemType\": \"discount\",\n      \"itemName\": \"Chiết khấu thanh toán sớm\",\n      \"amount\": 200000\n    },\n    {\n      \"itemType\": \"note\",\n      \"itemName\": \"Thanh toán theo hợp đồng điện tử\"\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/invoices",
+                  "host": ["{{externalBaseUrl}}"],
+                  "path": ["invoices"]
+                },
+                "description": "**Nhánh 2 — Không truyền `productId`/`itemCode`: CRM kiểm tra nghiêm ngặt toàn bộ field bắt buộc theo từng loại dòng (`goods`, `vehicle`, `promotion`, `discount`, `note`) trước khi điền vào hoá đơn**"
+              }
+            },
+            {
+              "name": "POST /external/v1/invoices — Gửi Mảng (Batch Array) xuất nhiều Hoá đơn riêng (tối đa 30 HĐ)",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Partner-Id", "value": "keyvn" },
+                  { "key": "X-API-Key", "value": "{{zcodeApiKey}}" },
+                  { "key": "X-Idempotency-Key", "value": "ext_batch_{{$timestamp}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n  {\n    \"sourceId\": \"BATCH-01-{{$timestamp}}\",\n    \"isDraft\": true,\n    \"buyer\": { \"type\": \"personal\", \"name\": \"Khách Batch 1\" },\n    \"items\": [{ \"itemCode\": \"ZB5000\", \"quantity\": 1 }]\n  },\n  {\n    \"sourceId\": \"BATCH-02-{{$timestamp}}\",\n    \"isDraft\": true,\n    \"buyer\": { \"type\": \"personal\", \"name\": \"Khách Batch 2\" },\n    \"items\": [\n      {\n        \"itemType\": \"goods\",\n        \"itemName\": \"Dịch vụ tuỳ chỉnh\",\n        \"unitName\": \"Lần\",\n        \"quantity\": 2,\n        \"unitPrice\": 150000,\n        \"taxRate\": 10\n      }\n    ]\n  }\n]"
+                },
+                "url": {
+                  "raw": "{{externalBaseUrl}}/invoices",
+                  "host": ["{{externalBaseUrl}}"],
+                  "path": ["invoices"]
+                },
+                "description": "**Gửi trực tiếp JSON Array `[ {...}, {...} ]` — mỗi phần tử trong mảng tạo & phát hành 1 hoá đơn riêng biệt (tối đa 30 phần tử/request, cô lập lỗi từng phần tử)**"
+              }
+            },
+            {
+              "name": "GET /external/v1/invoices/:id — Tra cứu Hoá đơn theo ID CRM, sourceId hoặc billCode",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "GET",
+                "header": [
+                  { "key": "X-Partner-Id", "value": "keyvn" },
+                  { "key": "X-API-Key", "value": "{{zcodeApiKey}}" }
+                ],
+                "url": {
+                  "raw": "{{externalBaseUrl}}/invoices/:id",
+                  "host": ["{{externalBaseUrl}}"],
+                  "path": ["invoices", ":id"],
+                  "variable": [
+                    { "key": "id", "value": "KEYVN-ORD-20261120-001", "description": "Truyền ID CRM (INV-...), sourceId, hoặc billCode" }
+                  ]
+                },
+                "description": "**Tra cứu trạng thái, số hoá đơn, mã tra cứu (MTC), mã CQT của hoá đơn đã tạo**"
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

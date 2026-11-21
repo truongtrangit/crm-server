@@ -1,3 +1,4 @@
+const axios = require('axios');
 const Invoice = require('./invoice.model');
 const InvoiceProvider = require('./invoiceProvider.model');
 const InvoiceProduct = require('./invoiceProduct.model');
@@ -7,26 +8,33 @@ const { buildPaginatedResponse } = require('../../core/utils/pagination');
 const { createHttpError } = require('../../core/utils/http');
 const { generateMonotonicId, ID_PREFIXES } = require('../../core/utils/id');
 const {
+  INVOICE_PROVIDER_TYPES,
   INVOICE_STATUSES,
   INVOICE_RELATION_TYPES,
   INVOICE_SOURCE_MODULES,
+  INVOICE_ITEM_TYPE_ALIASES,
   BKAV_CMD_TYPES,
+  BKAV_TAX_RATE_IDS,
+  BKAV_TAX_RATE_TO_ID,
   BKAV_MAX_INVOICES_PER_REQUEST,
 } = require('../../core/constants/invoice');
+const { externalCreateInvoiceSchema } = require('./invoice.validation');
 const { TOPUP_REQUEST_STATUS } = require('../../core/constants/appData');
 const { escapeRegex } = require('../../core/utils/query');
+const env = require('../../core/config/env');
 const logger = require('../../core/utils/logger');
 
 class InvoiceService {
+  constructor() {
+    // In-flight serialization map for (sourceModule:sourceId) to prevent concurrent duplicate issuance
+    this._inFlightExternalKeys = new Map();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Invoice CRUD
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getInvoices(query) {
-    const page = parseInt(query.page) || 1;
-    const limit = parseInt(query.limit) || 20;
-    const skip = (page - 1) * limit;
-
+  _buildInvoiceListFilter(query = {}) {
     const filter = { isDeleted: { $ne: true } };
 
     if (query.search) {
@@ -36,6 +44,8 @@ class InvoiceService {
         { 'buyer.name': { $regex: escaped, $options: 'i' } },
         { 'buyer.taxCode': { $regex: escaped, $options: 'i' } },
         { billCode: { $regex: escaped, $options: 'i' } },
+        { sourceId: { $regex: escaped, $options: 'i' } },
+        { lookupCode: { $regex: escaped, $options: 'i' } },
         { invoiceSerial: { $regex: escaped, $options: 'i' } },
       ];
       if (/^\d+$/.test(String(query.search).trim())) {
@@ -51,6 +61,9 @@ class InvoiceService {
     if (query.providerType && query.providerType !== 'all') {
       filter.providerType = query.providerType;
     }
+    if (query.sourceModule && query.sourceModule !== 'all') {
+      filter.sourceModule = query.sourceModule;
+    }
     if (query.startDate || query.endDate) {
       filter.invoiceDate = {};
       if (query.startDate) {
@@ -62,6 +75,15 @@ class InvoiceService {
         filter.invoiceDate.$lte = end;
       }
     }
+
+    return filter;
+  }
+
+  async getInvoices(query = {}) {
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+    const filter = this._buildInvoiceListFilter(query);
 
     const [items, total] = await Promise.all([
       Invoice.find(filter)
@@ -75,37 +97,8 @@ class InvoiceService {
     return buildPaginatedResponse(items, total, page, limit);
   }
 
-  async exportInvoices(query) {
-    const filter = { isDeleted: { $ne: true } };
-    if (query.search) {
-      const escaped = escapeRegex(query.search);
-      filter.$or = [
-        { id: { $regex: escaped, $options: 'i' } },
-        { 'buyer.name': { $regex: escaped, $options: 'i' } },
-        { 'buyer.taxCode': { $regex: escaped, $options: 'i' } },
-        { billCode: { $regex: escaped, $options: 'i' } },
-        { invoiceSerial: { $regex: escaped, $options: 'i' } },
-      ];
-      if (/^\d+$/.test(String(query.search).trim())) {
-        filter.$or.push({ invoiceNo: Number(String(query.search).trim()) });
-      }
-    }
-    if (query.status && query.status !== 'all') {
-      filter.status = query.status;
-    }
-    if (query.providerId) {
-      filter.providerId = query.providerId;
-    }
-    if (query.startDate || query.endDate) {
-      filter.invoiceDate = {};
-      if (query.startDate) filter.invoiceDate.$gte = new Date(query.startDate);
-      if (query.endDate) {
-        const end = new Date(query.endDate);
-        end.setHours(23, 59, 59, 999);
-        filter.invoiceDate.$lte = end;
-      }
-    }
-
+  async exportInvoices(query = {}) {
+    const filter = this._buildInvoiceListFilter(query);
     return Invoice.find(filter).sort({ createdAt: -1 }).limit(5000).lean();
   }
 
@@ -449,7 +442,10 @@ class InvoiceService {
           unitPrice: item.Price || 0,
           amount: item.Amount || 0,
           taxRateId: item.TaxRateID || 3,
-          taxRate: item.TaxRate || 10,
+          taxRate:
+            item.TaxRate !== undefined && item.TaxRate !== null
+              ? item.TaxRate
+              : 10,
           taxAmount: item.TaxAmount || 0,
           discountRate: item.DiscountRate || 0,
           discountAmount: item.DiscountAmount || 0,
@@ -536,7 +532,7 @@ class InvoiceService {
       isDeleted: { $ne: true },
     }).lean();
     if (!invoice) throw createHttpError(404, 'Không tìm thấy hoá đơn');
-    if (!invoice.providerInvoiceGUID) {
+    if (!invoice.providerInvoiceGUID && !invoice.lookupCode) {
       throw createHttpError(400, 'Hoá đơn chưa được tạo trên nhà cung cấp');
     }
     const provider = await InvoiceProvider.findOne({
@@ -556,6 +552,147 @@ class InvoiceService {
       buffer: Buffer.from(result.base64, 'base64'),
       format: result.format,
       filename: `hoa-don-${invoice.invoiceSerial || ''}-${invoice.invoiceNo || invoice.id}.${result.format}`,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public Customer Invoice Lookup (No Auth — Lookup by MTC / InvoiceGUID only)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Tạo URL tra cứu công khai trên CRM để gửi cho khách hàng xem trực tiếp
+   * (thay thế trang tra cứu nhiều quảng cáo của BKAV).
+   * Dùng INVOICE_PUBLIC_URL (nếu tách domain riêng) hoặc PUBLIC_APP_URL — tuyệt đối không tái sử dụng
+   * CLIENT_URL (vốn chỉ dùng làm CORS allowlist và có thể chứa nhiều origin / IP / '*').
+   */
+  _buildPublicLookupUrl(inv) {
+    const publicCode = inv?.lookupCode || inv?.providerInvoiceGUID || null;
+    if (!publicCode) return null;
+    const base = env.invoicePublicUrl || env.publicAppUrl;
+    if (!base) {
+      logger.warn(
+        '[Invoice] PUBLIC_APP_URL / INVOICE_PUBLIC_URL chưa được cấu hình — không thể tạo public lookupUrl',
+      );
+      return null;
+    }
+    return `${base}/tra-cuu-hoa-don/${encodeURIComponent(publicCode)}`;
+  }
+
+  /**
+   * Tìm hoá đơn theo Mã tra cứu (lookupCode / MTC) hoặc providerInvoiceGUID.
+   * TUYỆT ĐỐI KHÔNG cho phép tra cứu public bằng mã tuần tự nội bộ (INV-YYYYMMDD-XXXX)
+   * để chống dò quét (enumeration attack) dữ liệu khách hàng.
+   */
+  async _findInvoiceByPublicCode(rawCode) {
+    const code = String(rawCode || '').trim();
+    if (!code || code.length < 6 || /^INV-\d{8}-\d+$/i.test(code)) {
+      throw createHttpError(
+        404,
+        'Mã tra cứu hoá đơn không hợp lệ hoặc không tồn tại',
+      );
+    }
+
+    const exactCodeRegex = new RegExp(`^${escapeRegex(code)}$`, 'i');
+    const invoice = await Invoice.findOne({
+      isDeleted: { $ne: true },
+      status: { $ne: INVOICE_STATUSES.DRAFT },
+      $or: [
+        { lookupCode: exactCodeRegex },
+        { providerInvoiceGUID: exactCodeRegex },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!invoice) {
+      throw createHttpError(
+        404,
+        `Không tìm thấy hoá đơn với mã tra cứu "${code}"`,
+      );
+    }
+
+    return invoice;
+  }
+
+  /**
+   * Trả thông tin hiển thị hoá đơn công khai cho khách hàng (đã lọc bỏ toàn bộ dữ liệu nội bộ CRM).
+   */
+  async getPublicInvoiceByCode(rawCode) {
+    const inv = await this._findInvoiceByPublicCode(rawCode);
+    const publicCode = inv.lookupCode || inv.providerInvoiceGUID;
+
+    return {
+      publicCode,
+      lookupCode: inv.lookupCode || null,
+      lookupUrl: this._buildPublicLookupUrl(inv),
+      status: inv.status,
+      providerType: inv.providerType,
+      invoiceForm: inv.invoiceForm || null,
+      invoiceSerial: inv.invoiceSerial || null,
+      invoiceNo: inv.invoiceNo || 0,
+      invoiceDate: inv.invoiceDate || null,
+      maCuaCQT: inv.maCuaCQT || '',
+      billCode: inv.billCode || '',
+      paymentMethod: inv.paymentMethod,
+      currency: inv.currency || 'VND',
+      exchangeRate: inv.exchangeRate || 1,
+      note: inv.note || '',
+      buyer: {
+        type: inv.buyer?.type || 'company',
+        name: inv.buyer?.name || '',
+        unitName: inv.buyer?.unitName || '',
+        taxCode: inv.buyer?.taxCode || '',
+        address: inv.buyer?.address || '',
+      },
+      items: (inv.items || []).map((it) => ({
+        itemCode: it.itemCode || '',
+        itemName: it.itemName || '',
+        unitName: it.unitName || '',
+        quantity: it.quantity || 0,
+        unitPrice: it.unitPrice || 0,
+        amount: it.amount || 0,
+        taxRate: it.taxRate,
+        taxAmount: it.taxAmount || 0,
+        discountRate: it.discountRate || 0,
+        discountAmount: it.discountAmount || 0,
+        isDiscount: !!it.isDiscount,
+        itemTypeId: it.itemTypeId || 0,
+      })),
+      totalAmountBeforeTax: inv.totalAmountBeforeTax || 0,
+      totalDiscountAmount: inv.totalDiscountAmount || 0,
+      totalTaxAmount: inv.totalTaxAmount || 0,
+      totalAmount: inv.totalAmount || 0,
+      issuedAt: inv.issuedAt || null,
+    };
+  }
+
+  /**
+   * Tải file PDF hoặc XML bản thể hiện hoá đơn qua mã tra cứu công khai (không cần đăng nhập).
+   */
+  async downloadPublicInvoiceFile(rawCode, format = 'pdf') {
+    const invoice = await this._findInvoiceByPublicCode(rawCode);
+    const provider = await InvoiceProvider.findOne({
+      id: invoice.providerId,
+    }).lean();
+    if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+
+    const adapter = AdapterFactory.create(provider);
+    const result = await adapter.download(
+      invoice,
+      format === 'xml' ? 'xml' : 'pdf',
+    );
+    if (!result.success || !result.base64) {
+      throw createHttpError(
+        400,
+        result.error || 'Không tải được bản thể hiện hoá đơn từ nhà cung cấp',
+      );
+    }
+    const codeLabel =
+      invoice.invoiceNo || invoice.lookupCode || invoice.providerInvoiceGUID;
+    return {
+      buffer: Buffer.from(result.base64, 'base64'),
+      format: result.format,
+      filename: `hoa-don-${invoice.invoiceSerial || ''}-${codeLabel}.${result.format}`,
     };
   }
 
@@ -1047,34 +1184,248 @@ class InvoiceService {
    */
   async getQuota() {
     const providers = await InvoiceProvider.find({ isActive: true }).lean();
-    const quotas = [];
+    if (providers.length === 0) return [];
 
-    for (const provider of providers) {
-      const issued = await Invoice.countDocuments({
-        providerId: provider.id,
-        status: {
-          $in: [
-            INVOICE_STATUSES.ISSUED,
-            INVOICE_STATUSES.REPLACED,
-            INVOICE_STATUSES.ADJUSTED,
-          ],
+    const providerIds = providers.map((p) => p.id);
+    const issuedStatuses = [
+      INVOICE_STATUSES.ISSUED,
+      INVOICE_STATUSES.REPLACED,
+      INVOICE_STATUSES.ADJUSTED,
+    ];
+
+    const counts = await Invoice.aggregate([
+      {
+        $match: {
+          providerId: { $in: providerIds },
+          isDeleted: { $ne: true },
         },
-      });
-      const total = await Invoice.countDocuments({ providerId: provider.id });
+      },
+      {
+        $group: {
+          _id: '$providerId',
+          total: { $sum: 1 },
+          issued: {
+            $sum: {
+              $cond: [{ $in: ['$status', issuedStatuses] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
 
-      quotas.push({
+    const countMap = new Map(counts.map((c) => [c._id, c]));
+
+    return providers.map((provider) => {
+      const stat = countMap.get(provider.id) || { issued: 0, total: 0 };
+      return {
         providerId: provider.id,
         providerName: provider.name,
         providerType: provider.providerType,
-        issued,
-        total,
+        issued: stat.issued,
+        total: stat.total,
         // BKAV không có API quota → hiển thị count từ DB
         // SePay có thể gọi API GET /v1/usage để lấy quota_remaining
         quotaRemaining: null, // null = không xác định
+      };
+    });
+  }
+
+  /**
+   * Tra cứu thông tin người nộp thuế theo MST (10/14 số) hoặc CCCD (12 số định danh cá nhân).
+   * Cascade qua 4 tầng:
+   *  1. BKAV CmdType 904 (tự động đọc cả TenChinhThuc, TenNNT, ChuDoanhNghiep, HoVaTen)
+   *  2. VietQR Business API (/v2/business/:code)
+   *  3. Esgoo Tax API (https://esgoo.net/api-mst/:code.htm)
+   *  4. Lịch sử hoá đơn CRM (buyer.taxCode hoặc buyer.cccd đã từng xuất hoá đơn)
+   * Chỉ trả kết quả khi tìm được tên đơn vị / họ tên khác rỗng; nếu không có trả null.
+   */
+  async lookupTaxInfo(rawCode) {
+    const code = String(rawCode || '')
+      .trim()
+      .replace(/\s+/g, '');
+    if (!code || code.length < 10) {
+      throw createHttpError(400, 'Mã số thuế / CCCD không hợp lệ');
+    }
+
+    const isCccdFormat = /^\d{12}$/.test(code);
+
+    // 1. Ưu tiên tra qua BKAV (CmdType 904)
+    try {
+      const bkavProvider = await InvoiceProvider.findOne({
+        providerType: INVOICE_PROVIDER_TYPES.BKAV,
+        isActive: true,
+      })
+        .sort({ isDefault: -1 })
+        .lean();
+
+      if (bkavProvider) {
+        const adapter = AdapterFactory.create(bkavProvider);
+        const bkavRes = await adapter.lookupTaxCode(code);
+        if (bkavRes?.success && bkavRes.data) {
+          const d = bkavRes.data;
+          const resolvedName = String(
+            d.TenChinhThuc ||
+              d.tenChinhThuc ||
+              d.TenNNT ||
+              d.tenNNT ||
+              d.TenDonVi ||
+              d.tenDonVi ||
+              d.HoVaTen ||
+              d.hoVaTen ||
+              d.HoTen ||
+              d.hoTen ||
+              d.ChuDoanhNghiep ||
+              d.chuDoanhNghiep ||
+              d.NguoiDaiDien ||
+              d.TenGiaoDich ||
+              '',
+          ).trim();
+
+          const resolvedAddress = String(
+            d.DiaChiGiaoDichChinh ||
+              d.diaChiGiaoDichChinh ||
+              d.DiaChiGiaoDichPhu ||
+              d.DiaChiTruSo ||
+              d.diaChiTruSo ||
+              d.DiaChi ||
+              d.diaChi ||
+              '',
+          ).trim();
+
+          const resolvedOwner = String(
+            d.ChuDoanhNghiep ||
+              d.chuDoanhNghiep ||
+              d.NguoiDaiDien ||
+              d.HoVaTen ||
+              d.HoTen ||
+              '',
+          ).trim();
+
+          if (resolvedName) {
+            return {
+              taxCode: d.MaSoThue || code,
+              cccd: isCccdFormat ? code : '',
+              name: resolvedName,
+              shortName: String(d.TenGiaoDich || '').trim(),
+              address: resolvedAddress,
+              status: String(d.TrangThaiHoatDong || '').trim(),
+              owner: resolvedOwner,
+              taxAgency: String(d.CoQuanThue || '').trim(),
+              source: 'bkav',
+            };
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn('[Invoice] BKAV tax/CCCD lookup failed, trying fallback', {
+        code,
+        error: err.message,
       });
     }
 
-    return quotas;
+    // 2. Fallback 1: VietQR API (business & hộ kinh doanh)
+    try {
+      const { data } = await axios.get(
+        `https://api.vietqr.io/v2/business/${encodeURIComponent(code)}`,
+        { timeout: 5000 },
+      );
+      if (data?.code === '00' && data?.data) {
+        const resolvedName = String(
+          data.data.name ||
+            data.data.internationalName ||
+            data.data.shortName ||
+            '',
+        ).trim();
+        if (resolvedName) {
+          return {
+            taxCode: data.data.id || code,
+            cccd: isCccdFormat ? code : '',
+            name: resolvedName,
+            shortName: String(data.data.shortName || '').trim(),
+            address: String(data.data.address || '').trim(),
+            source: 'vietqr',
+          };
+        }
+      }
+    } catch (err) {
+      logger.warn('[Invoice] VietQR tax lookup failed, trying Esgoo fallback', {
+        code,
+        error: err.message,
+      });
+    }
+
+    // 3. Fallback 2: Esgoo MST API (hỗ trợ cả MST cá nhân / CCCD 12 số khi đã đồng bộ định danh thuế)
+    try {
+      const { data } = await axios.get(
+        `https://esgoo.net/api-mst/${encodeURIComponent(code)}.htm`,
+        { timeout: 5000 },
+      );
+      if (data?.error === 0 && data?.data) {
+        const d = data.data;
+        const resolvedName = String(
+          d.ten || d.ten_quoc_te || d.ten_viet_tat || d.nguoi_dai_dien || '',
+        ).trim();
+        if (resolvedName) {
+          return {
+            taxCode: d.mst || code,
+            cccd: isCccdFormat ? code : '',
+            name: resolvedName,
+            shortName: String(d.ten_viet_tat || '').trim(),
+            address: String(d.dia_chi || '').trim(),
+            owner: String(d.nguoi_dai_dien || '').trim(),
+            phone: String(d.dien_thoai || '').trim(),
+            status: String(d.tinh_trang || '').trim(),
+            source: 'esgoo',
+          };
+        }
+      }
+    } catch (err) {
+      logger.warn(
+        '[Invoice] Esgoo tax lookup failed, trying CRM history fallback',
+        {
+          code,
+          error: err.message,
+        },
+      );
+    }
+
+    // 4. Fallback 3: Tra cứu từ lịch sử hoá đơn đã tạo trong CRM (theo MST hoặc CCCD)
+    try {
+      const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const exactRegex = new RegExp(`^${escaped}$`, 'i');
+      const prevInvoice = await Invoice.findOne({
+        isDeleted: { $ne: true },
+        $or: [{ 'buyer.taxCode': exactRegex }, { 'buyer.cccd': exactRegex }],
+      })
+        .sort({ createdAt: -1 })
+        .select('buyer')
+        .lean();
+
+      if (prevInvoice?.buyer) {
+        const b = prevInvoice.buyer;
+        const resolvedName = String(b.unitName || b.name || '').trim();
+        if (resolvedName && resolvedName !== 'Khách lẻ') {
+          return {
+            taxCode: b.taxCode || code,
+            cccd: b.cccd || (isCccdFormat ? code : ''),
+            name: resolvedName,
+            shortName: '',
+            address: String(b.address || '').trim(),
+            owner: String(b.name || '').trim(),
+            email: String(b.email || '').trim(),
+            phone: String(b.phone || '').trim(),
+            source: 'crm_history',
+          };
+        }
+      }
+    } catch (err) {
+      logger.warn('[Invoice] CRM history lookup failed', {
+        code,
+        error: err.message,
+      });
+    }
+
+    return null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1779,33 +2130,811 @@ class InvoiceService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // External API (Key.vn / ZCode & 3rd-party Integrations)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Tự động chọn nhà cung cấp mặc định đang hoạt động khi 3rd-party không truyền providerId.
+   * Hỗ trợ tái sử dụng providerCache (Map lưu Promise — singleflight) trong chế độ batch
+   * để tránh N+1 và cache stampede khi nhiều worker chạy song song.
+   */
+  async resolveDefaultProvider(providerId = null, providerCache = null) {
+    const cacheKey = providerId || '__default__';
+    if (providerCache && providerCache.has(cacheKey)) {
+      return providerCache.get(cacheKey);
+    }
+
+    const loadPromise = (async () => {
+      if (providerId) {
+        const provider = await InvoiceProvider.findOne({
+          id: providerId,
+        }).lean();
+        if (!provider) throw createHttpError(400, 'Nhà cung cấp không tồn tại');
+        if (!provider.isActive) {
+          throw createHttpError(400, 'Nhà cung cấp đã bị vô hiệu hoá');
+        }
+        return provider;
+      }
+
+      let provider = await InvoiceProvider.findOne({
+        isDefault: true,
+        isActive: true,
+      }).lean();
+
+      if (!provider) {
+        provider = await InvoiceProvider.findOne({ isActive: true })
+          .sort({ createdAt: 1 })
+          .lean();
+      }
+
+      if (!provider) {
+        throw createHttpError(
+          400,
+          'Chưa có nhà cung cấp hoá đơn nào đang hoạt động trong hệ thống',
+        );
+      }
+      return provider;
+    })();
+
+    if (providerCache) {
+      providerCache.set(cacheKey, loadPromise);
+      loadPromise.catch(() => {
+        if (providerCache.get(cacheKey) === loadPromise) {
+          providerCache.delete(cacheKey);
+        }
+      });
+    }
+
+    return loadPromise;
+  }
+
+  /**
+   * Prefetch toàn bộ InvoiceProduct đang hoạt động được tham chiếu bởi danh sách entries (1 query duy nhất).
+   */
+  async _prefetchActiveProducts(entries) {
+    const idSet = new Set();
+    const codeSet = new Set();
+
+    for (const entry of entries) {
+      if (!entry || !Array.isArray(entry.items)) continue;
+      for (const rawItem of entry.items) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+        const pid = String(rawItem.productId || rawItem.id || '').trim();
+        const code = String(rawItem.itemCode || rawItem.productCode || '')
+          .trim()
+          .toUpperCase();
+        if (pid) idSet.add(pid);
+        else if (code) codeSet.add(code);
+      }
+    }
+
+    const byId = new Map();
+    const byCode = new Map();
+    const orConditions = [];
+    if (idSet.size > 0) orConditions.push({ id: { $in: Array.from(idSet) } });
+    if (codeSet.size > 0) {
+      orConditions.push({ code: { $in: Array.from(codeSet) } });
+    }
+
+    if (orConditions.length === 0) {
+      return { byId, byCode };
+    }
+
+    const products = await InvoiceProduct.find({
+      isActive: true,
+      isDeleted: { $ne: true },
+      $or: orConditions,
+    }).lean();
+
+    for (const p of products) {
+      if (p.id) byId.set(p.id, p);
+      if (p.code) byCode.set(String(p.code).toUpperCase(), p);
+    }
+
+    return { byId, byCode };
+  }
+
+  /**
+   * Chuẩn hoá response trả ra cho bên thứ 3 (không để lộ raw credential/nội bộ).
+   */
+  _formatExternalInvoiceSummary(inv) {
+    if (!inv) return null;
+    return {
+      id: inv.id,
+      status: inv.status,
+      providerId: inv.providerId,
+      providerType: inv.providerType,
+      invoiceForm: inv.invoiceForm || null,
+      invoiceSerial: inv.invoiceSerial || null,
+      invoiceNo: inv.invoiceNo || 0,
+      invoiceDate: inv.invoiceDate || null,
+      lookupCode: inv.lookupCode || null,
+      lookupUrl: this._buildPublicLookupUrl(inv),
+      maCuaCQT: inv.maCuaCQT || '',
+      billCode: inv.billCode || '',
+      sourceModule: inv.sourceModule || null,
+      sourceId: inv.sourceId || null,
+      buyer: inv.buyer || {},
+      paymentMethod: inv.paymentMethod,
+      currency: inv.currency,
+      totalAmountBeforeTax: inv.totalAmountBeforeTax || 0,
+      totalDiscountAmount: inv.totalDiscountAmount || 0,
+      totalTaxAmount: inv.totalTaxAmount || 0,
+      totalAmount: inv.totalAmount || 0,
+      items: (inv.items || []).map((it) => ({
+        productId: it.productId || null,
+        itemCode: it.itemCode || '',
+        itemName: it.itemName,
+        unitName: it.unitName || '',
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        amount: it.amount,
+        taxRate: it.taxRate,
+        taxRateId: it.taxRateId,
+        taxAmount: it.taxAmount,
+        discountRate: it.discountRate || 0,
+        discountAmount: it.discountAmount || 0,
+        isDiscount: !!it.isDiscount,
+        itemTypeId: it.itemTypeId || 0,
+      })),
+      providerErrorMessage: inv.providerErrorMessage || null,
+      issuedAt: inv.issuedAt || null,
+      createdAt: inv.createdAt || null,
+      updatedAt: inv.updatedAt || null,
+    };
+  }
+
+  /**
+   * Tạo 1 hoá đơn đơn lẻ từ payload external (đã validate).
+   * - Luôn ép sourceModule theo đối tác đã xác thực (chống giả mạo sourceModule).
+   * - Tuần tự hoá in-flight theo (sourceModule, sourceId/billCode) chống race condition xuất trùng.
+   */
+  async _createSingleExternalInvoice(validatedEntry, context = {}) {
+    const caller = context.caller || INVOICE_SOURCE_MODULES.EXTERNAL_API;
+    const createdBy = context.createdBy || `external:${caller}`;
+
+    // Bảo mật: luôn dùng sourceModule của đối tác đã xác thực qua API Key, không tin client body
+    const sourceModule = caller;
+    const sourceId =
+      validatedEntry.sourceId ||
+      validatedEntry.externalRef ||
+      validatedEntry.billCode ||
+      null;
+    const billCode = validatedEntry.billCode || sourceId || '';
+
+    const runCore = async () => {
+      // Chống tạo trùng theo (sourceModule + sourceId/billCode) khi bên thứ 3 retry
+      if (sourceId || billCode) {
+        const refOr = [];
+        if (sourceId) refOr.push({ sourceId });
+        if (billCode) refOr.push({ billCode });
+        const existing = await Invoice.findOne({
+          sourceModule,
+          isDeleted: { $ne: true },
+          status: {
+            $nin: [INVOICE_STATUSES.CANCELLED, INVOICE_STATUSES.REPLACED],
+          },
+          $or: refOr,
+        }).lean();
+
+        if (existing) {
+          return {
+            duplicate: true,
+            invoice: this._formatExternalInvoiceSummary(existing),
+          };
+        }
+      }
+
+      const provider = await this.resolveDefaultProvider(
+        validatedEntry.providerId,
+        context.providerCache || null,
+      );
+
+      const resolvedItems = await this._resolveItems(validatedEntry.items, {
+        strictSkuLookup: true,
+        productCache: context.productCache || null,
+      });
+      const totals = this._calculateTotals(resolvedItems);
+      const id = await generateMonotonicId(ID_PREFIXES.INVOICE);
+
+      const buyer = { ...(validatedEntry.buyer || {}) };
+      if (!buyer.name && !buyer.unitName) {
+        buyer.name = 'Khách lẻ';
+      }
+
+      const invoiceDoc = {
+        id,
+        providerId: provider.id,
+        providerType: provider.providerType,
+        invoiceForm: validatedEntry.invoiceForm || provider.invoiceForm,
+        invoiceSerial: validatedEntry.invoiceSerial || provider.invoiceSerial,
+        invoiceNo: 0,
+        invoiceDate: validatedEntry.invoiceDate || new Date(),
+        buyer,
+        paymentMethod: validatedEntry.paymentMethod,
+        currency: validatedEntry.currency,
+        exchangeRate: validatedEntry.exchangeRate,
+        note: validatedEntry.note,
+        billCode,
+        userDefine: validatedEntry.userDefine,
+        sourceModule,
+        sourceId,
+        items: resolvedItems,
+        ...totals,
+        status: validatedEntry.isDraft
+          ? INVOICE_STATUSES.DRAFT
+          : INVOICE_STATUSES.PENDING,
+        relatedInvoiceId: null,
+        relationType: null,
+        createdBy,
+      };
+
+      const invoice = await Invoice.create(invoiceDoc);
+
+      if (!validatedEntry.isDraft) {
+        const issued = await this._issueViaProvider(invoice, provider);
+        return {
+          duplicate: false,
+          invoice: this._formatExternalInvoiceSummary(issued),
+        };
+      }
+
+      return {
+        duplicate: false,
+        invoice: this._formatExternalInvoiceSummary(invoice.toObject()),
+      };
+    };
+
+    const lockRef = sourceId || billCode;
+    if (!lockRef) {
+      return runCore();
+    }
+
+    const lockKey = `${sourceModule}:${lockRef}`;
+    // Nếu đang có request đồng thời với cùng (sourceModule, sourceId/billCode), chờ request trước hoàn tất rồi kiểm tra lại DB
+    while (this._inFlightExternalKeys.has(lockKey)) {
+      await this._inFlightExternalKeys.get(lockKey).catch(() => {});
+    }
+
+    const taskPromise = runCore();
+    this._inFlightExternalKeys.set(lockKey, taskPromise);
+    try {
+      return await taskPromise;
+    } finally {
+      if (this._inFlightExternalKeys.get(lockKey) === taskPromise) {
+        this._inFlightExternalKeys.delete(lockKey);
+      }
+    }
+  }
+
+  /**
+   * Tạo hoá đơn từ hệ thống bên thứ 3 (Key.vn / ZCode / đối tác khác).
+   * - Gửi 1 object → xuất 1 hoá đơn
+   * - Gửi array `[...]` hoặc `{ invoices: [...] }` → mỗi phần tử xuất 1 hoá đơn riêng biệt (tối đa 30 HĐ/request)
+   */
+  async createExternalInvoices(rawPayload, context = {}) {
+    let isBatch = false;
+    let entries = [];
+
+    if (Array.isArray(rawPayload)) {
+      isBatch = true;
+      entries = rawPayload;
+    } else if (rawPayload && Array.isArray(rawPayload.invoices)) {
+      isBatch = true;
+      entries = rawPayload.invoices;
+    } else if (rawPayload && typeof rawPayload === 'object') {
+      isBatch = false;
+      entries = [rawPayload];
+    } else {
+      throw createHttpError(
+        400,
+        'Payload phải là object hoá đơn hoặc mảng các hoá đơn',
+      );
+    }
+
+    if (entries.length === 0) {
+      throw createHttpError(400, 'Danh sách hoá đơn không được để trống');
+    }
+    if (entries.length > BKAV_MAX_INVOICES_PER_REQUEST) {
+      throw createHttpError(
+        400,
+        `Chỉ được gửi tối đa ${BKAV_MAX_INVOICES_PER_REQUEST} hoá đơn mỗi request`,
+      );
+    }
+
+    // Single invoice mode: validate & throw directly on error
+    if (!isBatch) {
+      const { error, value } = externalCreateInvoiceSchema.validate(
+        entries[0],
+        {
+          abortEarly: false,
+        },
+      );
+      if (error) {
+        throw createHttpError(
+          400,
+          error.details.map((d) => d.message).join('; '),
+        );
+      }
+      const res = await this._createSingleExternalInvoice(value, context);
+      return {
+        isBatch: false,
+        duplicate: res.duplicate,
+        invoice: res.invoice,
+      };
+    }
+
+    // Batch mode:
+    // 1. Prefetch toàn bộ Product & chia sẻ Provider cache → loại bỏ N+1 DB queries
+    // 2. Xử lý song song có giới hạn (bounded concurrency = 4) → giảm latency 30 HĐ từ ~50s xuống ~12s
+    const providerCache = new Map();
+    const productCache = await this._prefetchActiveProducts(entries);
+    const batchContext = {
+      ...context,
+      providerCache,
+      productCache,
+    };
+
+    const results = new Array(entries.length);
+    const BATCH_CONCURRENCY = Math.min(4, entries.length);
+    let cursor = 0;
+
+    const processOne = async (index) => {
+      const rawEntry = entries[index];
+      const refBillCode =
+        rawEntry?.billCode ||
+        rawEntry?.sourceId ||
+        rawEntry?.externalRef ||
+        null;
+      const refSourceId =
+        rawEntry?.sourceId ||
+        rawEntry?.externalRef ||
+        rawEntry?.billCode ||
+        null;
+
+      try {
+        const { error, value } = externalCreateInvoiceSchema.validate(
+          rawEntry,
+          { abortEarly: false },
+        );
+        if (error) {
+          results[index] = {
+            index,
+            billCode: refBillCode,
+            sourceId: refSourceId,
+            success: false,
+            duplicate: false,
+            invoice: null,
+            error: error.details.map((d) => d.message).join('; '),
+          };
+          return;
+        }
+
+        const res = await this._createSingleExternalInvoice(
+          value,
+          batchContext,
+        );
+        const failedAtProvider =
+          !res.duplicate && res.invoice?.status === INVOICE_STATUSES.ERROR;
+
+        results[index] = {
+          index,
+          billCode: res.invoice?.billCode || refBillCode,
+          sourceId: res.invoice?.sourceId || refSourceId,
+          success: !failedAtProvider,
+          duplicate: res.duplicate,
+          invoice: res.invoice,
+          error: failedAtProvider
+            ? res.invoice.providerErrorMessage ||
+              'Lỗi phát hành từ nhà cung cấp'
+            : null,
+        };
+      } catch (err) {
+        results[index] = {
+          index,
+          billCode: refBillCode,
+          sourceId: refSourceId,
+          success: false,
+          duplicate: false,
+          invoice: null,
+          error: err.message || 'Lỗi tạo hoá đơn',
+        };
+      }
+    };
+
+    const workers = Array.from({ length: BATCH_CONCURRENCY }, async () => {
+      while (cursor < entries.length) {
+        const current = cursor;
+        cursor += 1;
+        await processOne(current);
+      }
+    });
+    await Promise.all(workers);
+
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
+    const duplicateCount = results.filter((r) => r.duplicate).length;
+
+    return {
+      isBatch: true,
+      total: entries.length,
+      successCount,
+      failCount,
+      duplicateCount,
+      results,
+    };
+  }
+
+  /**
+   * Tra cứu hoá đơn cho bên thứ 3 theo CRM id, sourceId, hoặc billCode.
+   * Bắt buộc lọc theo sourceModule của đối tác gọi sang để chống truy cập chéo (IDOR).
+   */
+  async getExternalInvoiceByRef(refId, caller = null) {
+    const trimmed = String(refId || '').trim();
+    if (!trimmed) throw createHttpError(400, 'Mã tra cứu hoá đơn là bắt buộc');
+
+    const query = {
+      isDeleted: { $ne: true },
+      $or: [{ id: trimmed }, { sourceId: trimmed }, { billCode: trimmed }],
+    };
+    if (caller) {
+      query.sourceModule = caller;
+    }
+
+    const invoice = await Invoice.findOne(query).sort({ createdAt: -1 }).lean();
+
+    if (!invoice) {
+      throw createHttpError(404, `Không tìm thấy hoá đơn "${trimmed}"`);
+    }
+
+    return this._formatExternalInvoiceSummary(invoice);
+  }
+
+  /**
+   * Lấy danh mục sản phẩm (SKU) đang kích hoạt cho bên thứ 3.
+   */
+  async getExternalProducts() {
+    const products = await InvoiceProduct.find({
+      isActive: true,
+      isDeleted: { $ne: true },
+    })
+      .sort({ code: 1 })
+      .lean();
+
+    return products.map((p) => ({
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      unitName: p.unitName,
+      unitPrice: p.unitPrice,
+      taxRate: p.taxRate,
+      taxRateId: p.taxRateId,
+      itemTypeId: p.itemTypeId,
+      description: p.description || '',
+      userDefineDetails: p.userDefineDetails || '',
+    }));
+  }
+
+  /**
+   * Trả về template chuẩn + bảng quy ước enum cho dev bên thứ 3 tự khám phá & tích hợp.
+   */
+  async getExternalInvoiceTemplate() {
+    const products = await this.getExternalProducts();
+    const sampleSku = products[0]?.code || 'ZB5000';
+
+    return {
+      version: '2.0',
+      maxInvoicesPerRequest: BKAV_MAX_INVOICES_PER_REQUEST,
+      auth: {
+        header: 'X-API-Key (bắt buộc — riêng cho từng đối tác)',
+        partnerHeader:
+          'X-Partner-Id (khuyến nghị — định danh đối tác để cô lập key & IP allowlist)',
+        idempotencyHeader:
+          'X-Idempotency-Key (tùy chọn, TTL 24h, cô lập namespace theo từng đối tác)',
+        perItemDeduplication:
+          'Truyền sourceId hoặc billCode để tự động chống trùng lặp hoá đơn khi retry',
+      },
+      itemResolutionRules: {
+        branch1_byProduct:
+          'Truyền productId/id hoặc itemCode/productCode → CRM tra cứu sản phẩm đang kích hoạt trong DB và dùng 100% thông tin cấu hình sẵn của sản phẩm đó kết hợp với quantity (> 0).',
+        branch2_customTemplate:
+          'Không truyền productId/itemCode → bắt buộc truyền đầy đủ các trường hợp lệ theo itemType: goods (itemName, unitName, quantity > 0, unitPrice >= 0, taxRate), vehicle (như goods + userDefineDetails), promotion (itemName, unitName, quantity > 0), discount (itemName + amount > 0), note (itemName).',
+      },
+      enums: {
+        itemType: [
+          {
+            alias: 'goods',
+            itemTypeId: 0,
+            description: 'Hàng hoá / dịch vụ thông thường (mặc định)',
+          },
+          {
+            alias: 'note',
+            itemTypeId: 4,
+            description: 'Dòng ghi chú (SL=0, đơn giá=0, không tính tiền/thuế)',
+          },
+          {
+            alias: 'promotion',
+            itemTypeId: 15,
+            description: 'Hàng khuyến mãi (đơn giá=0, thành tiền=0, thuế=0)',
+          },
+          {
+            alias: 'vehicle',
+            itemTypeId: 21,
+            description:
+              'Xe ô tô / mô tô (truyền userDefineDetails chứa SKhung, SMay)',
+          },
+          {
+            alias: 'discount',
+            itemTypeId: 30,
+            description: 'Chiết khấu thương mại (giảm trừ trước thuế, thuế=0)',
+          },
+        ],
+        taxRates: [
+          {
+            taxRate: 10,
+            taxRateId: BKAV_TAX_RATE_IDS.TAX_10,
+            label: 'VAT 10% (mặc định)',
+          },
+          { taxRate: 8, taxRateId: BKAV_TAX_RATE_IDS.TAX_8, label: 'VAT 8%' },
+          { taxRate: 5, taxRateId: BKAV_TAX_RATE_IDS.TAX_5, label: 'VAT 5%' },
+          { taxRate: 0, taxRateId: BKAV_TAX_RATE_IDS.TAX_0, label: 'VAT 0%' },
+          {
+            taxRate: -1,
+            taxRateId: BKAV_TAX_RATE_IDS.TAX_KCT,
+            label: 'Không chịu thuế (KCT)',
+          },
+          {
+            taxRate: -2,
+            taxRateId: BKAV_TAX_RATE_IDS.TAX_KKK,
+            label: 'Không kê khai nộp thuế (KKK)',
+          },
+          {
+            taxRate: -4,
+            taxRateId: BKAV_TAX_RATE_IDS.TAX_OTHER,
+            label: 'Thuế suất khác',
+          },
+        ],
+        paymentMethods: [
+          { value: 'TM', label: 'Tiền mặt' },
+          { value: 'CK', label: 'Chuyển khoản' },
+          { value: 'TM/CK', label: 'Tiền mặt / Chuyển khoản (mặc định)' },
+        ],
+        buyerTypes: [
+          { value: 'company', label: 'Doanh nghiệp (có MST)' },
+          { value: 'personal', label: 'Cá nhân / khách lẻ' },
+        ],
+      },
+      activeProductsCount: products.length,
+      activeProductsPreview: products.slice(0, 10),
+      examples: {
+        singleBySku: {
+          sourceId: 'KEYVN-ORD-20261120-001',
+          billCode: 'KEYVN-ORD-20261120-001',
+          isDraft: false,
+          paymentMethod: 'CK',
+          buyer: {
+            type: 'company',
+            name: 'Nguyễn Văn A',
+            unitName: 'CÔNG TY TNHH ABC',
+            taxCode: '0101234567',
+            address: '123 Cầu Giấy, Hà Nội',
+            email: 'ketoan@abc.vn',
+            phone: '0901234567',
+          },
+          items: [
+            {
+              itemCode: sampleSku,
+              quantity: 2,
+            },
+          ],
+        },
+        singleCustomTemplate: {
+          sourceId: 'PARTNER-ORD-20261120-002',
+          isDraft: false,
+          paymentMethod: 'TM/CK',
+          note: 'Đơn hàng thanh toán chuyển khoản',
+          buyer: {
+            type: 'personal',
+            name: 'Trần Thị B',
+            email: 'tranthib@gmail.com',
+            phone: '0988888888',
+          },
+          items: [
+            {
+              itemType: 'goods',
+              itemName: 'Gói dịch vụ ZCode Pro 12 tháng',
+              unitName: 'Gói',
+              quantity: 1,
+              unitPrice: 1000000,
+              taxRate: 10,
+            },
+            {
+              itemType: 'promotion',
+              itemName: 'Tặng kèm 1 tháng sử dụng',
+              unitName: 'Tháng',
+              quantity: 1,
+            },
+            {
+              itemType: 'discount',
+              itemName: 'Chiết khấu ưu đãi 10%',
+              amount: 100000,
+            },
+            {
+              itemType: 'note',
+              itemName: 'Mã đơn hàng đối tác: PARTNER-ORD-20261120-002',
+            },
+          ],
+        },
+        batchArray: [
+          {
+            sourceId: 'KEYVN-ORD-001',
+            buyer: {
+              type: 'personal',
+              name: 'Khách hàng 1',
+              email: 'kh1@example.com',
+            },
+            items: [{ itemCode: sampleSku, quantity: 1 }],
+          },
+          {
+            sourceId: 'KEYVN-ORD-002',
+            buyer: {
+              type: 'company',
+              name: 'Khách hàng 2',
+              unitName: 'CÔNG TY XYZ',
+              taxCode: '0309999999',
+              address: 'TP.HCM',
+              email: 'kh2@xyz.vn',
+            },
+            items: [
+              {
+                itemType: 'goods',
+                itemName: 'Dịch vụ tuỳ chỉnh',
+                unitName: 'Lần',
+                quantity: 1,
+                unitPrice: 500000,
+                taxRate: 8,
+              },
+            ],
+          },
+        ],
+      },
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Private helpers
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async _resolveItems(items) {
+  async _resolveItems(items, options = {}) {
     if (!Array.isArray(items)) return [];
+    const { strictSkuLookup = false, productCache = null } = options;
+
+    const productBaseFilter = strictSkuLookup
+      ? { isActive: true, isDeleted: { $ne: true } }
+      : { isDeleted: { $ne: true } };
+
+    // Nếu không có cache từ batch và hoá đơn có > 1 mã sản phẩm cần tra cứu → prefetch 1 query $in tránh N+1
+    let localCache = productCache;
+    if (!localCache) {
+      const idSet = new Set();
+      const codeSet = new Set();
+      for (const rawItem of items) {
+        const pid = String(rawItem?.productId || rawItem?.id || '').trim();
+        const code = String(rawItem?.itemCode || rawItem?.productCode || '')
+          .trim()
+          .toUpperCase();
+        if (pid) idSet.add(pid);
+        else if (code) codeSet.add(code);
+      }
+      if (idSet.size + codeSet.size > 1) {
+        const orConds = [];
+        if (idSet.size > 0) orConds.push({ id: { $in: Array.from(idSet) } });
+        if (codeSet.size > 0) {
+          orConds.push({ code: { $in: Array.from(codeSet) } });
+        }
+        const docs = await InvoiceProduct.find({
+          ...productBaseFilter,
+          $or: orConds,
+        }).lean();
+        const byId = new Map();
+        const byCode = new Map();
+        for (const p of docs) {
+          if (p.id) byId.set(p.id, p);
+          if (p.code) byCode.set(String(p.code).toUpperCase(), p);
+        }
+        localCache = { byId, byCode };
+      }
+    }
 
     const resolved = [];
     for (const rawItem of items) {
       const item = { ...rawItem };
+      const lookupProductId = (item.productId || item.id || '').trim();
       const lookupCode = (item.itemCode || item.productCode || '')
         .trim()
         .toUpperCase();
+      delete item.id;
+      delete item.productCode;
 
-      let product = null;
-      if (item.productId) {
-        product = await InvoiceProduct.findOne({
-          id: item.productId,
-          isDeleted: { $ne: true },
-        }).lean();
-      } else if (lookupCode) {
-        product = await InvoiceProduct.findOne({
-          code: lookupCode,
-          isDeleted: { $ne: true },
-        }).lean();
+      // Hỗ trợ alias itemType ('goods' | 'note' | 'promotion' | 'vehicle' | 'discount')
+      if (
+        (item.itemTypeId === undefined || item.itemTypeId === null) &&
+        typeof item.itemType === 'string'
+      ) {
+        const mappedTypeId =
+          INVOICE_ITEM_TYPE_ALIASES[item.itemType.trim().toLowerCase()];
+        if (mappedTypeId !== undefined) {
+          item.itemTypeId = mappedTypeId;
+        }
+      }
+      delete item.itemType;
+
+      // Nếu userDefineDetails truyền object/array (vd: xe cơ giới), tự động serialize JSON
+      if (
+        item.userDefineDetails !== undefined &&
+        item.userDefineDetails !== null &&
+        typeof item.userDefineDetails === 'object'
+      ) {
+        item.userDefineDetails = JSON.stringify(item.userDefineDetails);
       }
 
-      if (product) {
+      let product = null;
+      if (lookupProductId) {
+        product = localCache
+          ? localCache.byId.get(lookupProductId) || null
+          : await InvoiceProduct.findOne({
+              id: lookupProductId,
+              ...productBaseFilter,
+            }).lean();
+      } else if (lookupCode) {
+        product = localCache
+          ? localCache.byCode.get(lookupCode) || null
+          : await InvoiceProduct.findOne({
+              code: lookupCode,
+              ...productBaseFilter,
+            }).lean();
+      }
+
+      // Khi gọi qua External API (strictSkuLookup=true):
+      // 1) Nếu có gửi ID/Mã liên quan đến Product → bắt buộc Product phải tồn tại & đang active,
+      //    và dùng hoàn toàn thông tin cấu hình sẵn của Product đó.
+      // 2) Nếu không gửi ID/Mã Product → dùng toàn bộ các field hợp lệ đã được validate để điền vào item.
+      if (strictSkuLookup && (lookupProductId || lookupCode)) {
+        if (!product) {
+          if (lookupProductId) {
+            throw createHttpError(
+              400,
+              `Không tìm thấy sản phẩm đang hoạt động với productId "${lookupProductId}"`,
+            );
+          }
+          throw createHttpError(
+            400,
+            `Không tìm thấy sản phẩm đang hoạt động với mã SKU "${lookupCode}"`,
+          );
+        }
+
+        // Gán trực tiếp thông tin của Product có sẵn trong DB
+        item.productId = product.id;
+        item.itemCode = product.code;
+        item.itemName = product.name;
+        item.unitName = product.unitName || '';
+        item.unitPrice =
+          product.unitPrice !== undefined ? Number(product.unitPrice) : 0;
+        item.taxRate =
+          product.taxRate !== undefined ? Number(product.taxRate) : 10;
+        item.taxRateId =
+          product.taxRateId ||
+          BKAV_TAX_RATE_TO_ID[item.taxRate] ||
+          BKAV_TAX_RATE_IDS.TAX_OTHER;
+        item.itemTypeId =
+          product.itemTypeId !== undefined && product.itemTypeId !== null
+            ? Number(product.itemTypeId)
+            : 0;
+        item.userDefineDetails =
+          item.userDefineDetails || product.userDefineDetails || '';
+      } else if (product) {
+        // Luồng nội bộ CRM (cho phép override linh hoạt trên UI form)
+        if (!item.productId) item.productId = product.id;
         if (!item.itemName) item.itemName = product.name;
         if (!item.itemCode) item.itemCode = product.code;
         if (!item.unitName && product.unitName)
@@ -1821,12 +2950,34 @@ class InvoiceService {
         if (item.taxRate === undefined || item.taxRate === null) {
           item.taxRate = product.taxRate;
         }
-        if (!item.taxRateId) {
+        if (!item.taxRateId && item.taxRate === product.taxRate) {
           item.taxRateId = product.taxRateId;
         }
         if (item.itemTypeId === undefined || item.itemTypeId === null) {
           item.itemTypeId = product.itemTypeId || 0;
         }
+        if (!item.userDefineDetails && product.userDefineDetails) {
+          item.userDefineDetails = product.userDefineDetails;
+        }
+      } else {
+        item.productId = null;
+        item.itemCode = item.itemCode || '';
+        item.unitName = item.unitName || '';
+        item.userDefineDetails = item.userDefineDetails || '';
+      }
+
+      // Chuẩn hoá mặc định cho itemTypeId, taxRate, taxRateId
+      if (item.itemTypeId === undefined || item.itemTypeId === null) {
+        item.itemTypeId = 0;
+      }
+      if (item.taxRate === undefined || item.taxRate === null) {
+        item.taxRate = 10;
+      } else {
+        item.taxRate = Number(item.taxRate);
+      }
+      if (!item.taxRateId) {
+        item.taxRateId =
+          BKAV_TAX_RATE_TO_ID[item.taxRate] || BKAV_TAX_RATE_IDS.TAX_OTHER;
       }
 
       // Đảm bảo số lượng và đơn giá là số hợp lệ
@@ -1880,11 +3031,23 @@ class InvoiceService {
         ) {
           item.amount = Math.round(item.quantity * item.unitPrice * 100) / 100;
         }
+        // Tính chiết khấu theo dòng nếu có discountRate mà chưa có discountAmount
+        if (
+          item.discountRate > 0 &&
+          (item.discountAmount === undefined || item.discountAmount === null)
+        ) {
+          item.discountAmount =
+            Math.round(item.amount * item.discountRate) / 100;
+        }
+        const taxableBase = Math.max(
+          0,
+          item.amount - (item.discountAmount || 0),
+        );
         // Tính taxAmount nếu chưa có
         if (item.taxAmount === undefined || item.taxAmount === null) {
           item.taxAmount =
             item.taxRate > 0
-              ? Math.round((item.amount * item.taxRate) / 100)
+              ? Math.round((taxableBase * item.taxRate) / 100)
               : 0;
         }
       }
