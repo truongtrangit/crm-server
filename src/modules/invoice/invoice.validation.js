@@ -3,6 +3,7 @@ const Joi = require('joi');
 const {
   INVOICE_PROVIDER_TYPES,
   BKAV_CMD_TYPES,
+  INVOICE_ITEM_TYPE_ALIASES,
 } = require('../../core/constants/invoice');
 
 // ─── Invoice Item sub-schema ────────────────────────────────────────────────
@@ -247,6 +248,182 @@ const updateInvoiceProductSchema = Joi.object({
   isActive: Joi.boolean(),
 }).min(1);
 
+// ─── External API: Create Invoice (Key.vn / 3rd-party) ──────────────────────
+
+const VALID_EXTERNAL_TAX_RATES = [0, 5, 8, 10, -1, -2, -4];
+
+const externalInvoiceItemSchema = Joi.object({
+  id: Joi.string().trim().allow(null, ''),
+  productId: Joi.string().trim().allow(null, ''),
+  itemCode: Joi.string().trim().allow(''),
+  productCode: Joi.string().trim().allow(''),
+  itemName: Joi.string().trim().allow(''),
+  unitName: Joi.string().trim().allow(''),
+  quantity: Joi.number(),
+  unitPrice: Joi.number(),
+  amount: Joi.number(),
+  taxRateId: Joi.number().integer().min(1),
+  taxRate: Joi.number().valid(...VALID_EXTERNAL_TAX_RATES),
+  taxAmount: Joi.number(),
+  discountRate: Joi.number().min(0).max(100).default(0),
+  discountAmount: Joi.number().min(0),
+  isDiscount: Joi.boolean(),
+  itemType: Joi.string()
+    .trim()
+    .lowercase()
+    .valid(...Object.keys(INVOICE_ITEM_TYPE_ALIASES)),
+  itemTypeId: Joi.number().integer().valid(0, 4, 15, 21, 30),
+  userDefineDetails: Joi.alternatives().try(
+    Joi.string().allow(''),
+    Joi.object(),
+    Joi.array(),
+  ),
+})
+  .custom((value, helpers) => {
+    const hasProductRef = Boolean(
+      (value.productId && String(value.productId).trim()) ||
+        (value.id && String(value.id).trim()) ||
+        (value.itemCode && String(value.itemCode).trim()) ||
+        (value.productCode && String(value.productCode).trim()),
+    );
+
+    // Nhánh 1: Có gửi ID / Mã liên quan đến Product → sẽ dùng thông tin Product có sẵn trong DB
+    if (hasProductRef) {
+      if (
+        value.quantity !== undefined &&
+        value.quantity !== null &&
+        Number(value.quantity) <= 0
+      ) {
+        return helpers.error('any.custom', {
+          message: 'Số lượng (quantity) của sản phẩm phải lớn hơn 0',
+        });
+      }
+      return value;
+    }
+
+    // Nhánh 2: Không gửi ID / Mã Product → kiểm tra toàn bộ các field bắt buộc theo từng loại dòng
+    const resolvedTypeId =
+      value.itemTypeId !== undefined && value.itemTypeId !== null
+        ? Number(value.itemTypeId)
+        : value.isDiscount
+          ? 30
+          : typeof value.itemType === 'string'
+            ? INVOICE_ITEM_TYPE_ALIASES[value.itemType.trim().toLowerCase()] ?? 0
+            : 0;
+
+    const missingFields = [];
+
+    if (!value.itemName || !String(value.itemName).trim()) {
+      missingFields.push('itemName (tên hàng hoá/dịch vụ)');
+    }
+
+    if (resolvedTypeId === 0 || resolvedTypeId === 21) {
+      // Hàng hoá / dịch vụ thông thường hoặc Xe cơ giới: bắt buộc đủ itemName, unitName, quantity, unitPrice, taxRate
+      if (!value.unitName || !String(value.unitName).trim()) {
+        missingFields.push('unitName (đơn vị tính)');
+      }
+      if (
+        value.quantity === undefined ||
+        value.quantity === null ||
+        Number(value.quantity) <= 0
+      ) {
+        missingFields.push('quantity (số lượng > 0)');
+      }
+      if (
+        value.unitPrice === undefined ||
+        value.unitPrice === null ||
+        Number(value.unitPrice) < 0
+      ) {
+        missingFields.push('unitPrice (đơn giá >= 0)');
+      }
+      if (value.taxRate === undefined || value.taxRate === null) {
+        missingFields.push(
+          'taxRate (thuế suất: 0, 5, 8, 10, -1 [KCT], -2 [KKK], -4 [Khác])',
+        );
+      }
+      if (resolvedTypeId === 21) {
+        const hasDetails =
+          value.userDefineDetails &&
+          (typeof value.userDefineDetails === 'object'
+            ? Object.keys(value.userDefineDetails).length > 0
+            : String(value.userDefineDetails).trim().length > 0);
+        if (!hasDetails) {
+          missingFields.push(
+            'userDefineDetails (thông tin số khung/số máy cho dòng xe cơ giới)',
+          );
+        }
+      }
+    } else if (resolvedTypeId === 15) {
+      // Hàng khuyến mãi: bắt buộc itemName, unitName, quantity > 0
+      if (!value.unitName || !String(value.unitName).trim()) {
+        missingFields.push('unitName (đơn vị tính)');
+      }
+      if (
+        value.quantity === undefined ||
+        value.quantity === null ||
+        Number(value.quantity) <= 0
+      ) {
+        missingFields.push('quantity (số lượng > 0)');
+      }
+    } else if (resolvedTypeId === 30) {
+      // Dòng chiết khấu: bắt buộc itemName và (amount > 0 hoặc quantity * unitPrice > 0)
+      const hasValidAmount =
+        value.amount !== undefined &&
+        value.amount !== null &&
+        Number(value.amount) > 0;
+      const hasValidQtyPrice =
+        value.quantity !== undefined &&
+        value.unitPrice !== undefined &&
+        Number(value.quantity) > 0 &&
+        Number(value.unitPrice) > 0;
+      if (!hasValidAmount && !hasValidQtyPrice) {
+        missingFields.push(
+          'amount (số tiền chiết khấu > 0) hoặc cặp quantity & unitPrice > 0',
+        );
+      }
+    }
+    // resolvedTypeId === 4 (Ghi chú): chỉ cần itemName không rỗng
+
+    if (missingFields.length > 0) {
+      return helpers.error('any.custom', {
+        message: `Dòng hàng hoá tự định nghĩa (không truyền productId/itemCode) thiếu hoặc không hợp lệ các trường: ${missingFields.join(', ')}`,
+      });
+    }
+
+    return value;
+  })
+  .messages({
+    'any.custom': '{{#message}}',
+    'any.only':
+      'taxRate không hợp lệ (chỉ chấp nhận: 0, 5, 8, 10, -1 [KCT], -2 [KKK], -4 [Khác])',
+  });
+
+const externalCreateInvoiceSchema = Joi.object({
+  providerId: Joi.string().trim().allow('', null).default(null),
+  isDraft: Joi.boolean().default(false),
+  invoiceForm: Joi.string().trim().allow('', null).default(null),
+  invoiceSerial: Joi.string().trim().allow('', null).default(null),
+  invoiceDate: Joi.date().allow(null).default(null),
+  buyer: buyerSchema.default(),
+  paymentMethod: Joi.string().valid('TM', 'CK', 'TM/CK').default('TM/CK'),
+  currency: Joi.string().trim().default('VND'),
+  exchangeRate: Joi.number().min(0).default(1),
+  note: Joi.string().trim().allow('').default(''),
+  billCode: Joi.string().trim().allow('').default(''),
+  userDefine: Joi.string().allow('').default(''),
+  sourceModule: Joi.string().trim().allow('', null).default(null),
+  sourceId: Joi.string().trim().allow('', null).default(null),
+  externalRef: Joi.string().trim().allow('', null).default(null),
+  items: Joi.array()
+    .items(externalInvoiceItemSchema)
+    .min(1)
+    .required()
+    .messages({
+      'array.min': 'Phải có ít nhất 1 hàng hoá / dịch vụ',
+      'any.required': 'Danh sách hàng hoá (items) là bắt buộc',
+    }),
+});
+
 module.exports = {
   createInvoiceSchema,
   updateInvoiceSchema,
@@ -255,4 +432,6 @@ module.exports = {
   updateProviderSchema,
   createInvoiceProductSchema,
   updateInvoiceProductSchema,
+  externalInvoiceItemSchema,
+  externalCreateInvoiceSchema,
 };

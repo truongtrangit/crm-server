@@ -11,6 +11,7 @@ const externalV1Router = Router();
 
 // Các router sử dụng key riêng sẽ được khai báo trước middleware này
 externalV1Router.use('/zcodes', require('./zcodes.routes'));
+externalV1Router.use('/invoices', require('./invoices.routes'));
 
 
 

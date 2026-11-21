@@ -1,8 +1,42 @@
 const crypto = require('crypto');
+const http = require('http');
+const https = require('https');
 const zlib = require('zlib');
+const { promisify } = require('util');
 const axios = require('axios');
 const BaseInvoiceAdapter = require('./BaseInvoiceAdapter');
 const logger = require('../../../core/utils/logger');
+
+const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
+
+// Shared Keep-Alive HTTP/HTTPS agents to avoid repeated TLS handshakes on batch BKAV calls
+const bkavHttpAgent = new http.Agent({ keepAlive: true, maxSockets: 10 });
+const bkavHttpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 });
+
+function summarizeBkavResponseForLog(resultJson) {
+  if (!resultJson || typeof resultJson !== 'object') return String(resultJson);
+  const status = resultJson.Status;
+  let objPreview = resultJson.Object;
+  if (typeof objPreview === 'string') {
+    // Avoid dumping megabytes of base64 PDF/XML into stdout logs
+    if (objPreview.length > 400) {
+      objPreview = `${objPreview.slice(0, 200)}... [truncated len=${objPreview.length}]`;
+    }
+  } else if (objPreview && typeof objPreview === 'object') {
+    const serialized = JSON.stringify(objPreview, (k, v) => {
+      if (typeof v === 'string' && v.length > 200 && /^(pdf|xml)$/i.test(k)) {
+        return `[BASE64 len=${v.length}]`;
+      }
+      return v;
+    });
+    objPreview =
+      serialized.length > 400
+        ? `${serialized.slice(0, 400)}... [truncated len=${serialized.length}]`
+        : serialized;
+  }
+  return JSON.stringify({ Status: status, Object: objPreview });
+}
 const {
   BKAV_CMD_TYPES,
   BKAV_PAY_METHOD_IDS,
@@ -489,6 +523,10 @@ class BkavAdapter extends BaseInvoiceAdapter {
         });
         if (!result.success) {
           lastError = result.error || lastError;
+          // Dừng sớm khi lỗi credential / giải mã thay vì tiếp tục gọi 2 lệnh fallback vô ích
+          if (lastError.includes('Không giải mã')) {
+            break;
+          }
           continue;
         }
         let data = result.data;
@@ -506,6 +544,15 @@ class BkavAdapter extends BaseInvoiceAdapter {
         }
       } catch (err) {
         lastError = err.message;
+        // Dừng sớm nếu timeout / lỗi mạng để tránh treo 3 × 30s = 90s
+        if (
+          ['ECONNABORTED', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND'].includes(
+            err.code,
+          ) ||
+          /timeout/i.test(err.message || '')
+        ) {
+          break;
+        }
       }
     }
     return { success: false, error: lastError };
@@ -778,8 +825,8 @@ class BkavAdapter extends BaseInvoiceAdapter {
     const jsonStr = JSON.stringify(commandData);
     logger.debug(`[BkavAdapter] CommandData: ${jsonStr.substring(0, 200)}...`);
 
-    // 2. Compress → GZip
-    const compressed = zlib.gzipSync(Buffer.from(jsonStr, 'utf-8'));
+    // 2. Compress → GZip (async so large payloads don't block the Node event loop)
+    const compressed = await gzipAsync(Buffer.from(jsonStr, 'utf-8'));
 
     // 3. Encrypt → AES-256-CBC
     const encrypted = this._encrypt(compressed);
@@ -787,7 +834,7 @@ class BkavAdapter extends BaseInvoiceAdapter {
     // 4. Base64 encode
     const base64Data = encrypted.toString('base64');
 
-    // 5. Send HTTP POST (JSON mode — endpoint + /ExecCommand)
+    // 5. Send HTTP POST (JSON mode — endpoint + /ExecCommand) with Keep-Alive agent
     const jsonEndpoint = this.endpoint.replace(/\/?$/, '/ExecCommand');
     const response = await axios.post(
       jsonEndpoint,
@@ -799,6 +846,8 @@ class BkavAdapter extends BaseInvoiceAdapter {
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         timeout: 30000,
         maxBodyLength: 10 * 1024 * 1024, // 10MB
+        httpAgent: bkavHttpAgent,
+        httpsAgent: bkavHttpsAgent,
       },
     );
 
@@ -828,12 +877,12 @@ class BkavAdapter extends BaseInvoiceAdapter {
       return { success: false, error: resultBase64 };
     }
 
-    // 8. Base64 decode → Decrypt → Decompress
+    // 8. Base64 decode → Decrypt → Decompress (async to prevent blocking event loop on 1-2MB PDFs)
     const resultBuffer = Buffer.from(resultBase64, 'base64');
     let resultJson;
     try {
       const decrypted = this._decrypt(resultBuffer);
-      const decompressed = zlib.gunzipSync(decrypted);
+      const decompressed = await gunzipAsync(decrypted);
       resultJson = JSON.parse(decompressed.toString('utf-8'));
     } catch (decryptErr) {
       logger.error(`[BkavAdapter] Decrypt failed: ${decryptErr.message}`);
@@ -847,7 +896,9 @@ class BkavAdapter extends BaseInvoiceAdapter {
       };
     }
 
-    logger.info(`[BkavAdapter] Response: ${JSON.stringify(resultJson)}`);
+    logger.info(
+      `[BkavAdapter] Response (CmdType=${commandData.CmdType}): ${summarizeBkavResponseForLog(resultJson)}`,
+    );
 
     // 9. Check BKAV status
     // BKAV trả về: { Status: 0 = success, Object: [...] } hoặc { Status: non-0, Object: "error message" }
@@ -951,6 +1002,56 @@ class BkavAdapter extends BaseInvoiceAdapter {
     return this.cmdType;
   }
 
+  /**
+   * Chuẩn hoá các trường người mua gửi sang BKAV theo loại người mua (company vs personal).
+   * - company (Doanh nghiệp / Tổ chức):
+   *   + BuyerUnitName: Tên đơn vị (nếu trống sẽ fallback sang name)
+   *   + BuyerName: Họ tên người mua hàng (có thể để trống)
+   *   + BuyerTaxCode: Mã số thuế (10/14 số)
+   * - personal (Cá nhân / Khách lẻ):
+   *   + BuyerUnitName: Luôn để trống '' (cá nhân không có Tên đơn vị)
+   *   + BuyerName: Họ và tên người mua
+   *   + CCCD: Số CCCD / Định danh cá nhân 12 số
+   *   + BuyerTaxCode: MST cá nhân (10/14 số) nếu có; nếu chỉ có CCCD 12 số thì ưu tiên gửi vào CCCD
+   */
+  _buildBkavBuyerFields(buyer = {}) {
+    const isPersonal = buyer?.type === 'personal';
+    const rawTaxCode = String(buyer?.taxCode || '').trim();
+    const rawCccd = String(buyer?.cccd || '').trim();
+    const rawName = String(buyer?.name || '').trim();
+    const rawUnitName = String(buyer?.unitName || '').trim();
+
+    if (isPersonal) {
+      const code = rawCccd || rawTaxCode;
+      const is12DigitCccd = /^\d{12}$/.test(code);
+      return {
+        BuyerCode: buyer?.code || '',
+        BuyerName: rawName || rawUnitName || '',
+        BuyerUnitName: '',
+        BuyerTaxCode: is12DigitCccd ? rawTaxCode : code,
+        CCCD: is12DigitCccd ? code : rawCccd,
+        BuyerAddress: buyer?.address || '',
+        BuyerBankAccount: buyer?.bankAccount || '',
+        BuyerEmail: buyer?.email || '',
+        BuyerPhone: buyer?.phone || '',
+      };
+    }
+
+    // Doanh nghiệp / Tổ chức (company)
+    const isTaxCode12DigitCccd = /^\d{12}$/.test(rawTaxCode);
+    return {
+      BuyerCode: buyer?.code || '',
+      BuyerName: rawName,
+      BuyerUnitName: rawUnitName || rawName,
+      BuyerTaxCode: rawTaxCode,
+      CCCD: rawCccd || (isTaxCode12DigitCccd ? rawTaxCode : ''),
+      BuyerAddress: buyer?.address || '',
+      BuyerBankAccount: buyer?.bankAccount || '',
+      BuyerEmail: buyer?.email || '',
+      BuyerPhone: buyer?.phone || '',
+    };
+  }
+
   _formatOriginalIdentify(identify) {
     if (!identify) return '';
     // Format expected: [Mẫu số]_[Ký hiệu]_[Số HĐ]
@@ -1014,19 +1115,17 @@ class BkavAdapter extends BaseInvoiceAdapter {
         // SellerTaxCode: MST người bán (optional, maxLength=14)
         // Ref: ListInvoice_EN.xml, Invoice-Schema.xsd
         SellerTaxCode: this.config.sellerTaxCode || '',
-        BuyerCode: invoice.buyer?.code || '',
-        BuyerName: invoice.buyer?.name || '',
-        BuyerTaxCode: invoice.buyer?.taxCode || '',
-        BuyerUnitName: invoice.buyer?.unitName || '',
-        BuyerAddress: invoice.buyer?.address || '',
-        BuyerBankAccount: invoice.buyer?.bankAccount || '',
-        BuyerEmail: invoice.buyer?.email || '',
-        BuyerPhone: invoice.buyer?.phone || '',
+        // ─── Buyer fields chuẩn NĐ 123/2020/NĐ-CP & NĐ 70/2025/NĐ-CP ──────
+        // - Doanh nghiệp (company): BuyerUnitName là bắt buộc (Tên đơn vị), BuyerName là người mua hàng (tùy chọn).
+        // - Cá nhân (personal): Không gửi BuyerUnitName (để trống), BuyerName là họ tên người mua.
+        // - Nếu MST hoặc CCCD là 12 chữ số (Số định danh cá nhân): điền vào trường CCCD (và BuyerTaxCode nếu user nhập ở ô MST).
+        ...this._buildBkavBuyerFields(invoice.buyer),
         ReceiveTypeID: this.receiveTypeId,
         ReceiverEmail: invoice.buyer?.email || '',
         ReceiverMobile: invoice.buyer?.phone || '',
         ReceiverAddress: invoice.buyer?.address || '',
-        ReceiverName: invoice.buyer?.name || '',
+        ReceiverName:
+          invoice.buyer?.name || invoice.buyer?.unitName || '',
         Note: invoice.note || '',
         BillCode: invoice.billCode || '',
         CurrencyID: invoice.currency || 'VND',
@@ -1041,7 +1140,6 @@ class BkavAdapter extends BaseInvoiceAdapter {
 
         // ─── Fields đặc biệt ────────────────────────────────────────────
         MaCuaCQT: invoice.maCuaCQT || '',
-        CCCD: invoice.buyer?.cccd || '',
 
         // ─── Thông tin liên kết khi HĐ thay thế / điều chỉnh ─────────
         OriginalInvoiceIdentify: this._formatOriginalIdentify(

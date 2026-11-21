@@ -5,6 +5,9 @@ const { RESOURCES } = require('../../core/constants/rbac');
 const BkavAdapter = require('./adapters/BkavAdapter');
 const logger = require('../../core/utils/logger');
 const {
+  saveExternalInvoiceIdempotency,
+} = require('../../core/middleware/externalInvoiceAuth');
+const {
   createInvoiceSchema,
   updateInvoiceSchema,
   replaceAdjustInvoiceSchema,
@@ -45,60 +48,11 @@ class InvoiceController {
   }
 
   async lookupTaxCode(req, res) {
-    const { code } = req.query;
-    if (!code || code.length < 10) {
-      throw createHttpError(400, 'Mã số thuế phải có ít nhất 10 ký tự');
+    const result = await invoiceService.lookupTaxInfo(req.query.code);
+    if (result) {
+      return sendSuccess(res, 200, 'Tra cứu thông tin MST/CCCD thành công', result);
     }
-
-    try {
-      // 1. Lấy cấu hình BKAV mặc định hoặc provider đầu tiên (vì lookupTaxCode không cần auth theo user, nhưng cần config BKAV)
-      // Pass mask = false to get the real credentials for BKAV
-      const providers = await invoiceService.getProviders({}, false);
-      const bkavProvider = providers.find(
-        (p) => p.providerType === 'bkav' && p.isActive,
-      );
-
-      if (bkavProvider && bkavProvider.bkav && bkavProvider.bkav.partnerGUID) {
-        const adapter = new BkavAdapter(bkavProvider);
-        const bkavRes = await adapter.lookupTaxCode(code);
-
-        if (bkavRes.success && bkavRes.data) {
-          const d = bkavRes.data;
-          return sendSuccess(res, 200, 'Tra cứu MST qua BKAV thành công', {
-            name: d.TenChinhThuc || d.tenChinhThuc || '',
-            shortName: '',
-            address:
-              d.DiaChiGiaoDichChinh ||
-              d.diaChiGiaoDichChinh ||
-              d.DiaChiGiaoDichPhu ||
-              '',
-            taxCode: d.MaSoThue || d.maSoThue || code,
-            owner: d.ChuDoanhNghiep || d.chuDoanhNghiep || '',
-            status: d.TrangThaiHoatDong || d.trangThaiHoatDong || '',
-          });
-        }
-      }
-
-      // 2. Fallback to VietQR API if BKAV fails or not configured
-      const response = await fetch(`https://api.vietqr.io/v2/business/${code}`);
-      const data = await response.json();
-
-      if (data.code === '00' && data.data) {
-        return sendSuccess(res, 200, 'Tra cứu MST qua VietQR thành công', {
-          name: data.data.name || '',
-          shortName: data.data.shortName || '',
-          address: data.data.address || '',
-          taxCode: code,
-          owner: '',
-          status: '',
-        });
-      }
-
-      return sendSuccess(res, 200, 'Không tìm thấy thông tin MST', null);
-    } catch (err) {
-      logger.error('Lookup tax code error:', err);
-      return sendSuccess(res, 200, 'Không thể tra cứu MST', null);
-    }
+    return sendSuccess(res, 200, 'Không tìm thấy thông tin MST/CCCD', null);
   }
 
   async createInvoice(req, res) {
@@ -178,15 +132,29 @@ class InvoiceController {
       req,
     });
 
-    return sendSuccess(res, 200, 'Đồng bộ dữ liệu từ nhà cung cấp thành công', invoice);
+    return sendSuccess(
+      res,
+      200,
+      'Đồng bộ dữ liệu từ nhà cung cấp thành công',
+      invoice,
+    );
   }
 
   async downloadInvoice(req, res) {
     const format = req.query.format === 'xml' ? 'xml' : 'pdf';
     const disposition = req.query.inline === 'true' ? 'inline' : 'attachment';
-    const file = await invoiceService.downloadInvoiceFile(req.params.id, format);
-    res.setHeader('Content-Type', format === 'xml' ? 'application/xml' : 'application/pdf');
-    res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.filename)}"`);
+    const file = await invoiceService.downloadInvoiceFile(
+      req.params.id,
+      format,
+    );
+    res.setHeader(
+      'Content-Type',
+      format === 'xml' ? 'application/xml' : 'application/pdf',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename="${encodeURIComponent(file.filename)}"`,
+    );
     return res.send(file.buffer);
   }
 
@@ -243,7 +211,6 @@ class InvoiceController {
 
     return sendSuccess(res, 200, 'Hoàn tất phát hành hàng loạt', result);
   }
-
 
   async retryInvoice(req, res) {
     const invoice = await invoiceService.retryInvoice(req.params.id);
@@ -539,7 +506,10 @@ class InvoiceController {
   }
 
   async deleteProduct(req, res) {
-    const result = await invoiceService.deleteProduct(req.params.id, req.user?.id);
+    const result = await invoiceService.deleteProduct(
+      req.params.id,
+      req.user?.id,
+    );
 
     SystemLogService.log({
       action: 'delete',
@@ -551,6 +521,157 @@ class InvoiceController {
     });
 
     return sendSuccess(res, 200, 'Xoá sản phẩm thành công', result);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public Customer Lookup Endpoints (No Auth — For Customer Shareable URL)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getPublicInvoiceByCode(req, res) {
+    const data = await invoiceService.getPublicInvoiceByCode(req.params.code);
+    return sendSuccess(res, 200, 'Tra cứu hoá đơn thành công', data);
+  }
+
+  async downloadPublicInvoiceByCode(req, res) {
+    const format = req.query.format === 'xml' ? 'xml' : 'pdf';
+    const disposition = req.query.inline === 'true' ? 'inline' : 'attachment';
+    const file = await invoiceService.downloadPublicInvoiceFile(
+      req.params.code,
+      format,
+    );
+    res.setHeader(
+      'Content-Type',
+      format === 'xml' ? 'application/xml' : 'application/pdf',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename="${encodeURIComponent(file.filename)}"`,
+    );
+    return res.send(file.buffer);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // External API Endpoints (Key.vn / ZCode & 3rd-party Integrations)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getExternalTemplate(req, res) {
+    const template = await invoiceService.getExternalInvoiceTemplate();
+    return sendSuccess(
+      res,
+      200,
+      'Lấy template tạo hoá đơn bên thứ 3 thành công',
+      template,
+    );
+  }
+
+  async getExternalProducts(req, res) {
+    const products = await invoiceService.getExternalProducts();
+    return sendSuccess(
+      res,
+      200,
+      'Lấy danh mục sản phẩm hoá đơn thành công',
+      products,
+    );
+  }
+
+  async getExternalInvoiceByRef(req, res) {
+    const caller = req.externalCaller || 'external_api';
+    const invoice = await invoiceService.getExternalInvoiceByRef(
+      req.params.id,
+      caller,
+    );
+    return sendSuccess(res, 200, 'Tra cứu hoá đơn thành công', invoice);
+  }
+
+  async createExternalInvoices(req, res) {
+    const caller = req.externalCaller || 'external_api';
+    const result = await invoiceService.createExternalInvoices(req.body, {
+      caller,
+      createdBy: `external:${caller}`,
+    });
+
+    if (result.isBatch) {
+      const responseData = {
+        total: result.total,
+        successCount: result.successCount,
+        failCount: result.failCount,
+        duplicateCount: result.duplicateCount,
+        results: result.results,
+      };
+      const message = `Xử lý xong ${result.total} hoá đơn (thành công: ${result.successCount}, thất bại: ${result.failCount})`;
+
+      SystemLogService.log({
+        action: 'create',
+        resource: RESOURCES.INVOICES,
+        resourceId: 'external-batch',
+        resourceName: `External Batch (${caller}) — ${result.total} hoá đơn`,
+        description: `Hệ thống ngoài (${caller}) gửi tạo ${result.total} hoá đơn (thành công: ${result.successCount}, thất bại: ${result.failCount})`,
+        metadata: {
+          caller,
+          total: result.total,
+          successCount: result.successCount,
+          failCount: result.failCount,
+          duplicateCount: result.duplicateCount,
+        },
+        req,
+      });
+
+      const responseBody = {
+        statusCode: 200,
+        message,
+        data: responseData,
+      };
+      await saveExternalInvoiceIdempotency(
+        req.externalInvoiceIdempotencyKey,
+        200,
+        responseBody,
+        req,
+      );
+
+      return sendSuccess(res, 200, message, responseData);
+    }
+
+    // Single invoice mode
+    const statusCode = result.duplicate ? 200 : 201;
+    const message = result.duplicate
+      ? 'Hoá đơn đã tồn tại cho mã chứng từ này (idempotent)'
+      : 'Tạo hoá đơn thành công';
+
+    if (!result.duplicate && result.invoice) {
+      SystemLogService.log({
+        action: 'create',
+        resource: RESOURCES.INVOICES,
+        resourceId: result.invoice.id,
+        resourceName: `Hoá đơn ${result.invoice.id} (${caller})`,
+        description: `Hệ thống ngoài (${caller}) tạo hoá đơn ${result.invoice.id} cho ${result.invoice.buyer?.name || 'N/A'}`,
+        metadata: {
+          caller,
+          invoiceId: result.invoice.id,
+          status: result.invoice.status,
+          billCode: result.invoice.billCode,
+          sourceId: result.invoice.sourceId,
+        },
+        req,
+      });
+    }
+
+    const responseData = {
+      ...result.invoice,
+      duplicate: result.duplicate,
+    };
+    const responseBody = {
+      statusCode,
+      message,
+      data: responseData,
+    };
+    await saveExternalInvoiceIdempotency(
+      req.externalInvoiceIdempotencyKey,
+      statusCode,
+      responseBody,
+      req,
+    );
+
+    return sendSuccess(res, statusCode, message, responseData);
   }
 }
 

@@ -42,7 +42,9 @@ cp .env.example .env
 | ---------------------------------- | --------------------------- | --------------------- | -------------------------- |
 | `PORT`                             | `4000`                      | `4000`                | Có thể đổi theo infra      |
 | `MONGO_URI`                        | `mongodb://...`             | `mongodb://...`       | **Bắt buộc**               |
-| `CLIENT_URL`                       | URL frontend UAT            | URL frontend PROD     | CORS whitelist             |
+| `CLIENT_URL`                       | URL frontend UAT            | URL frontend PROD     | CORS whitelist (nhiều origin hoặc `*`) |
+| `PUBLIC_APP_URL`                   | `https://uat.domain.vn`     | `https://final.vn`    | URL công khai chính thức (link gửi KH, tra cứu HĐ) |
+| `INVOICE_PUBLIC_URL`               | *(tuỳ chọn)*                | *(tuỳ chọn)*          | Override domain riêng cho trang tra cứu hoá đơn |
 | `ACCESS_TOKEN_TTL_MINUTES`         | `15`                        | `15`                  |                            |
 | `REFRESH_TOKEN_TTL_DAYS`           | `30`                        | `30`                  |                            |
 | `PASSWORD_RESET_TOKEN_TTL_MINUTES` | `30`                        | `30`                  |                            |

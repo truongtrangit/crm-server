@@ -910,6 +910,23 @@ describe('BkavAdapter — Extended (offline)', () => {
       expect(res.success).toBe(false);
       expect(res.error).toContain('Không giải mã được response từ BKAV');
     });
+
+    test('download dừng sớm khi gặp lỗi timeout mạng (không gọi lặp 3 lần thành 90s)', async () => {
+      const adapter = makeAdapter();
+      const timeoutErr = Object.assign(new Error('timeout of 30000ms exceeded'), {
+        code: 'ECONNABORTED',
+      });
+      const execSpy = jest
+        .spyOn(adapter, '_execCommand')
+        .mockRejectedValue(timeoutErr);
+
+      const res = await adapter.download(
+        { id: 'INV-1', lookupCode: 'MTC1', providerInvoiceGUID: 'guid-1' },
+        'pdf',
+      );
+      expect(res.success).toBe(false);
+      expect(execSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ───────────────────────────────────────────────────────────────────────────

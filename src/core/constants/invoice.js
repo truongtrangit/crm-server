@@ -147,6 +147,28 @@ const INVOICE_RELATION_TYPES = Object.freeze({
 const INVOICE_SOURCE_MODULES = Object.freeze({
   COURSE_CREDIT: 'course_credit', // Nạp credit khóa học
   DIRECT_SALE: 'direct_sale', // Bán hàng trực tiếp / Tạo thủ công
+  ZCODE: 'zcode', // Key.vn / ZCode tự động gọi API
+  EXTERNAL_API: 'external_api', // Hệ thống bên thứ 3 khác
+});
+
+// Ánh xạ alias loại dòng hàng hoá thân thiện cho API bên thứ 3 → ItemTypeID chuẩn CRM/BKAV
+const INVOICE_ITEM_TYPE_ALIASES = Object.freeze({
+  goods: 0, // Hàng hoá / dịch vụ thông thường
+  note: 4, // Ghi chú (không tính tiền, không tính thuế)
+  promotion: 15, // Hàng khuyến mãi (đơn giá = 0, thành tiền = 0, thuế = 0)
+  vehicle: 21, // Xe ô tô / mô tô (cần userDefineDetails: SKhung, SMay)
+  discount: 30, // Chiết khấu thương mại (giảm trừ tiền hàng trước thuế, thuế = 0)
+});
+
+// Map trực tiếp từ TaxRate (%) → BKAV TaxRateID
+const BKAV_TAX_RATE_TO_ID = Object.freeze({
+  0: BKAV_TAX_RATE_IDS.TAX_0,
+  5: BKAV_TAX_RATE_IDS.TAX_5,
+  8: BKAV_TAX_RATE_IDS.TAX_8,
+  10: BKAV_TAX_RATE_IDS.TAX_10,
+  [-1]: BKAV_TAX_RATE_IDS.TAX_KCT,
+  [-2]: BKAV_TAX_RATE_IDS.TAX_KKK,
+  [-4]: BKAV_TAX_RATE_IDS.TAX_OTHER,
 });
 
 // Default max invoices per BKAV request
@@ -159,9 +181,11 @@ module.exports = {
   BKAV_INVOICE_TYPES,
   BKAV_CMD_TYPES,
   BKAV_TAX_RATE_IDS,
+  BKAV_TAX_RATE_TO_ID,
   BKAV_PAY_METHOD_IDS,
   BKAV_RECEIVE_TYPES,
   INVOICE_RELATION_TYPES,
   INVOICE_SOURCE_MODULES,
+  INVOICE_ITEM_TYPE_ALIASES,
   BKAV_MAX_INVOICES_PER_REQUEST,
 };
